@@ -33,7 +33,7 @@ services:
       redis:
         condition: service_healthy
       mailpit:
-        condition: service_started
+        condition: service_healthy
     networks:
       - testlig
 
@@ -60,8 +60,10 @@ services:
   mailpit:
     image: axllent/mailpit:v1.27
     container_name: testlig_mailpit
+    # UI only on localhost (SMTP stays on the Docker network as mailpit:1025).
     ports:
-      - "${MAILPIT_UI_PORT:-8025}:8025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    # Image ships with `mailpit readyz` HEALTHCHECK.
     networks:
       - testlig
 

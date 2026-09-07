@@ -15,9 +15,9 @@
             <nav class="nav-links" aria-label="Ana menü">
                 {% if app.user %}
                     <a href="{{ path('app_account') }}">Hesabım</a>
-                    <a href="{{ path('app_logout') }}" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Çıkış</a>
-                    <form id="logout-form" method="post" action="{{ path('app_logout') }}" class="visually-hidden" hidden>
+                    <form method="post" action="{{ path('app_logout') }}" class="logout-form">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                        <button type="submit" class="linkish">Çıkış</button>
                     </form>
                 {% else %}
                     <a href="{{ path('app_login') }}">Giriş</a>

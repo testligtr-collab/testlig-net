@@ -8,6 +8,7 @@
     <p class="muted">Bu aşamada yalnızca bireysel öğrenci kaydı açıktır. Kayıt sonrası e-posta doğrulaması gerekir.</p>
 
     {{ form_start(registrationForm, {attr: {novalidate: 'novalidate'}}) }}
+        {{ form_errors(registrationForm) }}
         <div class="form-row">
             {{ form_label(registrationForm.firstName) }}
             {{ form_widget(registrationForm.firstName) }}

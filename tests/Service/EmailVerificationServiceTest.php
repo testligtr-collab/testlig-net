@@ -8,7 +8,9 @@ use App\Entity\User;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Exception\EmailVerificationException;
+use App\Repository\UserRepository;
 use App\Service\EmailVerificationService;
+use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -29,12 +31,24 @@ final class EmailVerificationServiceTest extends KernelTestCase
 
         self::assertSame(UserStatus::Active, $verified->getStatus());
         self::assertNotNull($verified->getEmailVerifiedAt());
-
-        $again = $service->verifyFromRequest($request, $user->getId());
-        self::assertSame(UserStatus::Active, $again->getStatus());
     }
 
-    public function testTamperedSignatureIsRejected(): void
+    public function testActiveUserValidReplayIsIdempotent(): void
+    {
+        self::bootKernel();
+        $user = $this->createPendingUser('verify-replay@example.com');
+        $request = $this->signedRequestFor($user);
+
+        /** @var EmailVerificationService $service */
+        $service = static::getContainer()->get(EmailVerificationService::class);
+        $service->verifyFromRequest($request, $user->getId());
+        $again = $service->verifyFromRequest($request, $user->getId());
+
+        self::assertSame(UserStatus::Active, $again->getStatus());
+        self::assertNotNull($again->getEmailVerifiedAt());
+    }
+
+    public function testTamperedSignatureIsRejectedForPendingUser(): void
     {
         self::bootKernel();
         $user = $this->createPendingUser('verify-bad@example.com');
@@ -45,6 +59,31 @@ final class EmailVerificationServiceTest extends KernelTestCase
         $service = static::getContainer()->get(EmailVerificationService::class);
         $this->expectException(EmailVerificationException::class);
         $service->verifyFromRequest($tampered, $user->getId());
+    }
+
+    public function testTamperedSignatureIsRejectedForActiveUser(): void
+    {
+        self::bootKernel();
+        $user = $this->createActiveUser('verify-active-tamper@example.com');
+        $request = $this->signedRequestFor($user);
+        $tampered = Request::create($request->getUri().'x');
+
+        /** @var EmailVerificationService $service */
+        $service = static::getContainer()->get(EmailVerificationService::class);
+        $this->expectException(EmailVerificationException::class);
+        $service->verifyFromRequest($tampered, $user->getId());
+    }
+
+    public function testExpiredSignatureIsRejectedWithoutSleep(): void
+    {
+        self::bootKernel();
+        $user = $this->createPendingUser('verify-expired@example.com');
+        $request = $this->expiredSignedRequestFor($user);
+
+        /** @var EmailVerificationService $service */
+        $service = static::getContainer()->get(EmailVerificationService::class);
+        $this->expectException(EmailVerificationException::class);
+        $service->verifyFromRequest($request, $user->getId());
     }
 
     public function testSignatureCannotBeUsedForAnotherUser(): void
@@ -60,12 +99,75 @@ final class EmailVerificationServiceTest extends KernelTestCase
         $service->verifyFromRequest($request, $userB->getId());
     }
 
+    public function testSuspendedUserCannotBeActivatedEvenWithValidSignature(): void
+    {
+        self::bootKernel();
+        $user = $this->createUserWithStatus('verify-suspended@example.com', UserStatus::Suspended);
+        $request = $this->signedRequestFor($user);
+
+        /** @var EmailVerificationService $service */
+        $service = static::getContainer()->get(EmailVerificationService::class);
+        try {
+            $service->verifyFromRequest($request, $user->getId());
+            self::fail('Expected EmailVerificationException');
+        } catch (EmailVerificationException) {
+        }
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $reloaded = $users->findOneById($user->getId());
+        self::assertInstanceOf(User::class, $reloaded);
+        self::assertSame(UserStatus::Suspended, $reloaded->getStatus());
+    }
+
+    public function testArchivedUserCannotBeActivatedEvenWithValidSignature(): void
+    {
+        self::bootKernel();
+        $user = $this->createUserWithStatus('verify-archived@example.com', UserStatus::Archived);
+        $request = $this->signedRequestFor($user);
+
+        /** @var EmailVerificationService $service */
+        $service = static::getContainer()->get(EmailVerificationService::class);
+        try {
+            $service->verifyFromRequest($request, $user->getId());
+            self::fail('Expected EmailVerificationException');
+        } catch (EmailVerificationException) {
+        }
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $reloaded = $users->findOneById($user->getId());
+        self::assertInstanceOf(User::class, $reloaded);
+        self::assertSame(UserStatus::Archived, $reloaded->getStatus());
+    }
+
     private function createPendingUser(string $email): User
     {
         /** @var UserFactory $factory */
         $factory = static::getContainer()->get(UserFactory::class);
 
         return $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Verify', 'User', UserRole::Student);
+    }
+
+    private function createActiveUser(string $email): User
+    {
+        $user = $this->createPendingUser($email);
+        /** @var UserAccountLifecycle $lifecycle */
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $lifecycle->markEmailVerifiedAndActivate($user);
+
+        return $user;
+    }
+
+    private function createUserWithStatus(string $email, UserStatus $status): User
+    {
+        $user = $this->createActiveUser($email);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user->transitionTo($status);
+        $users->save($user);
+
+        return $user;
     }
 
     private function signedRequestFor(User $user): Request
@@ -80,6 +182,24 @@ final class EmailVerificationServiceTest extends KernelTestCase
         );
 
         return Request::create($signature->getSignedUrl());
+    }
+
+    /**
+     * Lifetime 0 makes expires <= time() immediately (no sleep).
+     */
+    private function expiredSignedRequestFor(User $user): Request
+    {
+        /** @var VerifyEmailHelperInterface $helper */
+        $helper = static::getContainer()->get(VerifyEmailHelperInterface::class);
+        $lifetime = new \ReflectionProperty($helper, 'lifetime');
+        $original = $lifetime->getValue($helper);
+        $lifetime->setValue($helper, 0);
+
+        try {
+            return $this->signedRequestFor($user);
+        } finally {
+            $lifetime->setValue($helper, $original);
+        }
     }
 
     protected function tearDown(): void

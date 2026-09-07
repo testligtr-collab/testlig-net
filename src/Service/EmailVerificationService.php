@@ -16,6 +16,9 @@ use SymfonyCasts\Bundle\VerifyEmail\VerifyEmailHelperInterface;
 
 /**
  * Activates accounts after signed verify-email links are validated.
+ *
+ * Signature (user id, email, expiry) is always checked before any success path,
+ * including idempotent re-visits by already-active accounts.
  */
 final class EmailVerificationService
 {
@@ -33,14 +36,6 @@ final class EmailVerificationService
             throw EmailVerificationException::invalid();
         }
 
-        if (UserStatus::Active === $user->getStatus() && null !== $user->getEmailVerifiedAt()) {
-            return $user;
-        }
-
-        if (UserStatus::PendingVerification !== $user->getStatus()) {
-            throw EmailVerificationException::invalid();
-        }
-
         try {
             $this->verifyEmailHelper->validateEmailConfirmationFromRequest(
                 $request,
@@ -51,9 +46,27 @@ final class EmailVerificationService
             throw EmailVerificationException::invalid();
         }
 
+        return match ($user->getStatus()) {
+            UserStatus::PendingVerification => $this->activatePending($user),
+            UserStatus::Active => $this->idempotentActive($user),
+            UserStatus::Suspended, UserStatus::Archived => throw EmailVerificationException::invalid(),
+        };
+    }
+
+    private function activatePending(User $user): User
+    {
         try {
             $this->accountLifecycle->markEmailVerifiedAndActivate($user);
         } catch (InvalidUserTransitionException) {
+            throw EmailVerificationException::invalid();
+        }
+
+        return $user;
+    }
+
+    private function idempotentActive(User $user): User
+    {
+        if (null === $user->getEmailVerifiedAt()) {
             throw EmailVerificationException::invalid();
         }
 

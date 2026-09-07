@@ -149,16 +149,60 @@ final class RegistrationControllerTest extends WebTestCase
         $values['registration_form']['roles'] = ['ROLE_ADMIN'];
         $values['registration_form']['status'] = 'active';
         $values['registration_form']['globalRoles'] = ['ROLE_SUPER_ADMIN'];
+        $values['registration_form']['emailVerifiedAt'] = '2020-01-01T00:00:00+00:00';
         $client->request('POST', '/kayit', $values);
 
-        self::assertResponseRedirects('/kayit/eposta-kontrol');
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'ekstra alan');
+
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
-        $user = $users->findOneByNormalizedEmail('inject@example.com');
+        self::assertNull($users->findOneByNormalizedEmail('inject@example.com'));
+        self::assertEmailCount(0);
+    }
+
+    public function testMailerTransportFailureStillRedirectsWithoutHttp500(): void
+    {
+        $client = static::createClient();
+
+        $failingSender = new class implements \App\Service\EmailVerificationSenderInterface {
+            public function sendVerificationEmail(User $user): void
+            {
+                throw new \Symfony\Component\Mailer\Exception\TransportException('SMTP unavailable');
+            }
+
+            public function requestResend(string $email): void
+            {
+            }
+        };
+        static::getContainer()->set(\App\Service\EmailVerificationSenderInterface::class, $failingSender);
+
+        $crawler = $client->request('GET', '/kayit');
+        $form = $crawler->selectButton('Kayıt ol')->form([
+            'registration_form[firstName]' => 'Mail',
+            'registration_form[lastName]' => 'Fail',
+            'registration_form[email]' => 'mail-fail@example.com',
+            'registration_form[plainPassword][first]' => 'Guclu-Parola-123!',
+            'registration_form[plainPassword][second]' => 'Guclu-Parola-123!',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $client->submit($form);
+
+        self::assertResponseRedirects('/kayit/eposta-kontrol');
+        self::assertResponseStatusCodeSame(302);
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user = $users->findOneByNormalizedEmail('mail-fail@example.com');
         self::assertInstanceOf(User::class, $user);
         self::assertSame(UserStatus::PendingVerification, $user->getStatus());
-        self::assertNotContains(UserRole::Admin->value, $user->getRoles());
-        self::assertContains(UserRole::Student->value, $user->getRoles());
+        self::assertNull($user->getEmailVerifiedAt());
+
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'E-postanı kontrol et');
+        self::assertSelectorNotExists('body:contains("SMTP")');
+        self::assertSelectorNotExists('body:contains("unavailable")');
     }
 
     private function registerViaService(string $email, string $password): User

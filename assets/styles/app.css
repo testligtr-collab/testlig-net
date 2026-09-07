@@ -44,6 +44,27 @@ a {
     background: #dceaf3;
 }
 
+.logout-form {
+    display: inline;
+    margin: 0;
+}
+
+.logout-form .linkish {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: #0b6e99;
+    cursor: pointer;
+    font: inherit;
+    padding: 0.35rem 0.7rem;
+    border-radius: 0.4rem;
+}
+
+.logout-form .linkish:hover,
+.logout-form .linkish:focus-visible {
+    background: #dceaf3;
+}
+
 .page {
     width: min(32rem, calc(100% - 2rem));
     margin: 2rem auto;

@@ -1,3 +1,4 @@
-Invalid credentials.: 'E-posta veya parola hatalı.'
+Invalid credentials.: 'Giriş bilgileri hatalı veya hesap şu anda kullanılamıyor.'
 'Invalid CSRF token.': 'Oturum doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin.'
 'Too many failed login attempts, please try again later.': 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.'
+Giriş bilgileri hatalı veya hesap şu anda kullanılamıyor.: 'Giriş bilgileri hatalı veya hesap şu anda kullanılamıyor.'

@@ -75,7 +75,7 @@ final class RegistrationFormType extends AbstractType
             'data_class' => RegistrationRequest::class,
             'csrf_protection' => true,
             'csrf_token_id' => 'registration',
-            'allow_extra_fields' => true,
+            'allow_extra_fields' => false,
         ]);
     }
 }

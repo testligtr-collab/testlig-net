@@ -25,8 +25,8 @@
 - **Domain üyelikleri ayrı:** Kurum, sınıf, öğretmen/öğrenci bağlantıları global rol dizisine konmaz; sonraki aşamalarda ayrı membership modelleriyle tutulur.
 - **Durumlar (`UserStatus`):** `pending_verification` (varsayılan), `active`, `suspended`, `archived`. Yalnızca `active` kimlik doğrulamaya uygun kabul edilir (`UserChecker`); `archived` fiziksel silme değildir.
 - **Public kayıt (Aşama 2.2):** Yalnızca bireysel öğrenci self-serve kaydı. Sunucu tarafında sabit `ROLE_STUDENT`. Form `RegistrationRequest` DTO’suna bağlanır; User entity’ye mass-assign yok. Başarılı kayıtta otomatik login yok; e-posta doğrulaması gerekir.
-- **E-posta doğrulama:** SymfonyCasts VerifyEmailBundle imzalı URL (DB’de plain token yok). Süre `VERIFY_EMAIL_LIFETIME`. Aktivasyon `UserAccountLifecycle` üzerinden `pending_verification` → `active`.
-- **Giriş/çıkış:** `/giris`, `/cikis`; normalized email; login throttling; logout CSRF; güvenli yerel redirect. `lastLoginAt` `LoginSuccessListener` ile güncellenir (yazma hatası girişi bozmaz).
+- **E-posta doğrulama:** SymfonyCasts VerifyEmailBundle imzalı URL (DB’de plain token yok). Süre `VERIFY_EMAIL_LIFETIME`. İmza her zaman (active replay dahil) doğrulanır; suspended/archived aktive edilmez. Aktivasyon `UserAccountLifecycle` üzerinden `pending_verification` → `active`.
+- **Giriş/çıkış:** `/giris`; çıkış yalnızca `POST /cikis` + CSRF. Normalized email; login throttling; tüm hesap durumu/kimlik hataları için generic mesaj (enumeration yok). Güvenli yerel redirect. `lastLoginAt` `LoginSuccessListener` ile güncellenir (yazma hatası girişi bozmaz). Kayıt sonrası mailer transport hatası 500 üretmez; hesap `pending_verification` kalır, resend kullanılabilir.
 - **E-posta:** Giriş kimliği `normalizedEmail` (trim + lowercase). Görünen `email` trim edilmiş biçimi saklar; unique constraint normalized alan üzerindedir.
 - **Parola:** `password_hashers: auto`; PasswordStrength (+ prod/dev’de NotCompromisedPassword); Serializer `#[Ignore]`.
 - **Kontrollü yazma:** Hesap oluşturma `UserFactory` / `RegistrationService`; roller `UserGlobalRoleManager`. Controller’lar entity mutasyonlarını doğrudan çağırmamalıdır.

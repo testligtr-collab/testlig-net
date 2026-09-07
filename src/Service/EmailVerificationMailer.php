@@ -18,7 +18,7 @@ use SymfonyCasts\Bundle\VerifyEmail\VerifyEmailHelperInterface;
 /**
  * Sends signed verification messages. Never logs the signed URL.
  */
-final class EmailVerificationMailer
+final class EmailVerificationMailer implements EmailVerificationSenderInterface
 {
     public function __construct(
         private readonly VerifyEmailHelperInterface $verifyEmailHelper,

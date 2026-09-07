@@ -25,7 +25,7 @@ final class SecurityController extends AbstractController
         ]);
     }
 
-    #[Route('/cikis', name: 'app_logout', methods: ['GET', 'POST'])]
+    #[Route('/cikis', name: 'app_logout', methods: ['POST'])]
     public function logout(): never
     {
         throw new \LogicException('Logout is handled by the security firewall.');

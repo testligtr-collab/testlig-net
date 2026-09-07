@@ -8,7 +8,7 @@ use App\Dto\RegistrationRequest;
 use App\Exception\RegistrationFailedException;
 use App\Form\RegistrationFormType;
 use App\Form\ResendVerificationFormType;
-use App\Service\EmailVerificationMailer;
+use App\Service\EmailVerificationSenderInterface;
 use App\Service\RegistrationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -63,7 +63,7 @@ final class RegistrationController extends AbstractController
     #[Route('/kayit/dogrulama-yeniden', name: 'app_resend_verification', methods: ['GET', 'POST'])]
     public function resendVerification(
         Request $request,
-        EmailVerificationMailer $mailer,
+        EmailVerificationSenderInterface $mailer,
         #[Autowire(service: 'limiter.email_verification_resend')]
         RateLimiterFactory $emailVerificationResendLimiter,
     ): Response {

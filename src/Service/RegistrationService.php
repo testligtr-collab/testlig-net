@@ -11,6 +11,7 @@ use App\Exception\DuplicateEmailException;
 use App\Exception\RegistrationFailedException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**
  * Public student self-registration. Always assigns ROLE_STUDENT server-side.
@@ -19,7 +20,7 @@ final class RegistrationService
 {
     public function __construct(
         private readonly UserFactory $userFactory,
-        private readonly EmailVerificationMailer $verificationMailer,
+        private readonly EmailVerificationSenderInterface $verificationMailer,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -43,7 +44,15 @@ final class RegistrationService
             throw RegistrationFailedException::duplicateEmail();
         }
 
-        $this->verificationMailer->sendVerificationEmail($user);
+        try {
+            $this->verificationMailer->sendVerificationEmail($user);
+        } catch (TransportExceptionInterface $exception) {
+            // Account remains pending_verification; user can use the resend flow.
+            $this->logger->error('Verification email transport failed after registration.', [
+                'user_id' => $user->getId()->toRfc4122(),
+                'exception_class' => $exception::class,
+            ]);
+        }
 
         return $user;
     }
