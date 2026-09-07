@@ -47,6 +47,7 @@ jobs:
     env:
       APP_ENV: test
       APP_SECRET: ci_test_secret_not_for_production
+      # Base name is "testlig"; doctrine dbname_suffix "_test" → testlig_test
       DATABASE_URL: "mysql://testlig:testlig_ci@127.0.0.1:3306/testlig?serverVersion=10.11.10-MariaDB&charset=utf8mb4"
       REDIS_URL: redis://127.0.0.1:6379
       MESSENGER_TRANSPORT_DSN: sync://
@@ -98,8 +99,29 @@ jobs:
           APP_ENV: test
         run: php bin/console lint:container --no-interaction
 
-      - name: Validate Doctrine schema / mapping
-        run: php bin/console doctrine:schema:validate --skip-sync --no-interaction
+      - name: Lint Twig templates
+        run: php bin/console lint:twig templates --no-interaction
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            if php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=testlig_test", "testlig", "testlig_ci");' 2>/dev/null; then
+              echo "MariaDB is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MariaDB did not become ready in time"
+          exit 1
+
+      - name: Run Doctrine migrations
+        run: php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
+
+      - name: Validate Doctrine mapping and schema
+        run: php bin/console doctrine:schema:validate --no-interaction
+
+      - name: Doctrine migrations status
+        run: php bin/console doctrine:migrations:status --no-interaction
 
       - name: PHPUnit
         run: vendor/bin/phpunit --colors=always
