@@ -17,9 +17,11 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET}
-      DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
-      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-redis://redis:6379/messages}
+      # Always use Docker DNS names inside the stack (do not reuse host 127.0.0.1 URLs).
+      DATABASE_URL: mysql://${MYSQL_USER:-testlig}:${MYSQL_PASSWORD}@database:3306/${MYSQL_DATABASE:-testlig}?serverVersion=10.11.10-MariaDB&charset=utf8mb4
+      REDIS_URL: redis://redis:6379
+      MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
+      LOCK_DSN: ${LOCK_DSN:-flock}
       DEFAULT_URI: ${DEFAULT_URI:-http://localhost:8080}
     depends_on:
       database:
@@ -42,10 +44,10 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
-      interval: 10s
-      timeout: 5s
+      interval: 15s
+      timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 90s
     networks:
       - testlig
 
@@ -59,9 +61,10 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env.local}
     volumes:
       - testlig_mariadb_data:/var/lib/mysql
-    ports:
-      # Bound for local tooling only; omit or restrict in shared environments.
-      - "${DATABASE_PORT:-3306}:3306"
+      # Runs only on first volume initialization.
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+    # No host port publish — avoids clashing with XAMPP MariaDB on 3306.
+    # App reaches MariaDB only via the Docker network hostname "database".
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s

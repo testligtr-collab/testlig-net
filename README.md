@@ -48,6 +48,20 @@ docker compose exec app php bin/console doctrine:migrations:migrate --no-interac
 Uygulama: http://localhost:8080  
 Sağlık kontrolü: http://localhost:8080/health
 
+Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
+
+Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
+
+```powershell
+docker compose exec -e APP_ENV=test -e APP_DEBUG=1 app vendor/bin/phpunit
+```
+
+İlk volume oluşturmada `testlig_test` veritabanı `docker/mariadb/init` ile kurulur. Volume zaten varsa:
+
+```powershell
+docker compose exec database mariadb -uroot -p -e "CREATE DATABASE IF NOT EXISTS testlig_test; GRANT ALL ON testlig_test.* TO 'testlig'@'%';"
+```
+
 Durdurma:
 
 ```powershell
