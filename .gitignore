@@ -1,0 +1,54 @@
+# --- Secrets & local env ---
+/.env.local
+/.env.local.php
+/.env.*.local
+
+# --- Dependencies & generated ---
+/vendor/
+/var/
+/node_modules/
+/composer.phar
+/public/bundles/
+/public/assets/
+/assets/vendor/
+
+# --- Keys (future JWT etc.; do not commit) ---
+/config/jwt/
+/*.pem
+/*.p12
+/config/secrets/prod/prod.decrypt.private.php
+
+# --- IDE / OS ---
+/.idea/
+/.vscode/
+/.cursor/
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Tests & quality ---
+/phpunit.xml
+/.phpunit.cache/
+/.php-cs-fixer.cache
+/coverage/
+/.php-cs-fixer.php
+
+# --- Local database dumps & uploads ---
+/*.sql
+/*.sql.gz
+/*.dump
+/backups/
+/public/uploads/
+/var/uploads/
+
+###> symfony/framework-bundle ###
+###< symfony/framework-bundle ###
+
+###> symfony/asset-mapper ###
+###< symfony/asset-mapper ###
+
+###> friendsofphp/php-cs-fixer ###
+###< friendsofphp/php-cs-fixer ###
+
+###> phpunit/phpunit ###
+###< phpunit/phpunit ###

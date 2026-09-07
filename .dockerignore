@@ -1,0 +1,17 @@
+.git/
+.idea/
+.vscode/
+.cursor/
+var/
+vendor/
+node_modules/
+.phpunit.cache/
+.php-cs-fixer.cache
+.env.local
+.env.*.local
+*.sql
+*.sql.gz
+*.dump
+public/uploads/
+coverage/
+backups/
