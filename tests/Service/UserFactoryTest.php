@@ -141,7 +141,7 @@ final class UserFactoryTest extends KernelTestCase
         $user->transitionTo(UserStatus::PendingVerification);
     }
 
-    public function testGlobalRoleManagerBlocksImplicitSuperAdmin(): void
+    public function testGlobalRoleManagerBlocksSuperAdminViaReplaceRoles(): void
     {
         $user = $this->factory->create('roles@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
         /** @var UserGlobalRoleManager $manager */
@@ -149,6 +149,37 @@ final class UserFactoryTest extends KernelTestCase
 
         $this->expectException(InvalidUserTransitionException::class);
         $manager->replaceRoles($user, [UserRole::SuperAdmin]);
+    }
+
+    public function testGlobalRoleManagerBlocksSuperAdminViaAddRole(): void
+    {
+        $user = $this->factory->create('roles-add@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
+        /** @var UserGlobalRoleManager $manager */
+        $manager = static::getContainer()->get(UserGlobalRoleManager::class);
+
+        $this->expectException(InvalidUserTransitionException::class);
+        $manager->addRole($user, UserRole::SuperAdmin);
+    }
+
+    public function testNoApplicationServicePathAssignsSuperAdmin(): void
+    {
+        $user = $this->factory->create('no-sa@example.com', 'Plain-Password-123!', 'No', 'Sa', UserRole::Teacher);
+        /** @var UserGlobalRoleManager $manager */
+        $manager = static::getContainer()->get(UserGlobalRoleManager::class);
+
+        try {
+            $manager->addRole($user, UserRole::SuperAdmin);
+            self::fail('Expected SuperAdmin addRole to be rejected.');
+        } catch (InvalidUserTransitionException) {
+        }
+
+        try {
+            $manager->replaceRoles($user, [UserRole::Admin, UserRole::SuperAdmin]);
+            self::fail('Expected SuperAdmin replaceRoles to be rejected.');
+        } catch (InvalidUserTransitionException) {
+        }
+
+        self::assertNotContains(UserRole::SuperAdmin->value, $user->getRoles());
     }
 
     public function testTurkishNamesPreservedOnPersist(): void

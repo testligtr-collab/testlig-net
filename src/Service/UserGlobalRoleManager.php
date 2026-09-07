@@ -13,6 +13,10 @@ use App\Exception\InvalidUserTransitionException;
  *
  * Domain-scoped memberships (institution, classroom, teacher/student links)
  * must not be modelled here — those belong to later membership entities.
+ *
+ * ROLE_SUPER_ADMIN cannot be assigned through this service. The first super-admin
+ * account will be created later via an explicitly approved, audited, one-shot CLI
+ * bootstrap command (not implemented in this phase).
  */
 final class UserGlobalRoleManager
 {
@@ -28,7 +32,7 @@ final class UserGlobalRoleManager
 
             if (UserRole::SuperAdmin === $role) {
                 throw InvalidUserTransitionException::forRole(
-                    'ROLE_SUPER_ADMIN cannot be assigned through replaceRoles(); use grantSuperAdmin().'
+                    'ROLE_SUPER_ADMIN cannot be assigned through application services in this phase.'
                 );
             }
         }
@@ -40,17 +44,10 @@ final class UserGlobalRoleManager
     {
         if (UserRole::SuperAdmin === $role) {
             throw InvalidUserTransitionException::forRole(
-                'ROLE_SUPER_ADMIN cannot be assigned through addRole(); use grantSuperAdmin().'
+                'ROLE_SUPER_ADMIN cannot be assigned through application services in this phase.'
             );
         }
 
         $user->addGlobalRole($role);
-    }
-
-    public function grantSuperAdmin(User $user): void
-    {
-        $roles = $user->getGlobalRoleEnums();
-        $roles[] = UserRole::SuperAdmin;
-        $user->setGlobalRoles($roles);
     }
 }

@@ -24,6 +24,11 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * Global roles live here. Institution / classroom / teacher-student memberships
  * will be modelled as separate domain relations in later phases.
+ *
+ * Controllers must not call mutation methods directly. Prefer application services
+ * (UserFactory, UserGlobalRoleManager, and future status/password services with audit).
+ * Native PHP session serialization is left to the framework default (no custom
+ * __serialize/__unserialize); Symfony Serializer #[Ignore] only affects API/JSON output.
  */
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
@@ -31,7 +36,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_users_email', columns: ['email'])]
 #[ORM\HasLifecycleCallbacks]
 #[UniqueEntity(fields: ['normalizedEmail'], message: 'This email is already registered.')]
-final class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -68,9 +73,11 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @var list<string>
      */
     #[ORM\Column(type: Types::JSON)]
+    #[Ignore]
     private array $globalRoles = [];
 
     #[ORM\Column(length: 32, enumType: UserStatus::class)]
+    #[Ignore]
     private UserStatus $status;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
@@ -116,15 +123,20 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->lastName = $lastName;
         $this->password = $passwordHash;
         $this->status = UserStatus::PendingVerification;
+        $this->setGlobalRoles([$initialRole]);
         $now = new \DateTimeImmutable('now');
         $this->passwordChangedAt = $now;
         $this->createdAt = $now;
         $this->updatedAt = $now;
-        $this->setGlobalRoles([$initialRole]);
     }
 
     /**
-     * @internal prefer App\Service\UserFactory for application use
+     * Low-level constructor wrapper for UserFactory / persistence layer.
+     *
+     * Application code must use App\Service\UserFactory instead of calling this
+     * from controllers or forms (no mass assignment / denormalization path).
+     *
+     * @internal
      */
     public static function create(
         string $email,
@@ -204,8 +216,11 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
+     * Replaces stored global roles (enum-only). Prefer UserGlobalRoleManager from app code.
+     *
      * @param list<mixed> $roles
      */
+    #[Ignore]
     public function setGlobalRoles(array $roles): void
     {
         $values = [];
@@ -225,6 +240,10 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->touch();
     }
 
+    /**
+     * Adds one global role. Prefer UserGlobalRoleManager from app code.
+     */
+    #[Ignore]
     public function addGlobalRole(UserRole $role): void
     {
         if (UserRole::User === $role) {
@@ -241,6 +260,10 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->status;
     }
 
+    /**
+     * Applies an allowed status transition. Future app services should wrap this with audit logging.
+     */
+    #[Ignore]
     public function transitionTo(UserStatus $status): void
     {
         if (!$this->status->canTransitionTo($status)) {
@@ -316,6 +339,10 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
         return $this->password;
     }
 
+    /**
+     * Stores an already-hashed password. Prefer UserFactory / a future password service with audit.
+     */
+    #[Ignore]
     public function setPassword(string $hashedPassword): void
     {
         $this->password = $hashedPassword;
@@ -331,36 +358,6 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function __toString(): string
     {
         return $this->normalizedEmail;
-    }
-
-    /**
-     * @return array{id: string, email: string}
-     */
-    public function __serialize(): array
-    {
-        return [
-            'id' => $this->id->toRfc4122(),
-            'email' => $this->normalizedEmail,
-        ];
-    }
-
-    /**
-     * @param array{id: string, email: string} $data
-     */
-    public function __unserialize(array $data): void
-    {
-        $this->id = Uuid::fromString($data['id']);
-        $this->normalizedEmail = $data['email'];
-        $this->email = $data['email'];
-        $this->password = '';
-        $this->firstName = '';
-        $this->lastName = '';
-        $this->globalRoles = [];
-        $this->status = UserStatus::PendingVerification;
-        $now = new \DateTimeImmutable('@0');
-        $this->passwordChangedAt = $now;
-        $this->createdAt = $now;
-        $this->updatedAt = $now;
     }
 
     #[ORM\PreUpdate]
