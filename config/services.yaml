@@ -40,6 +40,22 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\RegistrationService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EmailVerificationService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EmailVerificationMailer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\UserAccountLifecycle:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Repository\UserRepository:
             public: true
             autowire: true

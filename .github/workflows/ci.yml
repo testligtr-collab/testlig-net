@@ -53,6 +53,10 @@ jobs:
       MESSENGER_TRANSPORT_DSN: sync://
       LOCK_DSN: flock
       DEFAULT_URI: http://localhost
+      MAILER_DSN: "null://null"
+      MAILER_FROM_EMAIL: noreply@testlig.ci
+      MAILER_FROM_NAME: Testlig
+      VERIFY_EMAIL_LIFETIME: "3600"
 
     steps:
       - name: Checkout

@@ -1,0 +1,3 @@
+Invalid credentials.: 'E-posta veya parola hatalı.'
+'Invalid CSRF token.': 'Oturum doğrulaması başarısız. Sayfayı yenileyip tekrar deneyin.'
+'Too many failed login attempts, please try again later.': 'Çok fazla başarısız giriş denemesi. Lütfen daha sonra tekrar deneyin.'

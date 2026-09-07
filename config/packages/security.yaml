@@ -24,9 +24,24 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+            user_checker: App\Security\UserChecker
+            custom_authenticator: App\Security\LoginFormAuthenticator
+            entry_point: App\Security\LoginFormAuthenticator
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
+            logout:
+                path: app_logout
+                target: app_home
+                enable_csrf: true
 
     access_control:
         - { path: ^/health, roles: PUBLIC_ACCESS }
+        - { path: ^/kayit, roles: PUBLIC_ACCESS }
+        - { path: ^/dogrula/eposta, roles: PUBLIC_ACCESS }
+        - { path: ^/giris, roles: PUBLIC_ACCESS }
+        - { path: ^/cikis, roles: PUBLIC_ACCESS }
+        - { path: ^/hesabim, roles: ROLE_USER }
         - { path: ^/$, roles: PUBLIC_ACCESS }
 
 when@test:
@@ -42,3 +57,8 @@ when@test:
                 cost: 4
                 time_cost: 3
                 memory_cost: 10
+        firewalls:
+            main:
+                login_throttling:
+                    max_attempts: 3
+                    interval: '1 minute'

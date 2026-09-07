@@ -1,0 +1,20 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Doğrulama e-postasını yeniden gönder — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>Doğrulama e-postasını yeniden gönder</h1>
+    <p class="muted">E-posta adresinizi girin. Hesap bulunursa ve doğrulama bekliyorsa yeni bir bağlantı gönderilir.</p>
+
+    {{ form_start(resendForm, {attr: {novalidate: 'novalidate'}}) }}
+        <div class="form-row">
+            {{ form_label(resendForm.email) }}
+            {{ form_widget(resendForm.email) }}
+            {{ form_errors(resendForm.email) }}
+        </div>
+        {{ form_rest(resendForm) }}
+        <button class="btn" type="submit">Gönder</button>
+    {{ form_end(resendForm) }}
+</section>
+{% endblock %}

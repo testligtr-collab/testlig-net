@@ -45,8 +45,13 @@ docker compose exec app php bin/console doctrine:database:create --if-not-exists
 docker compose exec app php bin/console doctrine:migrations:migrate --no-interaction
 ```
 
-Uygulama: http://localhost:8080  
+Uygulama: http://localhost:8080
 Sağlık kontrolü: http://localhost:8080/health
+Mailpit (doğrulama e-postaları): http://localhost:8025
+
+Kayıt: http://localhost:8080/kayit · Giriş: http://localhost:8080/giris · Hesap: http://localhost:8080/hesabim
+
+Public kayıt yalnızca **öğrenci** (`ROLE_STUDENT`) oluşturur; e-posta doğrulanana kadar giriş yapılamaz.
 
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
@@ -135,9 +140,9 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 ## Bilinen sınırlamalar
 
-- Kimlik veri temeli (`User`, global roller, migration) vardır; kayıt/giriş UI, e-posta gönderimi ve paneller henüz yok.
+- Web kayıt/giriş/e-posta doğrulama vardır; şifre sıfırlama, “beni hatırla”, OAuth/JWT ve sosyal giriş yok.
+- Public kayıt yalnızca öğrenci içindir; öğretmen/veli/kurum/admin davet veya yönetici süreçleri sonraki aşamalarda.
 - Soru bankası, sınav, ödeme ve domain üyelik (kurum/sınıf) modülleri yok.
-- JWT / OAuth / dış servis entegrasyonu yok.
 - Production dağıtım yapılandırması yok.
 - Yerel Windows ortamında PHP 8.3 ve Docker bulunmayabilir; hedef runtime Docker’daki PHP 8.3’tür.
 - `symfony/redis-messenger` paketinin Composer kurulumu için `ext-redis` gerekir (Docker imajında vardır). Yerelde `ext-redis` yoksa paket `--ignore-platform-req=ext-redis` ile kurulmuştur.
