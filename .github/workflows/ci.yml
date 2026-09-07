@@ -47,7 +47,7 @@ jobs:
     env:
       APP_ENV: test
       APP_SECRET: ci_test_secret_not_for_production
-      DATABASE_URL: "mysql://testlig:testlig_ci@127.0.0.1:3306/testlig_test?serverVersion=10.11.10-MariaDB&charset=utf8mb4"
+      DATABASE_URL: "mysql://testlig:testlig_ci@127.0.0.1:3306/testlig?serverVersion=10.11.10-MariaDB&charset=utf8mb4"
       REDIS_URL: redis://127.0.0.1:6379
       MESSENGER_TRANSPORT_DSN: sync://
       LOCK_DSN: flock
