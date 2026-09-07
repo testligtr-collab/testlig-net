@@ -133,10 +133,11 @@ C:\xampp\php\php.exe composer.phar cs:fix
 `GET /health` — JSON durum bilgisi (uygulama, ortam, database/redis check).  
 Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
-## Bilinen sınırlamalar (Aşama 1)
+## Bilinen sınırlamalar
 
-- Kullanıcı, rol, soru bankası, sınav, ödeme ve panel modülleri yok.
-- JWT / dış servis entegrasyonu yok.
+- Kimlik veri temeli (`User`, global roller, migration) vardır; kayıt/giriş UI, e-posta gönderimi ve paneller henüz yok.
+- Soru bankası, sınav, ödeme ve domain üyelik (kurum/sınıf) modülleri yok.
+- JWT / OAuth / dış servis entegrasyonu yok.
 - Production dağıtım yapılandırması yok.
 - Yerel Windows ortamında PHP 8.3 ve Docker bulunmayabilir; hedef runtime Docker’daki PHP 8.3’tür.
 - `symfony/redis-messenger` paketinin Composer kurulumu için `ext-redis` gerekir (Docker imajında vardır). Yerelde `ext-redis` yoksa paket `--ignore-platform-req=ext-redis` ile kurulmuştur.

@@ -12,4 +12,8 @@ parameters:
     tmpDir: var/phpstan
     symfony:
         containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
-    ignoreErrors: []
+    ignoreErrors:
+        -
+            # Preferred: final User + Doctrine lazy ghosts (no traditional proxies).
+            identifier: doctrine.finalEntity
+            path: src/Entity/User.php

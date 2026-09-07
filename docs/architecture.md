@@ -18,6 +18,16 @@
 - **Redis** önbellek ve Messenger transport’u için hazırlanmıştır.
 - **Symfony Messenger** asenkron işler için kullanılır (şimdilik sync/in-memory varsayılanları).
 
+## Identity and access
+
+- **Tek merkezi `User` hesabı:** Oturum ve kimlik doğrulama bu entity üzerinden yürür; UUID **v7** uygulama tarafında üretilir (`BINARY(16)`).
+- **Global roller:** `UserRole` backed enum (`ROLE_USER` … `ROLE_SUPER_ADMIN`). `getRoles()` her zaman `ROLE_USER` içerir; hiyerarşi genişlemesi **Symfony `role_hierarchy`** ile yapılır (entity içinde elle expand edilmez).
+- **Domain üyelikleri ayrı:** Kurum, sınıf, öğretmen/öğrenci bağlantıları global rol dizisine konmaz; sonraki aşamalarda ayrı membership modelleriyle tutulur.
+- **Durumlar (`UserStatus`):** `pending_verification` (varsayılan), `active`, `suspended`, `archived`. Yalnızca `active` kimlik doğrulamaya uygun kabul edilir; `archived` fiziksel silme değildir.
+- **E-posta:** Giriş kimliği `normalizedEmail` (trim + lowercase). Görünen `email` trim edilmiş biçimi saklar; unique constraint normalized alan üzerindedir.
+- **Parola:** Yalnızca hash saklanır (`password_hashers: auto`); plain-text alan yoktur; serializer/`__toString` hash veya plain parola sızdırmaz.
+- **Kontrollü yazma:** Hesap oluşturma `UserFactory`; global rol değişiklikleri `UserGlobalRoleManager` üzerinden. `ROLE_ADMIN` / `ROLE_SUPER_ADMIN` factory bootstrap rolü olarak verilmez.
+
 ## Sonraki aşamalar
 
-İş modülleri (kullanıcı / kimlik, müfredat, soru bankası, sınav, ödeme, paneller vb.) Aşama 1 tamamlandıktan sonra ayrı görevlerle eklenecektir.
+Kayıt/giriş UI, e-posta doğrulama, paneller ve domain üyelikleri ayrı görevlerle eklenecektir.
