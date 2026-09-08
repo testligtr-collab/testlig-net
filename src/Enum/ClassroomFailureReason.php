@@ -15,4 +15,5 @@ enum ClassroomFailureReason: string
     case InstitutionNotOperable = 'institution_not_operable';
     case YearNotOperable = 'year_not_operable';
     case ClassroomNotOperable = 'classroom_not_operable';
+    case CapacityBelowEnrollment = 'capacity_below_enrollment';
 }

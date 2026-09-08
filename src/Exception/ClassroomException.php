@@ -69,4 +69,12 @@ final class ClassroomException extends \RuntimeException
     {
         return new self(ClassroomFailureReason::ClassroomNotOperable, 'Classroom does not allow this operation in its current status.');
     }
+
+    public static function capacityBelowEnrollment(): self
+    {
+        return new self(
+            ClassroomFailureReason::CapacityBelowEnrollment,
+            'Classroom capacity cannot be lower than the number of active enrollments.',
+        );
+    }
 }

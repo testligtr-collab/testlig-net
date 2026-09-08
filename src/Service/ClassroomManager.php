@@ -19,6 +19,7 @@ use App\Enum\InstitutionStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
+use App\Enum\StudentEnrollmentStatus;
 use App\Exception\ClassroomException;
 use App\Exception\InstitutionOperationException;
 use App\Repository\ClassroomRepository;
@@ -27,6 +28,7 @@ use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -207,6 +209,12 @@ final class ClassroomManager
             }
             if (AcademicYearStatus::Closed === $lockedYear->getStatus()) {
                 throw ClassroomException::yearNotOperable();
+            }
+
+            $activeCount = $this->classrooms->countActiveEnrollments($locked);
+            $this->assertEnrollmentGuardConsistencyForClassroom($locked, $activeCount);
+            if (null !== $capacity && $capacity < $activeCount) {
+                throw ClassroomException::capacityBelowEnrollment();
             }
 
             $now = \DateTimeImmutable::createFromInterface($this->clock->now());
@@ -409,5 +417,50 @@ final class ClassroomManager
         }
 
         return $reasonCode;
+    }
+
+    /**
+     * Active enrollments in this classroom must match enrollment guards that point at them.
+     * Mismatch is a typed conflict (do not silently continue).
+     */
+    private function assertEnrollmentGuardConsistencyForClassroom(Classroom $classroom, int $activeCount): void
+    {
+        $connection = $this->entityManager->getConnection();
+        $classroomId = $classroom->getId()->toBinary();
+        $active = StudentEnrollmentStatus::Active->value;
+
+        $guardCount = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM academic_year_student_enrollment_guards g
+             INNER JOIN classroom_student_enrollments e ON e.id = g.enrollment_id
+             WHERE e.classroom_id = ?',
+            [$classroomId],
+            [ParameterType::BINARY],
+        );
+
+        $activeWithoutGuard = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM classroom_student_enrollments e
+             LEFT JOIN academic_year_student_enrollment_guards g ON g.enrollment_id = e.id
+             WHERE e.classroom_id = ?
+               AND e.status = ?
+               AND g.enrollment_id IS NULL',
+            [$classroomId, $active],
+            [ParameterType::BINARY, ParameterType::STRING],
+        );
+
+        $guardNotActive = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM academic_year_student_enrollment_guards g
+             INNER JOIN classroom_student_enrollments e ON e.id = g.enrollment_id
+             WHERE e.classroom_id = ?
+               AND e.status <> ?',
+            [$classroomId, $active],
+            [ParameterType::BINARY, ParameterType::STRING],
+        );
+
+        if ($guardCount !== $activeCount || $activeWithoutGuard > 0 || $guardNotActive > 0) {
+            throw ClassroomException::conflict();
+        }
     }
 }
