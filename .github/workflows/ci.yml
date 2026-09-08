@@ -57,6 +57,9 @@ jobs:
       MAILER_FROM_EMAIL: noreply@testlig.ci
       MAILER_FROM_NAME: Testlig
       VERIFY_EMAIL_LIFETIME: "3600"
+      RESET_PASSWORD_LIFETIME: "3600"
+      AUDIT_HASH_KEY: "ci_audit_hash_key_not_for_production"
+      ALLOW_SUPER_ADMIN_BOOTSTRAP: "0"
 
     steps:
       - name: Checkout

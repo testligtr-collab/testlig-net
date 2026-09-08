@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\User;
+use App\Enum\UserRole;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
@@ -35,6 +36,21 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     public function findOneById(Uuid $id): ?User
     {
         return $this->find($id);
+    }
+
+    /**
+     * Parameterized MariaDB JSON_CONTAINS check — does not load all users into memory.
+     */
+    public function existsWithSuperAdminRole(): bool
+    {
+        $connection = $this->getEntityManager()->getConnection();
+        $roleJson = json_encode(UserRole::SuperAdmin->value, \JSON_THROW_ON_ERROR);
+        $result = $connection->fetchOne(
+            'SELECT 1 FROM users WHERE JSON_CONTAINS(global_roles, :role, \'$\') = 1 LIMIT 1',
+            ['role' => $roleJson],
+        );
+
+        return false !== $result && null !== $result;
     }
 
     public function save(User $user, bool $flush = true): void

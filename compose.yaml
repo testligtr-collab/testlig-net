@@ -28,6 +28,8 @@ services:
       MAILER_FROM_NAME: ${MAILER_FROM_NAME:-Testlig}
       VERIFY_EMAIL_LIFETIME: ${VERIFY_EMAIL_LIFETIME:-86400}
       RESET_PASSWORD_LIFETIME: ${RESET_PASSWORD_LIFETIME:-3600}
+      AUDIT_HASH_KEY: ${AUDIT_HASH_KEY:-change_me_dev_audit_hash_not_for_production}
+      ALLOW_SUPER_ADMIN_BOOTSTRAP: ${ALLOW_SUPER_ADMIN_BOOTSTRAP:-0}
     depends_on:
       database:
         condition: service_healthy

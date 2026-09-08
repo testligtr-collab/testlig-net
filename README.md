@@ -58,6 +58,20 @@ Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public ceva
 Süresi dolmuş reset kayıtları: `docker compose exec app php bin/console reset-password:remove-expired`
 Mailpit UI yalnızca localhost’ta dinler (`127.0.0.1:8025`).
 
+### Security audit ve SUPER_ADMIN bootstrap (Aşama 2.4)
+
+- Kritik güvenlik olayları `security_audit_events` tablosuna **append-only** yazılır (okuma paneli/API yok).
+- Ham IP / User-Agent saklanmaz; `AUDIT_HASH_KEY` ile HMAC. Production’da benzersiz anahtar kullanın; commit etmeyin.
+- İlk SUPER_ADMIN (yalnızca kontrollü kurulum):
+
+```powershell
+# .env.local içinde geçici olarak:
+# ALLOW_SUPER_ADMIN_BOOTSTRAP=1
+docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:user:bootstrap-super-admin --email=admin@example.com --confirm
+# Parola hidden input ile sorulur; CLI argümanı olarak vermeyin.
+# İşlem bitince ALLOW_SUPER_ADMIN_BOOTSTRAP=0 yapın.
+```
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
