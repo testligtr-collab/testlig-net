@@ -22,6 +22,12 @@ final class SecurityAuditMetadataSanitizer
         'previous_status',
         'new_status',
         'bootstrap',
+        'institution_type',
+        'institution_id',
+        'membership_role',
+        'previous_membership_role',
+        'new_membership_role',
+        'reason_code',
     ];
 
     /**
@@ -95,9 +101,6 @@ final class SecurityAuditMetadataSanitizer
         foreach (self::FORBIDDEN_NORMALIZED as $forbidden) {
             $forbiddenCompact = str_replace('_', '', $forbidden);
             if ($normalizedKey === $forbidden || $compact === $forbiddenCompact) {
-                return true;
-            }
-            if (str_contains($compact, $forbiddenCompact)) {
                 return true;
             }
         }

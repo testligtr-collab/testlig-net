@@ -95,6 +95,22 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\InstitutionNameNormalizer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionCreator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionStatusManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionMembershipManager:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Repository\UserRepository:
             public: true
             autowire: true
@@ -111,6 +127,16 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\SecurityBootstrapGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\InstitutionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\InstitutionMembershipRepository:
             public: true
             autowire: true
             autoconfigure: true
