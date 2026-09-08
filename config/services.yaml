@@ -20,6 +20,7 @@ services:
         resource: '../src/'
 
     App\Service\EmailVerificationSenderInterface: '@App\Service\EmailVerificationMailer'
+    App\Service\PasswordResetNotifierInterface: '@App\Service\PasswordResetMailer'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -59,7 +60,25 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\PasswordManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PasswordResetMailer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PasswordResetNotifierInterface: '@App\Service\PasswordResetMailer'
+        App\Service\RateLimitKeyHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Repository\UserRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ResetPasswordRequestRepository:
             public: true
             autowire: true
             autoconfigure: true

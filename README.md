@@ -50,9 +50,12 @@ Sağlık kontrolü: http://localhost:8080/health
 Mailpit (doğrulama e-postaları): http://localhost:8025
 
 Kayıt: http://localhost:8080/kayit · Giriş: http://localhost:8080/giris · Hesap: http://localhost:8080/hesabim
+Şifremi unuttum: http://localhost:8080/sifremi-unuttum · Parola değiştir: http://localhost:8080/hesabim/sifre-degistir
 
 Public kayıt yalnızca **öğrenci** (`ROLE_STUDENT`) oluşturur; e-posta doğrulanana kadar giriş yapılamaz.
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
+Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public cevap her durumda aynıdır.
+Süresi dolmuş reset kayıtları: `docker compose exec app php bin/console reset-password:remove-expired`
 Mailpit UI yalnızca localhost’ta dinler (`127.0.0.1:8025`).
 
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
@@ -142,7 +145,7 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 ## Bilinen sınırlamalar
 
-- Web kayıt/giriş/e-posta doğrulama vardır; şifre sıfırlama, “beni hatırla”, OAuth/JWT ve sosyal giriş yok.
+- Web kayıt/giriş/e-posta doğrulama, şifre sıfırlama ve oturum içi parola değiştirme vardır; “beni hatırla”, OAuth/JWT, MFA ve sosyal giriş yok.
 - Public kayıt yalnızca öğrenci içindir; öğretmen/veli/kurum/admin davet veya yönetici süreçleri sonraki aşamalarda.
 - Soru bankası, sınav, ödeme ve domain üyelik (kurum/sınıf) modülleri yok.
 - Production dağıtım yapılandırması yok.

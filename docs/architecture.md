@@ -29,11 +29,12 @@
 - **Giriş/çıkış:** `/giris`; çıkış yalnızca `POST /cikis` + CSRF. Normalized email; login throttling; tüm hesap durumu/kimlik hataları için generic mesaj (enumeration yok). Güvenli yerel redirect. `lastLoginAt` `LoginSuccessListener` ile güncellenir (yazma hatası girişi bozmaz). Kayıt sonrası mailer transport hatası 500 üretmez; hesap `pending_verification` kalır, resend kullanılabilir.
 - **E-posta:** Giriş kimliği `normalizedEmail` (trim + lowercase). Görünen `email` trim edilmiş biçimi saklar; unique constraint normalized alan üzerindedir.
 - **Parola:** `password_hashers: auto`; PasswordStrength (+ prod/dev’de NotCompromisedPassword); Serializer `#[Ignore]`.
-- **Kontrollü yazma:** Hesap oluşturma `UserFactory` / `RegistrationService`; roller `UserGlobalRoleManager`. Controller’lar entity mutasyonlarını doğrudan çağırmamalıdır.
+- **Kontrollü yazma:** Hesap oluşturma `UserFactory` / `RegistrationService`; parola `PasswordManager`; roller `UserGlobalRoleManager`. Controller’lar entity mutasyonlarını doğrudan çağırmamalıdır.
+- **Parola sıfırlama / değiştirme (Aşama 2.3):** SymfonyCasts ResetPasswordBundle. DB’de yalnızca hashed selector/token (`reset_password_requests`); plain token yok. Ömür `RESET_PASSWORD_LIFETIME` (varsayılan 3600 sn). Yalnızca `active` hesaplara e-posta. Public cevaplar enumeration-safe. Rate limit: IP 5/15dk + normalize e-posta HMAC anahtarı 3/15dk. Token URL’den session’a alınır (`/sifre-yenile/{token}` → `/sifre-yenile`). Başarılı reset/değişimde `passwordChangedAt` güncellenir, reset istekleri silinir, otomatik login yok. Oturum: parola değişiminde mevcut oturum sonlandırılır; `User::isEqualTo()` (EquatableInterface) diğer oturumları sonraki istekte düşürür. Cleanup: `php bin/console reset-password:remove-expired`.
 - **`ROLE_SUPER_ADMIN`:** Factory ve role manager üzerinden atanamaz; ileride audit’li CLI bootstrap.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** şifre sıfırlama, beni hatırla, OAuth/JWT, admin/öğretmen panelleri, sosyal giriş.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen panelleri, davet/üyelik.
 
 ## Sonraki aşamalar
 
-Şifre sıfırlama, davet/kurum üyelikleri, paneller ve domain modelleri ayrı görevlerle eklenecektir.
+Davet/kurum üyelikleri, paneller ve domain modelleri ayrı görevlerle eklenecektir.
