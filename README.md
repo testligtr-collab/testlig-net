@@ -77,9 +77,16 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Global `ROLE_TEACHER` / `ROLE_INSTITUTION_MANAGER` vb. **otomatik kurum erişimi vermez**.
 - Erişim: active `Institution` + active `InstitutionMembership` (veya active+verified SUPER_ADMIN override).
 - Suspended / archived / doğrulanmamış hesaplar kurum işlemi yapamaz (SUPER_ADMIN görünse bile).
-- Bu aşamada UI / public kurum kaydı / davet / sınıf yok; yalnızca domain servisleri.
+- Bu aşamada UI / public kurum kaydı / davet yok; yalnızca domain servisleri.
 - Kurum oluşturma: internal `InstitutionCreator` (SUPER_ADMIN).
 
+### Akademik yıl / sınıf (Aşama 2.6)
+
+- `AcademicYear` / `Classroom` / öğretmen ataması / öğrenci enrollment domain omurgası (UI yok).
+- Kurumda tek active yıl: activate önceki active yılı aynı TX’de kapatır (`institution_active_academic_year_guards`).
+- Transfer: eski enrollment biter, yeni satır oluşur (tarihçe korunur).
+- Üyelik rolleri: owner / manager / teacher / staff / **student** (owner+manager student atayabilir).
+- Yetki: `ClassroomVoter` + DBAL snapshot; global roller tek başına sınıf erişimi vermez.
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
