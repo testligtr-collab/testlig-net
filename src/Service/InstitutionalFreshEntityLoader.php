@@ -15,8 +15,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Loads institution-domain entities with an explicit identity-map bypass.
  *
- * Guarantee: never trusts the in-memory managed state. Always re-hydrates from the
- * database via DQL + {@see Query::HINT_REFRESH}, optionally under a pessimistic lock.
+ * User fresh-loads delegate to {@see FreshUserLoader}. Institution/Membership
+ * loaders keep the same HINT_REFRESH + lock guarantees.
  *
  * Lock order for callers that mutate: Institution → Users (UUID asc) → Membership.
  */
@@ -24,6 +24,7 @@ final class InstitutionalFreshEntityLoader
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly FreshUserLoader $freshUsers,
     ) {
     }
 
@@ -34,28 +35,12 @@ final class InstitutionalFreshEntityLoader
      */
     public function findFreshLockedUsers(array $ids, LockMode $lockMode = LockMode::PESSIMISTIC_READ): array
     {
-        $unique = [];
-        foreach ($ids as $id) {
-            $unique[$id->toRfc4122()] = $id;
-        }
-        ksort($unique);
-
-        $locked = [];
-        foreach ($unique as $key => $id) {
-            $user = $this->findFreshLockedUser($id, $lockMode);
-            if ($user instanceof User) {
-                $locked[$key] = $user;
-            }
-        }
-
-        return $locked;
+        return $this->freshUsers->findFreshLockedUsers($ids, $lockMode);
     }
 
     public function findFreshLockedUser(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_READ): ?User
     {
-        $entity = $this->findFresh(User::class, $id, $lockMode);
-
-        return $entity instanceof User ? $entity : null;
+        return $this->freshUsers->findFreshLockedUser($id, $lockMode);
     }
 
     public function findFreshLockedInstitution(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?Institution

@@ -190,24 +190,28 @@ final class InstitutionAuthorizationCacheInvalidationTest extends KernelTestCase
         self::assertTrue($this->decide($teacher, InstitutionPermission::VIEW, $institutionB));
     }
 
-    public function testUserGlobalRoleManagerInvalidatesSuperAdminOverride(): void
+    public function testUserGlobalRoleManagerInvalidatesTargetUserSnapshot(): void
     {
         [$sa, $owner, $institution] = $this->activeInstitutionBundle('cache-role-mgr');
-        self::assertTrue($this->decide($sa, InstitutionPermission::MANAGE, $institution));
+        self::assertTrue($this->decide($owner, InstitutionPermission::VIEW, $institution));
+        $cached = $this->lookup->getUserSnapshot($owner->getId());
+        self::assertNotNull($cached);
+        self::assertNotContains(UserRole::Moderator->value, $cached->roles);
 
-        // replaceRoles replaces the full list and may drop SUPER_ADMIN when not re-listed.
-        $this->roleManager()->replaceRoles($sa, [UserRole::Student], $sa, 'strip_super_admin_for_test');
-        self::assertFalse($this->decide($sa, InstitutionPermission::MANAGE, $institution));
-        unset($owner);
+        $this->roleManager()->addRole($owner, UserRole::Moderator, $sa, 'add_moderator');
+
+        $fresh = $this->lookup->getUserSnapshot($owner->getId());
+        self::assertNotNull($fresh);
+        self::assertContains(UserRole::Moderator->value, $fresh->roles);
+        self::assertTrue($this->decide($owner, InstitutionPermission::VIEW, $institution));
     }
 
-    public function testUserStatusManagerInvalidatesSuspendedSuperAdmin(): void
+    public function testUserStatusManagerInvalidatesSuspendedMember(): void
     {
         [$sa, $owner, $institution] = $this->activeInstitutionBundle('cache-status-mgr');
-        self::assertTrue($this->decide($sa, InstitutionPermission::VIEW, $institution));
-        $this->userStatusManager()->suspend($sa, $sa, 'suspend_sa');
-        self::assertFalse($this->decide($sa, InstitutionPermission::VIEW, $institution));
-        unset($owner);
+        self::assertTrue($this->decide($owner, InstitutionPermission::VIEW, $institution));
+        $this->userStatusManager()->suspend($owner, $sa, 'suspend_owner');
+        self::assertFalse($this->decide($owner, InstitutionPermission::VIEW, $institution));
     }
 
     public function testResetClearsEntireRequestCache(): void

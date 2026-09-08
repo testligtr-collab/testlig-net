@@ -143,7 +143,7 @@ final class UserFactoryTest extends KernelTestCase
 
     public function testGlobalRoleManagerBlocksSuperAdminViaReplaceRoles(): void
     {
-        $user = $this->factory->create('roles@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
+        $user = $this->factory->createAndPersist('roles@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
         $actor = $this->createAdminActor('roles-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
@@ -154,7 +154,7 @@ final class UserFactoryTest extends KernelTestCase
 
     public function testGlobalRoleManagerBlocksSuperAdminViaAddRole(): void
     {
-        $user = $this->factory->create('roles-add@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
+        $user = $this->factory->createAndPersist('roles-add@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
         $actor = $this->createAdminActor('roles-add-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
@@ -165,7 +165,7 @@ final class UserFactoryTest extends KernelTestCase
 
     public function testNoApplicationServicePathAssignsSuperAdmin(): void
     {
-        $user = $this->factory->create('no-sa@example.com', 'Plain-Password-123!', 'No', 'Sa', UserRole::Teacher);
+        $user = $this->factory->createAndPersist('no-sa@example.com', 'Plain-Password-123!', 'No', 'Sa', UserRole::Teacher);
         $actor = $this->createAdminActor('no-sa-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
@@ -189,6 +189,8 @@ final class UserFactoryTest extends KernelTestCase
     {
         $actor = $this->factory->createAndPersist($email, 'Plain-Password-123!', 'Admin', 'Actor', UserRole::Moderator);
         $actor->addGlobalRole(UserRole::Admin);
+        $actor->markEmailVerified(new \DateTimeImmutable('now'));
+        $actor->transitionTo(UserStatus::Active);
         $this->users->save($actor);
 
         return $actor;

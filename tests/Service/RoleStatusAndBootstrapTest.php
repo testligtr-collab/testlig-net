@@ -187,6 +187,8 @@ final class RoleStatusAndBootstrapTest extends KernelTestCase
     {
         $actor = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'Ad', 'Min', UserRole::Moderator);
         $actor->addGlobalRole(UserRole::Admin);
+        $actor->markEmailVerified(new \DateTimeImmutable('now'));
+        $actor->transitionTo(UserStatus::Active);
         $this->users->save($actor);
 
         return $actor;
