@@ -21,6 +21,8 @@
         <env name="MAILER_FROM_NAME" value="Testlig" force="true" />
         <env name="VERIFY_EMAIL_LIFETIME" value="3600" force="true" />
         <env name="RESET_PASSWORD_LIFETIME" value="3600" force="true" />
+        <env name="AUDIT_HASH_KEY" value="test_audit_hash_key_not_for_production" force="true" />
+        <env name="ALLOW_SUPER_ADMIN_BOOTSTRAP" value="0" force="true" />
     </php>
 
     <testsuites>

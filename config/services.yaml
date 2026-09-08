@@ -7,6 +7,8 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    env(ALLOW_SUPER_ADMIN_BOOTSTRAP): '0'
+    env(AUDIT_HASH_KEY): 'change-me-audit-hash-key-not-for-production'
 
 services:
     # default configuration for services in *this* file
@@ -32,6 +34,10 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\UserGlobalRoleManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\UserStatusManager:
             public: true
             autowire: true
             autoconfigure: true
@@ -73,12 +79,38 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\SecurityAuditRecorder:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\SecurityAuditMetadataSanitizer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\SecurityAuditHashGenerator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\SuperAdminBootstrapService:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Repository\UserRepository:
             public: true
             autowire: true
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\ResetPasswordRequestRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\SecurityAuditEventRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\SecurityBootstrapGuardRepository:
             public: true
             autowire: true
             autoconfigure: true

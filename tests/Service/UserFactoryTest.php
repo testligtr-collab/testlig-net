@@ -144,42 +144,54 @@ final class UserFactoryTest extends KernelTestCase
     public function testGlobalRoleManagerBlocksSuperAdminViaReplaceRoles(): void
     {
         $user = $this->factory->create('roles@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
+        $actor = $this->createAdminActor('roles-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
 
         $this->expectException(InvalidUserTransitionException::class);
-        $manager->replaceRoles($user, [UserRole::SuperAdmin]);
+        $manager->replaceRoles($user, [UserRole::SuperAdmin], $actor, 'test');
     }
 
     public function testGlobalRoleManagerBlocksSuperAdminViaAddRole(): void
     {
         $user = $this->factory->create('roles-add@example.com', 'Plain-Password-123!', 'Role', 'User', UserRole::Moderator);
+        $actor = $this->createAdminActor('roles-add-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
 
         $this->expectException(InvalidUserTransitionException::class);
-        $manager->addRole($user, UserRole::SuperAdmin);
+        $manager->addRole($user, UserRole::SuperAdmin, $actor, 'test');
     }
 
     public function testNoApplicationServicePathAssignsSuperAdmin(): void
     {
         $user = $this->factory->create('no-sa@example.com', 'Plain-Password-123!', 'No', 'Sa', UserRole::Teacher);
+        $actor = $this->createAdminActor('no-sa-actor@example.com');
         /** @var UserGlobalRoleManager $manager */
         $manager = static::getContainer()->get(UserGlobalRoleManager::class);
 
         try {
-            $manager->addRole($user, UserRole::SuperAdmin);
+            $manager->addRole($user, UserRole::SuperAdmin, $actor, 'test');
             self::fail('Expected SuperAdmin addRole to be rejected.');
         } catch (InvalidUserTransitionException) {
         }
 
         try {
-            $manager->replaceRoles($user, [UserRole::Admin, UserRole::SuperAdmin]);
+            $manager->replaceRoles($user, [UserRole::Admin, UserRole::SuperAdmin], $actor, 'test');
             self::fail('Expected SuperAdmin replaceRoles to be rejected.');
         } catch (InvalidUserTransitionException) {
         }
 
         self::assertNotContains(UserRole::SuperAdmin->value, $user->getRoles());
+    }
+
+    private function createAdminActor(string $email): User
+    {
+        $actor = $this->factory->createAndPersist($email, 'Plain-Password-123!', 'Admin', 'Actor', UserRole::Moderator);
+        $actor->addGlobalRole(UserRole::Admin);
+        $this->users->save($actor);
+
+        return $actor;
     }
 
     public function testTurkishNamesPreservedOnPersist(): void
@@ -202,8 +214,10 @@ final class UserFactoryTest extends KernelTestCase
     protected function tearDown(): void
     {
         $connection = $this->em->getConnection();
-        if ($connection->createSchemaManager()->tablesExist(['users'])) {
-            $connection->executeStatement('DELETE FROM users');
+        foreach (['security_audit_events', 'security_bootstrap_guards', 'reset_password_requests', 'users'] as $table) {
+            if ($connection->createSchemaManager()->tablesExist([$table])) {
+                $connection->executeStatement('DELETE FROM '.$table);
+            }
         }
         parent::tearDown();
     }

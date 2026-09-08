@@ -13,6 +13,7 @@ use App\Service\EmailNormalizer;
 use App\Service\PasswordManager;
 use App\Service\PasswordResetNotifierInterface;
 use App\Service\RateLimitKeyHasher;
+use App\Service\SecurityAuditRecorder;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
@@ -146,6 +147,7 @@ final class PasswordResetFlowTest extends WebTestCase
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $logger = static::getContainer()->get('logger');
         $clock = static::getContainer()->get(ClockInterface::class);
+        $audit = static::getContainer()->get(SecurityAuditRecorder::class);
         self::assertInstanceOf(ResetPasswordHelperInterface::class, $helper);
         self::assertInstanceOf(ResetPasswordRequestRepository::class, $requests);
         self::assertInstanceOf(UserRepository::class, $users);
@@ -154,6 +156,7 @@ final class PasswordResetFlowTest extends WebTestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         self::assertInstanceOf(LoggerInterface::class, $logger);
         self::assertInstanceOf(ClockInterface::class, $clock);
+        self::assertInstanceOf(SecurityAuditRecorder::class, $audit);
 
         $manager = new PasswordManager(
             $helper,
@@ -165,6 +168,7 @@ final class PasswordResetFlowTest extends WebTestCase
             $em,
             $logger,
             $clock,
+            $audit,
         );
 
         $manager->requestReset('reset-smtp-fail@example.com');

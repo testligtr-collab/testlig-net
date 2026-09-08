@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\SecurityAuditContext;
 use App\Entity\User;
+use App\Enum\SecurityAuditAction;
+use App\Enum\SecurityAuditActorType;
+use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserStatus;
 use App\Exception\PasswordChangeFailedException;
 use App\Exception\PasswordResetFailedException;
@@ -37,6 +41,7 @@ final class PasswordManager
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly ClockInterface $clock,
+        private readonly SecurityAuditRecorder $auditRecorder,
     ) {
     }
 
@@ -150,6 +155,15 @@ final class PasswordManager
                 $locked->setPassword($hashed, $this->nextPasswordChangedAt($locked));
                 $this->users->save($locked, false);
                 $this->resetPasswordRequests->removeRequests($locked);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::PasswordResetCompleted,
+                    actorType: SecurityAuditActorType::System,
+                    outcome: SecurityAuditOutcome::Success,
+                    subjectUser: $locked,
+                    metadata: [
+                        'source' => 'password_reset',
+                    ],
+                ), false);
                 $this->entityManager->flush();
             });
         } catch (DeadlockException|LockWaitTimeoutException $exception) {
@@ -185,6 +199,16 @@ final class PasswordManager
                 $locked->setPassword($hashed, $this->nextPasswordChangedAt($locked));
                 $this->resetPasswordRequests->removeRequests($locked);
                 $this->users->save($locked, false);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::PasswordChanged,
+                    actorType: SecurityAuditActorType::User,
+                    outcome: SecurityAuditOutcome::Success,
+                    actorUser: $locked,
+                    subjectUser: $locked,
+                    metadata: [
+                        'source' => 'password_change',
+                    ],
+                ), false);
                 $this->entityManager->flush();
             });
         } catch (DeadlockException|LockWaitTimeoutException $exception) {

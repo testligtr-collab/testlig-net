@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\RegistrationRequest;
+use App\Dto\SecurityAuditContext;
 use App\Entity\User;
+use App\Enum\SecurityAuditAction;
+use App\Enum\SecurityAuditActorType;
+use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserRole;
 use App\Exception\DuplicateEmailException;
 use App\Exception\RegistrationFailedException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
@@ -21,6 +26,8 @@ final class RegistrationService
     public function __construct(
         private readonly UserFactory $userFactory,
         private readonly EmailVerificationSenderInterface $verificationMailer,
+        private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -28,13 +35,30 @@ final class RegistrationService
     public function register(RegistrationRequest $request): User
     {
         try {
-            $user = $this->userFactory->createAndPersist(
-                email: $request->email,
-                plainPassword: $request->plainPassword,
-                firstName: $request->firstName,
-                lastName: $request->lastName,
-                initialRole: UserRole::Student,
-            );
+            $user = $this->entityManager->wrapInTransaction(function () use ($request): User {
+                $user = $this->userFactory->create(
+                    email: $request->email,
+                    plainPassword: $request->plainPassword,
+                    firstName: $request->firstName,
+                    lastName: $request->lastName,
+                    initialRole: UserRole::Student,
+                );
+                $this->entityManager->persist($user);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::UserRegistered,
+                    actorType: SecurityAuditActorType::System,
+                    outcome: SecurityAuditOutcome::Success,
+                    subjectUser: $user,
+                    metadata: [
+                        'source' => 'registration',
+                        'new_roles' => $user->getRoles(),
+                        'new_status' => $user->getStatus()->value,
+                    ],
+                ), false);
+                $this->entityManager->flush();
+
+                return $user;
+            });
         } catch (DuplicateEmailException) {
             throw RegistrationFailedException::duplicateEmail();
         } catch (UniqueConstraintViolationException $exception) {
