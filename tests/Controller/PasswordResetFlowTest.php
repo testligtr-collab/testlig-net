@@ -249,7 +249,8 @@ final class PasswordResetFlowTest extends WebTestCase
     {
         $client = $this->newClient();
         $this->createUser($client, 'reset-ok@example.com', 'Guclu-Parola-123!', UserStatus::Active);
-        $before = $this->reloadUser($client, 'reset-ok@example.com')->getPasswordChangedAt();
+        $beforeUser = $this->reloadUser($client, 'reset-ok@example.com');
+        $beforeHash = $beforeUser->getPassword();
         $token = $this->generateTokenForEmail($client, 'reset-ok@example.com');
 
         $client->request('GET', '/sifre-yenile/'.$token);
@@ -264,7 +265,8 @@ final class PasswordResetFlowTest extends WebTestCase
         self::assertNull($tokenStorage->getToken());
 
         $reloaded = $this->reloadUser($client, 'reset-ok@example.com');
-        self::assertNotEquals($before, $reloaded->getPasswordChangedAt());
+        self::assertNotSame($beforeHash, $reloaded->getPassword());
+        self::assertInstanceOf(\DateTimeInterface::class, $reloaded->getPasswordChangedAt());
         self::assertStringNotContainsString('Yeni-Guclu-Parola-456!', $reloaded->getPassword());
 
         $crawler = $client->request('GET', '/giris');
