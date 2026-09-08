@@ -17,6 +17,7 @@ use App\Service\SecurityAuditRecorder;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -68,9 +69,7 @@ final class PasswordResetFlowTest extends WebTestCase
         self::assertSelectorTextContains('body', self::GENERIC);
     }
 
-    /**
-     * @dataProvider nonActiveStatusesProvider
-     */
+    #[DataProvider('nonActiveStatusesProvider')]
     public function testNonActiveStatusesGetGenericResponseWithoutEmail(UserStatus $status): void
     {
         $client = $this->newClient();
