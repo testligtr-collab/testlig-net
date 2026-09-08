@@ -22,7 +22,7 @@ use Psr\Clock\ClockInterface;
 /**
  * Controlled institution status transitions. SUPER_ADMIN only in this stage.
  *
- * Lock order: institution (WRITE) → actor user (READ).
+ * Lock order: institution (WRITE + HINT_REFRESH) → actor user (READ + HINT_REFRESH).
  */
 final class InstitutionStatusManager
 {
@@ -30,7 +30,7 @@ final class InstitutionStatusManager
         private readonly InstitutionRepository $institutions,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
-        private readonly InstitutionalUserReloader $userReloader,
+        private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -59,12 +59,12 @@ final class InstitutionStatusManager
 
         try {
             $this->entityManager->wrapInTransaction(function () use ($institutionId, $target, $actorId, $reasonCode): void {
-                $locked = $this->entityManager->find(Institution::class, $institutionId, LockMode::PESSIMISTIC_WRITE);
+                $locked = $this->freshEntities->findFreshLockedInstitution($institutionId, LockMode::PESSIMISTIC_WRITE);
                 if (!$locked instanceof Institution) {
                     throw InstitutionOperationException::notFound();
                 }
 
-                $freshActor = $this->userReloader->lockOne($actorId);
+                $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
                 if (!$freshActor instanceof User) {
                     throw InstitutionOperationException::userNotFound();
                 }

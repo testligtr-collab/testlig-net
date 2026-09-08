@@ -24,7 +24,8 @@ use Psr\Clock\ClockInterface;
 /**
  * Creates institutions with an initial owner membership. SUPER_ADMIN only in this stage.
  *
- * Authorization always uses transaction-fresh User rows — never stale in-memory role/status.
+ * Actor/owner authorization uses {@see InstitutionalFreshEntityLoader} (HINT_REFRESH + lock),
+ * never stale Doctrine identity-map state.
  */
 final class InstitutionCreator
 {
@@ -34,7 +35,7 @@ final class InstitutionCreator
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
-        private readonly InstitutionalUserReloader $userReloader,
+        private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -58,8 +59,8 @@ final class InstitutionCreator
 
         try {
             return $this->entityManager->wrapInTransaction(function () use ($actorId, $ownerId, $names, $type, $reasonCode): Institution {
-                // Lock order for create (no institution row yet): users by UUID ascending.
-                $users = $this->userReloader->lockExistingByIds([$actorId, $ownerId]);
+                // Lock order for create (no institution row yet): users by UUID ascending + HINT_REFRESH.
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId, $ownerId]);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
                 if (!$freshActor instanceof User) {
                     throw InstitutionOperationException::userNotFound();

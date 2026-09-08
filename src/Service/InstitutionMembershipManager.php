@@ -27,7 +27,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Institution-scoped membership mutations. Global ROLE_* never substitutes for membership.
  *
- * Lock order: institution (WRITE) → users by UUID (READ) → membership (WRITE when mutating an existing row).
+ * Lock order: institution (WRITE + HINT_REFRESH) → users UUID asc (READ + HINT_REFRESH)
+ * → membership (WRITE + HINT_REFRESH). Actor membership authority is also HINT_REFRESH'd
+ * under the institution lock (identity map is never trusted).
  */
 final class InstitutionMembershipManager
 {
@@ -35,7 +37,7 @@ final class InstitutionMembershipManager
         private readonly InstitutionMembershipRepository $memberships,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
-        private readonly InstitutionalUserReloader $userReloader,
+        private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -62,7 +64,7 @@ final class InstitutionMembershipManager
                 $lockedInstitution = $this->lockInstitutionById($institutionId);
                 $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
 
-                $users = $this->userReloader->lockExistingByIds([$actorId, $subjectId]);
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId, $subjectId]);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
                 if (!$freshActor instanceof User) {
                     throw InstitutionMembershipException::userNotFound();
@@ -77,7 +79,7 @@ final class InstitutionMembershipManager
 
                 $this->assertActorMayManageRole($freshActor, $lockedInstitution, $role, null);
 
-                if (null !== $this->memberships->findMembership($freshSubject, $lockedInstitution)) {
+                if (null !== $this->freshEntities->findFreshMembershipForUser($subjectId, $institutionId)) {
                     throw InstitutionMembershipException::duplicateMembership();
                 }
 
@@ -285,11 +287,6 @@ final class InstitutionMembershipManager
         $subjectUserId = $membership->getUser()->getId();
         $actorId = $actor->getId();
 
-        // Never trust associations on the caller-provided membership instance inside the TX.
-        if ($this->entityManager->contains($membership)) {
-            $this->entityManager->detach($membership);
-        }
-
         try {
             $this->entityManager->wrapInTransaction(function () use (
                 $institutionId,
@@ -303,7 +300,7 @@ final class InstitutionMembershipManager
                 $lockedInstitution = $this->lockInstitutionById($institutionId);
                 $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
 
-                $users = $this->userReloader->lockExistingByIds([$actorId, $subjectUserId]);
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId, $subjectUserId]);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
                 if (!$freshActor instanceof User) {
                     throw InstitutionMembershipException::userNotFound();
@@ -332,7 +329,7 @@ final class InstitutionMembershipManager
 
     private function lockInstitutionById(Uuid $institutionId): Institution
     {
-        $locked = $this->entityManager->find(Institution::class, $institutionId, LockMode::PESSIMISTIC_WRITE);
+        $locked = $this->freshEntities->findFreshLockedInstitution($institutionId, LockMode::PESSIMISTIC_WRITE);
         if (!$locked instanceof Institution) {
             throw InstitutionMembershipException::notFound();
         }
@@ -342,7 +339,7 @@ final class InstitutionMembershipManager
 
     private function lockMembershipById(Uuid $membershipId): InstitutionMembership
     {
-        $locked = $this->entityManager->find(InstitutionMembership::class, $membershipId, LockMode::PESSIMISTIC_WRITE);
+        $locked = $this->freshEntities->findFreshLockedMembership($membershipId, LockMode::PESSIMISTIC_WRITE);
         if (!$locked instanceof InstitutionMembership) {
             throw InstitutionMembershipException::notFound();
         }
@@ -387,8 +384,13 @@ final class InstitutionMembershipManager
             return;
         }
 
-        $actorMembership = $this->memberships->findActiveMembership($actor, $institution);
-        if (!$actorMembership instanceof InstitutionMembership) {
+        // HINT_REFRESH under institution lock — never trust identity-map membership state.
+        $actorMembership = $this->freshEntities->findFreshMembershipForUser(
+            $actor->getId(),
+            $institution->getId(),
+        );
+        if (!$actorMembership instanceof InstitutionMembership
+            || InstitutionMembershipStatus::Active !== $actorMembership->getStatus()) {
             throw InstitutionMembershipException::unauthorized();
         }
 

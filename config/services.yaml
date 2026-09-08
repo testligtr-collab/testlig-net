@@ -115,11 +115,11 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
-        App\Service\InstitutionalUserReloader:
+        App\Service\InstitutionalFreshEntityLoader:
             public: true
             autowire: true
             autoconfigure: true
-        App\Security\RequestScopedUserLookup:
+        App\Security\RequestScopedInstitutionAuthLookup:
             public: true
             autowire: true
             autoconfigure: true

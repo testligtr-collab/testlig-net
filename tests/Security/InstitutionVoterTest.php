@@ -13,7 +13,7 @@ use App\Enum\UserStatus;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\UserRepository;
 use App\Security\InstitutionPermission;
-use App\Security\RequestScopedUserLookup;
+use App\Security\RequestScopedInstitutionAuthLookup;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
@@ -268,8 +268,8 @@ final class InstitutionVoterTest extends KernelTestCase
 
     private function resetUserLookup(): void
     {
-        $lookup = static::getContainer()->get(RequestScopedUserLookup::class);
-        self::assertInstanceOf(RequestScopedUserLookup::class, $lookup);
+        $lookup = static::getContainer()->get(RequestScopedInstitutionAuthLookup::class);
+        self::assertInstanceOf(RequestScopedInstitutionAuthLookup::class, $lookup);
         $lookup->reset();
     }
 
