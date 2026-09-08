@@ -12,6 +12,7 @@ use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Enum\AcademicYearFailureReason;
 use App\Enum\AcademicYearStatus;
+use App\Enum\ClassroomFailureReason;
 use App\Enum\ClassroomStatus;
 use App\Enum\ClassroomStudentFailureReason;
 use App\Enum\ClassroomTeacherFailureReason;
@@ -400,6 +401,138 @@ final class AcademicClassroomDomainTest extends KernelTestCase
             $this->rebind();
         }
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM academic_years'));
+    }
+
+    public function testClassroomCapacityLowerBoundAgainstActiveEnrollments(): void
+    {
+        [$owner, , $institution, $year, $classroom] = $this->readyClassroom('cap-lb', capacity: 20);
+        $otherClassroom = $this->classroomManager()->create($year, $owner, 'cap-lb 10-B', GradeLevel::Grade10, 'c2', 'B', 20);
+        [$ownerOther, , $instOther, , $classroomOther] = $this->readyClassroom('cap-lb-o', capacity: 20);
+
+        $firstStudentMembershipId = null;
+        for ($i = 1; $i <= 10; ++$i) {
+            $user = $this->activeUser(\sprintf('cap-lb-s%d@example.com', $i));
+            $this->membershipManager()->addMember($institution, $owner, $user, InstitutionMembershipRole::Student, 's'.$i);
+            $sm = $this->memberships->findActiveMembership($user, $institution);
+            self::assertInstanceOf(InstitutionMembership::class, $sm);
+            if (1 === $i) {
+                $firstStudentMembershipId = $sm->getId();
+            }
+            $this->enrollmentManager()->enroll($classroom, $owner, $sm, 'en'.$i);
+        }
+        self::assertInstanceOf(\Symfony\Component\Uid\Uuid::class, $firstStudentMembershipId);
+
+        $otherStudent = $this->activeUser('cap-lb-other-cls@example.com');
+        $this->membershipManager()->addMember($institution, $owner, $otherStudent, InstitutionMembershipRole::Student, 'other_cls');
+        $otherSm = $this->memberships->findActiveMembership($otherStudent, $institution);
+        self::assertInstanceOf(InstitutionMembership::class, $otherSm);
+        $this->enrollmentManager()->enroll($otherClassroom, $owner, $otherSm, 'en_other_cls');
+
+        $foreignStudent = $this->activeUser('cap-lb-foreign@example.com');
+        $this->membershipManager()->addMember($instOther, $ownerOther, $foreignStudent, InstitutionMembershipRole::Student, 'foreign');
+        $foreignSm = $this->memberships->findActiveMembership($foreignStudent, $instOther);
+        self::assertInstanceOf(InstitutionMembership::class, $foreignSm);
+        $this->enrollmentManager()->enroll($classroomOther, $ownerOther, $foreignSm, 'en_foreign');
+
+        $classroomId = $classroom->getId();
+        $otherClassroomId = $otherClassroom->getId();
+        $classroomOtherId = $classroomOther->getId();
+        $ownerId = $owner->getId();
+        $ownerOtherId = $ownerOther->getId();
+
+        try {
+            $this->classroomManager()->changeCapacity($classroom, $owner, 9, 'too_low');
+            self::fail('capacity 9 with 10 active should fail');
+        } catch (ClassroomException $e) {
+            self::assertSame(ClassroomFailureReason::CapacityBelowEnrollment, $e->getReason());
+        }
+        $this->resetDoctrine();
+
+        $classroom = $this->classrooms->find($classroomId);
+        self::assertInstanceOf(Classroom::class, $classroom);
+        self::assertSame(20, $classroom->getCapacity());
+        $owner = $this->users->find($ownerId);
+        self::assertInstanceOf(User::class, $owner);
+
+        $this->classroomManager()->changeCapacity($classroom, $owner, 10, 'exact');
+        $this->em->refresh($classroom);
+        self::assertSame(10, $classroom->getCapacity());
+
+        $this->classroomManager()->changeCapacity($classroom, $owner, null, 'unlimited');
+        $this->em->refresh($classroom);
+        self::assertNull($classroom->getCapacity());
+
+        $endedEnrollment = $this->enrollments->createQueryBuilder('e')
+            ->andWhere('e.studentMembership = :m')
+            ->andWhere('e.status = :status')
+            ->setParameter('m', $firstStudentMembershipId, 'uuid')
+            ->setParameter('status', StudentEnrollmentStatus::Active)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(ClassroomStudentEnrollment::class, $endedEnrollment);
+        $this->enrollmentManager()->endEnrollment($endedEnrollment, $owner, 'end_one');
+
+        $classroom = $this->classrooms->find($classroomId);
+        self::assertInstanceOf(Classroom::class, $classroom);
+        $this->classroomManager()->changeCapacity($classroom, $owner, 9, 'after_end');
+        $this->em->refresh($classroom);
+        self::assertSame(9, $classroom->getCapacity());
+
+        // Transfer: source loses an active seat; target gains one.
+        $this->classroomManager()->changeCapacity($classroom, $owner, 20, 'room');
+        $activeSource = $this->enrollments->createQueryBuilder('e')
+            ->andWhere('e.classroom = :c')
+            ->andWhere('e.status = :status')
+            ->setParameter('c', $classroomId, 'uuid')
+            ->setParameter('status', StudentEnrollmentStatus::Active)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(ClassroomStudentEnrollment::class, $activeSource);
+        $otherClassroom = $this->classrooms->find($otherClassroomId);
+        self::assertInstanceOf(Classroom::class, $otherClassroom);
+        $owner = $this->users->find($ownerId);
+        self::assertInstanceOf(User::class, $owner);
+
+        $transferred = $this->enrollmentManager()->transfer($activeSource, $owner, $otherClassroom, 'xfer');
+        self::assertSame(StudentEnrollmentStatus::Active, $transferred->getStatus());
+
+        $classroom = $this->classrooms->find($classroomId);
+        self::assertInstanceOf(Classroom::class, $classroom);
+        // Source now has 8 active (10 - 1 ended - 1 transferred).
+        $this->classroomManager()->changeCapacity($classroom, $owner, 8, 'src_after_xfer');
+        $this->em->refresh($classroom);
+        self::assertSame(8, $classroom->getCapacity());
+
+        $otherClassroom = $this->classrooms->find($otherClassroomId);
+        self::assertInstanceOf(Classroom::class, $otherClassroom);
+        // Target has original other-classroom student + transfer = 2 active.
+        try {
+            $this->classroomManager()->changeCapacity($otherClassroom, $owner, 1, 'tgt_too_low');
+            self::fail('target capacity below enrollment');
+        } catch (ClassroomException $e) {
+            self::assertSame(ClassroomFailureReason::CapacityBelowEnrollment, $e->getReason());
+        }
+        $this->resetDoctrine();
+
+        $otherClassroom = $this->classrooms->find($otherClassroomId);
+        self::assertInstanceOf(Classroom::class, $otherClassroom);
+        self::assertSame(20, $otherClassroom->getCapacity());
+        $owner = $this->users->find($ownerId);
+        self::assertInstanceOf(User::class, $owner);
+        $this->classroomManager()->changeCapacity($otherClassroom, $owner, 2, 'tgt_ok');
+        $this->em->refresh($otherClassroom);
+        self::assertSame(2, $otherClassroom->getCapacity());
+
+        // Other institution's classroom only counts its own enrollments.
+        $classroomOther = $this->classrooms->find($classroomOtherId);
+        self::assertInstanceOf(Classroom::class, $classroomOther);
+        $ownerOther = $this->users->find($ownerOtherId);
+        self::assertInstanceOf(User::class, $ownerOther);
+        $this->classroomManager()->changeCapacity($classroomOther, $ownerOther, 1, 'foreign_ok');
+        $this->em->refresh($classroomOther);
+        self::assertSame(1, $classroomOther->getCapacity());
     }
 
     /**

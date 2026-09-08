@@ -87,6 +87,10 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Transfer: eski enrollment biter, yeni satır oluşur (tarihçe korunur).
 - Üyelik rolleri: owner / manager / teacher / staff / **student** (owner+manager student atayabilir).
 - Yetki: `ClassroomVoter` + DBAL snapshot; global roller tek başına sınıf erişimi vermez.
+- DB tenant/guard tutarlılığı: composite UNIQUE + composite FK (migration + `AcademicClassroomCompositeForeignKeyListener`).
+- Aktif assignment/enrollment varken membership rol/status değişimi typed conflict ile reddedilir.
+- `changeCapacity` aktif enrollment sayısının altına inemez.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
