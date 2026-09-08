@@ -11,6 +11,7 @@ use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserStatus;
 use App\Repository\UserRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,7 @@ final class UserAccountLifecycle
     public function __construct(
         private readonly UserRepository $users,
         private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger,
@@ -35,6 +37,7 @@ final class UserAccountLifecycle
             return;
         }
 
+        $userId = $user->getId();
         $this->entityManager->wrapInTransaction(function () use ($user): void {
             $now = \DateTimeImmutable::createFromInterface($this->clock->now());
             $previous = $user->getStatus();
@@ -54,6 +57,7 @@ final class UserAccountLifecycle
             ), false);
             $this->entityManager->flush();
         });
+        $this->authCache->invalidateUser($userId);
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserRole;
 use App\Exception\InvalidUserTransitionException;
 use App\Repository\UserRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -24,6 +25,7 @@ final class UserGlobalRoleManager
     public function __construct(
         private readonly UserRepository $users,
         private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -38,6 +40,7 @@ final class UserGlobalRoleManager
         $reason = $this->normalizeReason($reason);
 
         $previous = $user->getRoles();
+        $userId = $user->getId();
         $this->entityManager->wrapInTransaction(function () use ($user, $roles, $actor, $reason, $previous): void {
             $user->setGlobalRoles($roles);
             $this->users->save($user, false);
@@ -56,6 +59,7 @@ final class UserGlobalRoleManager
             ), false);
             $this->entityManager->flush();
         });
+        $this->authCache->invalidateUser($userId);
     }
 
     public function addRole(User $user, UserRole $role, User $actor, string $reason): void
@@ -65,6 +69,7 @@ final class UserGlobalRoleManager
         $reason = $this->normalizeReason($reason);
 
         $previous = $user->getRoles();
+        $userId = $user->getId();
         $this->entityManager->wrapInTransaction(function () use ($user, $role, $actor, $reason, $previous): void {
             $user->addGlobalRole($role);
             $this->users->save($user, false);
@@ -83,6 +88,7 @@ final class UserGlobalRoleManager
             ), false);
             $this->entityManager->flush();
         });
+        $this->authCache->invalidateUser($userId);
     }
 
     public function removeRole(User $user, UserRole $role, User $actor, string $reason): void
@@ -99,6 +105,7 @@ final class UserGlobalRoleManager
         $reason = $this->normalizeReason($reason);
 
         $previous = $user->getRoles();
+        $userId = $user->getId();
         $this->entityManager->wrapInTransaction(function () use ($user, $role, $actor, $reason, $previous): void {
             $remaining = array_values(array_filter(
                 $user->getGlobalRoleEnums(),
@@ -121,6 +128,7 @@ final class UserGlobalRoleManager
             ), false);
             $this->entityManager->flush();
         });
+        $this->authCache->invalidateUser($userId);
     }
 
     /**

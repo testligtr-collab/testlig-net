@@ -23,6 +23,7 @@ services:
 
     App\Service\EmailVerificationSenderInterface: '@App\Service\EmailVerificationMailer'
     App\Service\PasswordResetNotifierInterface: '@App\Service\PasswordResetMailer'
+    App\Security\InstitutionAuthorizationCacheInvalidator: '@App\Security\RequestScopedInstitutionAuthLookup'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

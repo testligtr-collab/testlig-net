@@ -18,12 +18,11 @@ use Symfony\Contracts\Service\ResetInterface;
 /**
  * Request-scoped DB authorization snapshots for InstitutionVoter.
  *
- * Reads scalar projections via DBAL — never returns Doctrine-managed User/Institution/
- * Membership entities, so identity-map staleness cannot affect voter decisions.
- * Cache is per request and cleared via {@see ResetInterface::reset()}.
- * Mid-request mutations are not invalidated automatically; HTTP flows vote before mutate.
+ * Reads scalar projections via DBAL — never returns Doctrine-managed entities.
+ * Cache is per request ({@see ResetInterface}) and must be invalidated after successful
+ * domain commits via {@see InstitutionAuthorizationCacheInvalidator}.
  */
-final class RequestScopedInstitutionAuthLookup implements ResetInterface
+final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizationCacheInvalidator, ResetInterface
 {
     /** @var array<string, UserAuthorizationSnapshot|null> */
     private array $users = [];
@@ -61,7 +60,7 @@ final class RequestScopedInstitutionAuthLookup implements ResetInterface
 
     public function getMembershipSnapshot(Uuid $userId, Uuid $institutionId): ?MembershipAuthorizationSnapshot
     {
-        $key = $userId->toRfc4122().'|'.$institutionId->toRfc4122();
+        $key = $this->membershipKey($userId, $institutionId);
         if (!\array_key_exists($key, $this->memberships)) {
             $this->memberships[$key] = $this->fetchMembershipSnapshot($userId, $institutionId);
         }
@@ -69,11 +68,73 @@ final class RequestScopedInstitutionAuthLookup implements ResetInterface
         return $this->memberships[$key];
     }
 
+    public function invalidateUser(Uuid $userId): void
+    {
+        $this->safe(function () use ($userId): void {
+            unset($this->users[$userId->toRfc4122()]);
+            $prefix = $userId->toRfc4122().'|';
+            foreach (array_keys($this->memberships) as $key) {
+                if (str_starts_with($key, $prefix)) {
+                    unset($this->memberships[$key]);
+                }
+            }
+        });
+    }
+
+    public function invalidateInstitution(Uuid $institutionId): void
+    {
+        $this->safe(function () use ($institutionId): void {
+            unset($this->institutions[$institutionId->toRfc4122()]);
+            $this->dropMembershipsForInstitution($institutionId);
+        });
+    }
+
+    public function invalidateMembership(Uuid $userId, Uuid $institutionId): void
+    {
+        $this->safe(function () use ($userId, $institutionId): void {
+            unset($this->memberships[$this->membershipKey($userId, $institutionId)]);
+        });
+    }
+
+    public function invalidateInstitutionMemberships(Uuid $institutionId): void
+    {
+        $this->safe(function () use ($institutionId): void {
+            $this->dropMembershipsForInstitution($institutionId);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
         $this->institutions = [];
         $this->memberships = [];
+    }
+
+    private function dropMembershipsForInstitution(Uuid $institutionId): void
+    {
+        $suffix = '|'.$institutionId->toRfc4122();
+        foreach (array_keys($this->memberships) as $key) {
+            if (str_ends_with($key, $suffix)) {
+                unset($this->memberships[$key]);
+            }
+        }
+    }
+
+    private function membershipKey(Uuid $userId, Uuid $institutionId): string
+    {
+        return $userId->toRfc4122().'|'.$institutionId->toRfc4122();
+    }
+
+    /**
+     * Invalidation must not break the request; fall back to full reset.
+     */
+    private function safe(callable $operation): void
+    {
+        try {
+            $operation();
+        } catch (\Throwable) {
+            $this->reset();
+        }
     }
 
     private function fetchUserSnapshot(Uuid $userId): ?UserAuthorizationSnapshot

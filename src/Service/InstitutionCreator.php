@@ -15,6 +15,7 @@ use App\Enum\SecurityAuditOutcome;
 use App\Exception\InstitutionOperationException;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\InstitutionRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -36,6 +37,7 @@ final class InstitutionCreator
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -58,7 +60,7 @@ final class InstitutionCreator
         }
 
         try {
-            return $this->entityManager->wrapInTransaction(function () use ($actorId, $ownerId, $names, $type, $reasonCode): Institution {
+            $institution = $this->entityManager->wrapInTransaction(function () use ($actorId, $ownerId, $names, $type, $reasonCode): Institution {
                 // Lock order for create (no institution row yet): users by UUID ascending + HINT_REFRESH.
                 $users = $this->freshEntities->findFreshLockedUsers([$actorId, $ownerId]);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
@@ -137,6 +139,12 @@ final class InstitutionCreator
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw InstitutionOperationException::conflict();
         }
+
+        // Post-commit only: clear any cached null/stale institution or owner membership snapshots.
+        $this->authCache->invalidateInstitution($institution->getId());
+        $this->authCache->invalidateMembership($ownerId, $institution->getId());
+
+        return $institution;
     }
 
     private function normalizeReasonCode(string $reasonCode): string

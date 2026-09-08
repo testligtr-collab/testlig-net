@@ -13,6 +13,7 @@ use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
 use App\Exception\InstitutionOperationException;
 use App\Repository\InstitutionRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\LockMode;
@@ -31,6 +32,7 @@ final class InstitutionStatusManager
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -98,6 +100,8 @@ final class InstitutionStatusManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw InstitutionOperationException::conflict();
         }
+
+        $this->authCache->invalidateInstitution($institutionId);
     }
 
     private function normalizeReasonCode(string $reasonCode): string

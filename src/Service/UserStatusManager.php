@@ -13,6 +13,7 @@ use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Exception\InvalidUserTransitionException;
 use App\Repository\UserRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -25,6 +26,7 @@ final class UserStatusManager
     public function __construct(
         private readonly UserRepository $users,
         private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -56,6 +58,7 @@ final class UserStatusManager
         $this->assertActorMayManageStatus($actor);
         $reason = $this->normalizeReason($reason);
         $previous = $user->getStatus();
+        $userId = $user->getId();
 
         $this->entityManager->wrapInTransaction(function () use ($user, $target, $actor, $reason, $previous, $source): void {
             $user->transitionTo($target);
@@ -75,6 +78,7 @@ final class UserStatusManager
             ), false);
             $this->entityManager->flush();
         });
+        $this->authCache->invalidateUser($userId);
     }
 
     private function assertActorMayManageStatus(User $actor): void

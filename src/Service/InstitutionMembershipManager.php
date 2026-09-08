@@ -16,6 +16,7 @@ use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
 use App\Exception\InstitutionMembershipException;
 use App\Repository\InstitutionMembershipRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -38,6 +39,7 @@ final class InstitutionMembershipManager
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -60,7 +62,7 @@ final class InstitutionMembershipManager
         $subjectId = $subject->getId();
 
         try {
-            return $this->entityManager->wrapInTransaction(function () use ($institutionId, $actorId, $subjectId, $role, $reasonCode): InstitutionMembership {
+            $membership = $this->entityManager->wrapInTransaction(function () use ($institutionId, $actorId, $subjectId, $role, $reasonCode): InstitutionMembership {
                 $lockedInstitution = $this->lockInstitutionById($institutionId);
                 $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
 
@@ -112,6 +114,10 @@ final class InstitutionMembershipManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw InstitutionMembershipException::conflict();
         }
+
+        $this->authCache->invalidateMembership($subjectId, $institutionId);
+
+        return $membership;
     }
 
     public function changeRole(
@@ -325,6 +331,8 @@ final class InstitutionMembershipManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw InstitutionMembershipException::conflict();
         }
+
+        $this->authCache->invalidateMembership($subjectUserId, $institutionId);
     }
 
     private function lockInstitutionById(Uuid $institutionId): Institution
