@@ -112,6 +112,22 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\AcademicYearManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\ClassroomManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\ClassroomTeacherAssignmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\ClassroomStudentEnrollmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\ActiveVerifiedUserPolicy:
             public: true
             autowire: true
@@ -150,6 +166,46 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\InstitutionMembershipRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AcademicYearRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\InstitutionActiveAcademicYearGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomTeacherAssignmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomHomeroomGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomTeacherActiveGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomStudentEnrollmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AcademicYearStudentEnrollmentGuardRepository:
             public: true
             autowire: true
             autoconfigure: true
