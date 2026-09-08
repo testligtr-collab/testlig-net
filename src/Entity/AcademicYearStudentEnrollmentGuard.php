@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Ensures one active enrollment per student membership per academic year.
+ * Composite FK on enrollment keys is enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: AcademicYearStudentEnrollmentGuardRepository::class)]
 #[ORM\Table(name: 'academic_year_student_enrollment_guards')]

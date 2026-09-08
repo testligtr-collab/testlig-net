@@ -25,6 +25,10 @@ services:
     App\Service\PasswordResetNotifierInterface: '@App\Service\PasswordResetMailer'
     App\Security\InstitutionAuthorizationCacheInvalidator: '@App\Security\RequestScopedInstitutionAuthLookup'
 
+    App\Doctrine\AcademicClassroomCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -109,6 +113,10 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\InstitutionMembershipManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\MembershipClassroomLinkChecker:
             public: true
             autowire: true
             autoconfigure: true

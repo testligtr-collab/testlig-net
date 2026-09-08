@@ -20,6 +20,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Entity(repositoryClass: AcademicYearRepository::class)]
 #[ORM\Table(name: 'academic_years')]
 #[ORM\UniqueConstraint(name: 'uniq_academic_year_institution_normalized_name', columns: ['institution_id', 'normalized_name'])]
+#[ORM\UniqueConstraint(name: 'uniq_academic_year_id_institution', columns: ['id', 'institution_id'])]
 #[ORM\Index(name: 'idx_academic_year_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\Index(name: 'idx_academic_year_institution_dates', columns: ['institution_id', 'starts_at', 'ends_at'])]
 class AcademicYear

@@ -17,17 +17,25 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Teacher membership assigned to a classroom. Ended rows are history; re-assign creates a new row.
+ * Composite tenant FKs are enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: ClassroomTeacherAssignmentRepository::class)]
 #[ORM\Table(name: 'classroom_teacher_assignments')]
+#[ORM\UniqueConstraint(name: 'uniq_cta_id_classroom', columns: ['id', 'classroom_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_cta_id_classroom_membership', columns: ['id', 'classroom_id', 'teacher_membership_id'])]
 #[ORM\Index(name: 'idx_cta_classroom_status', columns: ['classroom_id', 'status'])]
 #[ORM\Index(name: 'idx_cta_membership_status', columns: ['teacher_membership_id', 'status'])]
 #[ORM\Index(name: 'idx_cta_classroom_role_status', columns: ['classroom_id', 'role', 'status'])]
+#[ORM\Index(name: 'idx_cta_institution', columns: ['institution_id'])]
 class ClassroomTeacherAssignment
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'institution_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private Institution $institution;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'classroom_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
@@ -63,6 +71,7 @@ class ClassroomTeacherAssignment
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? new UuidV7();
+        $this->institution = $classroom->getInstitution();
         $this->classroom = $classroom;
         $this->teacherMembership = $teacherMembership;
         $this->role = $role;
@@ -88,6 +97,12 @@ class ClassroomTeacherAssignment
     public function getId(): Uuid
     {
         return $this->id;
+    }
+
+    #[Ignore]
+    public function getInstitution(): Institution
+    {
+        return $this->institution;
     }
 
     #[Ignore]

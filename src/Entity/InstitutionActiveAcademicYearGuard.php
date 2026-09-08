@@ -10,7 +10,8 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Ensures at most one active academic year per institution (institution_id PK, academic_year_id UNIQUE).
+ * Ensures at most one active academic year per institution.
+ * Composite FK (academic_year_id, institution_id) is enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: InstitutionActiveAcademicYearGuardRepository::class)]
 #[ORM\Table(name: 'institution_active_academic_year_guards')]

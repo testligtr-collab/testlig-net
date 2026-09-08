@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Ensures one active teacher assignment per (classroom, teacher membership).
+ * Composite FK on assignment keys is enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: ClassroomTeacherActiveGuardRepository::class)]
 #[ORM\Table(name: 'classroom_teacher_active_guards')]

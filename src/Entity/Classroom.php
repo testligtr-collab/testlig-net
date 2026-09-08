@@ -17,10 +17,14 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Classroom/section within an academic year. Capacity null or 1..500.
+ * Composite FK (academic_year_id, institution_id) is enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: ClassroomRepository::class)]
 #[ORM\Table(name: 'classrooms')]
 #[ORM\UniqueConstraint(name: 'uniq_classroom_year_normalized_name', columns: ['academic_year_id', 'normalized_name'])]
+#[ORM\UniqueConstraint(name: 'uniq_classroom_id_institution', columns: ['id', 'institution_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_classroom_id_year', columns: ['id', 'academic_year_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_classroom_id_institution_year', columns: ['id', 'academic_year_id', 'institution_id'])]
 #[ORM\Index(name: 'idx_classroom_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\Index(name: 'idx_classroom_year_status', columns: ['academic_year_id', 'status'])]
 #[ORM\Index(name: 'idx_classroom_institution_year', columns: ['institution_id', 'academic_year_id'])]

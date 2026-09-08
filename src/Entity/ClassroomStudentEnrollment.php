@@ -16,17 +16,26 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Student membership enrolled in a classroom. Transfer ends this row and creates a new enrollment.
+ * Composite tenant FKs are enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: ClassroomStudentEnrollmentRepository::class)]
 #[ORM\Table(name: 'classroom_student_enrollments')]
+#[ORM\UniqueConstraint(name: 'uniq_cse_id_classroom_year', columns: ['id', 'classroom_id', 'academic_year_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_cse_id_year_membership', columns: ['id', 'academic_year_id', 'student_membership_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_cse_id_classroom_year_membership', columns: ['id', 'classroom_id', 'academic_year_id', 'student_membership_id'])]
 #[ORM\Index(name: 'idx_cse_classroom_status', columns: ['classroom_id', 'status'])]
 #[ORM\Index(name: 'idx_cse_year_membership_status', columns: ['academic_year_id', 'student_membership_id', 'status'])]
 #[ORM\Index(name: 'idx_cse_membership_status', columns: ['student_membership_id', 'status'])]
+#[ORM\Index(name: 'idx_cse_institution', columns: ['institution_id'])]
 class ClassroomStudentEnrollment
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'institution_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private Institution $institution;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'classroom_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
@@ -66,6 +75,7 @@ class ClassroomStudentEnrollment
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? new UuidV7();
+        $this->institution = $classroom->getInstitution();
         $this->classroom = $classroom;
         $this->academicYear = $academicYear;
         $this->studentMembership = $studentMembership;
@@ -91,6 +101,12 @@ class ClassroomStudentEnrollment
     public function getId(): Uuid
     {
         return $this->id;
+    }
+
+    #[Ignore]
+    public function getInstitution(): Institution
+    {
+        return $this->institution;
     }
 
     #[Ignore]

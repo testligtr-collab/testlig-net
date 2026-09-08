@@ -11,6 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Ensures at most one active homeroom teacher assignment per classroom.
+ * Composite FK (assignment_id, classroom_id) is enforced in DB (+ schema listener).
  */
 #[ORM\Entity(repositoryClass: ClassroomHomeroomGuardRepository::class)]
 #[ORM\Table(name: 'classroom_homeroom_guards')]
