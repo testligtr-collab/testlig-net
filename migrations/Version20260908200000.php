@@ -46,6 +46,9 @@ final class Version20260908200000 extends AbstractMigration
         $this->addSql('ALTER TABLE academic_year_student_enrollment_guards ADD CONSTRAINT FK_AY_ENROLL_GUARD_YEAR FOREIGN KEY (academic_year_id) REFERENCES academic_years (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE academic_year_student_enrollment_guards ADD CONSTRAINT FK_AY_ENROLL_GUARD_MEMBERSHIP FOREIGN KEY (student_membership_id) REFERENCES institution_memberships (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE academic_year_student_enrollment_guards ADD CONSTRAINT FK_AY_ENROLL_GUARD_ENROLLMENT FOREIGN KEY (enrollment_id) REFERENCES classroom_student_enrollments (id) ON DELETE CASCADE');
+        // Align MariaDB auto FK index names with Doctrine's expected names.
+        $this->addSql('ALTER TABLE academic_year_student_enrollment_guards RENAME INDEX FK_AY_ENROLL_GUARD_MEMBERSHIP TO IDX_C46C780D4A2FAC53');
+        $this->addSql('ALTER TABLE classroom_teacher_active_guards RENAME INDEX FK_CTA_ACTIVE_GUARD_MEMBERSHIP TO IDX_AA21C057D7F2DAB9');
     }
 
     public function down(Schema $schema): void
