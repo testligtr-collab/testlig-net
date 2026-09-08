@@ -11,9 +11,11 @@ use SymfonyCasts\Bundle\ResetPassword\Model\ResetPasswordRequestTrait;
 
 /**
  * Stores hashed password-reset selectors/tokens (never plain-text public tokens).
+ * At most one request row per user (unique user_id) enforces a single active reset.
  */
 #[ORM\Entity(repositoryClass: ResetPasswordRequestRepository::class)]
 #[ORM\Table(name: 'reset_password_requests')]
+#[ORM\UniqueConstraint(name: 'uniq_reset_password_user', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_reset_password_selector', columns: ['selector'])]
 #[ORM\Index(name: 'idx_reset_password_expires_at', columns: ['expires_at'])]
 class ResetPasswordRequest implements ResetPasswordRequestInterface

@@ -341,14 +341,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
     }
 
     /**
-     * Stores an already-hashed password. Prefer UserFactory / a future password service with audit.
+     * Stores an already-hashed password. Prefer UserFactory / PasswordManager with audit.
+     *
+     * @param \DateTimeImmutable|null $changedAt when null, uses "now" and advances past prior value if needed
      */
     #[Ignore]
-    public function setPassword(string $hashedPassword): void
+    public function setPassword(string $hashedPassword, ?\DateTimeImmutable $changedAt = null): void
     {
         $this->password = $hashedPassword;
-        $this->passwordChangedAt = new \DateTimeImmutable('now');
+        $candidate = $changedAt ?? new \DateTimeImmutable('now');
+        $candidate = self::toSecondPrecision($candidate);
+        $previous = self::toSecondPrecision($this->passwordChangedAt);
+        if ($candidate <= $previous) {
+            $candidate = $previous->modify('+1 second');
+        }
+        $this->passwordChangedAt = $candidate;
         $this->touch();
+    }
+
+    private static function toSecondPrecision(\DateTimeImmutable $value): \DateTimeImmutable
+    {
+        $normalized = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value->format('Y-m-d H:i:s'), $value->getTimezone());
+
+        return false !== $normalized ? $normalized : $value->setTime(
+            (int) $value->format('H'),
+            (int) $value->format('i'),
+            (int) $value->format('s'),
+        );
     }
 
     public function eraseCredentials(): void
@@ -357,7 +376,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
     }
 
     /**
-     * Invalidates other sessions after password (or status) changes without custom serialization.
+     * Invalidates other sessions after password, role, or status changes without custom serialization.
      */
     public function isEqualTo(UserInterface $user): bool
     {
@@ -367,7 +386,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
 
         return $this->password === $user->password
             && $this->normalizedEmail === $user->normalizedEmail
-            && $this->status === $user->status;
+            && $this->status === $user->status
+            && $this->getRoles() === $user->getRoles();
     }
 
     public function __toString(): string

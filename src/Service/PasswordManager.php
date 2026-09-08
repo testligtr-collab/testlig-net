@@ -10,7 +10,11 @@ use App\Exception\PasswordChangeFailedException;
 use App\Exception\PasswordResetFailedException;
 use App\Repository\ResetPasswordRequestRepository;
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\LockWaitTimeoutException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -32,6 +36,7 @@ final class PasswordManager
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -57,15 +62,39 @@ final class PasswordManager
         }
 
         try {
-            // Replace any prior active request for this user.
-            $this->resetPasswordRequests->removeRequests($user);
-            $resetToken = $this->resetPasswordHelper->generateResetToken($user);
-            $this->passwordResetMailer->sendResetEmail($user, $resetToken);
+            $resetToken = $this->entityManager->wrapInTransaction(function () use ($user): ResetPasswordToken {
+                $locked = $this->lockUser($user);
+                if (!$locked instanceof User) {
+                    throw PasswordResetFailedException::accountUnavailable();
+                }
+                if (UserStatus::Active !== $locked->getStatus()) {
+                    throw PasswordResetFailedException::accountUnavailable();
+                }
+
+                $this->resetPasswordRequests->removeRequests($locked);
+
+                return $this->resetPasswordHelper->generateResetToken($locked);
+            });
+        } catch (PasswordResetFailedException) {
+            return;
         } catch (ResetPasswordExceptionInterface $exception) {
             $this->logger->notice('Password reset token generation skipped.', [
                 'user_id' => $user->getId()->toRfc4122(),
                 'exception_class' => $exception::class,
             ]);
+
+            return;
+        } catch (DeadlockException|LockWaitTimeoutException $exception) {
+            $this->logger->notice('Password reset request lock contention.', [
+                'user_id' => $user->getId()->toRfc4122(),
+                'exception_class' => $exception::class,
+            ]);
+
+            return;
+        }
+
+        try {
+            $this->passwordResetMailer->sendResetEmail($user, $resetToken);
         } catch (TransportExceptionInterface $exception) {
             $this->logger->error('Password reset email transport failed.', [
                 'user_id' => $user->getId()->toRfc4122(),
@@ -95,51 +124,76 @@ final class PasswordManager
 
     public function resetPassword(string $token, string $plainPassword): void
     {
-        $user = $this->validateTokenAndFetchActiveUser($token);
+        try {
+            $this->entityManager->wrapInTransaction(function () use ($token, $plainPassword): void {
+                $user = $this->validateTokenAndFetchActiveUser($token);
+                $locked = $this->lockUser($user);
+                if (!$locked instanceof User) {
+                    throw PasswordResetFailedException::accountUnavailable();
+                }
 
-        if ($this->passwordHasher->isPasswordValid($user, $plainPassword)) {
-            throw PasswordResetFailedException::sameAsCurrent();
+                // Re-validate after the row lock so a concurrent consumer cannot race.
+                $revalidated = $this->validateTokenAndFetchActiveUser($token);
+                if (!$revalidated->getId()->equals($locked->getId())) {
+                    throw PasswordResetFailedException::invalidToken();
+                }
+
+                if (UserStatus::Active !== $locked->getStatus()) {
+                    throw PasswordResetFailedException::accountUnavailable();
+                }
+
+                if ($this->passwordHasher->isPasswordValid($locked, $plainPassword)) {
+                    throw PasswordResetFailedException::sameAsCurrent();
+                }
+
+                $hashed = $this->passwordHasher->hashPassword($locked, $plainPassword);
+                $locked->setPassword($hashed, $this->nextPasswordChangedAt($locked));
+                $this->users->save($locked, false);
+                $this->resetPasswordRequests->removeRequests($locked);
+                $this->entityManager->flush();
+            });
+        } catch (DeadlockException|LockWaitTimeoutException $exception) {
+            $this->logger->notice('Password reset lock contention.', [
+                'exception_class' => $exception::class,
+            ]);
+            throw PasswordResetFailedException::conflict();
         }
-
-        $this->entityManager->wrapInTransaction(function () use ($user, $plainPassword): void {
-            // Re-check status inside the transaction boundary.
-            $this->entityManager->refresh($user);
-            if (UserStatus::Active !== $user->getStatus()) {
-                throw PasswordResetFailedException::accountUnavailable();
-            }
-
-            $hashed = $this->passwordHasher->hashPassword($user, $plainPassword);
-            $user->setPassword($hashed);
-            $this->users->save($user);
-            $this->resetPasswordRequests->removeRequests($user);
-        });
     }
 
     public function changePassword(User $user, string $currentPassword, string $newPassword): void
     {
-        if (UserStatus::Active !== $user->getStatus()) {
-            throw PasswordChangeFailedException::accountUnavailable();
+        try {
+            $this->entityManager->wrapInTransaction(function () use ($user, $currentPassword, $newPassword): void {
+                $locked = $this->lockUser($user);
+                if (!$locked instanceof User) {
+                    throw PasswordChangeFailedException::accountUnavailable();
+                }
+
+                if (UserStatus::Active !== $locked->getStatus()) {
+                    throw PasswordChangeFailedException::accountUnavailable();
+                }
+
+                if (!$this->passwordHasher->isPasswordValid($locked, $currentPassword)) {
+                    throw PasswordChangeFailedException::invalidCurrentPassword();
+                }
+
+                if ($this->passwordHasher->isPasswordValid($locked, $newPassword)) {
+                    throw PasswordChangeFailedException::sameAsCurrent();
+                }
+
+                $hashed = $this->passwordHasher->hashPassword($locked, $newPassword);
+                $locked->setPassword($hashed, $this->nextPasswordChangedAt($locked));
+                $this->resetPasswordRequests->removeRequests($locked);
+                $this->users->save($locked, false);
+                $this->entityManager->flush();
+            });
+        } catch (DeadlockException|LockWaitTimeoutException $exception) {
+            $this->logger->notice('Password change lock contention.', [
+                'user_id' => $user->getId()->toRfc4122(),
+                'exception_class' => $exception::class,
+            ]);
+            throw PasswordChangeFailedException::conflict();
         }
-
-        if (!$this->passwordHasher->isPasswordValid($user, $currentPassword)) {
-            throw PasswordChangeFailedException::invalidCurrentPassword();
-        }
-
-        if ($this->passwordHasher->isPasswordValid($user, $newPassword)) {
-            throw PasswordChangeFailedException::sameAsCurrent();
-        }
-
-        $this->entityManager->wrapInTransaction(function () use ($user, $newPassword): void {
-            $this->entityManager->refresh($user);
-            if (UserStatus::Active !== $user->getStatus()) {
-                throw PasswordChangeFailedException::accountUnavailable();
-            }
-
-            $hashed = $this->passwordHasher->hashPassword($user, $newPassword);
-            $user->setPassword($hashed);
-            $this->resetPasswordRequests->removeRequests($user);
-            $this->users->save($user);
-        });
     }
 
     public function getTokenLifetime(): int
@@ -150,5 +204,37 @@ final class PasswordManager
     public function generateFakeResetToken(): ResetPasswordToken
     {
         return $this->resetPasswordHelper->generateFakeResetToken();
+    }
+
+    private function lockUser(User $user): ?User
+    {
+        $locked = $this->entityManager->find(User::class, $user->getId(), LockMode::PESSIMISTIC_WRITE);
+
+        return $locked instanceof User ? $locked : null;
+    }
+
+    /**
+     * MariaDB DATETIME is second-resolution; advance at least one second when needed.
+     */
+    private function nextPasswordChangedAt(User $user): \DateTimeImmutable
+    {
+        $nowSecond = self::toSecondPrecision(\DateTimeImmutable::createFromInterface($this->clock->now()));
+        $previousSecond = self::toSecondPrecision($user->getPasswordChangedAt());
+        if ($nowSecond > $previousSecond) {
+            return $nowSecond;
+        }
+
+        return $previousSecond->modify('+1 second');
+    }
+
+    private static function toSecondPrecision(\DateTimeImmutable $value): \DateTimeImmutable
+    {
+        $normalized = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value->format('Y-m-d H:i:s'), $value->getTimezone());
+
+        return false !== $normalized ? $normalized : $value->setTime(
+            (int) $value->format('H'),
+            (int) $value->format('i'),
+            (int) $value->format('s'),
+        );
     }
 }

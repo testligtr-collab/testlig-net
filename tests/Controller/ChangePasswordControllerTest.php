@@ -149,6 +149,91 @@ final class ChangePasswordControllerTest extends WebTestCase
         self::assertFalse($user->isEqualTo($copy));
     }
 
+    public function testOtherBrowserSessionIsForcedToLoginAfterPasswordChange(): void
+    {
+        $client = static::createClient();
+        $email = 'change-dual-session@example.com';
+        $oldPassword = 'Guclu-Parola-123!';
+        $newPassword = 'Yeni-Guclu-Parola-999!';
+        $this->createActiveUser($client, $email, $oldPassword);
+        $this->authenticate($client, $email, $oldPassword);
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+
+        $sessionCookiesA = [];
+        foreach ($client->getCookieJar()->all() as $cookie) {
+            $sessionCookiesA[] = clone $cookie;
+        }
+
+        $client->getCookieJar()->clear();
+        $this->authenticate($client, $email, $oldPassword);
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+
+        $crawler = $client->request('GET', '/hesabim/sifre-degistir');
+        $client->submit($crawler->selectButton('Parolayı kaydet')->form([
+            'change_password_form[currentPassword]' => $oldPassword,
+            'change_password_form[newPassword][first]' => $newPassword,
+            'change_password_form[newPassword][second]' => $newPassword,
+        ]));
+        self::assertResponseRedirects('/giris');
+
+        $client->getCookieJar()->clear();
+        foreach ($sessionCookiesA as $cookie) {
+            $client->getCookieJar()->set($cookie);
+        }
+        $client->request('GET', '/hesabim');
+        self::assertResponseRedirects('/giris');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => $email,
+            '_password' => $oldPassword,
+        ]));
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Giriş bilgileri hatalı');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => $email,
+            '_password' => $newPassword,
+        ]));
+        self::assertResponseRedirects('/hesabim');
+    }
+
+    public function testRoleRemovalInvalidatesExistingBrowserSession(): void
+    {
+        $client = static::createClient();
+        $email = 'change-role-session@example.com';
+        $password = 'Guclu-Parola-123!';
+        $user = $this->createActiveUser($client, $email, $password);
+        $user->addGlobalRole(UserRole::Moderator);
+        /** @var UserRepository $users */
+        $users = $client->getContainer()->get(UserRepository::class);
+        $users->save($user);
+
+        $this->authenticate($client, $email, $password);
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+
+        $sessionCookies = [];
+        foreach ($client->getCookieJar()->all() as $cookie) {
+            $sessionCookies[] = clone $cookie;
+        }
+
+        $reloaded = $users->findOneByNormalizedEmail(mb_strtolower($email));
+        self::assertInstanceOf(User::class, $reloaded);
+        $reloaded->setGlobalRoles([UserRole::Student]);
+        $users->save($reloaded);
+
+        $client->getCookieJar()->clear();
+        foreach ($sessionCookies as $cookie) {
+            $client->getCookieJar()->set($cookie);
+        }
+        $client->request('GET', '/hesabim');
+        self::assertResponseRedirects('/giris');
+    }
+
     private function authenticate(KernelBrowser $client, string $email, string $password): void
     {
         $crawler = $client->request('GET', '/giris');

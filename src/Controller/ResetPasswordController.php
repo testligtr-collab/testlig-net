@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Dto\ForgotPasswordRequest;
 use App\Dto\ResetPasswordRequestData;
+use App\Enum\PasswordResetFailureReason;
 use App\Exception\PasswordResetFailedException;
 use App\Form\ForgotPasswordFormType;
 use App\Form\ResetPasswordFormType;
@@ -26,6 +27,9 @@ final class ResetPasswordController extends AbstractController
     use ResetPasswordControllerTrait;
 
     private const GENERIC_CHECK_EMAIL_MESSAGE = 'Eğer bu e-posta ile kullanılabilir bir hesap varsa, parola yenileme bağlantısı gönderildi.';
+    private const INVALID_TOKEN_MESSAGE = 'Doğrulama bağlantısı geçersiz veya süresi dolmuş.';
+    private const SAME_AS_CURRENT_MESSAGE = 'Yeni parola mevcut parolanızdan farklı olmalıdır.';
+    private const CONFLICT_MESSAGE = 'İşlem şu anda tamamlanamadı. Lütfen daha sonra tekrar deneyin.';
 
     public function __construct(
         private readonly PasswordManager $passwordManager,
@@ -44,6 +48,8 @@ final class ResetPasswordController extends AbstractController
     public function request(Request $request): Response
     {
         if ($this->getUser()) {
+            $this->cleanSessionAfterReset();
+
             return $this->redirectToRoute('app_account');
         }
 
@@ -70,6 +76,8 @@ final class ResetPasswordController extends AbstractController
     public function checkEmail(): Response
     {
         if ($this->getUser()) {
+            $this->cleanSessionAfterReset();
+
             return $this->redirectToRoute('app_account');
         }
 
@@ -85,12 +93,18 @@ final class ResetPasswordController extends AbstractController
     #[Route('/sifre-yenile/{token}', name: 'app_reset_password_token', methods: ['GET'])]
     public function receiveToken(Request $request, string $token): Response
     {
+        if ($this->getUser()) {
+            $this->cleanSessionAfterReset();
+
+            return $this->redirectToRoute('app_account_change_password');
+        }
+
         $this->enforceTokenRateLimit($request);
 
         try {
             $this->passwordManager->validateTokenAndFetchActiveUser($token);
         } catch (PasswordResetFailedException) {
-            $this->addFlash('error', PasswordResetFailedException::invalidToken()->getMessage());
+            $this->addFlash('error', self::INVALID_TOKEN_MESSAGE);
 
             return $this->redirectToRoute('app_forgot_password_request');
         }
@@ -104,12 +118,14 @@ final class ResetPasswordController extends AbstractController
     public function reset(Request $request): Response
     {
         if ($this->getUser()) {
+            $this->cleanSessionAfterReset();
+
             return $this->redirectToRoute('app_account');
         }
 
         $token = $this->getTokenFromSession();
         if (null === $token || '' === $token) {
-            $this->addFlash('error', PasswordResetFailedException::invalidToken()->getMessage());
+            $this->addFlash('error', self::INVALID_TOKEN_MESSAGE);
 
             return $this->redirectToRoute('app_forgot_password_request');
         }
@@ -118,7 +134,7 @@ final class ResetPasswordController extends AbstractController
             $this->passwordManager->validateTokenAndFetchActiveUser($token);
         } catch (PasswordResetFailedException) {
             $this->cleanSessionAfterReset();
-            $this->addFlash('error', PasswordResetFailedException::invalidToken()->getMessage());
+            $this->addFlash('error', self::INVALID_TOKEN_MESSAGE);
 
             return $this->redirectToRoute('app_forgot_password_request');
         }
@@ -135,11 +151,13 @@ final class ResetPasswordController extends AbstractController
 
                 return $this->redirectToRoute('app_login');
             } catch (PasswordResetFailedException $exception) {
-                if ('Yeni parola mevcut parolanızdan farklı olmalıdır.' === $exception->getMessage()) {
-                    $this->addFlash('error', $exception->getMessage());
+                if (PasswordResetFailureReason::SameAsCurrent === $exception->getReason()) {
+                    $this->addFlash('error', self::SAME_AS_CURRENT_MESSAGE);
+                } elseif (PasswordResetFailureReason::Conflict === $exception->getReason()) {
+                    $this->addFlash('error', self::CONFLICT_MESSAGE);
                 } else {
                     $this->cleanSessionAfterReset();
-                    $this->addFlash('error', PasswordResetFailedException::invalidToken()->getMessage());
+                    $this->addFlash('error', self::INVALID_TOKEN_MESSAGE);
 
                     return $this->redirectToRoute('app_forgot_password_request');
                 }

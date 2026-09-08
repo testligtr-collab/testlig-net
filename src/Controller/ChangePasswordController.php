@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Dto\ChangePasswordRequest;
 use App\Entity\User;
+use App\Enum\PasswordChangeFailureReason;
 use App\Exception\PasswordChangeFailedException;
 use App\Form\ChangePasswordFormType;
 use App\Service\PasswordManager;
@@ -44,8 +45,9 @@ final class ChangePasswordController extends AbstractController
 
                 return $this->redirectToRoute('app_login');
             } catch (PasswordChangeFailedException $exception) {
-                $message = match ($exception->getMessage()) {
-                    'password.same_as_current' => 'Yeni parola mevcut parolanızdan farklı olmalıdır.',
+                $message = match ($exception->getReason()) {
+                    PasswordChangeFailureReason::SameAsCurrent => 'Yeni parola mevcut parolanızdan farklı olmalıdır.',
+                    PasswordChangeFailureReason::Conflict => 'İşlem şu anda tamamlanamadı. Lütfen daha sonra tekrar deneyin.',
                     default => 'Parola değiştirilemedi. Bilgilerinizi kontrol edip tekrar deneyin.',
                 };
                 $this->addFlash('error', $message);

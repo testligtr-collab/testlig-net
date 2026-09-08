@@ -16,6 +16,7 @@ use App\Service\RateLimitKeyHasher;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
@@ -24,6 +25,7 @@ use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use SymfonyCasts\Bundle\ResetPassword\Model\ResetPasswordToken;
 use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelper;
 use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelperInterface;
@@ -143,6 +145,7 @@ final class PasswordResetFlowTest extends WebTestCase
         $hasher = static::getContainer()->get('security.user_password_hasher');
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $logger = static::getContainer()->get('logger');
+        $clock = static::getContainer()->get(ClockInterface::class);
         self::assertInstanceOf(ResetPasswordHelperInterface::class, $helper);
         self::assertInstanceOf(ResetPasswordRequestRepository::class, $requests);
         self::assertInstanceOf(UserRepository::class, $users);
@@ -150,6 +153,7 @@ final class PasswordResetFlowTest extends WebTestCase
         self::assertInstanceOf(UserPasswordHasherInterface::class, $hasher);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         self::assertInstanceOf(LoggerInterface::class, $logger);
+        self::assertInstanceOf(ClockInterface::class, $clock);
 
         $manager = new PasswordManager(
             $helper,
@@ -160,6 +164,7 @@ final class PasswordResetFlowTest extends WebTestCase
             $hasher,
             $em,
             $logger,
+            $clock,
         );
 
         $manager->requestReset('reset-smtp-fail@example.com');
@@ -372,6 +377,50 @@ final class PasswordResetFlowTest extends WebTestCase
         ]));
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'farklı olmalıdır');
+    }
+
+    public function testAuthenticatedUserOpeningResetTokenDoesNotKeepSessionTokenAfterLogout(): void
+    {
+        $client = $this->newClient();
+        $this->createUser($client, 'reset-auth-session@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+        $token = $this->generateTokenForEmail($client, 'reset-auth-session@example.com');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'reset-auth-session@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+
+        $client->request('GET', '/sifre-yenile/'.$token);
+        self::assertResponseRedirects('/hesabim/sifre-degistir');
+
+        $csrfManager = static::getContainer()->get('security.csrf.token_manager');
+        self::assertInstanceOf(CsrfTokenManagerInterface::class, $csrfManager);
+        $client->request('POST', '/cikis', ['_csrf_token' => $csrfManager->getToken('logout')->getValue()]);
+        self::assertResponseRedirects('/');
+
+        $client->request('GET', '/sifre-yenile');
+        self::assertResponseRedirects('/sifremi-unuttum');
+    }
+
+    public function testSamePasswordReasonKeepsFormWithoutRelyingOnExceptionMessageText(): void
+    {
+        $client = $this->newClient();
+        $this->createUser($client, 'reset-reason@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+        $token = $this->generateTokenForEmail($client, 'reset-reason@example.com');
+
+        $client->request('GET', '/sifre-yenile/'.$token);
+        $client->followRedirect();
+        $client->submit($client->getCrawler()->selectButton('Parolayı güncelle')->form([
+            'reset_password_form[plainPassword][first]' => 'Guclu-Parola-123!',
+            'reset_password_form[plainPassword][second]' => 'Guclu-Parola-123!',
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('form[name="reset_password_form"]');
+        self::assertSelectorTextContains('body', 'farklı olmalıdır');
+        self::assertNull($client->getRequest()->attributes->get('exception_message_leak'));
     }
 
     private function newClient(): KernelBrowser
