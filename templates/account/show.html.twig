@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Hesabım — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>Hesabım</h1>
+    <dl class="account-dl">
+        <dt>Ad</dt>
+        <dd>{{ user.firstName }}</dd>
+        <dt>Soyad</dt>
+        <dd>{{ user.lastName }}</dd>
+        <dt>E-posta</dt>
+        <dd>{{ user.email }}</dd>
+    </dl>
+</section>
+{% endblock %}

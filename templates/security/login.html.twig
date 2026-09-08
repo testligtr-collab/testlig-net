@@ -1,0 +1,29 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Giriş — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>Giriş yap</h1>
+
+    {% if error %}
+        <div class="flash flash-error" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ path('app_login') }}" novalidate>
+        <div class="form-row">
+            <label for="username">E-posta</label>
+            <input id="username" type="email" name="_username" value="{{ last_username }}" required autocomplete="username">
+        </div>
+        <div class="form-row">
+            <label for="password">Parola</label>
+            <input id="password" type="password" name="_password" required autocomplete="current-password">
+        </div>
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+        <button class="btn" type="submit">Giriş yap</button>
+    </form>
+
+    <p class="muted">Hesabınız yok mu? <a href="{{ path('app_register') }}">Kayıt olun</a></p>
+    <p class="muted">Doğrulama e-postası gelmedi mi? <a href="{{ path('app_resend_verification') }}">Yeniden gönder</a></p>
+</section>
+{% endblock %}

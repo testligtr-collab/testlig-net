@@ -1,0 +1,11 @@
+framework:
+    mailer:
+        dsn: '%env(MAILER_DSN)%'
+        # Auth emails must deliver without a Messenger worker in this phase.
+        message_bus: false
+
+when@test:
+    framework:
+        mailer:
+            dsn: 'null://null'
+            message_bus: false

@@ -23,10 +23,16 @@ services:
       MESSENGER_TRANSPORT_DSN: redis://redis:6379/messages
       LOCK_DSN: ${LOCK_DSN:-flock}
       DEFAULT_URI: ${DEFAULT_URI:-http://localhost:8080}
+      MAILER_DSN: ${MAILER_DSN:-smtp://mailpit:1025}
+      MAILER_FROM_EMAIL: ${MAILER_FROM_EMAIL:-noreply@testlig.local}
+      MAILER_FROM_NAME: ${MAILER_FROM_NAME:-Testlig}
+      VERIFY_EMAIL_LIFETIME: ${VERIFY_EMAIL_LIFETIME:-86400}
     depends_on:
       database:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mailpit:
         condition: service_healthy
     networks:
       - testlig
@@ -48,6 +54,16 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s
+    networks:
+      - testlig
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: testlig_mailpit
+    # UI only on localhost (SMTP stays on the Docker network as mailpit:1025).
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    # Image ships with `mailpit readyz` HEALTHCHECK.
     networks:
       - testlig
 

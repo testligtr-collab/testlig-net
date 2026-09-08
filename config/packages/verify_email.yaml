@@ -1,0 +1,2 @@
+symfonycasts_verify_email:
+    lifetime: '%env(int:VERIFY_EMAIL_LIFETIME)%'

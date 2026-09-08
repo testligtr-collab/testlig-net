@@ -19,6 +19,8 @@ services:
     App\:
         resource: '../src/'
 
+    App\Service\EmailVerificationSenderInterface: '@App\Service\EmailVerificationMailer'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -37,6 +39,23 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\PersonNameNormalizer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\RegistrationService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EmailVerificationService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EmailVerificationMailer:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EmailVerificationSenderInterface: '@App\Service\EmailVerificationMailer'
+        App\Service\UserAccountLifecycle:
             public: true
             autowire: true
             autoconfigure: true

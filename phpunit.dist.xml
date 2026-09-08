@@ -15,6 +15,11 @@
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
+        <env name="MAILER_DSN" value="null://null" force="true" />
+        <env name="MESSENGER_TRANSPORT_DSN" value="sync://" force="true" />
+        <env name="MAILER_FROM_EMAIL" value="noreply@testlig.test" force="true" />
+        <env name="MAILER_FROM_NAME" value="Testlig" force="true" />
+        <env name="VERIFY_EMAIL_LIFETIME" value="3600" force="true" />
     </php>
 
     <testsuites>

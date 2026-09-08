@@ -1,0 +1,50 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kayıt ol — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>Hesap oluştur</h1>
+    <p class="muted">Bu aşamada yalnızca bireysel öğrenci kaydı açıktır. Kayıt sonrası e-posta doğrulaması gerekir.</p>
+
+    {{ form_start(registrationForm, {attr: {novalidate: 'novalidate'}}) }}
+        {{ form_errors(registrationForm) }}
+        <div class="form-row">
+            {{ form_label(registrationForm.firstName) }}
+            {{ form_widget(registrationForm.firstName) }}
+            {{ form_errors(registrationForm.firstName) }}
+        </div>
+        <div class="form-row">
+            {{ form_label(registrationForm.lastName) }}
+            {{ form_widget(registrationForm.lastName) }}
+            {{ form_errors(registrationForm.lastName) }}
+        </div>
+        <div class="form-row">
+            {{ form_label(registrationForm.email) }}
+            {{ form_widget(registrationForm.email) }}
+            {{ form_errors(registrationForm.email) }}
+        </div>
+        <div class="form-row">
+            {{ form_label(registrationForm.plainPassword.first) }}
+            {{ form_widget(registrationForm.plainPassword.first) }}
+            <p class="form-help">{{ registrationForm.plainPassword.first.vars.help }}</p>
+            {{ form_errors(registrationForm.plainPassword.first) }}
+        </div>
+        <div class="form-row">
+            {{ form_label(registrationForm.plainPassword.second) }}
+            {{ form_widget(registrationForm.plainPassword.second) }}
+            {{ form_errors(registrationForm.plainPassword.second) }}
+            {{ form_errors(registrationForm.plainPassword) }}
+        </div>
+        <div class="form-row checkbox-row">
+            {{ form_widget(registrationForm.agreeTerms) }}
+            {{ form_label(registrationForm.agreeTerms) }}
+        </div>
+        {{ form_errors(registrationForm.agreeTerms) }}
+        {{ form_rest(registrationForm) }}
+        <button class="btn" type="submit">Kayıt ol</button>
+    {{ form_end(registrationForm) }}
+
+    <p class="muted">Zaten hesabınız var mı? <a href="{{ path('app_login') }}">Giriş yapın</a></p>
+</section>
+{% endblock %}

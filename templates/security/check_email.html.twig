@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}E-postanı kontrol et — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>E-postanı kontrol et</h1>
+    <p>Hesabını etkinleştirmek için e-posta kutuna gönderdiğimiz doğrulama bağlantısına tıkla.</p>
+    <p class="muted">Posta gelmediyse spam klasörünü kontrol et veya <a href="{{ path('app_resend_verification') }}">doğrulama e-postasını yeniden iste</a>.</p>
+    <p><a class="btn" href="{{ path('app_login') }}">Giriş sayfasına git</a></p>
+</section>
+{% endblock %}

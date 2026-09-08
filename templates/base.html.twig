@@ -10,6 +10,30 @@
         {% endblock %}
     </head>
     <body>
-        {% block body %}{% endblock %}
+        <header class="site-header">
+            <a class="brand" href="{{ path('app_home') }}">Testlig</a>
+            <nav class="nav-links" aria-label="Ana menü">
+                {% if app.user %}
+                    <a href="{{ path('app_account') }}">Hesabım</a>
+                    <form method="post" action="{{ path('app_logout') }}" class="logout-form">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                        <button type="submit" class="linkish">Çıkış</button>
+                    </form>
+                {% else %}
+                    <a href="{{ path('app_login') }}">Giriş</a>
+                    <a href="{{ path('app_register') }}">Kayıt</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        <main>
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="page flash flash-{{ label }}" role="status">{{ message }}</div>
+                {% endfor %}
+            {% endfor %}
+
+            {% block body %}{% endblock %}
+        </main>
     </body>
 </html>
