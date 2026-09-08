@@ -10,13 +10,16 @@ use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
-use App\Enum\UserRole;
 use App\Repository\InstitutionMembershipRepository;
+use App\Service\ActiveVerifiedUserPolicy;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
  * Decisions always target a specific Institution. Global ROLE_* alone never grants access.
+ *
+ * Token users are reloaded once per request (no write lock). Active + verified is required
+ * before any SUPER_ADMIN override or membership grant.
  *
  * @extends Voter<string, Institution>
  */
@@ -24,6 +27,8 @@ final class InstitutionVoter extends Voter
 {
     public function __construct(
         private readonly InstitutionMembershipRepository $memberships,
+        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly RequestScopedUserLookup $userLookup,
     ) {
     }
 
@@ -34,12 +39,22 @@ final class InstitutionVoter extends Voter
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
     {
-        $user = $token->getUser();
+        $tokenUser = $token->getUser();
+        if (!$tokenUser instanceof User) {
+            return false;
+        }
+
+        $user = $this->userLookup->findCurrent($tokenUser);
         if (!$user instanceof User) {
             return false;
         }
 
-        if ($this->isSuperAdmin($user)) {
+        // Account gate runs before SUPER_ADMIN override.
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($user)) {
+            return false;
+        }
+
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($user)) {
             return true;
         }
 
@@ -53,7 +68,6 @@ final class InstitutionVoter extends Voter
             return false;
         }
 
-        // Non-active memberships never grant access (findActiveMembership already filters).
         if (InstitutionMembershipStatus::Active !== $membership->getStatus()) {
             return false;
         }
@@ -77,10 +91,5 @@ final class InstitutionVoter extends Voter
             InstitutionMembershipRole::Teacher => true,
             InstitutionMembershipRole::Staff => false,
         };
-    }
-
-    private function isSuperAdmin(User $user): bool
-    {
-        return \in_array(UserRole::SuperAdmin->value, $user->getRoles(), true);
     }
 }

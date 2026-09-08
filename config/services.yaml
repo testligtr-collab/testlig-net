@@ -111,6 +111,18 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\ActiveVerifiedUserPolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionalUserReloader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Security\RequestScopedUserLookup:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Repository\UserRepository:
             public: true
             autowire: true

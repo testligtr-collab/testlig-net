@@ -69,4 +69,9 @@ final class InstitutionMembershipException extends \RuntimeException
     {
         return new self(InstitutionMembershipFailureReason::NotFound, 'Membership was not found.');
     }
+
+    public static function userNotFound(): self
+    {
+        return new self(InstitutionMembershipFailureReason::NotFound, 'User was not found.');
+    }
 }

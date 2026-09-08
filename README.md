@@ -75,7 +75,8 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 ### Kurum / üyelik omurgası (Aşama 2.5)
 
 - Global `ROLE_TEACHER` / `ROLE_INSTITUTION_MANAGER` vb. **otomatik kurum erişimi vermez**.
-- Erişim: active `Institution` + active `InstitutionMembership` (veya SUPER_ADMIN override).
+- Erişim: active `Institution` + active `InstitutionMembership` (veya active+verified SUPER_ADMIN override).
+- Suspended / archived / doğrulanmamış hesaplar kurum işlemi yapamaz (SUPER_ADMIN görünse bile).
 - Bu aşamada UI / public kurum kaydı / davet / sınıf yok; yalnızca domain servisleri.
 - Kurum oluşturma: internal `InstitutionCreator` (SUPER_ADMIN).
 

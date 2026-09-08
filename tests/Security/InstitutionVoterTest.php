@@ -13,6 +13,7 @@ use App\Enum\UserStatus;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\UserRepository;
 use App\Security\InstitutionPermission;
+use App\Security\RequestScopedUserLookup;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
@@ -105,6 +106,60 @@ final class InstitutionVoterTest extends KernelTestCase
         self::assertTrue($this->decide($sa, InstitutionPermission::MANAGE, $institution));
     }
 
+    public function testInactiveOrUnverifiedActorsDeniedEvenWithMembershipOrSuperAdmin(): void
+    {
+        [$institution, $owner] = $this->activeInstitutionWithMember(InstitutionMembershipRole::Owner);
+
+        foreach ([UserStatus::Suspended, UserStatus::Archived, UserStatus::PendingVerification] as $status) {
+            $this->setUserStatusInDb($owner, $status);
+            $staleOwner = $this->detachKeepingMemory($owner);
+            self::assertSame(UserStatus::Active, $staleOwner->getStatus());
+            $this->resetUserLookup();
+            self::assertFalse($this->decide($staleOwner, InstitutionPermission::VIEW, $institution));
+            // restore for next iteration via DB then clear identity
+            $this->setUserStatusInDb($owner, UserStatus::Active);
+            $this->em->clear();
+            $reloaded = $this->users->find($owner->getId());
+            self::assertInstanceOf(User::class, $reloaded);
+            $owner = $reloaded;
+        }
+
+        $sa = $this->activeUser('voter-sa-gate@example.com');
+        $sa->addGlobalRole(UserRole::SuperAdmin);
+        $this->users->save($sa);
+
+        foreach ([UserStatus::Suspended, UserStatus::Archived, UserStatus::PendingVerification] as $status) {
+            $this->setUserStatusInDb($sa, $status);
+            $staleSa = $this->detachKeepingMemory($sa);
+            self::assertSame(UserStatus::Active, $staleSa->getStatus());
+            $this->resetUserLookup();
+            self::assertFalse($this->decide($staleSa, InstitutionPermission::MANAGE, $institution));
+            $this->setUserStatusInDb($sa, UserStatus::Active);
+            $this->em->clear();
+            $reloaded = $this->users->find($sa->getId());
+            self::assertInstanceOf(User::class, $reloaded);
+            $sa = $reloaded;
+            self::assertContains(UserRole::SuperAdmin->value, $sa->getRoles());
+        }
+
+        $this->em->getConnection()->executeStatement(
+            'UPDATE users SET email_verified_at = NULL WHERE id = :id',
+            ['id' => $sa->getId()->toBinary()],
+        );
+        $staleUnverified = $this->detachKeepingMemory($sa);
+        self::assertNotNull($staleUnverified->getEmailVerifiedAt());
+        $this->resetUserLookup();
+        self::assertFalse($this->decide($staleUnverified, InstitutionPermission::VIEW, $institution));
+
+        // Fresh active verified SUPER_ADMIN still overrides.
+        $this->em->clear();
+        $this->resetUserLookup();
+        $freshSa = $this->activeUser('voter-sa-fresh@example.com');
+        $freshSa->addGlobalRole(UserRole::SuperAdmin);
+        $this->users->save($freshSa);
+        self::assertTrue($this->decide($freshSa, InstitutionPermission::MANAGE, $institution));
+    }
+
     public function testOtherInstitutionMembershipDoesNotGrantAccess(): void
     {
         [$institutionA, $ownerA] = $this->activeInstitutionWithMember(InstitutionMembershipRole::Owner, 'A');
@@ -184,6 +239,38 @@ final class InstitutionVoterTest extends KernelTestCase
         $this->users->save($user);
 
         return $user;
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param T $entity
+     *
+     * @return T
+     */
+    private function detachKeepingMemory(object $entity): object
+    {
+        $this->em->detach($entity);
+
+        return $entity;
+    }
+
+    private function setUserStatusInDb(User $user, UserStatus $status): void
+    {
+        $this->em->getConnection()->executeStatement(
+            'UPDATE users SET status = :status WHERE id = :id',
+            [
+                'status' => $status->value,
+                'id' => $user->getId()->toBinary(),
+            ],
+        );
+    }
+
+    private function resetUserLookup(): void
+    {
+        $lookup = static::getContainer()->get(RequestScopedUserLookup::class);
+        self::assertInstanceOf(RequestScopedUserLookup::class, $lookup);
+        $lookup->reset();
     }
 
     private function cleanup(): void

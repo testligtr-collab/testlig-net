@@ -14,8 +14,6 @@ use App\Enum\InstitutionStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
-use App\Enum\UserRole;
-use App\Enum\UserStatus;
 use App\Exception\InstitutionMembershipException;
 use App\Repository\InstitutionMembershipRepository;
 use Doctrine\DBAL\Exception\DeadlockException;
@@ -24,15 +22,20 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Institution-scoped membership mutations. Global ROLE_* never substitutes for membership.
+ *
+ * Lock order: institution (WRITE) → users by UUID (READ) → membership (WRITE when mutating an existing row).
  */
 final class InstitutionMembershipManager
 {
     public function __construct(
         private readonly InstitutionMembershipRepository $memberships,
         private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly InstitutionalUserReloader $userReloader,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -49,28 +52,45 @@ final class InstitutionMembershipManager
         if (InstitutionMembershipRole::Owner === $role) {
             throw InstitutionMembershipException::ownerRoleRestricted();
         }
-        $this->assertActiveVerifiedUser($subject);
+
+        $institutionId = $institution->getId();
+        $actorId = $actor->getId();
+        $subjectId = $subject->getId();
 
         try {
-            return $this->entityManager->wrapInTransaction(function () use ($institution, $actor, $subject, $role, $reasonCode): InstitutionMembership {
-                $lockedInstitution = $this->lockInstitution($institution);
+            return $this->entityManager->wrapInTransaction(function () use ($institutionId, $actorId, $subjectId, $role, $reasonCode): InstitutionMembership {
+                $lockedInstitution = $this->lockInstitutionById($institutionId);
                 $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
-                $this->assertActorMayManageRole($actor, $lockedInstitution, $role, null);
 
-                if (null !== $this->memberships->findMembership($subject, $lockedInstitution)) {
+                $users = $this->userReloader->lockExistingByIds([$actorId, $subjectId]);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw InstitutionMembershipException::userNotFound();
+                }
+                $freshSubject = $users[$subjectId->toRfc4122()] ?? null;
+                if (!$freshSubject instanceof User) {
+                    throw InstitutionMembershipException::userNotFound();
+                }
+                if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshSubject)) {
+                    throw InstitutionMembershipException::invalidInput('Subject user must be active and verified.');
+                }
+
+                $this->assertActorMayManageRole($freshActor, $lockedInstitution, $role, null);
+
+                if (null !== $this->memberships->findMembership($freshSubject, $lockedInstitution)) {
                     throw InstitutionMembershipException::duplicateMembership();
                 }
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
-                $membership = InstitutionMembership::createActive($lockedInstitution, $subject, $role, $now);
+                $membership = InstitutionMembership::createActive($lockedInstitution, $freshSubject, $role, $now);
                 $this->memberships->save($membership, false);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::InstitutionMemberAdded,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
-                    actorUser: $actor,
-                    subjectUser: $subject,
+                    actorUser: $freshActor,
+                    subjectUser: $freshSubject,
                     metadata: [
                         'source' => 'institution_membership_manager',
                         'reason_code' => $reasonCode,
@@ -103,13 +123,19 @@ final class InstitutionMembershipManager
             throw InstitutionMembershipException::ownerRoleRestricted();
         }
 
-        try {
-            $this->entityManager->wrapInTransaction(function () use ($membership, $actor, $newRole, $reasonCode): void {
-                $lockedInstitution = $this->lockInstitution($membership->getInstitution());
-                $locked = $this->lockMembership($membership);
-                $this->assertSameInstitution($locked, $lockedInstitution);
-                $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
-                $this->assertActorMayManageRole($actor, $lockedInstitution, $newRole, $locked);
+        $this->mutateExisting(
+            membership: $membership,
+            actor: $actor,
+            reasonCode: $reasonCode,
+            requireSubjectActiveVerified: true,
+            mutator: function (
+                Institution $lockedInstitution,
+                InstitutionMembership $locked,
+                User $freshActor,
+                User $freshSubject,
+                string $reasonCode,
+            ) use ($newRole): void {
+                $this->assertActorMayManageRole($freshActor, $lockedInstitution, $newRole, $locked);
 
                 if (InstitutionMembershipRole::Owner === $locked->getRole()) {
                     throw InstitutionMembershipException::ownerRoleRestricted();
@@ -124,8 +150,8 @@ final class InstitutionMembershipManager
                     action: SecurityAuditAction::InstitutionMemberRoleChanged,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
-                    actorUser: $actor,
-                    subjectUser: $locked->getUser(),
+                    actorUser: $freshActor,
+                    subjectUser: $freshSubject,
                     metadata: [
                         'source' => 'institution_membership_manager',
                         'reason_code' => $reasonCode,
@@ -135,12 +161,8 @@ final class InstitutionMembershipManager
                     ],
                     captureRequestHashes: false,
                 ), false);
-
-                $this->entityManager->flush();
-            });
-        } catch (DeadlockException|LockWaitTimeoutException) {
-            throw InstitutionMembershipException::conflict();
-        }
+            },
+        );
     }
 
     public function suspend(InstitutionMembership $membership, User $actor, string $reasonCode): void
@@ -150,10 +172,11 @@ final class InstitutionMembershipManager
             actor: $actor,
             reasonCode: $reasonCode,
             action: SecurityAuditAction::InstitutionMemberSuspended,
+            requireSubjectActiveVerified: false,
+            protectLastOwner: true,
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->suspend($now);
             },
-            protectLastOwner: true,
         );
     }
 
@@ -164,10 +187,11 @@ final class InstitutionMembershipManager
             actor: $actor,
             reasonCode: $reasonCode,
             action: SecurityAuditAction::InstitutionMemberReactivated,
+            requireSubjectActiveVerified: true,
+            protectLastOwner: false,
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->reactivate($now);
             },
-            protectLastOwner: false,
         );
     }
 
@@ -178,10 +202,11 @@ final class InstitutionMembershipManager
             actor: $actor,
             reasonCode: $reasonCode,
             action: SecurityAuditAction::InstitutionMemberEnded,
+            requireSubjectActiveVerified: false,
+            protectLastOwner: true,
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->end($now);
             },
-            protectLastOwner: true,
         );
     }
 
@@ -193,18 +218,25 @@ final class InstitutionMembershipManager
         User $actor,
         string $reasonCode,
         SecurityAuditAction $action,
-        callable $mutator,
+        bool $requireSubjectActiveVerified,
         bool $protectLastOwner,
+        callable $mutator,
     ): void {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
 
-        try {
-            $this->entityManager->wrapInTransaction(function () use ($membership, $actor, $reasonCode, $action, $mutator, $protectLastOwner): void {
-                $lockedInstitution = $this->lockInstitution($membership->getInstitution());
-                $locked = $this->lockMembership($membership);
-                $this->assertSameInstitution($locked, $lockedInstitution);
-                $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
-                $this->assertActorMayManageExisting($actor, $lockedInstitution, $locked);
+        $this->mutateExisting(
+            membership: $membership,
+            actor: $actor,
+            reasonCode: $reasonCode,
+            requireSubjectActiveVerified: $requireSubjectActiveVerified,
+            mutator: function (
+                Institution $lockedInstitution,
+                InstitutionMembership $locked,
+                User $freshActor,
+                User $freshSubject,
+                string $reasonCode,
+            ) use ($action, $mutator, $protectLastOwner): void {
+                $this->assertActorMayManageExisting($freshActor, $lockedInstitution, $locked);
 
                 if ($protectLastOwner
                     && InstitutionMembershipRole::Owner === $locked->getRole()
@@ -222,8 +254,8 @@ final class InstitutionMembershipManager
                     action: $action,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
-                    actorUser: $actor,
-                    subjectUser: $locked->getUser(),
+                    actorUser: $freshActor,
+                    subjectUser: $freshSubject,
                     metadata: [
                         'source' => 'institution_membership_manager',
                         'reason_code' => $reasonCode,
@@ -234,7 +266,63 @@ final class InstitutionMembershipManager
                     ],
                     captureRequestHashes: false,
                 ), false);
+            },
+        );
+    }
 
+    /**
+     * @param callable(Institution, InstitutionMembership, User, User, string): void $mutator
+     */
+    private function mutateExisting(
+        InstitutionMembership $membership,
+        User $actor,
+        string $reasonCode,
+        bool $requireSubjectActiveVerified,
+        callable $mutator,
+    ): void {
+        $institutionId = $membership->getInstitution()->getId();
+        $membershipId = $membership->getId();
+        $subjectUserId = $membership->getUser()->getId();
+        $actorId = $actor->getId();
+
+        // Never trust associations on the caller-provided membership instance inside the TX.
+        if ($this->entityManager->contains($membership)) {
+            $this->entityManager->detach($membership);
+        }
+
+        try {
+            $this->entityManager->wrapInTransaction(function () use (
+                $institutionId,
+                $membershipId,
+                $subjectUserId,
+                $actorId,
+                $reasonCode,
+                $requireSubjectActiveVerified,
+                $mutator,
+            ): void {
+                $lockedInstitution = $this->lockInstitutionById($institutionId);
+                $this->assertInstitutionAllowsMembershipOps($lockedInstitution);
+
+                $users = $this->userReloader->lockExistingByIds([$actorId, $subjectUserId]);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw InstitutionMembershipException::userNotFound();
+                }
+                $freshSubject = $users[$subjectUserId->toRfc4122()] ?? null;
+                if (!$freshSubject instanceof User) {
+                    throw InstitutionMembershipException::userNotFound();
+                }
+                if ($requireSubjectActiveVerified && !$this->activeVerifiedUserPolicy->isActiveAndVerified($freshSubject)) {
+                    throw InstitutionMembershipException::invalidInput('Subject user must be active and verified.');
+                }
+
+                $locked = $this->lockMembershipById($membershipId);
+                $this->assertSameInstitution($locked, $lockedInstitution);
+                if (!$locked->getUser()->getId()->equals($freshSubject->getId())) {
+                    throw InstitutionMembershipException::conflict();
+                }
+
+                $mutator($lockedInstitution, $locked, $freshActor, $freshSubject, $reasonCode);
                 $this->entityManager->flush();
             });
         } catch (DeadlockException|LockWaitTimeoutException) {
@@ -242,9 +330,9 @@ final class InstitutionMembershipManager
         }
     }
 
-    private function lockInstitution(Institution $institution): Institution
+    private function lockInstitutionById(Uuid $institutionId): Institution
     {
-        $locked = $this->entityManager->find(Institution::class, $institution->getId(), LockMode::PESSIMISTIC_WRITE);
+        $locked = $this->entityManager->find(Institution::class, $institutionId, LockMode::PESSIMISTIC_WRITE);
         if (!$locked instanceof Institution) {
             throw InstitutionMembershipException::notFound();
         }
@@ -252,9 +340,9 @@ final class InstitutionMembershipManager
         return $locked;
     }
 
-    private function lockMembership(InstitutionMembership $membership): InstitutionMembership
+    private function lockMembershipById(Uuid $membershipId): InstitutionMembership
     {
-        $locked = $this->entityManager->find(InstitutionMembership::class, $membership->getId(), LockMode::PESSIMISTIC_WRITE);
+        $locked = $this->entityManager->find(InstitutionMembership::class, $membershipId, LockMode::PESSIMISTIC_WRITE);
         if (!$locked instanceof InstitutionMembership) {
             throw InstitutionMembershipException::notFound();
         }
@@ -285,7 +373,11 @@ final class InstitutionMembershipManager
         InstitutionMembershipRole $targetRole,
         ?InstitutionMembership $targetMembership,
     ): void {
-        if ($this->isSuperAdmin($actor)) {
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($actor)) {
+            throw InstitutionMembershipException::unauthorized();
+        }
+
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
             if (null !== $targetMembership && $actor->getId()->equals($targetMembership->getUser()->getId())
                 && InstitutionMembershipRole::Owner !== $targetMembership->getRole()
                 && InstitutionMembershipRole::Owner === $targetRole) {
@@ -336,18 +428,6 @@ final class InstitutionMembershipManager
     private function assertActorMayManageExisting(User $actor, Institution $institution, InstitutionMembership $target): void
     {
         $this->assertActorMayManageRole($actor, $institution, $target->getRole(), $target);
-    }
-
-    private function assertActiveVerifiedUser(User $user): void
-    {
-        if (UserStatus::Active !== $user->getStatus() || null === $user->getEmailVerifiedAt()) {
-            throw InstitutionMembershipException::invalidInput('Subject user must be active and verified.');
-        }
-    }
-
-    private function isSuperAdmin(User $user): bool
-    {
-        return \in_array(UserRole::SuperAdmin->value, $user->getRoles(), true);
     }
 
     private function normalizeReasonCode(string $reasonCode): string

@@ -45,6 +45,11 @@ final class InstitutionOperationException extends \RuntimeException
         return new self(InstitutionFailureReason::NotFound, 'Institution was not found.');
     }
 
+    public static function userNotFound(): self
+    {
+        return new self(InstitutionFailureReason::NotFound, 'User was not found.');
+    }
+
     public static function institutionNotActive(): self
     {
         return new self(InstitutionFailureReason::InstitutionNotActive, 'Institution is not active.');

@@ -12,17 +12,19 @@ use App\Enum\InstitutionType;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
-use App\Enum\UserRole;
-use App\Enum\UserStatus;
 use App\Exception\InstitutionOperationException;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\InstitutionRepository;
+use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
 /**
  * Creates institutions with an initial owner membership. SUPER_ADMIN only in this stage.
+ *
+ * Authorization always uses transaction-fresh User rows — never stale in-memory role/status.
  */
 final class InstitutionCreator
 {
@@ -31,6 +33,8 @@ final class InstitutionCreator
         private readonly InstitutionMembershipRepository $memberships,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly InstitutionalUserReloader $userReloader,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -43,17 +47,35 @@ final class InstitutionCreator
         InstitutionType $type,
         string $reasonCode,
     ): Institution {
-        $this->assertSuperAdmin($actor);
-        $this->assertActiveVerifiedUser($owner);
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $names = $this->nameNormalizer->normalize($name);
+        $actorId = $actor->getId();
+        $ownerId = $owner->getId();
 
         if ($this->institutions->existsWithSlug($names['slug'])) {
             throw InstitutionOperationException::conflict();
         }
 
         try {
-            return $this->entityManager->wrapInTransaction(function () use ($actor, $owner, $names, $type, $reasonCode): Institution {
+            return $this->entityManager->wrapInTransaction(function () use ($actorId, $ownerId, $names, $type, $reasonCode): Institution {
+                // Lock order for create (no institution row yet): users by UUID ascending.
+                $users = $this->userReloader->lockExistingByIds([$actorId, $ownerId]);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw InstitutionOperationException::userNotFound();
+                }
+                if (!$this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($freshActor)) {
+                    throw InstitutionOperationException::unauthorized();
+                }
+
+                $freshOwner = $users[$ownerId->toRfc4122()] ?? null;
+                if (!$freshOwner instanceof User) {
+                    throw InstitutionOperationException::userNotFound();
+                }
+                if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshOwner)) {
+                    throw InstitutionOperationException::invalidInput('Owner must be an active verified user.');
+                }
+
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $institution = Institution::create(
                     name: $names['name'],
@@ -66,7 +88,7 @@ final class InstitutionCreator
 
                 $membership = InstitutionMembership::createActive(
                     institution: $institution,
-                    user: $owner,
+                    user: $freshOwner,
                     role: \App\Enum\InstitutionMembershipRole::Owner,
                     now: $now,
                 );
@@ -76,8 +98,8 @@ final class InstitutionCreator
                     action: SecurityAuditAction::InstitutionCreated,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
-                    actorUser: $actor,
-                    subjectUser: $owner,
+                    actorUser: $freshActor,
+                    subjectUser: $freshOwner,
                     metadata: [
                         'source' => 'institution_creator',
                         'reason_code' => $reasonCode,
@@ -93,8 +115,8 @@ final class InstitutionCreator
                     action: SecurityAuditAction::InstitutionMemberAdded,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
-                    actorUser: $actor,
-                    subjectUser: $owner,
+                    actorUser: $freshActor,
+                    subjectUser: $freshOwner,
                     metadata: [
                         'source' => 'institution_creator',
                         'reason_code' => $reasonCode,
@@ -111,20 +133,8 @@ final class InstitutionCreator
             });
         } catch (UniqueConstraintViolationException) {
             throw InstitutionOperationException::conflict();
-        }
-    }
-
-    private function assertSuperAdmin(User $actor): void
-    {
-        if (!\in_array(UserRole::SuperAdmin->value, $actor->getRoles(), true)) {
-            throw InstitutionOperationException::unauthorized();
-        }
-    }
-
-    private function assertActiveVerifiedUser(User $user): void
-    {
-        if (UserStatus::Active !== $user->getStatus() || null === $user->getEmailVerifiedAt()) {
-            throw InstitutionOperationException::invalidInput('Owner must be an active verified user.');
+        } catch (DeadlockException|LockWaitTimeoutException) {
+            throw InstitutionOperationException::conflict();
         }
     }
 
