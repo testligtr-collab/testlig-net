@@ -171,8 +171,8 @@ final class InstitutionalFreshEntityLoader
     /**
      * @template T of object
      *
-     * @param class-string<T>              $class
-     * @param array<string, Uuid>          $ids
+     * @param class-string<T>     $class
+     * @param array<string, Uuid> $ids
      *
      * @return T|null
      */
@@ -194,7 +194,7 @@ final class InstitutionalFreshEntityLoader
         $i = 0;
         foreach ($ids as $field => $id) {
             $param = 'id'.$i;
-            $qb->andWhere(sprintf('g.%s = :%s', $field, $param))
+            $qb->andWhere(\sprintf('g.%s = :%s', $field, $param))
                 ->setParameter($param, $id, 'uuid');
             ++$i;
         }

@@ -17,7 +17,6 @@ use App\Enum\UserStatus;
 use App\Exception\AcademicYearException;
 use App\Exception\ClassroomException;
 use App\Repository\InstitutionMembershipRepository;
-use App\Repository\InstitutionRepository;
 use App\Repository\UserRepository;
 use App\Service\AcademicYearManager;
 use App\Service\ClassroomManager;
@@ -36,7 +35,6 @@ final class AcademicClassroomStaleAuthorizationTest extends KernelTestCase
     private EntityManagerInterface $em;
     private UserFactory $factory;
     private UserRepository $users;
-    private InstitutionRepository $institutions;
     private InstitutionMembershipRepository $memberships;
 
     protected function setUp(): void
@@ -244,9 +242,6 @@ final class AcademicClassroomStaleAuthorizationTest extends KernelTestCase
         $users = $c->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $this->users = $users;
-        $institutions = $c->get(InstitutionRepository::class);
-        self::assertInstanceOf(InstitutionRepository::class, $institutions);
-        $this->institutions = $institutions;
         $memberships = $c->get(InstitutionMembershipRepository::class);
         self::assertInstanceOf(InstitutionMembershipRepository::class, $memberships);
         $this->memberships = $memberships;

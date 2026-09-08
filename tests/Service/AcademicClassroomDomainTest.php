@@ -29,7 +29,6 @@ use App\Exception\ClassroomException;
 use App\Exception\ClassroomStudentEnrollmentException;
 use App\Exception\ClassroomTeacherAssignmentException;
 use App\Exception\InstitutionMembershipException;
-use App\Repository\AcademicYearRepository;
 use App\Repository\ClassroomRepository;
 use App\Repository\ClassroomStudentEnrollmentRepository;
 use App\Repository\ClassroomTeacherAssignmentRepository;
@@ -55,7 +54,6 @@ final class AcademicClassroomDomainTest extends KernelTestCase
     private UserRepository $users;
     private InstitutionRepository $institutions;
     private InstitutionMembershipRepository $memberships;
-    private AcademicYearRepository $years;
     private ClassroomRepository $classrooms;
     private ClassroomTeacherAssignmentRepository $assignments;
     private ClassroomStudentEnrollmentRepository $enrollments;
@@ -516,24 +514,42 @@ final class AcademicClassroomDomainTest extends KernelTestCase
     private function rebind(): void
     {
         $c = static::getContainer();
+
         $em = $c->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->em = $em;
-        foreach ([
-            'factory' => UserFactory::class,
-            'users' => UserRepository::class,
-            'institutions' => InstitutionRepository::class,
-            'memberships' => InstitutionMembershipRepository::class,
-            'years' => AcademicYearRepository::class,
-            'classrooms' => ClassroomRepository::class,
-            'assignments' => ClassroomTeacherAssignmentRepository::class,
-            'enrollments' => ClassroomStudentEnrollmentRepository::class,
-            'events' => SecurityAuditEventRepository::class,
-        ] as $prop => $class) {
-            $service = $c->get($class);
-            self::assertInstanceOf($class, $service);
-            $this->{$prop} = $service;
-        }
+
+        $factory = $c->get(UserFactory::class);
+        self::assertInstanceOf(UserFactory::class, $factory);
+        $this->factory = $factory;
+
+        $users = $c->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $this->users = $users;
+
+        $institutions = $c->get(InstitutionRepository::class);
+        self::assertInstanceOf(InstitutionRepository::class, $institutions);
+        $this->institutions = $institutions;
+
+        $memberships = $c->get(InstitutionMembershipRepository::class);
+        self::assertInstanceOf(InstitutionMembershipRepository::class, $memberships);
+        $this->memberships = $memberships;
+
+        $classrooms = $c->get(ClassroomRepository::class);
+        self::assertInstanceOf(ClassroomRepository::class, $classrooms);
+        $this->classrooms = $classrooms;
+
+        $assignments = $c->get(ClassroomTeacherAssignmentRepository::class);
+        self::assertInstanceOf(ClassroomTeacherAssignmentRepository::class, $assignments);
+        $this->assignments = $assignments;
+
+        $enrollments = $c->get(ClassroomStudentEnrollmentRepository::class);
+        self::assertInstanceOf(ClassroomStudentEnrollmentRepository::class, $enrollments);
+        $this->enrollments = $enrollments;
+
+        $events = $c->get(SecurityAuditEventRepository::class);
+        self::assertInstanceOf(SecurityAuditEventRepository::class, $events);
+        $this->events = $events;
     }
 
     /**
