@@ -12,6 +12,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Security\Core\User\EquatableInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -36,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Index(name: 'idx_users_email', columns: ['email'])]
 #[ORM\HasLifecycleCallbacks]
 #[UniqueEntity(fields: ['normalizedEmail'], message: 'This email is already registered.')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -340,19 +341,53 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     /**
-     * Stores an already-hashed password. Prefer UserFactory / a future password service with audit.
+     * Stores an already-hashed password. Prefer UserFactory / PasswordManager with audit.
+     *
+     * @param \DateTimeImmutable|null $changedAt when null, uses "now" and advances past prior value if needed
      */
     #[Ignore]
-    public function setPassword(string $hashedPassword): void
+    public function setPassword(string $hashedPassword, ?\DateTimeImmutable $changedAt = null): void
     {
         $this->password = $hashedPassword;
-        $this->passwordChangedAt = new \DateTimeImmutable('now');
+        $candidate = $changedAt ?? new \DateTimeImmutable('now');
+        $candidate = self::toSecondPrecision($candidate);
+        $previous = self::toSecondPrecision($this->passwordChangedAt);
+        if ($candidate <= $previous) {
+            $candidate = $previous->modify('+1 second');
+        }
+        $this->passwordChangedAt = $candidate;
         $this->touch();
+    }
+
+    private static function toSecondPrecision(\DateTimeImmutable $value): \DateTimeImmutable
+    {
+        $normalized = \DateTimeImmutable::createFromFormat('Y-m-d H:i:s', $value->format('Y-m-d H:i:s'), $value->getTimezone());
+
+        return false !== $normalized ? $normalized : $value->setTime(
+            (int) $value->format('H'),
+            (int) $value->format('i'),
+            (int) $value->format('s'),
+        );
     }
 
     public function eraseCredentials(): void
     {
         // No transient plain-text credentials are stored on the entity.
+    }
+
+    /**
+     * Invalidates other sessions after password, role, or status changes without custom serialization.
+     */
+    public function isEqualTo(UserInterface $user): bool
+    {
+        if (!$user instanceof self) {
+            return false;
+        }
+
+        return $this->password === $user->password
+            && $this->normalizedEmail === $user->normalizedEmail
+            && $this->status === $user->status
+            && $this->getRoles() === $user->getRoles();
     }
 
     public function __toString(): string

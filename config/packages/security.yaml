@@ -39,6 +39,8 @@ security:
         - { path: ^/health, roles: PUBLIC_ACCESS }
         - { path: ^/kayit, roles: PUBLIC_ACCESS }
         - { path: ^/dogrula/eposta, roles: PUBLIC_ACCESS }
+        - { path: ^/sifremi-unuttum, roles: PUBLIC_ACCESS }
+        - { path: ^/sifre-yenile, roles: PUBLIC_ACCESS }
         - { path: ^/giris, roles: PUBLIC_ACCESS }
         - { path: ^/cikis, roles: PUBLIC_ACCESS }
         - { path: ^/hesabim, roles: ROLE_USER }
