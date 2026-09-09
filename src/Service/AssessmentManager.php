@@ -74,6 +74,8 @@ use Symfony\Component\Uid\Uuid;
  * 7. Users UUID ascending
  * 8. Persist AssessmentRevision (is_sealed=false) + sections + items
  * 9. assignCurrentRevision; seal revision (is_sealed 0→1)
+ * 10. Publication INSERT (BI: sealed+current+sequential number; AI: sync published pointer/status)
+ * 11. HINT_REFRESH Assessment; verify pointer/status; audit; never let UnitOfWork overwrite AI updates
  * 10. On publish: verify public hash → AssessmentPublication → published pointers
  *
  * Known limitation: no multi-process concurrency harness; uniqueness + pessimistic locks
@@ -511,6 +513,10 @@ final class AssessmentManager
                     throw AssessmentException::reviewSeparation();
                 }
 
+                if (AssessmentStatus::InReview !== $lockedAssessment->getStatus()) {
+                    throw AssessmentException::invalidTransition();
+                }
+
                 $manifest = $this->buildManifest($lockedAssessment, $revision, $graph);
                 $manifestHash = $this->manifestHasher->hash($manifest);
 
@@ -518,7 +524,7 @@ final class AssessmentManager
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $oldStatus = $lockedAssessment->getStatus()->value;
 
-                // Publication BEFORE published pointers (MariaDB published-requires-publication trigger).
+                // Published pointer/status are applied by AFTER INSERT trigger — do not mutate Assessment here.
                 $publication = AssessmentPublication::create(
                     $lockedAssessment,
                     $revision,
@@ -534,8 +540,15 @@ final class AssessmentManager
 
                 $this->publicationIntegrityVerifier->verify($publication, $lockedAssessment, $revision);
 
-                $lockedAssessment->publish($revision, $now);
-                $this->assessments->save($lockedAssessment, false);
+                $this->entityManager->refresh($lockedAssessment);
+                $lockedAssessment = $this->freshEntities->findFreshLockedAssessment(
+                    $assessmentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedAssessment instanceof Assessment) {
+                    throw AssessmentException::notFound();
+                }
+                $this->assertPublishedPointerMatchesRevision($lockedAssessment, $revision);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentPublicationCreated,
@@ -1061,6 +1074,25 @@ final class AssessmentManager
         );
         if (!hash_equals($stored, $recomputed)) {
             throw AssessmentException::publicContentIntegrityFailed();
+        }
+    }
+
+    private function assertPublishedPointerMatchesRevision(
+        Assessment $assessment,
+        AssessmentRevision $revision,
+    ): void {
+        if (AssessmentStatus::Published !== $assessment->getStatus()) {
+            throw AssessmentException::publicationInvalid();
+        }
+        $published = $assessment->getPublishedRevision();
+        if (!$published instanceof AssessmentRevision) {
+            throw AssessmentException::publicationInvalid();
+        }
+        if (!$published->getId()->equals($revision->getId())) {
+            throw AssessmentException::publicationInvalid();
+        }
+        if ($assessment->getPublishedRevisionNumber() !== $revision->getRevisionNumber()) {
+            throw AssessmentException::publicationInvalid();
         }
     }
 

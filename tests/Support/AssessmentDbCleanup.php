@@ -19,7 +19,8 @@ final class AssessmentDbCleanup
     {
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessments'])) {
-            // Null revision pointers first so CASCADE can remove revisions (RESTRICT FKs).
+            // Break circular assessment↔revision pointer FKs before DELETE.
+            // Clearing published alone is rejected while publications exist; clear current+published together.
             if ($schema->introspectTable('assessments')->hasColumn('current_revision_id')) {
                 $connection->executeStatement(
                     'UPDATE assessments SET
@@ -29,6 +30,7 @@ final class AssessmentDbCleanup
                         current_revision_number = NULL',
                 );
             }
+            // MariaDB FK CASCADE delete of children does not fire append-only DELETE triggers.
             $connection->executeStatement('DELETE FROM assessments');
         }
         self::assertAssessmentTablesEmpty($connection);

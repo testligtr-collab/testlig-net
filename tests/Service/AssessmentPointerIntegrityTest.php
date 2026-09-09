@@ -637,11 +637,12 @@ final class AssessmentPointerIntegrityTest extends KernelTestCase
                AND TRIGGER_NAME IN (
                  'trg_assessment_revisions_bi',
                  'trg_assessment_publications_bi',
-                 'trg_assessments_bu_published_requires_publication',
+                 'trg_assessment_publications_ai_sync_published',
+                 'trg_assessments_bu_published_matches_latest_publication',
                  'trg_assessment_revisions_bu'
                )",
         );
-        self::assertCount(4, $bodies);
+        self::assertCount(5, $bodies);
         foreach ($bodies as $body) {
             self::assertStringNotContainsStringIgnoringCase('@testlig', (string) $body);
             self::assertStringNotContainsStringIgnoringCase('bypass', (string) $body);
