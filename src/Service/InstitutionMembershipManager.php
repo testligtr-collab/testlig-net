@@ -40,6 +40,7 @@ final class InstitutionMembershipManager
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly InstitutionAuthorizationCacheInvalidator $authCache,
+        private readonly MembershipClassroomLinkChecker $classroomLinkChecker,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -149,6 +150,12 @@ final class InstitutionMembershipManager
                     throw InstitutionMembershipException::ownerRoleRestricted();
                 }
 
+                $this->classroomLinkChecker->assertMembershipMutationAllowed(
+                    $locked,
+                    $newRole,
+                    'change_role',
+                );
+
                 $previous = $locked->getRole();
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $locked->changeRole($newRole, $now);
@@ -182,6 +189,7 @@ final class InstitutionMembershipManager
             action: SecurityAuditAction::InstitutionMemberSuspended,
             requireSubjectActiveVerified: false,
             protectLastOwner: true,
+            classroomLinkOperation: 'suspend',
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->suspend($now);
             },
@@ -197,6 +205,7 @@ final class InstitutionMembershipManager
             action: SecurityAuditAction::InstitutionMemberReactivated,
             requireSubjectActiveVerified: true,
             protectLastOwner: false,
+            classroomLinkOperation: null,
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->reactivate($now);
             },
@@ -212,6 +221,7 @@ final class InstitutionMembershipManager
             action: SecurityAuditAction::InstitutionMemberEnded,
             requireSubjectActiveVerified: false,
             protectLastOwner: true,
+            classroomLinkOperation: 'end',
             mutator: static function (InstitutionMembership $locked, \DateTimeImmutable $now): void {
                 $locked->end($now);
             },
@@ -220,6 +230,7 @@ final class InstitutionMembershipManager
 
     /**
      * @param callable(InstitutionMembership, \DateTimeImmutable): void $mutator
+     * @param 'suspend'|'end'|null                                      $classroomLinkOperation
      */
     private function mutateStatus(
         InstitutionMembership $membership,
@@ -228,6 +239,7 @@ final class InstitutionMembershipManager
         SecurityAuditAction $action,
         bool $requireSubjectActiveVerified,
         bool $protectLastOwner,
+        ?string $classroomLinkOperation,
         callable $mutator,
     ): void {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
@@ -243,7 +255,7 @@ final class InstitutionMembershipManager
                 User $freshActor,
                 User $freshSubject,
                 string $reasonCode,
-            ) use ($action, $mutator, $protectLastOwner): void {
+            ) use ($action, $mutator, $protectLastOwner, $classroomLinkOperation): void {
                 $this->assertActorMayManageExisting($freshActor, $lockedInstitution, $locked);
 
                 if ($protectLastOwner
@@ -251,6 +263,14 @@ final class InstitutionMembershipManager
                     && InstitutionMembershipStatus::Active === $locked->getStatus()
                     && $this->memberships->countActiveOwners($lockedInstitution) <= 1) {
                     throw InstitutionMembershipException::lastOwnerProtected();
+                }
+
+                if (null !== $classroomLinkOperation) {
+                    $this->classroomLinkChecker->assertMembershipMutationAllowed(
+                        $locked,
+                        null,
+                        $classroomLinkOperation,
+                    );
                 }
 
                 $previous = $locked->getStatus();

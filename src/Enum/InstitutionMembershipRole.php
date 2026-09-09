@@ -10,6 +10,7 @@ enum InstitutionMembershipRole: string
     case Manager = 'manager';
     case Teacher = 'teacher';
     case Staff = 'staff';
+    case Student = 'student';
 
     /**
      * Roles an owner may assign/manage (not owner itself via changeRole).
@@ -18,7 +19,7 @@ enum InstitutionMembershipRole: string
      */
     public static function assignableByOwner(): array
     {
-        return [self::Manager, self::Teacher, self::Staff];
+        return [self::Manager, self::Teacher, self::Staff, self::Student];
     }
 
     /**
@@ -28,6 +29,6 @@ enum InstitutionMembershipRole: string
      */
     public static function assignableByManager(): array
     {
-        return [self::Teacher, self::Staff];
+        return [self::Teacher, self::Staff, self::Student];
     }
 }

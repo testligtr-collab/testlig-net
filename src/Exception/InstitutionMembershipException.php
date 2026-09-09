@@ -74,4 +74,12 @@ final class InstitutionMembershipException extends \RuntimeException
     {
         return new self(InstitutionMembershipFailureReason::NotFound, 'User was not found.');
     }
+
+    public static function activeClassroomLinkConflict(): self
+    {
+        return new self(
+            InstitutionMembershipFailureReason::ActiveClassroomLinkConflict,
+            'Membership cannot change while active classroom teacher assignments or student enrollments exist.',
+        );
+    }
 }

@@ -74,7 +74,8 @@ final class InstitutionVoter extends Voter
             InstitutionMembershipRole::Owner,
             InstitutionMembershipRole::Manager,
             InstitutionMembershipRole::Teacher => true,
-            InstitutionMembershipRole::Staff => false,
+            InstitutionMembershipRole::Staff,
+            InstitutionMembershipRole::Student => false,
         };
     }
 }

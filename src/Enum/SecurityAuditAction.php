@@ -24,4 +24,16 @@ enum SecurityAuditAction: string
     case InstitutionMemberSuspended = 'institution_member_suspended';
     case InstitutionMemberReactivated = 'institution_member_reactivated';
     case InstitutionMemberEnded = 'institution_member_ended';
+    case AcademicYearCreated = 'academic_year_created';
+    case AcademicYearActivated = 'academic_year_activated';
+    case AcademicYearClosed = 'academic_year_closed';
+    case ClassroomCreated = 'classroom_created';
+    case ClassroomUpdated = 'classroom_updated';
+    case ClassroomArchived = 'classroom_archived';
+    case ClassroomTeacherAssigned = 'classroom_teacher_assigned';
+    case ClassroomTeacherRoleChanged = 'classroom_teacher_role_changed';
+    case ClassroomTeacherAssignmentEnded = 'classroom_teacher_assignment_ended';
+    case ClassroomStudentEnrolled = 'classroom_student_enrolled';
+    case ClassroomStudentTransferred = 'classroom_student_transferred';
+    case ClassroomStudentEnrollmentEnded = 'classroom_student_enrollment_ended';
 }

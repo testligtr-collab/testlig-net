@@ -16,4 +16,5 @@ enum InstitutionMembershipFailureReason: string
     case InstitutionNotOperable = 'institution_not_operable';
     case OwnerRoleRestricted = 'owner_role_restricted';
     case NotFound = 'not_found';
+    case ActiveClassroomLinkConflict = 'active_classroom_link_conflict';
 }

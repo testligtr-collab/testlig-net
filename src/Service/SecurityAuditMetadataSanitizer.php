@@ -28,6 +28,15 @@ final class SecurityAuditMetadataSanitizer
         'previous_membership_role',
         'new_membership_role',
         'reason_code',
+        'academic_year_id',
+        'classroom_id',
+        'membership_id',
+        'source_classroom_id',
+        'target_classroom_id',
+        'old_status',
+        'old_role',
+        'new_role',
+        'grade_level',
     ];
 
     /**
