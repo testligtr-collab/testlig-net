@@ -707,6 +707,14 @@ final class AcademicClassroomDomainTest extends KernelTestCase
             $connection->executeStatement('RENAME TABLE security_audit_events_bak TO security_audit_events');
         }
         foreach ([
+            'course_teacher_active_guards',
+            'course_teacher_assignments',
+            'classroom_course_active_guards',
+            'classroom_courses',
+            'curriculum_topics',
+            'curriculum_units',
+            'curriculum_programs',
+            'subjects',
             'academic_year_student_enrollment_guards',
             'classroom_student_enrollments',
             'classroom_teacher_active_guards',

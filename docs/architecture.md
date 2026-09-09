@@ -52,8 +52,18 @@
   - **Kilit sırası:** Institution → AcademicYear → Classroom → Users (UUID asc) → Memberships → Assignment/Enrollment/Guards.
   - **Yetki matrisi (`ClassroomVoter`):** Owner/Manager tüm `CLASSROOM_*`; Teacher yalnızca aktif atandığı sınıfta VIEW + STUDENTS_VIEW; Staff yalnızca VIEW; Student yalnızca aktif kayıtlı olduğu sınıfta VIEW. ADMIN/MODERATOR otomatik yok; active+verified SUPER_ADMIN override. Snapshot’lar DBAL (`getClassroomSnapshot` / assignment / enrollment); commit sonrası invalidate.
   - **Audit:** `academic_year_*`, `classroom_*`, teacher/student assignment/enrollment action’ları domain ile aynı TX; metadata allowlist genişletildi (`academic_year_id`, `classroom_id`, `membership_id`, `source/target_classroom_id`, `old/new_status|role`, `grade_level`).
+- **Müfredat / ders (Aşama 2.7):** Platform-global `Subject`; versioned `CurriculumProgram` + `CurriculumUnit` + `CurriculumTopic` (max depth 2); kurum `ClassroomCourse` + `CourseTeacherAssignment` + active guard’lar. UI/controller/API yok.
+  - **Subject:** code immutable lowercase snake_case; SUPER_ADMIN create/rename/archive; fiziksel silme yok. Archived subject yeni curriculum/course alamaz.
+  - **Curriculum lifecycle:** draft → published → retired (republish yok). Publish’te subject+grade için validity overlap typed `date_overlap`. Published identity/structure immutable; `cloneAsNewVersion` unit/topic’leri yeni UUID ile draft kopyalar.
+  - **Unit/Topic:** yalnızca draft programda mutate. Topic parent aynı unit; archived parent altına child yok; parent archive `active_children` conflict (cascade yok). Root position uniqueness app + MariaDB NULL quirk.
+  - **ClassroomCourse:** published curriculum; subject+grade classroom ile eşleşmeli; active (classroom, subject) guard; archive aktif course teacher varken `active_teachers`. Owner/Manager veya SUPER_ADMIN.
+  - **CourseTeacherAssignment:** end sonra yeniden assign; reactivate yok. Curriculum published (not retired). Membership lifecycle course teacher link’lerini de kontrol eder.
+  - **Kilit sırası:** Subject → Program → Unit → Topic; kurum tarafında Institution → Year → Classroom → Course → Users → Membership → Assignment/Guards.
+  - **Yetki:** `CurriculumVoter` / `ClassroomCourseVoter`; snapshot’lar `getClassroomCourseSnapshot` / `getCourseTeacherAssignmentSnapshot`; commit sonrası invalidate.
+  - **Composite FK:** `CompositeForeignKeySchemaHelper` + `CurriculumCourseCompositeForeignKeyListener` (2.6 listener ince). Migration `Version20260909120000`.
+  - **Audit:** `subject_*`, `curriculum_*`, `curriculum_unit_*`, `curriculum_topic_*`, `classroom_course_*`, `course_teacher_*`; metadata’da id’ler (`subject_id`, `curriculum_id`, …) — isim/PII yok.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, ders/konu/yoklama/sınav, ödeme, veli bağlantısı, audit UI.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav UI, ödeme, veli bağlantısı, audit UI, müfredat/ders HTTP API.
 
 ## Sonraki aşamalar
 
