@@ -37,6 +37,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\QuestionBankCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -160,6 +164,26 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\CurriculumLearningOutcomeManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\QuestionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Content\QuestionContentValidator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Content\QuestionContentHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Answer\QuestionTypeAnswerValidator:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\ClassroomCourseManager:
             public: true
             autowire: true
@@ -266,6 +290,41 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\CurriculumTopicRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CurriculumLearningOutcomeRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionRevisionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionRevisionOptionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionAnswerKeyRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionRevisionAlignmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\QuestionRevisionPrimaryAlignmentGuardRepository:
             public: true
             autowire: true
             autoconfigure: true
