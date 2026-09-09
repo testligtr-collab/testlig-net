@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Enum\ClassroomCourseStatus;
 use App\Enum\ClassroomStatus;
+use App\Enum\CourseTeacherAssignmentStatus;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
@@ -13,6 +15,8 @@ use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
 use App\Enum\UserStatus;
 use App\Security\Authorization\ClassroomAuthorizationSnapshot;
+use App\Security\Authorization\ClassroomCourseAuthorizationSnapshot;
+use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
 use App\Security\Authorization\InstitutionAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
 use App\Security\Authorization\StudentEnrollmentAuthorizationSnapshot;
@@ -48,6 +52,12 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
 
     /** @var array<string, StudentEnrollmentAuthorizationSnapshot|null> */
     private array $studentEnrollments = [];
+
+    /** @var array<string, ClassroomCourseAuthorizationSnapshot|null> */
+    private array $classroomCourses = [];
+
+    /** @var array<string, CourseTeacherAssignmentAuthorizationSnapshot|null> */
+    private array $courseTeacherAssignments = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -114,6 +124,31 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         return $this->studentEnrollments[$key];
     }
 
+    public function getClassroomCourseSnapshot(Uuid $classroomCourseId): ?ClassroomCourseAuthorizationSnapshot
+    {
+        $key = $classroomCourseId->toRfc4122();
+        if (!\array_key_exists($key, $this->classroomCourses)) {
+            $this->classroomCourses[$key] = $this->fetchClassroomCourseSnapshot($classroomCourseId);
+        }
+
+        return $this->classroomCourses[$key];
+    }
+
+    public function getCourseTeacherAssignmentSnapshot(
+        Uuid $userId,
+        Uuid $classroomCourseId,
+    ): ?CourseTeacherAssignmentAuthorizationSnapshot {
+        $key = $this->courseTeacherKey($userId, $classroomCourseId);
+        if (!\array_key_exists($key, $this->courseTeacherAssignments)) {
+            $this->courseTeacherAssignments[$key] = $this->fetchCourseTeacherAssignmentSnapshot(
+                $userId,
+                $classroomCourseId,
+            );
+        }
+
+        return $this->courseTeacherAssignments[$key];
+    }
+
     public function invalidateUser(Uuid $userId): void
     {
         $this->safe(function () use ($userId): void {
@@ -134,6 +169,11 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
                     unset($this->studentEnrollments[$key]);
                 }
             }
+            foreach (array_keys($this->courseTeacherAssignments) as $key) {
+                if (str_starts_with($key, $prefix)) {
+                    unset($this->courseTeacherAssignments[$key]);
+                }
+            }
         });
     }
 
@@ -145,6 +185,8 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             $this->classrooms = [];
             $this->teacherAssignments = [];
             $this->studentEnrollments = [];
+            $this->classroomCourses = [];
+            $this->courseTeacherAssignments = [];
         });
     }
 
@@ -163,6 +205,11 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
                     unset($this->studentEnrollments[$key]);
                 }
             }
+            foreach (array_keys($this->courseTeacherAssignments) as $key) {
+                if (str_starts_with($key, $prefix)) {
+                    unset($this->courseTeacherAssignments[$key]);
+                }
+            }
         });
     }
 
@@ -172,6 +219,7 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             $this->dropMembershipsForInstitution($institutionId);
             $this->teacherAssignments = [];
             $this->studentEnrollments = [];
+            $this->courseTeacherAssignments = [];
         });
     }
 
@@ -190,6 +238,14 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
                     unset($this->studentEnrollments[$key]);
                 }
             }
+            foreach (array_keys($this->classroomCourses) as $key) {
+                $course = $this->classroomCourses[$key];
+                if ($course instanceof ClassroomCourseAuthorizationSnapshot
+                    && $course->classroomId->equals($classroomId)) {
+                    unset($this->classroomCourses[$key]);
+                }
+            }
+            $this->courseTeacherAssignments = [];
         });
     }
 
@@ -207,6 +263,26 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         });
     }
 
+    public function invalidateClassroomCourse(Uuid $classroomCourseId): void
+    {
+        $this->safe(function () use ($classroomCourseId): void {
+            unset($this->classroomCourses[$classroomCourseId->toRfc4122()]);
+            $suffix = '|'.$classroomCourseId->toRfc4122();
+            foreach (array_keys($this->courseTeacherAssignments) as $key) {
+                if (str_ends_with($key, $suffix)) {
+                    unset($this->courseTeacherAssignments[$key]);
+                }
+            }
+        });
+    }
+
+    public function invalidateCourseTeacherAssignment(Uuid $userId, Uuid $classroomCourseId): void
+    {
+        $this->safe(function () use ($userId, $classroomCourseId): void {
+            unset($this->courseTeacherAssignments[$this->courseTeacherKey($userId, $classroomCourseId)]);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
@@ -215,6 +291,8 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         $this->classrooms = [];
         $this->teacherAssignments = [];
         $this->studentEnrollments = [];
+        $this->classroomCourses = [];
+        $this->courseTeacherAssignments = [];
     }
 
     private function dropMembershipsForInstitution(Uuid $institutionId): void
@@ -240,6 +318,11 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
     private function enrollmentKey(Uuid $userId, Uuid $classroomId): string
     {
         return $userId->toRfc4122().'|'.$classroomId->toRfc4122();
+    }
+
+    private function courseTeacherKey(Uuid $userId, Uuid $classroomCourseId): string
+    {
+        return $userId->toRfc4122().'|'.$classroomCourseId->toRfc4122();
     }
 
     /**
@@ -402,6 +485,60 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             userId: $this->uuidFromBinary($row['user_id']),
             membershipId: $this->uuidFromBinary($row['student_membership_id']),
             status: StudentEnrollmentStatus::from((string) $row['status']),
+        );
+    }
+
+    private function fetchClassroomCourseSnapshot(Uuid $classroomCourseId): ?ClassroomCourseAuthorizationSnapshot
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, institution_id, classroom_id, subject_id, curriculum_program_id, status
+             FROM classroom_courses
+             WHERE id = :id
+             LIMIT 1',
+            ['id' => $classroomCourseId->toBinary()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new ClassroomCourseAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            institutionId: $this->uuidFromBinary($row['institution_id']),
+            classroomId: $this->uuidFromBinary($row['classroom_id']),
+            subjectId: $this->uuidFromBinary($row['subject_id']),
+            curriculumProgramId: $this->uuidFromBinary($row['curriculum_program_id']),
+            status: ClassroomCourseStatus::from((string) $row['status']),
+        );
+    }
+
+    private function fetchCourseTeacherAssignmentSnapshot(
+        Uuid $userId,
+        Uuid $classroomCourseId,
+    ): ?CourseTeacherAssignmentAuthorizationSnapshot {
+        $row = $this->connection->fetchAssociative(
+            'SELECT a.id, a.classroom_course_id, a.teacher_membership_id, a.status, m.user_id
+             FROM course_teacher_assignments a
+             INNER JOIN institution_memberships m ON m.id = a.teacher_membership_id
+             WHERE a.classroom_course_id = :courseId
+               AND m.user_id = :userId
+               AND a.status = :status
+             LIMIT 1',
+            [
+                'courseId' => $classroomCourseId->toBinary(),
+                'userId' => $userId->toBinary(),
+                'status' => CourseTeacherAssignmentStatus::Active->value,
+            ],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new CourseTeacherAssignmentAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            classroomCourseId: $this->uuidFromBinary($row['classroom_course_id']),
+            userId: $this->uuidFromBinary($row['user_id']),
+            membershipId: $this->uuidFromBinary($row['teacher_membership_id']),
+            status: CourseTeacherAssignmentStatus::from((string) $row['status']),
         );
     }
 
