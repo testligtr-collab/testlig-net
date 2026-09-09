@@ -9,6 +9,7 @@
 parameters:
     env(ALLOW_SUPER_ADMIN_BOOTSTRAP): '0'
     env(AUDIT_HASH_KEY): 'change-me-audit-hash-key-not-for-production'
+    env(QUESTION_ANSWER_INTEGRITY_KEY): 'change-me-question-answer-integrity-key-not-for-production'
 
 services:
     # default configuration for services in *this* file
@@ -38,6 +39,10 @@ services:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
     App\Doctrine\QuestionBankCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\QuestionRevisionPrimaryAlignmentScopeSchemaListener:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
@@ -177,6 +182,18 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Question\Content\QuestionContentHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Content\QuestionPublicContentHashBuilder:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Content\QuestionSourceReferencePolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Question\Answer\QuestionAnswerIntegrityHasher:
             public: true
             autowire: true
             autoconfigure: true

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Exception\QuestionException;
 use App\Repository\QuestionRevisionPrimaryAlignmentGuardRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -11,6 +12,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Ensures at most one primary alignment per question revision.
+ * Composite FK requires the bound alignment to be is_primary=1 for the same revision.
  */
 #[ORM\Entity(repositoryClass: QuestionRevisionPrimaryAlignmentGuardRepository::class)]
 #[ORM\Table(name: 'question_revision_primary_alignment_guards')]
@@ -26,10 +28,22 @@ class QuestionRevisionPrimaryAlignmentGuard
     #[ORM\JoinColumn(name: 'alignment_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private QuestionRevisionAlignment $alignment;
 
+    /** Always 1; composite FK ties this to alignments.is_primary. */
+    #[ORM\Column(name: 'must_be_primary', options: ['default' => 1])]
+    private bool $mustBePrimary = true;
+
     private function __construct(QuestionRevision $revision, QuestionRevisionAlignment $alignment)
     {
+        if (!$alignment->isPrimary()) {
+            throw QuestionException::alignmentInvalid('Primary alignment guard requires is_primary alignment.');
+        }
+        if (!$alignment->getRevision()->getId()->equals($revision->getId())) {
+            throw QuestionException::alignmentInvalid('Primary alignment guard revision mismatch.');
+        }
+
         $this->revision = $revision;
         $this->alignment = $alignment;
+        $this->mustBePrimary = true;
     }
 
     /**
@@ -55,5 +69,10 @@ class QuestionRevisionPrimaryAlignmentGuard
     public function getAlignment(): QuestionRevisionAlignment
     {
         return $this->alignment;
+    }
+
+    public function mustBePrimary(): bool
+    {
+        return $this->mustBePrimary;
     }
 }

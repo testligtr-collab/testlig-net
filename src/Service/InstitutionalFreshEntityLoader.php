@@ -23,6 +23,7 @@ use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
 use App\Entity\InstitutionMembership;
 use App\Entity\Question;
+use App\Entity\QuestionRevision;
 use App\Entity\Subject;
 use App\Entity\User;
 use Doctrine\DBAL\LockMode;
@@ -133,6 +134,15 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(Question::class, $id, $lockMode);
 
         return $entity instanceof Question ? $entity : null;
+    }
+
+    public function findFreshLockedQuestionRevision(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?QuestionRevision {
+        $entity = $this->findFresh(QuestionRevision::class, $id, $lockMode);
+
+        return $entity instanceof QuestionRevision ? $entity : null;
     }
 
     public function findFreshLockedClassroomCourse(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomCourse

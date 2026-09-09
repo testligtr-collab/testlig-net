@@ -38,6 +38,10 @@ class QuestionAnswerKey
     #[Ignore]
     private array $answerPayload;
 
+    #[ORM\Column(name: 'answer_integrity_hmac', length: 64)]
+    #[Ignore]
+    private string $answerIntegrityHmac;
+
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
@@ -48,6 +52,7 @@ class QuestionAnswerKey
         QuestionRevision $revision,
         QuestionType $answerType,
         array $answerPayload,
+        string $answerIntegrityHmac,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
     ) {
@@ -55,6 +60,7 @@ class QuestionAnswerKey
         $this->revision = $revision;
         $this->answerType = $answerType;
         $this->answerPayload = $answerPayload;
+        $this->answerIntegrityHmac = $answerIntegrityHmac;
         $this->createdAt = $now;
     }
 
@@ -67,12 +73,14 @@ class QuestionAnswerKey
         QuestionRevision $revision,
         QuestionType $answerType,
         array $answerPayload,
+        string $answerIntegrityHmac,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
     ): self {
-        return new self($revision, $answerType, $answerPayload, $now, $id);
+        return new self($revision, $answerType, $answerPayload, $answerIntegrityHmac, $now, $id);
     }
 
+    #[Ignore]
     public function getId(): Uuid
     {
         return $this->id;
@@ -84,6 +92,7 @@ class QuestionAnswerKey
         return $this->revision;
     }
 
+    #[Ignore]
     public function getAnswerType(): QuestionType
     {
         return $this->answerType;
@@ -98,6 +107,13 @@ class QuestionAnswerKey
         return $this->answerPayload;
     }
 
+    #[Ignore]
+    public function getAnswerIntegrityHmac(): string
+    {
+        return $this->answerIntegrityHmac;
+    }
+
+    #[Ignore]
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

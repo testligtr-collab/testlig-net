@@ -21,6 +21,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Table(name: 'question_revision_alignments')]
 #[ORM\UniqueConstraint(name: 'uniq_qra_revision_outcome', columns: ['revision_id', 'learning_outcome_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_qra_id_revision', columns: ['id', 'revision_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_qra_id_revision_is_primary', columns: ['id', 'revision_id', 'is_primary'])]
 #[ORM\Index(name: 'idx_qra_revision', columns: ['revision_id'])]
 #[ORM\Index(name: 'idx_qra_outcome', columns: ['learning_outcome_id'])]
 class QuestionRevisionAlignment

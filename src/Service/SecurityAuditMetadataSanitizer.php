@@ -89,6 +89,16 @@ final class SecurityAuditMetadataSanitizer
         'request_body',
         'form',
         'formcontent',
+        'contenthash',
+        'content_hash',
+        'answerintegrity',
+        'answer_integrity',
+        'answerpayload',
+        'answer_payload',
+        'correctstablekey',
+        'correct_stable_key',
+        'stem',
+        'explanation',
     ];
 
     /**

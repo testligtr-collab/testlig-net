@@ -59,6 +59,7 @@ jobs:
       VERIFY_EMAIL_LIFETIME: "3600"
       RESET_PASSWORD_LIFETIME: "3600"
       AUDIT_HASH_KEY: "ci_audit_hash_key_not_for_production"
+      QUESTION_ANSWER_INTEGRITY_KEY: "ci_question_answer_integrity_key_not_for_production"
       ALLOW_SUPER_ADMIN_BOOTSTRAP: "0"
 
     steps:

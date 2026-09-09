@@ -40,6 +40,25 @@ class QuestionAnswerKeyRepository extends ServiceEntityRepository
         return $row;
     }
 
+    /**
+     * @return list<QuestionAnswerKey>
+     */
+    public function findAll(): array
+    {
+        throw new \LogicException('Answer keys must not be listed.');
+    }
+
+    /**
+     * @param array<string, mixed>       $criteria
+     * @param array<string, string>|null $orderBy
+     *
+     * @return list<QuestionAnswerKey>
+     */
+    public function findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+    {
+        throw new \LogicException('Answer keys must not be listed.');
+    }
+
     public function save(QuestionAnswerKey $answerKey, bool $flush = true): void
     {
         $this->getEntityManager()->persist($answerKey);

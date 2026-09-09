@@ -58,10 +58,10 @@ final class QuestionBankCompositeForeignKeyListener
         if ($schema->hasTable('question_revision_primary_alignment_guards')) {
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $schema->getTable('question_revision_primary_alignment_guards'),
-                'FK_QRPAG_ALIGNMENT_REVISION',
+                'FK_QRPAG_ALIGNMENT_REVISION_PRIMARY',
                 'question_revision_alignments',
-                ['alignment_id', 'revision_id'],
-                ['id', 'revision_id'],
+                ['alignment_id', 'revision_id', 'must_be_primary'],
+                ['id', 'revision_id', 'is_primary'],
                 ['onDelete' => 'CASCADE'],
             );
         }
