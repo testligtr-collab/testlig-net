@@ -706,6 +706,9 @@ final class AcademicClassroomDomainTest extends KernelTestCase
         if ($schema->tablesExist(['security_audit_events_bak']) && !$schema->tablesExist(['security_audit_events'])) {
             $connection->executeStatement('RENAME TABLE security_audit_events_bak TO security_audit_events');
         }
+        if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
+            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+        }
         foreach ([
             'course_teacher_active_guards',
             'course_teacher_assignments',

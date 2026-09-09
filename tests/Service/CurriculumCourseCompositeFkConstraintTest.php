@@ -49,6 +49,7 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
         [$classroomId, $yearId, $institutionId, $subjectA, $subjectB, $programId] = $this->seed();
 
         $courseId = (new UuidV7())->toBinary();
+        $rejected = false;
         try {
             $this->em->getConnection()->insert('classroom_courses', [
                 'id' => $courseId,
@@ -63,10 +64,10 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
                 'created_at' => '2024-01-01 00:00:00',
                 'updated_at' => '2024-01-01 00:00:00',
             ]);
-            self::fail('subject/program mismatch must fail FK');
         } catch (ForeignKeyConstraintViolationException) {
-            self::assertTrue(true);
+            $rejected = true;
         }
+        self::assertTrue($rejected, 'subject/program mismatch must fail FK');
         unset($subjectA);
     }
 
@@ -79,17 +80,18 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
         self::assertInstanceOf(CurriculumProgramManager::class, $programMgr);
         $unitRepo = $this->em->getRepository(\App\Entity\CurriculumUnit::class);
 
-        $subject = $subjectMgr->create($sa, 'fk_subj', 'FK Subject', 's');
-        $program = $programMgr->createDraft($subject, $sa, GradeLevel::Grade3, 'fk_p', 'P', '1.0', 'd');
+        $subject = $subjectMgr->create($sa, 'fk_subj', 'FK Subject', 'create_subj');
+        $program = $programMgr->createDraft($subject, $sa, GradeLevel::Grade3, 'fk_p', 'P', '1.0', 'create_draft');
         $unitMgr = static::getContainer()->get(\App\Service\CurriculumUnitManager::class);
         self::assertInstanceOf(\App\Service\CurriculumUnitManager::class, $unitMgr);
-        $u1 = $unitMgr->create($program, $sa, 'u1', 'U1', 1, 'u1');
-        $u2 = $unitMgr->create($program, $sa, 'u2', 'U2', 2, 'u2');
+        $u1 = $unitMgr->create($program, $sa, 'u1', 'U1', 1, 'create_u1');
+        $u2 = $unitMgr->create($program, $sa, 'u2', 'U2', 2, 'create_u2');
         $topicMgr = static::getContainer()->get(\App\Service\CurriculumTopicManager::class);
         self::assertInstanceOf(\App\Service\CurriculumTopicManager::class, $topicMgr);
-        $root = $topicMgr->createRoot($u1, $sa, 'r1', 'R1', 1, 'r');
+        $root = $topicMgr->createRoot($u1, $sa, 'r1', 'R1', 1, 'create_root');
 
         $badId = (new UuidV7())->toBinary();
+        $rejected = false;
         try {
             $this->em->getConnection()->insert('curriculum_topics', [
                 'id' => $badId,
@@ -104,10 +106,10 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
                 'created_at' => '2024-01-01 00:00:00',
                 'updated_at' => '2024-01-01 00:00:00',
             ]);
-            self::fail('cross-unit parent FK must fail');
         } catch (ForeignKeyConstraintViolationException) {
-            self::assertTrue(true);
+            $rejected = true;
         }
+        self::assertTrue($rejected, 'cross-unit parent FK must fail');
         unset($unitRepo);
     }
 
@@ -122,8 +124,8 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
         self::assertInstanceOf(InstitutionCreator::class, $creator);
         $status = static::getContainer()->get(InstitutionStatusManager::class);
         self::assertInstanceOf(InstitutionStatusManager::class, $status);
-        $institution = $creator->create($sa, $owner, 'FK School', InstitutionType::School, 'create');
-        $status->activate($institution, $sa, 'act');
+        $institution = $creator->create($sa, $owner, 'FK School', InstitutionType::School, 'create_inst');
+        $status->activate($institution, $sa, 'activate');
         $yearMgr = static::getContainer()->get(AcademicYearManager::class);
         self::assertInstanceOf(AcademicYearManager::class, $yearMgr);
         $year = $yearMgr->createPlanned(
@@ -132,21 +134,21 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
             'FK Year',
             new \DateTimeImmutable('2024-09-01'),
             new \DateTimeImmutable('2025-06-15'),
-            'y',
+            'create_year',
         );
-        $yearMgr->activate($year, $owner, 'ya');
+        $yearMgr->activate($year, $owner, 'activate_year');
         $clsMgr = static::getContainer()->get(ClassroomManager::class);
         self::assertInstanceOf(ClassroomManager::class, $clsMgr);
-        $classroom = $clsMgr->create($year, $owner, 'FK 9A', GradeLevel::Grade9, 'c', 'A', 20);
+        $classroom = $clsMgr->create($year, $owner, 'FK 9A', GradeLevel::Grade9, 'create_cls', 'A', 20);
 
         $subjectMgr = static::getContainer()->get(SubjectManager::class);
         self::assertInstanceOf(SubjectManager::class, $subjectMgr);
         $programMgr = static::getContainer()->get(CurriculumProgramManager::class);
         self::assertInstanceOf(CurriculumProgramManager::class, $programMgr);
-        $subjectA = $subjectMgr->create($sa, 'fk_a', 'A', 'a');
-        $subjectB = $subjectMgr->create($sa, 'fk_b', 'B', 'b');
-        $program = $programMgr->createDraft($subjectA, $sa, GradeLevel::Grade9, 'fkpa', 'PA', '1.0', 'd');
-        $programMgr->publish($program, $sa, 'p');
+        $subjectA = $subjectMgr->create($sa, 'fk_a', 'A', 'create_a');
+        $subjectB = $subjectMgr->create($sa, 'fk_b', 'B', 'create_b');
+        $program = $programMgr->createDraft($subjectA, $sa, GradeLevel::Grade9, 'fkpa', 'PA', '1.0', 'create_prog');
+        $programMgr->publish($program, $sa, 'publish');
 
         return [
             $classroom->getId()->toBinary(),
@@ -180,6 +182,9 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
+            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+        }
         foreach ([
             'course_teacher_active_guards',
             'course_teacher_assignments',

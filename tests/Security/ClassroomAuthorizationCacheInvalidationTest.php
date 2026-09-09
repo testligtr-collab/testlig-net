@@ -222,6 +222,9 @@ final class ClassroomAuthorizationCacheInvalidationTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
+            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+        }
         foreach ([
             'course_teacher_active_guards',
             'course_teacher_assignments',

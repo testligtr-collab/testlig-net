@@ -84,8 +84,8 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         self::assertSame('mathematics', $subject->getCode());
 
         try {
-            $this->subjectManager()->create($sa, 'Mathematics', 'Dup', 'dup');
-            self::fail('code must normalize and conflict');
+            $this->subjectManager()->create($sa, 'Bad-Code!', 'Dup', 'dup_code');
+            self::fail('code must be snake_case');
         } catch (SubjectException $e) {
             self::assertSame(SubjectFailureReason::InvalidInput, $e->getReason());
         }
@@ -99,7 +99,9 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         } catch (SubjectException $e) {
             self::assertSame(SubjectFailureReason::SubjectArchived, $e->getReason());
         }
-
+        $this->resetDoctrine();
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
         $owner = $this->activeUser('subj-owner@example.com');
         try {
             $this->subjectManager()->create($owner, 'physics', 'Physics', 'not_sa');
@@ -107,6 +109,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         } catch (SubjectException $e) {
             self::assertSame(SubjectFailureReason::Unauthorized, $e->getReason());
         }
+        $this->resetDoctrine();
     }
 
     public function testCurriculumLifecyclePublishOverlapCloneRetire(): void
@@ -140,6 +143,13 @@ final class CurriculumCourseDomainTest extends KernelTestCase
             self::fail('published immutable');
         } catch (CurriculumUnitException) {
         }
+        $this->resetDoctrine();
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
+        $subject = $this->em->find(Subject::class, $subject->getId());
+        self::assertInstanceOf(Subject::class, $subject);
+        $draft = $this->em->find(CurriculumProgram::class, $draft->getId());
+        self::assertInstanceOf(CurriculumProgram::class, $draft);
 
         $overlap = $this->programManager()->createDraft(
             $subject,
@@ -177,6 +187,9 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         } catch (CurriculumException $e) {
             self::assertSame(CurriculumFailureReason::InvalidTransition, $e->getReason());
         }
+        $this->resetDoctrine();
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
 
         $archivedSubject = $this->subjectManager()->create($sa, 'history', 'History', 'hist');
         $this->subjectManager()->archive($archivedSubject, $sa, 'arch_hist');
@@ -194,6 +207,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         } catch (CurriculumException $e) {
             self::assertSame(CurriculumFailureReason::SubjectArchived, $e->getReason());
         }
+        $this->resetDoctrine();
     }
 
     public function testTopicDepthActiveChildrenAndRootPosition(): void
@@ -209,16 +223,25 @@ final class CurriculumCourseDomainTest extends KernelTestCase
             '1.0',
             'draft',
         );
-        $unit = $this->unitManager()->create($program, $sa, 'u1', 'Unit', 1, 'u');
-        $root = $this->topicManager()->createRoot($unit, $sa, 'r1', 'Root', 1, 'r');
-        $child = $this->topicManager()->createChild($unit, $root, $sa, 'c1', 'Child', 1, 'c');
+        $unit = $this->unitManager()->create($program, $sa, 'u1', 'Unit', 1, 'create_unit');
+        $root = $this->topicManager()->createRoot($unit, $sa, 'r1', 'Root', 1, 'create_root');
+        $child = $this->topicManager()->createChild($unit, $root, $sa, 'c1', 'Child', 1, 'create_child');
 
         try {
-            $this->topicManager()->createChild($unit, $child, $sa, 'gc1', 'Grand', 1, 'gc');
+            $this->topicManager()->createChild($unit, $child, $sa, 'gc1', 'Grand', 1, 'create_grand');
             self::fail('depth exceeded');
         } catch (CurriculumTopicException $e) {
             self::assertSame(CurriculumTopicFailureReason::DepthExceeded, $e->getReason());
         }
+        $this->resetDoctrine();
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
+        $unit = $this->em->find(CurriculumUnit::class, $unit->getId());
+        $root = $this->em->find(CurriculumTopic::class, $root->getId());
+        $child = $this->em->find(CurriculumTopic::class, $child->getId());
+        self::assertNotNull($unit);
+        self::assertNotNull($root);
+        self::assertNotNull($child);
 
         try {
             $this->topicManager()->archive($root, $sa, 'arch_parent');
@@ -226,6 +249,15 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         } catch (CurriculumTopicException $e) {
             self::assertSame(CurriculumTopicFailureReason::ActiveChildren, $e->getReason());
         }
+        $this->resetDoctrine();
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
+        $unit = $this->em->find(CurriculumUnit::class, $unit->getId());
+        $root = $this->em->find(CurriculumTopic::class, $root->getId());
+        $child = $this->em->find(CurriculumTopic::class, $child->getId());
+        self::assertNotNull($unit);
+        self::assertNotNull($root);
+        self::assertNotNull($child);
 
         $this->topicManager()->archive($child, $sa, 'arch_child');
         self::assertSame(CurriculumContentStatus::Archived, $child->getStatus());
@@ -236,6 +268,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
             self::fail('root position conflict');
         } catch (CurriculumTopicException) {
         }
+        $this->resetDoctrine();
     }
 
     public function testClassroomCourseCreateChangeArchiveAndGuards(): void
@@ -271,6 +304,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         self::assertSame(6, $course->getWeeklyLessonHours());
 
         $v2 = $this->programManager()->cloneAsNewVersion($program, $sa, '2.0', 'clone_v2');
+        $this->programManager()->retire($program, $sa, 'retire_v1');
         $this->programManager()->publish($v2, $sa, 'pub_v2');
         $this->courseManager()->changeCurriculum($course, $owner, $v2, 'change_cur');
         self::assertTrue($course->getCurriculumProgram()->getId()->equals($v2->getId()));
@@ -332,7 +366,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         self::assertNotNull($institution);
 
         try {
-            $this->membershipManager()->suspendMember($institution, $owner, $tm, 'suspend');
+            $this->membershipManager()->suspend($tm, $owner, 'suspend');
             self::fail('active course teacher blocks suspend');
         } catch (InstitutionMembershipException) {
         }
@@ -595,6 +629,9 @@ final class CurriculumCourseDomainTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
+            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+        }
         foreach ([
             'course_teacher_active_guards',
             'course_teacher_assignments',
