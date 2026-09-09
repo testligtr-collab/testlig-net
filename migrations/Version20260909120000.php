@@ -68,6 +68,18 @@ final class Version20260909120000 extends AbstractMigration
         $this->addSql('ALTER TABLE course_teacher_active_guards ADD CONSTRAINT FK_CTEACH_ACTIVE_GUARD_MEMBERSHIP FOREIGN KEY (teacher_membership_id) REFERENCES institution_memberships (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE course_teacher_active_guards ADD CONSTRAINT FK_CTEACH_ACTIVE_GUARD_ASSIGNMENT FOREIGN KEY (assignment_id) REFERENCES course_teacher_assignments (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE course_teacher_active_guards ADD CONSTRAINT FK_CTEACH_ACTIVE_GUARD_ASSIGNMENT_KEYS FOREIGN KEY (assignment_id, classroom_course_id, teacher_membership_id) REFERENCES course_teacher_assignments (id, classroom_course_id, teacher_membership_id) ON DELETE CASCADE');
+
+        $this->addSql('ALTER TABLE classroom_courses RENAME INDEX FK_CC_CLASSROOM_YEAR_INSTITUTION TO IDX_23549B646278D5A8C54F340110405986');
+        $this->addSql('ALTER TABLE classroom_courses RENAME INDEX FK_CC_CLASSROOM_INSTITUTION TO IDX_23549B646278D5A810405986');
+        $this->addSql('ALTER TABLE classroom_courses RENAME INDEX FK_CC_YEAR_INSTITUTION TO IDX_23549B64C54F340110405986');
+        $this->addSql('ALTER TABLE classroom_courses RENAME INDEX FK_CC_PROGRAM_SUBJECT TO IDX_23549B64CBC6880023EDC87');
+        $this->addSql('ALTER TABLE classroom_course_active_guards RENAME INDEX FK_CC_ACTIVE_GUARD_SUBJECT TO IDX_4ED1E3CE23EDC87');
+        $this->addSql('ALTER TABLE classroom_course_active_guards RENAME INDEX FK_CC_ACTIVE_GUARD_COURSE_KEYS TO IDX_4ED1E3CE591CC9926278D5A823EDC87');
+        $this->addSql('ALTER TABLE course_teacher_active_guards RENAME INDEX FK_CTEACH_ACTIVE_GUARD_MEMBERSHIP TO IDX_7B86ADB0D7F2DAB9');
+        $this->addSql('ALTER TABLE course_teacher_active_guards RENAME INDEX FK_CTEACH_ACTIVE_GUARD_ASSIGNMENT_KEYS TO IDX_7B86ADB0D19302F8E8221FEFD7F2DAB9');
+        $this->addSql('ALTER TABLE course_teacher_assignments RENAME INDEX FK_CTEACH_COURSE_INSTITUTION TO IDX_F24E1906E8221FEF10405986');
+        $this->addSql('ALTER TABLE course_teacher_assignments RENAME INDEX FK_CTEACH_MEMBERSHIP_INSTITUTION TO IDX_F24E1906D7F2DAB910405986');
+        $this->addSql('ALTER TABLE curriculum_topics RENAME INDEX FK_TOPIC_PARENT_SAME_UNIT TO IDX_7F03B6D8727ACA70F8BD700D');
     }
 
     public function down(Schema $schema): void
