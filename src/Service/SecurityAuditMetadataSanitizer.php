@@ -54,6 +54,11 @@ final class SecurityAuditMetadataSanitizer
         'code',
         'old_curriculum_id',
         'new_curriculum_id',
+        'question_id',
+        'revision_id',
+        'revision_number',
+        'learning_outcome_id',
+        'curriculum_program_id',
     ];
 
     /**

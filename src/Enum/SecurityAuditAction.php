@@ -57,4 +57,14 @@ enum SecurityAuditAction: string
     case ClassroomCourseArchived = 'classroom_course_archived';
     case CourseTeacherAssigned = 'course_teacher_assigned';
     case CourseTeacherAssignmentEnded = 'course_teacher_assignment_ended';
+    case CurriculumLearningOutcomeCreated = 'curriculum_learning_outcome_created';
+    case CurriculumLearningOutcomeUpdated = 'curriculum_learning_outcome_updated';
+    case CurriculumLearningOutcomeReordered = 'curriculum_learning_outcome_reordered';
+    case CurriculumLearningOutcomeArchived = 'curriculum_learning_outcome_archived';
+    case QuestionCreated = 'question_created';
+    case QuestionRevisionCreated = 'question_revision_created';
+    case QuestionSubmittedForReview = 'question_submitted_for_review';
+    case QuestionReturnedToDraft = 'question_returned_to_draft';
+    case QuestionPublished = 'question_published';
+    case QuestionArchived = 'question_archived';
 }

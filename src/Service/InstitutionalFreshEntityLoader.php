@@ -15,12 +15,14 @@ use App\Entity\ClassroomTeacherActiveGuard;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\CourseTeacherActiveGuard;
 use App\Entity\CourseTeacherAssignment;
+use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
 use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
 use App\Entity\InstitutionMembership;
+use App\Entity\Question;
 use App\Entity\Subject;
 use App\Entity\User;
 use Doctrine\DBAL\LockMode;
@@ -115,6 +117,22 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(CurriculumTopic::class, $id, $lockMode);
 
         return $entity instanceof CurriculumTopic ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumLearningOutcome(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?CurriculumLearningOutcome {
+        $entity = $this->findFresh(CurriculumLearningOutcome::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumLearningOutcome ? $entity : null;
+    }
+
+    public function findFreshLockedQuestion(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?Question
+    {
+        $entity = $this->findFresh(Question::class, $id, $lockMode);
+
+        return $entity instanceof Question ? $entity : null;
     }
 
     public function findFreshLockedClassroomCourse(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomCourse
