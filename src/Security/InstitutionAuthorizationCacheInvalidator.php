@@ -28,5 +28,11 @@ interface InstitutionAuthorizationCacheInvalidator
 
     public function invalidateStudentEnrollment(Uuid $userId, Uuid $classroomId): void;
 
+    public function invalidateClassroomCourse(Uuid $classroomCourseId): void;
+
+    public function invalidateCourseTeacherAssignment(Uuid $userId, Uuid $classroomCourseId): void;
+
+    public function invalidateCurriculumProgram(Uuid $curriculumProgramId): void;
+
     public function reset(): void;
 }

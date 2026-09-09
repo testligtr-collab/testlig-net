@@ -91,6 +91,16 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Aktif assignment/enrollment varken membership rol/status değişimi typed conflict ile reddedilir.
 - `changeCapacity` aktif enrollment sayısının altına inemez.
 
+### Müfredat / ders (Aşama 2.7)
+
+- Platform-global `Subject` + versioned `CurriculumProgram` / unit / topic (max depth 2); UI/API yok.
+- Topic sibling position DB garantisi: generated `position_scope_id` (nil-UUID sentinel for roots) + `UNIQUE(unit_id, position_scope_id, position)`.
+- Kurum `ClassroomCourse` (sınıf+ders+yayınlı müfredat) ve `CourseTeacherAssignment` + active guard tabloları.
+- Published müfredat yapısal olarak immutable; yeni sürüm `cloneAsNewVersion` ile draft kopyalanır. Retired tekrar publish edilemez.
+- Yetki: `CurriculumVoter` (published VIEW her active+verified kullanıcıya; manage/publish/retire SUPER_ADMIN), `ClassroomCourseVoter` (owner/manager tam; course teacher VIEW+CURRICULUM_VIEW; homeroom VIEW+CURRICULUM_VIEW+TEACHERS_VIEW; staff VIEW).
+- Composite FK’ler: `CurriculumCourseCompositeForeignKeyListener` + `CompositeForeignKeySchemaHelper` (2.6 listener ince kaldı).
+- Aktif course teacher assignment, membership suspend/end/role değişimini de bloklar.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
@@ -180,7 +190,7 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 - Web kayıt/giriş/e-posta doğrulama, şifre sıfırlama ve oturum içi parola değiştirme vardır; “beni hatırla”, OAuth/JWT, MFA ve sosyal giriş yok.
 - Public kayıt yalnızca öğrenci içindir; öğretmen/veli/kurum/admin davet veya yönetici süreçleri sonraki aşamalarda.
-- Soru bankası, sınav, ödeme ve domain üyelik (kurum/sınıf) modülleri yok.
+- Soru bankası, sınav, ödeme UI ve HTTP müfredat/ders API’leri yok (domain foundation Aşama 2.7’de var).
 - Production dağıtım yapılandırması yok.
 - Yerel Windows ortamında PHP 8.3 ve Docker bulunmayabilir; hedef runtime Docker’daki PHP 8.3’tür.
 - `symfony/redis-messenger` paketinin Composer kurulumu için `ext-redis` gerekir (Docker imajında vardır). Yerelde `ext-redis` yoksa paket `--ignore-platform-req=ext-redis` ile kurulmuştur.

@@ -29,6 +29,14 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\CurriculumCourseCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\CurriculumTopicPositionScopeSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -136,6 +144,30 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\SubjectManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumProgramManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumUnitManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumTopicManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\ClassroomCourseManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CourseTeacherAssignmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\ActiveVerifiedUserPolicy:
             public: true
             autowire: true
@@ -214,6 +246,46 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\AcademicYearStudentEnrollmentGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\SubjectRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CurriculumProgramRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CurriculumUnitRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CurriculumTopicRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomCourseRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\ClassroomCourseActiveGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CourseTeacherAssignmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CourseTeacherActiveGuardRepository:
             public: true
             autowire: true
             autoconfigure: true

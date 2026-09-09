@@ -37,6 +37,23 @@ final class SecurityAuditMetadataSanitizer
         'old_role',
         'new_role',
         'grade_level',
+        'subject_id',
+        'curriculum_id',
+        'source_curriculum_id',
+        'unit_id',
+        'topic_id',
+        'curriculum_unit_id',
+        'curriculum_topic_id',
+        'parent_topic_id',
+        'classroom_course_id',
+        'course_teacher_assignment_id',
+        'version',
+        'weekly_lesson_hours',
+        'estimated_minutes',
+        'position',
+        'code',
+        'old_curriculum_id',
+        'new_curriculum_id',
     ];
 
     /**
