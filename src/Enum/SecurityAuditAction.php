@@ -36,4 +36,25 @@ enum SecurityAuditAction: string
     case ClassroomStudentEnrolled = 'classroom_student_enrolled';
     case ClassroomStudentTransferred = 'classroom_student_transferred';
     case ClassroomStudentEnrollmentEnded = 'classroom_student_enrollment_ended';
+    case SubjectCreated = 'subject_created';
+    case SubjectUpdated = 'subject_updated';
+    case SubjectArchived = 'subject_archived';
+    case CurriculumCreated = 'curriculum_created';
+    case CurriculumPublished = 'curriculum_published';
+    case CurriculumRetired = 'curriculum_retired';
+    case CurriculumCloned = 'curriculum_cloned';
+    case CurriculumUnitCreated = 'curriculum_unit_created';
+    case CurriculumUnitUpdated = 'curriculum_unit_updated';
+    case CurriculumUnitReordered = 'curriculum_unit_reordered';
+    case CurriculumUnitArchived = 'curriculum_unit_archived';
+    case CurriculumTopicCreated = 'curriculum_topic_created';
+    case CurriculumTopicUpdated = 'curriculum_topic_updated';
+    case CurriculumTopicReordered = 'curriculum_topic_reordered';
+    case CurriculumTopicArchived = 'curriculum_topic_archived';
+    case ClassroomCourseCreated = 'classroom_course_created';
+    case ClassroomCourseUpdated = 'classroom_course_updated';
+    case ClassroomCourseCurriculumChanged = 'classroom_course_curriculum_changed';
+    case ClassroomCourseArchived = 'classroom_course_archived';
+    case CourseTeacherAssigned = 'course_teacher_assigned';
+    case CourseTeacherAssignmentEnded = 'course_teacher_assignment_ended';
 }
