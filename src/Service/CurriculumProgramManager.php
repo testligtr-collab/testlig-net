@@ -21,6 +21,7 @@ use App\Exception\InstitutionOperationException;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\CurriculumTopicRepository;
 use App\Repository\CurriculumUnitRepository;
+use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -44,6 +45,7 @@ final class CurriculumProgramManager
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
+        private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
     ) {
@@ -133,6 +135,8 @@ final class CurriculumProgramManager
             throw CurriculumException::conflict();
         }
 
+        $this->authCache->invalidateCurriculumProgram($program->getId());
+
         return $program;
     }
 
@@ -187,6 +191,8 @@ final class CurriculumProgramManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw CurriculumException::conflict();
         }
+
+        $this->authCache->invalidateCurriculumProgram($programId);
     }
 
     public function retire(CurriculumProgram $program, User $actor, string $reasonCode): void
@@ -237,6 +243,8 @@ final class CurriculumProgramManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw CurriculumException::conflict();
         }
+
+        $this->authCache->invalidateCurriculumProgram($programId);
     }
 
     public function cloneAsNewVersion(
@@ -397,6 +405,8 @@ final class CurriculumProgramManager
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw CurriculumException::conflict();
         }
+
+        $this->authCache->invalidateCurriculumProgram($clone->getId());
 
         return $clone;
     }

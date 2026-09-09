@@ -71,6 +71,52 @@ final class CurriculumCourseCompositeFkConstraintTest extends KernelTestCase
         unset($subjectA);
     }
 
+    public function testInformationSchemaListsRequiredCompositeFks(): void
+    {
+        $required = [
+            'FK_TOPIC_PARENT_SAME_UNIT',
+            'FK_CC_CLASSROOM_YEAR_INSTITUTION',
+            'FK_CC_CLASSROOM_INSTITUTION',
+            'FK_CC_YEAR_INSTITUTION',
+            'FK_CC_PROGRAM_SUBJECT',
+            'FK_CC_ACTIVE_GUARD_COURSE_KEYS',
+            'FK_CTEACH_COURSE_INSTITUTION',
+            'FK_CTEACH_MEMBERSHIP_INSTITUTION',
+            'FK_CTEACH_ACTIVE_GUARD_ASSIGNMENT_KEYS',
+        ];
+
+        $connection = $this->em->getConnection();
+        $database = $connection->getDatabase();
+        self::assertNotFalse($database);
+        self::assertNotEmpty($database);
+
+        $placeholders = [];
+        $params = ['db' => $database];
+        foreach ($required as $i => $name) {
+            $key = 'c'.$i;
+            $placeholders[] = ':'.$key;
+            $params[$key] = $name;
+        }
+
+        $found = $connection->fetchFirstColumn(
+            'SELECT DISTINCT tc.CONSTRAINT_NAME
+             FROM information_schema.TABLE_CONSTRAINTS tc
+             INNER JOIN information_schema.KEY_COLUMN_USAGE kcu
+               ON tc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+              AND tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+              AND tc.TABLE_NAME = kcu.TABLE_NAME
+             WHERE tc.CONSTRAINT_SCHEMA = :db
+               AND tc.CONSTRAINT_TYPE = \'FOREIGN KEY\'
+               AND tc.CONSTRAINT_NAME IN ('.implode(',', $placeholders).')',
+            $params,
+        );
+
+        sort($required);
+        $found = array_values(array_unique(array_map('strval', $found)));
+        sort($found);
+        self::assertSame($required, $found, 'All required composite FKs must exist in information_schema');
+    }
+
     public function testTopicParentMustShareUnit(): void
     {
         $sa = $this->sa();

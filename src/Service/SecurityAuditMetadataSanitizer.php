@@ -40,6 +40,8 @@ final class SecurityAuditMetadataSanitizer
         'subject_id',
         'curriculum_id',
         'source_curriculum_id',
+        'unit_id',
+        'topic_id',
         'curriculum_unit_id',
         'curriculum_topic_id',
         'parent_topic_id',
@@ -50,6 +52,8 @@ final class SecurityAuditMetadataSanitizer
         'estimated_minutes',
         'position',
         'code',
+        'old_curriculum_id',
+        'new_curriculum_id',
     ];
 
     /**

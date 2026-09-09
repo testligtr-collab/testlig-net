@@ -7,9 +7,11 @@ namespace App\Security;
 use App\Entity\ClassroomCourse;
 use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
+use App\Enum\TeacherAssignmentRole;
 use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
 use App\Security\Authorization\StudentEnrollmentAuthorizationSnapshot;
+use App\Security\Authorization\TeacherAssignmentAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 use Symfony\Component\Uid\Uuid;
@@ -19,8 +21,9 @@ use Symfony\Component\Uid\Uuid;
  *
  * Matrix:
  * - Owner/Manager: all CLASSROOM_COURSE_*
- * - Teacher with active course assignment: VIEW, TEACHERS_VIEW, CURRICULUM_VIEW
- * - Staff: VIEW, CURRICULUM_VIEW
+ * - Active course teacher: VIEW, CURRICULUM_VIEW
+ * - Active classroom homeroom teacher: VIEW, CURRICULUM_VIEW, TEACHERS_VIEW
+ * - Staff: VIEW
  * - Student with active classroom enrollment: VIEW, CURRICULUM_VIEW
  * - SUPER_ADMIN (active+verified): all
  *
@@ -72,25 +75,40 @@ final class ClassroomCourseVoter extends Voter
         return match ($membership->role) {
             InstitutionMembershipRole::Owner,
             InstitutionMembershipRole::Manager => true,
-            InstitutionMembershipRole::Teacher => $this->teacherAllows($attribute, $user->id, $course->id),
-            InstitutionMembershipRole::Staff => \in_array($attribute, [
-                ClassroomCoursePermission::VIEW,
-                ClassroomCoursePermission::CURRICULUM_VIEW,
-            ], true),
+            InstitutionMembershipRole::Teacher => $this->teacherAllows(
+                $attribute,
+                $user->id,
+                $course->id,
+                $course->classroomId,
+            ),
+            InstitutionMembershipRole::Staff => ClassroomCoursePermission::VIEW === $attribute,
             InstitutionMembershipRole::Student => $this->studentAllows($attribute, $user->id, $course->classroomId),
         };
     }
 
-    private function teacherAllows(string $attribute, Uuid $userId, Uuid $courseId): bool
+    private function teacherAllows(string $attribute, Uuid $userId, Uuid $courseId, Uuid $classroomId): bool
     {
-        $assignment = $this->authLookup->getCourseTeacherAssignmentSnapshot($userId, $courseId);
-        if (!$assignment instanceof CourseTeacherAssignmentAuthorizationSnapshot || !$assignment->isActive()) {
+        $classroomAssignment = $this->authLookup->getTeacherAssignmentSnapshot($userId, $classroomId);
+        $isHomeroom = $classroomAssignment instanceof TeacherAssignmentAuthorizationSnapshot
+            && $classroomAssignment->isActive()
+            && TeacherAssignmentRole::HomeroomTeacher === $classroomAssignment->role;
+
+        if ($isHomeroom) {
+            return match ($attribute) {
+                ClassroomCoursePermission::VIEW,
+                ClassroomCoursePermission::CURRICULUM_VIEW,
+                ClassroomCoursePermission::TEACHERS_VIEW => true,
+                default => false,
+            };
+        }
+
+        $courseAssignment = $this->authLookup->getCourseTeacherAssignmentSnapshot($userId, $courseId);
+        if (!$courseAssignment instanceof CourseTeacherAssignmentAuthorizationSnapshot || !$courseAssignment->isActive()) {
             return false;
         }
 
         return match ($attribute) {
             ClassroomCoursePermission::VIEW,
-            ClassroomCoursePermission::TEACHERS_VIEW,
             ClassroomCoursePermission::CURRICULUM_VIEW => true,
             default => false,
         };

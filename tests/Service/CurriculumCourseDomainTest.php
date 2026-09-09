@@ -306,8 +306,18 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         $v2 = $this->programManager()->cloneAsNewVersion($program, $sa, '2.0', 'clone_v2');
         $this->programManager()->retire($program, $sa, 'retire_v1');
         $this->programManager()->publish($v2, $sa, 'pub_v2');
+        $oldProgramId = $program->getId()->toRfc4122();
         $this->courseManager()->changeCurriculum($course, $owner, $v2, 'change_cur');
         self::assertTrue($course->getCurriculumProgram()->getId()->equals($v2->getId()));
+        $changedEvent = $this->em->getRepository(\App\Entity\SecurityAuditEvent::class)->findOneBy(
+            ['action' => SecurityAuditAction::ClassroomCourseCurriculumChanged],
+            ['occurredAt' => 'DESC'],
+        );
+        self::assertInstanceOf(\App\Entity\SecurityAuditEvent::class, $changedEvent);
+        $meta = $changedEvent->getMetadata();
+        self::assertSame($oldProgramId, $meta['old_curriculum_id'] ?? null);
+        self::assertSame($v2->getId()->toRfc4122(), $meta['new_curriculum_id'] ?? null);
+        self::assertSame($v2->getId()->toRfc4122(), $meta['curriculum_id'] ?? null);
 
         $teacher = $this->activeUser('cc-tch@example.com');
         $this->membershipManager()->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'add_t');

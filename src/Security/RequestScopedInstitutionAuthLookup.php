@@ -7,6 +7,7 @@ namespace App\Security;
 use App\Enum\ClassroomCourseStatus;
 use App\Enum\ClassroomStatus;
 use App\Enum\CourseTeacherAssignmentStatus;
+use App\Enum\CurriculumStatus;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
@@ -17,6 +18,7 @@ use App\Enum\UserStatus;
 use App\Security\Authorization\ClassroomAuthorizationSnapshot;
 use App\Security\Authorization\ClassroomCourseAuthorizationSnapshot;
 use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
+use App\Security\Authorization\CurriculumProgramAuthorizationSnapshot;
 use App\Security\Authorization\InstitutionAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
 use App\Security\Authorization\StudentEnrollmentAuthorizationSnapshot;
@@ -58,6 +60,9 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
 
     /** @var array<string, CourseTeacherAssignmentAuthorizationSnapshot|null> */
     private array $courseTeacherAssignments = [];
+
+    /** @var array<string, CurriculumProgramAuthorizationSnapshot|null> */
+    private array $curriculumPrograms = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -147,6 +152,16 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         }
 
         return $this->courseTeacherAssignments[$key];
+    }
+
+    public function getCurriculumProgramSnapshot(Uuid $curriculumProgramId): ?CurriculumProgramAuthorizationSnapshot
+    {
+        $key = $curriculumProgramId->toRfc4122();
+        if (!\array_key_exists($key, $this->curriculumPrograms)) {
+            $this->curriculumPrograms[$key] = $this->fetchCurriculumProgramSnapshot($curriculumProgramId);
+        }
+
+        return $this->curriculumPrograms[$key];
     }
 
     public function invalidateUser(Uuid $userId): void
@@ -283,6 +298,13 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         });
     }
 
+    public function invalidateCurriculumProgram(Uuid $curriculumProgramId): void
+    {
+        $this->safe(function () use ($curriculumProgramId): void {
+            unset($this->curriculumPrograms[$curriculumProgramId->toRfc4122()]);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
@@ -293,6 +315,7 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         $this->studentEnrollments = [];
         $this->classroomCourses = [];
         $this->courseTeacherAssignments = [];
+        $this->curriculumPrograms = [];
     }
 
     private function dropMembershipsForInstitution(Uuid $institutionId): void
@@ -508,6 +531,22 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             subjectId: $this->uuidFromBinary($row['subject_id']),
             curriculumProgramId: $this->uuidFromBinary($row['curriculum_program_id']),
             status: ClassroomCourseStatus::from((string) $row['status']),
+        );
+    }
+
+    private function fetchCurriculumProgramSnapshot(Uuid $curriculumProgramId): ?CurriculumProgramAuthorizationSnapshot
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, status FROM curriculum_programs WHERE id = :id LIMIT 1',
+            ['id' => $curriculumProgramId->toBinary()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new CurriculumProgramAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            status: CurriculumStatus::from((string) $row['status']),
         );
     }
 

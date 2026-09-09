@@ -237,6 +237,9 @@ final class ClassroomCourseManager
             }
             $this->assertProgramAssignable($lockedProgram, $locked->getSubject(), $lockedClassroom);
 
+            $oldCurriculumId = $locked->getCurriculumProgram()->getId()->toRfc4122();
+            $newCurriculumId = $lockedProgram->getId()->toRfc4122();
+
             $now = \DateTimeImmutable::createFromInterface($this->clock->now());
             $locked->changeCurriculum($lockedProgram, $now);
             $this->courses->save($locked, false);
@@ -253,7 +256,9 @@ final class ClassroomCourseManager
                     'classroom_id' => $lockedClassroom->getId()->toRfc4122(),
                     'classroom_course_id' => $locked->getId()->toRfc4122(),
                     'subject_id' => $locked->getSubject()->getId()->toRfc4122(),
-                    'curriculum_id' => $lockedProgram->getId()->toRfc4122(),
+                    'old_curriculum_id' => $oldCurriculumId,
+                    'new_curriculum_id' => $newCurriculumId,
+                    'curriculum_id' => $newCurriculumId,
                 ],
                 captureRequestHashes: false,
             ), false);

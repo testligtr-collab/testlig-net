@@ -6,13 +6,14 @@ namespace App\Security;
 
 use App\Entity\CurriculumProgram;
 use App\Entity\User;
-use App\Enum\CurriculumStatus;
+use App\Security\Authorization\CurriculumProgramAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
  * Published curriculum is VIEW-able by any active+verified user.
  * Draft / manage / publish / retire: SUPER_ADMIN only.
+ * Status is read from a DBAL snapshot — never trust a managed entity.
  *
  * @extends Voter<string, CurriculumProgram>
  */
@@ -48,6 +49,8 @@ final class CurriculumVoter extends Voter
             return false;
         }
 
-        return CurriculumStatus::Published === $subject->getStatus();
+        $program = $this->authLookup->getCurriculumProgramSnapshot($subject->getId());
+
+        return $program instanceof CurriculumProgramAuthorizationSnapshot && $program->isPublished();
     }
 }
