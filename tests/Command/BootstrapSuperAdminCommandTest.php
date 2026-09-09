@@ -7,6 +7,7 @@ namespace App\Tests\Command;
 use App\Enum\UserRole;
 use App\Exception\InvalidUserTransitionException;
 use App\Service\UserFactory;
+use App\Tests\Support\AssessmentDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -99,6 +100,7 @@ final class BootstrapSuperAdminCommandTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        AssessmentDbCleanup::deleteAssessments($connection);
         foreach (['security_audit_events', 'security_bootstrap_guards', 'reset_password_requests', 'users'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

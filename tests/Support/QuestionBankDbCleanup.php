@@ -23,6 +23,9 @@ final class QuestionBankDbCleanup
     {
         $schema = $connection->createSchemaManager();
 
+        // Assessment graph must go before questions/users (RESTRICT FKs on authors).
+        AssessmentDbCleanup::deleteAssessments($connection);
+
         // Parent cascade clears revisions/options/answer_keys/alignments/guards.
         if ($schema->tablesExist(['questions'])) {
             $connection->executeStatement('DELETE FROM questions');

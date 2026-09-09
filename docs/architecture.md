@@ -79,8 +79,20 @@
   - **Yetki matrisi (`QuestionVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT manage/review/publish/answer; TEACHER own draft manage; published VIEW active+verified; institution Owner/Manager all; Teacher own; Staff/Student deny. ADMIN/MODERATOR otomatik publish yok.
   - **DB:** `Version20260909180000` + hardening `Version20260909190000` (tarihsel bypass) + `Version20260909200000` (bypass-free DELETE + HMAC CHECK) + schema listeners.
   - **Bilinen sınırlama:** gerçek multi-process concurrency testi yok; DB unique + TX + lock revalidation var. Concurrent revision race typed `conflict`.
+- **Sınav / deneme blueprint (Aşama 2.9):** Stable `Assessment` identity + sealed immutable `AssessmentRevision` / `AssessmentSection` / `AssessmentItem` + append-only `AssessmentPublication`. UI/controller/API/delivery/attempt/scoring/result yok.
+  - **Assessment:** scope platform|institution (CHECK); `currentRevisionNumber` monoton; `publishedRevisionNumber` nullable; published→draft yalnız yeni revision hazırlığı; archived terminal.
+  - **Sealed revision:** bundle `is_sealed=false` yazılır; sections/items insert; sonra yalnız `is_sealed` 0→1 UPDATE (ORM listener + MariaDB trigger). Sealed parent’a BI section/item SIGNAL. Bypass/session yok.
+  - **Items:** exact `Question` + published `QuestionRevision` (`revision_number === currentRevisionNumber`); platform assessment yalnız platform questions; institution assessment platform veya aynı kurum; grade match; points/penalty DECIMAL string + bcmath; UNIQUE revision içinde question_revision.
+  - **Publication manifest:** public-only (ids, policies, sections/items, question publicContentHash, points, subject id, schema versions). Cevap/HMAC/email/secret yok. Canonical JSON (recursive ksort) + SHA-256 `manifestHash`.
+  - **Review separation:** publisher UUID ≠ current revision `createdBy` (fresh); self-publish success audit yok.
+  - **Kilit sırası:** locksless assessment snapshot → Institution? → Assessment WRITE+refresh → Subjects UUID → Questions UUID → QuestionRevisions UUID → Users UUID → Revision/sections/items → Publication.
+  - **Yetki (`AssessmentVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT full; TEACHER create/revise/submit own + VIEW published; institution Owner/Manager full; Teacher own revise/submit; Staff published VIEW; Student deny authoring. ADMIN/MODERATOR otomatik publish yok. DBAL `AssessmentAuthorizationSnapshot`; commit sonrası `invalidateAssessment`.
+  - **Audit:** `assessment_*` (+ `assessment_publication_created`); metadata allowlist ids/counts/status — içerik/manifest/cevap yok.
+  - **DB:** `Version20260910120000` + `AssessmentCompositeForeignKeyListener` + `AssessmentImmutabilityListener`.
+  - **Test cleanup:** `AssessmentDbCleanup` → `DELETE FROM assessments` CASCADE.
+  - **Bilinen sınırlama:** multi-process parallel concurrency harness yok; sequential unique/pessimistic lock güvencesi.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav delivery UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 
 ## Sonraki aşamalar
 

@@ -46,6 +46,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\AssessmentCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
@@ -174,6 +178,26 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\QuestionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Assessment\AssessmentContentPolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Assessment\AssessmentPublicContentHashBuilder:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Assessment\AssessmentManifestBuilder:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Assessment\AssessmentManifestHasher:
             public: true
             autowire: true
             autoconfigure: true
@@ -342,6 +366,31 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\QuestionRevisionPrimaryAlignmentGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentRevisionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentSectionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentItemRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentPublicationRepository:
             public: true
             autowire: true
             autoconfigure: true
