@@ -7,13 +7,21 @@ namespace App\Service;
 use App\Entity\AcademicYear;
 use App\Entity\AcademicYearStudentEnrollmentGuard;
 use App\Entity\Classroom;
+use App\Entity\ClassroomCourse;
+use App\Entity\ClassroomCourseActiveGuard;
 use App\Entity\ClassroomHomeroomGuard;
 use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherActiveGuard;
 use App\Entity\ClassroomTeacherAssignment;
+use App\Entity\CourseTeacherActiveGuard;
+use App\Entity\CourseTeacherAssignment;
+use App\Entity\CurriculumProgram;
+use App\Entity\CurriculumTopic;
+use App\Entity\CurriculumUnit;
 use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
 use App\Entity\InstitutionMembership;
+use App\Entity\Subject;
 use App\Entity\User;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,7 +35,8 @@ use Symfony\Component\Uid\Uuid;
  * and academic/classroom loaders keep the same HINT_REFRESH + lock guarantees.
  *
  * Lock order for callers that mutate: Institution → AcademicYear → Classroom
- * → Users (UUID asc) → Membership → Assignment/Enrollment/Guards.
+ * → ClassroomCourse → Users (UUID asc) → Membership → Assignment/Enrollment/Guards.
+ * Curriculum: Subject → CurriculumProgram → Unit → Topic.
  */
 final class InstitutionalFreshEntityLoader
 {
@@ -78,6 +87,72 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(Classroom::class, $id, $lockMode);
 
         return $entity instanceof Classroom ? $entity : null;
+    }
+
+    public function findFreshLockedSubject(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?Subject
+    {
+        $entity = $this->findFresh(Subject::class, $id, $lockMode);
+
+        return $entity instanceof Subject ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumProgram(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumProgram
+    {
+        $entity = $this->findFresh(CurriculumProgram::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumProgram ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumUnit(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumUnit
+    {
+        $entity = $this->findFresh(CurriculumUnit::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumUnit ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumTopic(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumTopic
+    {
+        $entity = $this->findFresh(CurriculumTopic::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumTopic ? $entity : null;
+    }
+
+    public function findFreshLockedClassroomCourse(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomCourse
+    {
+        $entity = $this->findFresh(ClassroomCourse::class, $id, $lockMode);
+
+        return $entity instanceof ClassroomCourse ? $entity : null;
+    }
+
+    public function findFreshLockedCourseTeacherAssignment(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?CourseTeacherAssignment {
+        $entity = $this->findFresh(CourseTeacherAssignment::class, $id, $lockMode);
+
+        return $entity instanceof CourseTeacherAssignment ? $entity : null;
+    }
+
+    public function findFreshClassroomCourseActiveGuard(
+        Uuid $classroomId,
+        Uuid $subjectId,
+    ): ?ClassroomCourseActiveGuard {
+        return $this->findFreshAssociationId(
+            ClassroomCourseActiveGuard::class,
+            ['classroom' => $classroomId, 'subject' => $subjectId],
+            LockMode::NONE,
+        );
+    }
+
+    public function findFreshCourseTeacherActiveGuard(
+        Uuid $classroomCourseId,
+        Uuid $teacherMembershipId,
+    ): ?CourseTeacherActiveGuard {
+        return $this->findFreshAssociationId(
+            CourseTeacherActiveGuard::class,
+            ['classroomCourse' => $classroomCourseId, 'teacherMembership' => $teacherMembershipId],
+            LockMode::NONE,
+        );
     }
 
     public function findFreshLockedTeacherAssignment(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomTeacherAssignment

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\InstitutionMembership;
+use App\Enum\CourseTeacherAssignmentStatus;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\StudentEnrollmentStatus;
 use App\Enum\TeacherAssignmentStatus;
@@ -135,6 +136,57 @@ final class MembershipClassroomLinkChecker
             'SELECT COUNT(*)
              FROM classroom_teacher_assignments a
              INNER JOIN classroom_teacher_active_guards g ON g.assignment_id = a.id
+             WHERE a.teacher_membership_id = ?
+               AND a.institution_id = ?
+               AND a.status = ?',
+            [$membershipId, $institutionId, $active],
+            [ParameterType::BINARY, ParameterType::BINARY, ParameterType::STRING],
+        );
+        if ($blocking > 0) {
+            return true;
+        }
+
+        return $this->hasBlockingOrInconsistentCourseTeacherLinks($membershipId, $institutionId);
+    }
+
+    private function hasBlockingOrInconsistentCourseTeacherLinks(string $membershipId, string $institutionId): bool
+    {
+        $connection = $this->entityManager->getConnection();
+        $active = CourseTeacherAssignmentStatus::Active->value;
+
+        $activeWithoutGuard = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM course_teacher_assignments a
+             LEFT JOIN course_teacher_active_guards g ON g.assignment_id = a.id
+             WHERE a.teacher_membership_id = ?
+               AND a.institution_id = ?
+               AND a.status = ?
+               AND g.assignment_id IS NULL',
+            [$membershipId, $institutionId, $active],
+            [ParameterType::BINARY, ParameterType::BINARY, ParameterType::STRING],
+        );
+        if ($activeWithoutGuard > 0) {
+            return true;
+        }
+
+        $guardMismatch = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM course_teacher_active_guards g
+             INNER JOIN classroom_courses c ON c.id = g.classroom_course_id AND c.institution_id = ?
+             LEFT JOIN course_teacher_assignments a ON a.id = g.assignment_id
+             WHERE g.teacher_membership_id = ?
+               AND (a.id IS NULL OR a.status <> ? OR a.institution_id <> ?)',
+            [$institutionId, $membershipId, $active, $institutionId],
+            [ParameterType::BINARY, ParameterType::BINARY, ParameterType::STRING, ParameterType::BINARY],
+        );
+        if ($guardMismatch > 0) {
+            return true;
+        }
+
+        $blocking = (int) $connection->fetchOne(
+            'SELECT COUNT(*)
+             FROM course_teacher_assignments a
+             INNER JOIN course_teacher_active_guards g ON g.assignment_id = a.id
              WHERE a.teacher_membership_id = ?
                AND a.institution_id = ?
                AND a.status = ?',
