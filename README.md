@@ -94,6 +94,7 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 ### Müfredat / ders (Aşama 2.7)
 
 - Platform-global `Subject` + versioned `CurriculumProgram` / unit / topic (max depth 2); UI/API yok.
+- Topic sibling position DB garantisi: generated `position_scope_id` (nil-UUID sentinel for roots) + `UNIQUE(unit_id, position_scope_id, position)`.
 - Kurum `ClassroomCourse` (sınıf+ders+yayınlı müfredat) ve `CourseTeacherAssignment` + active guard tabloları.
 - Published müfredat yapısal olarak immutable; yeni sürüm `cloneAsNewVersion` ile draft kopyalanır. Retired tekrar publish edilemez.
 - Yetki: `CurriculumVoter` (published VIEW her active+verified kullanıcıya; manage/publish/retire SUPER_ADMIN), `ClassroomCourseVoter` (owner/manager tam; course teacher VIEW+CURRICULUM_VIEW; homeroom VIEW+CURRICULUM_VIEW+TEACHERS_VIEW; staff VIEW).

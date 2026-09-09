@@ -707,7 +707,7 @@ final class AcademicClassroomDomainTest extends KernelTestCase
             $connection->executeStatement('RENAME TABLE security_audit_events_bak TO security_audit_events');
         }
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
-            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+            $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
         foreach ([
             'course_teacher_active_guards',

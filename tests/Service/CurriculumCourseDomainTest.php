@@ -266,9 +266,59 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         try {
             $this->topicManager()->createRoot($unit, $sa, 'r2', 'Root2', 1, 'dup_pos');
             self::fail('root position conflict');
-        } catch (CurriculumTopicException) {
+        } catch (CurriculumTopicException $e) {
+            self::assertSame(CurriculumTopicFailureReason::Conflict, $e->getReason());
         }
         $this->resetDoctrine();
+
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
+        $unit = $this->em->find(CurriculumUnit::class, $unit->getId());
+        self::assertNotNull($unit);
+
+        $rootB = $this->topicManager()->createRoot($unit, $sa, 'rb', 'RootB', 2, 'create_rb');
+        $rootC = $this->topicManager()->createRoot($unit, $sa, 'rc', 'RootC', 3, 'create_rc');
+        $reorderAuditsBefore = $this->events->countByAction(SecurityAuditAction::CurriculumTopicReordered->value);
+        try {
+            $this->topicManager()->reorder($rootC, $sa, 2, 'dup_reorder');
+            self::fail('reorder root duplicate');
+        } catch (CurriculumTopicException $e) {
+            self::assertSame(CurriculumTopicFailureReason::Conflict, $e->getReason());
+        }
+        $this->resetDoctrine();
+        $rootC = $this->em->find(CurriculumTopic::class, $rootC->getId());
+        self::assertNotNull($rootC);
+        self::assertSame(3, $rootC->getPosition());
+        self::assertSame(
+            $reorderAuditsBefore,
+            $this->events->countByAction(SecurityAuditAction::CurriculumTopicReordered->value),
+            'rejected reorder must not write success audit',
+        );
+
+        $sa = $this->users->find($sa->getId());
+        self::assertInstanceOf(User::class, $sa);
+        $unit = $this->em->find(CurriculumUnit::class, $unit->getId());
+        $rootB = $this->em->find(CurriculumTopic::class, $rootB->getId());
+        self::assertNotNull($unit);
+        self::assertNotNull($rootB);
+        $child1 = $this->topicManager()->createChild($unit, $rootB, $sa, 'cb1', 'CB1', 1, 'cb1');
+        $child2 = $this->topicManager()->createChild($unit, $rootB, $sa, 'cb2', 'CB2', 2, 'cb2');
+        $childReorderAuditsBefore = $this->events->countByAction(SecurityAuditAction::CurriculumTopicReordered->value);
+        try {
+            $this->topicManager()->reorder($child2, $sa, 1, 'dup_child_reorder');
+            self::fail('reorder child duplicate');
+        } catch (CurriculumTopicException $e) {
+            self::assertSame(CurriculumTopicFailureReason::Conflict, $e->getReason());
+        }
+        $this->resetDoctrine();
+        $child2 = $this->em->find(CurriculumTopic::class, $child2->getId());
+        self::assertNotNull($child2);
+        self::assertSame(2, $child2->getPosition());
+        self::assertSame(
+            $childReorderAuditsBefore,
+            $this->events->countByAction(SecurityAuditAction::CurriculumTopicReordered->value),
+        );
+        unset($child1);
     }
 
     public function testClassroomCourseCreateChangeArchiveAndGuards(): void
@@ -640,7 +690,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
     {
         $connection = $this->em->getConnection();
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
-            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+            $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
         foreach ([
             'course_teacher_active_guards',

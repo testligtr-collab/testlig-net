@@ -251,7 +251,7 @@ final class AcademicClassroomStaleAuthorizationTest extends KernelTestCase
     {
         $connection = $this->em->getConnection();
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
-            $connection->executeStatement('UPDATE curriculum_topics SET parent_id = NULL');
+            $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
         foreach ([
             'course_teacher_active_guards',

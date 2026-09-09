@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Curriculum\CurriculumTopicPositionScope;
 use App\Enum\CurriculumContentStatus;
 use App\Exception\CurriculumTopicException;
 use App\Repository\CurriculumTopicRepository;
@@ -16,12 +17,14 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Topic tree under a curriculum unit. Max depth 2 (root + child).
- * Root position uniqueness is enforced in the manager (MariaDB NULL UNIQUE quirk).
+ *
+ * Sibling position uniqueness is UNIQUE(unit_id, position_scope_id, position) where
+ * position_scope_id is a MariaDB STORED generated column (IFNULL parent / nil UUID).
+ * See {@see CurriculumTopicPositionScope} and CurriculumTopicPositionScopeSchemaListener.
  */
 #[ORM\Entity(repositoryClass: CurriculumTopicRepository::class)]
 #[ORM\Table(name: 'curriculum_topics')]
 #[ORM\UniqueConstraint(name: 'uniq_curriculum_topic_unit_code', columns: ['unit_id', 'code'])]
-#[ORM\UniqueConstraint(name: 'uniq_curriculum_topic_unit_parent_position', columns: ['unit_id', 'parent_id', 'position'])]
 #[ORM\UniqueConstraint(name: 'uniq_curriculum_topic_id_unit', columns: ['id', 'unit_id'])]
 #[ORM\Index(name: 'idx_curriculum_topic_unit_status', columns: ['unit_id', 'status'])]
 #[ORM\Index(name: 'idx_curriculum_topic_parent', columns: ['parent_id'])]
@@ -92,6 +95,7 @@ class CurriculumTopic
         self::assertValidEstimatedMinutes($estimatedMinutes);
 
         $this->id = $id ?? new UuidV7();
+        CurriculumTopicPositionScope::assertNotRootSentinel($this->id);
         $this->unit = $unit;
         $this->parent = $parent;
         $this->code = $code;
