@@ -42,6 +42,8 @@ use App\Service\InstitutionStatusManager;
 use App\Service\QuestionManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Tests\Support\JsonKeyTree;
+use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -157,6 +159,16 @@ final class QuestionBankDomainTest extends KernelTestCase
         $question = $this->reloadQuestion($question->getId());
         self::assertSame(QuestionStatus::InReview, $question->getStatus());
 
+        $sa = $this->users->find($sa->getId());
+        $reviewer = $this->users->find($reviewer->getId());
+        $program = $this->em->find(CurriculumProgram::class, $program->getId());
+        $question = $this->em->find(Question::class, $question->getId());
+        self::assertInstanceOf(User::class, $sa);
+        self::assertInstanceOf(User::class, $reviewer);
+        self::assertInstanceOf(CurriculumProgram::class, $program);
+        self::assertInstanceOf(Question::class, $question);
+        $this->programs()->publish($program, $sa, 'pub_curr');
+
         try {
             $this->questions()->publish($question, $sa, 'self_publish');
             self::fail('review separation');
@@ -166,14 +178,11 @@ final class QuestionBankDomainTest extends KernelTestCase
         $this->resetDoctrine();
         $sa = $this->users->find($sa->getId());
         $reviewer = $this->users->find($reviewer->getId());
-        $program = $this->em->find(CurriculumProgram::class, $program->getId());
         $question = $this->em->find(Question::class, $question->getId());
         self::assertInstanceOf(User::class, $sa);
         self::assertInstanceOf(User::class, $reviewer);
-        self::assertInstanceOf(CurriculumProgram::class, $program);
         self::assertInstanceOf(Question::class, $question);
 
-        $this->programs()->publish($program, $sa, 'pub_curr');
         $this->questions()->publish($question, $reviewer, 'publish_ok');
         $question = $this->reloadQuestion($question->getId());
         self::assertSame(QuestionStatus::Published, $question->getStatus());
@@ -186,17 +195,31 @@ final class QuestionBankDomainTest extends KernelTestCase
 
         /** @var SerializerInterface $serializer */
         $serializer = static::getContainer()->get(SerializerInterface::class);
-        $json = $serializer->serialize($question, 'json');
-        self::assertStringNotContainsString('correctStableKey', $json);
-        self::assertStringNotContainsString('answerPayload', $json);
-        $jsonRev = $serializer->serialize($revision, 'json');
-        self::assertStringNotContainsString('correctStableKey', $jsonRev);
+        $forbiddenSerializerKeys = [
+            'answerPayload',
+            'correctStableKey',
+            'correctStableKeys',
+            'answer_integrity_hmac',
+            'answerIntegrityHmac',
+        ];
+        foreach ([$question, $revision] as $serializable) {
+            $decoded = json_decode($serializer->serialize($serializable, 'json'), true, 512, \JSON_THROW_ON_ERROR);
+            $keyTree = JsonKeyTree::collectKeys($decoded);
+            foreach ($forbiddenSerializerKeys as $forbidden) {
+                self::assertNotContains($forbidden, $keyTree);
+            }
+        }
 
         /** @var QuestionAnswerKeyRepository $keys */
         $keys = static::getContainer()->get(QuestionAnswerKeyRepository::class);
         $key = $keys->findOneByRevision($revision);
         self::assertNotNull($key);
         self::assertSame('opt_b', $key->getAnswerPayload()['correctStableKey']);
+        $keyDecoded = json_decode($serializer->serialize($key, 'json'), true, 512, \JSON_THROW_ON_ERROR);
+        $keyTree = JsonKeyTree::collectKeys($keyDecoded);
+        foreach ($forbiddenSerializerKeys as $forbidden) {
+            self::assertNotContains($forbidden, $keyTree);
+        }
 
         try {
             $this->em->remove($revision);
@@ -514,7 +537,7 @@ final class QuestionBankDomainTest extends KernelTestCase
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
             $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
-        foreach ([
+        QuestionBankDbCleanup::deleteTables($connection, [
             'question_revision_primary_alignment_guards',
             'question_revision_alignments',
             'question_answer_keys',
@@ -532,11 +555,7 @@ final class QuestionBankDomainTest extends KernelTestCase
             'security_bootstrap_guards',
             'reset_password_requests',
             'users',
-        ] as $table) {
-            if ($connection->createSchemaManager()->tablesExist([$table])) {
-                $connection->executeStatement('DELETE FROM '.$table);
-            }
-        }
+        ]);
     }
 
     protected function tearDown(): void

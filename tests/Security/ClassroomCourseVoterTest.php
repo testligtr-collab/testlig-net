@@ -33,6 +33,7 @@ use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -461,7 +462,7 @@ final class ClassroomCourseVoterTest extends KernelTestCase
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
             $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
-        foreach ([
+        QuestionBankDbCleanup::deleteTables($connection, [
             'course_teacher_active_guards',
             'course_teacher_assignments',
             'classroom_course_active_guards',
@@ -491,11 +492,7 @@ final class ClassroomCourseVoterTest extends KernelTestCase
             'security_bootstrap_guards',
             'reset_password_requests',
             'users',
-        ] as $table) {
-            if ($connection->createSchemaManager()->tablesExist([$table])) {
-                $connection->executeStatement('DELETE FROM '.$table);
-            }
-        }
+        ]);
     }
 
     protected function tearDown(): void

@@ -65,15 +65,18 @@
   - **Audit:** `subject_*`, `curriculum_*`, `curriculum_unit_*`, `curriculum_topic_*`, `classroom_course_*`, `course_teacher_*`; metadata’da id’ler (`subject_id`, `curriculum_id`, …) — isim/PII yok.
 - **Soru bankası / kazanım (Aşama 2.8):** `CurriculumLearningOutcome`; versioned `Question` + immutable revisions/options/alignments; isolated `QuestionAnswerKey`. UI/controller/API/sınav motoru yok.
   - **LearningOutcome:** denormalized `unit_id` + `curriculum_program_id`; `UNIQUE(program, code)`, `UNIQUE(topic, position)`; composite FK topic→unit→program; yalnız draft mutate; clone LO kopyalar.
-  - **Question:** scope platform|institution (CHECK); `currentRevisionNumber` monoton; published düzenlenmez — yeni revision (published→draft).
-  - **Revision immutability:** Doctrine `QuestionRevisionImmutabilityListener` (revision/option/answer key/alignment).
-  - **Content:** schemaVersioned JSON blocks; max 50 blocks / nesting 3 / 20k chars; no HTML; canonical SHA-256 hash.
-  - **Answer policies:** single/multiple choice, true_false, numeric, short_answer merkezi validator; answer key ayrı repo + `#[Ignore]`.
-  - **Alignment:** ≥1 LO, exactly 1 primary (`question_revision_primary_alignment_guards`); publish’te curriculum published + subject/grade uyumu.
-  - **Kilit sırası:** Institution? → Subject → Program → Topic/Outcome → Question → Users(UUID) → Revision.
-  - **Yetki matrisi (`QuestionVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT manage/review/publish/answer; TEACHER own draft manage; published VIEW active+verified; institution Owner/Manager all; Teacher own; Staff/Student deny. ADMIN/MODERATOR otomatik publish yok. Snapshot `getQuestionSnapshot`; commit sonrası invalidate.
-  - **Review separation:** publisher UUID ≠ revision.createdBy UUID.
-  - **DB:** `Version20260909180000` + `QuestionBankCompositeForeignKeyListener`. At-rest encryption deferred (architecture note).
+  - **Question:** scope platform|institution (CHECK); institution sahipliği immutable; `currentRevisionNumber` monoton; published düzenlenmez — yeni revision (published→draft).
+  - **Public contentHash:** yalnız görünen içerik (type, stem, explanation, options stableKey/content/position, difficulty, estimatedSeconds, sourceType/sourceReference, alignment LO id + isPrimary, schemaVersion). Answer payload / doğru seçenek **dahil edilmez** (oracle kapatıldı).
+  - **Internal answer integrity:** `QUESTION_ANSWER_INTEGRITY_KEY` ile HMAC-SHA256 (`answer_integrity_hmac` on `question_answer_keys`). Serializer/log/audit/exception’da görünmez. Public SHA-256 değildir.
+  - **At-rest encryption:** bu aşamada yok; ayrı tablo + erişim politikası + serializer izolasyonu + HMAC integrity. Production at-rest encryption sonraki güvenlik kararı.
+  - **Revision immutability:** ORM listener + MariaDB BEFORE UPDATE/DELETE triggers (`trg_question_*`). DELETE için test cleanup session `@testlig_immutable_delete_bypass=1` (uygulama kodu asla set etmez). Question hard-delete yok — archive.
+  - **Content:** schemaVersioned JSON blocks; max 50 blocks / nesting 3 / 20k chars; no HTML; `sourceReference` opaque (URL/path yok).
+  - **Answer policies:** merkezi validator; answer key ayrı repo (list/findBy yok) + tüm getter `#[Ignore]`.
+  - **Alignment:** ≥1 LO; en fazla bir primary (`primary_revision_scope_id` STORED generated + UNIQUE); guard yalnız `is_primary=1` (`must_be_primary` + composite FK). Publish: curriculum Published; topic/outcome Active; subject/grade uyumu; fresh DB state.
+  - **Kilit sırası (gerçek):** locksless DBAL snapshot → Institution? → Subject → Program→Topic→Outcome (UUID asc) → Question (+ snapshot revalidate) → Users(UUID) → Revision/option/answer/alignment. Create: Question henüz yokken Institution?→Subject→Curriculum→Actor→create Question→revision.
+  - **Publish:** identity-map’e güvenilmez; revision/answer/options/alignments/curriculum/actor fresh hydrate + lock; review separation fresh UUID.
+  - **Yetki matrisi (`QuestionVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT manage/review/publish/answer; TEACHER own draft manage; published VIEW active+verified; institution Owner/Manager all; Teacher own; Staff/Student deny. ADMIN/MODERATOR otomatik publish yok.
+  - **DB:** `Version20260909180000` + hardening `Version20260909190000` + schema listeners. 
   - **Bilinen sınırlama:** gerçek multi-process concurrency testi yok; DB unique + TX + lock revalidation var. Concurrent revision race typed `conflict`.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası HTTP API.

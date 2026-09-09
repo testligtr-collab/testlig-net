@@ -106,11 +106,15 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - `CurriculumLearningOutcome` topic altında; `UNIQUE(program, code)` + `UNIQUE(topic, position)`; yalnız draft curriculum’da mutate; `cloneAsNewVersion` LO’ları yeni UUID ile kopyalar.
 - Versioned `Question` + immutable `QuestionRevision` / options / isolated `QuestionAnswerKey` / alignments + primary alignment guard.
 - Scope: `platform` | `institution` (CHECK + servis); published içerik düzenlenmez — yeni revision.
-- Structured JSON content (paragraph/heading/list/math/image_reference); HTML/script yok; canonical hash.
-- Lifecycle: draft → in_review → published → archived; review separation (publisher ≠ revision author).
-- Yetki: `QuestionVoter` + DBAL snapshot; platform HEAD/EXPERT manage/review/publish; institution owner/manager manage; teacher own drafts; ADMIN/MODERATOR otomatik publish yok.
-- UI/API/sınav motoru yok; at-rest answer encryption ertelendi (ayrı tablo + serializer izolasyonu).
-- Migration: `Version20260909180000` + `QuestionBankCompositeForeignKeyListener` + `QuestionRevisionImmutabilityListener`.
+- Public `contentHash` answer içermez (oracle-safe); answer bütünlüğü `QUESTION_ANSWER_INTEGRITY_KEY` HMAC (`answer_integrity_hmac`, serializer dışı).
+- Append-only: ORM listener + MariaDB UPDATE/DELETE triggers; test cleanup session bypass (uygulama set etmez).
+- Primary alignment: STORED `primary_revision_scope_id` UNIQUE + guard `must_be_primary` composite FK.
+- Structured JSON content; HTML/script yok; `sourceReference` opaque (URL/path yok).
+- Lifecycle: draft → in_review → published → archived; review separation; publish fresh hydration.
+- Kilit: snapshot → Institution? → Subject → Curriculum → Question → Users → Revision.
+- Yetki: `QuestionVoter` + DBAL snapshot; ADMIN/MODERATOR otomatik publish yok.
+- UI/API/sınav motoru yok; at-rest encryption ertelendi.
+- Migrations: `Version20260909180000` + hardening `Version20260909190000`.
 
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
