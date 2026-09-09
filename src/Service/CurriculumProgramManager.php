@@ -11,7 +11,6 @@ use App\Entity\CurriculumUnit;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\CurriculumContentStatus;
-use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
