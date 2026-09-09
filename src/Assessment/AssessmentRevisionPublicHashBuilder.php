@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Assessment;
 
+use App\Entity\AssessmentItem;
+use App\Entity\AssessmentRevision;
+use App\Entity\AssessmentSection;
+
 /**
  * Builds the public assessment revision structure used for publicContentHash.
  *
@@ -65,5 +69,94 @@ final class AssessmentRevisionPublicHashBuilder
             'sections' => $sections,
             'schemaVersion' => $schemaVersion,
         ];
+    }
+
+    /**
+     * Rebuild public hash payload from a persisted revision graph.
+     *
+     * Sections sorted by position then section UUID; items by position then item UUID.
+     *
+     * @param list<AssessmentSection> $sections
+     * @param list<AssessmentItem>    $items
+     *
+     * @return array<string, mixed>
+     */
+    public function buildFromGraph(
+        AssessmentRevision $revision,
+        array $sections,
+        array $items,
+    ): array {
+        $sectionsSorted = $sections;
+        usort(
+            $sectionsSorted,
+            static function (AssessmentSection $a, AssessmentSection $b): int {
+                $byPosition = $a->getPosition() <=> $b->getPosition();
+                if (0 !== $byPosition) {
+                    return $byPosition;
+                }
+
+                return $a->getId()->toRfc4122() <=> $b->getId()->toRfc4122();
+            },
+        );
+
+        $itemsBySection = [];
+        foreach ($items as $item) {
+            $itemsBySection[$item->getSection()->getId()->toRfc4122()][] = $item;
+        }
+
+        $publicSections = [];
+        foreach ($sectionsSorted as $section) {
+            $sectionItems = $itemsBySection[$section->getId()->toRfc4122()] ?? [];
+            usort(
+                $sectionItems,
+                static function (AssessmentItem $a, AssessmentItem $b): int {
+                    $byPosition = $a->getPosition() <=> $b->getPosition();
+                    if (0 !== $byPosition) {
+                        return $byPosition;
+                    }
+
+                    return $a->getId()->toRfc4122() <=> $b->getId()->toRfc4122();
+                },
+            );
+
+            $publicItems = [];
+            foreach ($sectionItems as $item) {
+                $publicItems[] = [
+                    'position' => $item->getPosition(),
+                    'questionId' => $item->getQuestion()->getId()->toRfc4122(),
+                    'questionRevisionId' => $item->getQuestionRevision()->getId()->toRfc4122(),
+                    'questionRevisionNumber' => $item->getQuestionRevision()->getRevisionNumber(),
+                    'questionPublicContentHash' => $item->getQuestionRevision()->getContentHash(),
+                    'subjectId' => $item->getQuestion()->getSubject()->getId()->toRfc4122(),
+                    'points' => $item->getPoints(),
+                    'penaltyPoints' => $item->getPenaltyPoints(),
+                    'required' => $item->isRequired(),
+                    'optionOrderMode' => $item->getOptionOrderMode()?->value,
+                ];
+            }
+
+            $publicSections[] = [
+                'position' => $section->getPosition(),
+                'title' => $section->getTitle(),
+                'instructions' => $section->getInstructions(),
+                'durationSeconds' => $section->getDurationSeconds(),
+                'questionOrderMode' => $section->getQuestionOrderMode()->value,
+                'items' => $publicItems,
+            ];
+        }
+
+        return $this->build(
+            $revision->getTitle(),
+            $revision->getDescription(),
+            $revision->getInstructions(),
+            $revision->getDurationSeconds(),
+            $revision->getNavigationMode()->value,
+            $revision->getQuestionOrderMode()->value,
+            $revision->getOptionOrderMode()->value,
+            $revision->getResultReleasePolicy()->value,
+            $revision->getPassScorePercentage(),
+            $publicSections,
+            $revision->getSchemaVersion(),
+        );
     }
 }

@@ -201,6 +201,10 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Assessment\AssessmentPublicationIntegrityVerifier:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Question\Content\QuestionContentValidator:
             public: true
             autowire: true

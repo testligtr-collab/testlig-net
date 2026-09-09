@@ -640,7 +640,9 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             institutionId: null !== $row['institution_id'] ? $this->uuidFromBinary($row['institution_id']) : null,
             createdById: $this->uuidFromBinary($row['created_by_id']),
             status: AssessmentStatus::from((string) $row['status']),
-            currentRevisionNumber: (int) $row['current_revision_number'],
+            currentRevisionNumber: null !== $row['current_revision_number']
+                ? (int) $row['current_revision_number']
+                : null,
             publishedRevisionNumber: null !== $row['published_revision_number']
                 ? (int) $row['published_revision_number']
                 : null,

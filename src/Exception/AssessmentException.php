@@ -110,6 +110,14 @@ final class AssessmentException extends \RuntimeException
         return new self(AssessmentFailureReason::PublicationInvalid, $detail);
     }
 
+    public static function publicContentIntegrityFailed(): self
+    {
+        return new self(
+            AssessmentFailureReason::PublicContentIntegrityFailed,
+            'Assessment public content integrity check failed.',
+        );
+    }
+
     public static function answerIntegrityFailed(): self
     {
         return new self(

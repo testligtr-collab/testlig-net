@@ -95,7 +95,9 @@ final class AssessmentDomainTest extends KernelTestCase
         );
         self::assertSame(AssessmentStatus::Draft, $assessment->getStatus());
         self::assertSame(1, $assessment->getCurrentRevisionNumber());
+        self::assertNotNull($assessment->getCurrentRevision());
         self::assertNull($assessment->getPublishedRevisionNumber());
+        self::assertNull($assessment->getPublishedRevision());
         self::assertSame(1, $this->events->countByAction(SecurityAuditAction::AssessmentCreated->value));
 
         /** @var AssessmentRevisionRepository $aRevisions */

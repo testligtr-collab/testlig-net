@@ -97,6 +97,22 @@ final class AssessmentVoterTest extends KernelTestCase
         $lo = $outcomes->create($topic, $sa, 'lo_av', 'Outcome', 1, 'create_lo');
         $programs->publish($program, $sa, 'publish');
 
+        $this->em->clear();
+        $sa = $this->users->find($sa->getId());
+        $head = $this->users->find($head->getId());
+        $teacher = $this->users->find($teacher->getId());
+        $admin = $this->users->find($admin->getId());
+        $student = $this->users->find($student->getId());
+        self::assertInstanceOf(User::class, $sa);
+        self::assertInstanceOf(User::class, $head);
+        self::assertInstanceOf(User::class, $teacher);
+        self::assertInstanceOf(User::class, $admin);
+        self::assertInstanceOf(User::class, $student);
+        $subject = $this->em->find(\App\Entity\Subject::class, $subject->getId());
+        self::assertInstanceOf(\App\Entity\Subject::class, $subject);
+        $lo = $this->em->find(\App\Entity\CurriculumLearningOutcome::class, $lo->getId());
+        self::assertInstanceOf(\App\Entity\CurriculumLearningOutcome::class, $lo);
+
         $question = $questions->createDraftQuestion(
             $head,
             QuestionScope::Platform,

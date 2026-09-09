@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Assessment;
 
+use App\Entity\AssessmentItem;
+use App\Entity\AssessmentRevision;
+use App\Entity\AssessmentSection;
+
 /**
  * Builds SHA-256 publicContentHash for an assessment revision.
  */
@@ -64,5 +68,19 @@ final class AssessmentPublicContentHashBuilder
         );
 
         return $this->hasher->hash($payload);
+    }
+
+    /**
+     * @param list<AssessmentSection> $sections
+     * @param list<AssessmentItem>    $items
+     */
+    public function hashFromGraph(
+        AssessmentRevision $revision,
+        array $sections,
+        array $items,
+    ): string {
+        return $this->hasher->hash(
+            $this->revisionPublicHashBuilder->buildFromGraph($revision, $sections, $items),
+        );
     }
 }

@@ -19,6 +19,16 @@ final class AssessmentDbCleanup
     {
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessments'])) {
+            // Null revision pointers first so CASCADE can remove revisions (RESTRICT FKs).
+            if ($schema->introspectTable('assessments')->hasColumn('current_revision_id')) {
+                $connection->executeStatement(
+                    'UPDATE assessments SET
+                        published_revision_id = NULL,
+                        published_revision_number = NULL,
+                        current_revision_id = NULL,
+                        current_revision_number = NULL',
+                );
+            }
             $connection->executeStatement('DELETE FROM assessments');
         }
         self::assertAssessmentTablesEmpty($connection);

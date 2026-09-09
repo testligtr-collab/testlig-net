@@ -54,8 +54,16 @@ class Assessment
     #[ORM\Column(length: 32, enumType: AssessmentStatus::class)]
     private AssessmentStatus $status;
 
-    #[ORM\Column(name: 'current_revision_number')]
-    private int $currentRevisionNumber;
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'current_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?AssessmentRevision $currentRevision;
+
+    #[ORM\Column(name: 'current_revision_number', nullable: true)]
+    private ?int $currentRevisionNumber;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'published_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?AssessmentRevision $publishedRevision;
 
     #[ORM\Column(name: 'published_revision_number', nullable: true)]
     private ?int $publishedRevisionNumber;
@@ -89,7 +97,9 @@ class Assessment
         $this->gradeLevel = $gradeLevel;
         $this->createdBy = $createdBy;
         $this->status = AssessmentStatus::Draft;
-        $this->currentRevisionNumber = 1;
+        $this->currentRevision = null;
+        $this->currentRevisionNumber = null;
+        $this->publishedRevision = null;
         $this->publishedRevisionNumber = null;
         $this->createdAt = $now;
         $this->updatedAt = $now;
@@ -147,9 +157,21 @@ class Assessment
         return $this->status;
     }
 
-    public function getCurrentRevisionNumber(): int
+    #[Ignore]
+    public function getCurrentRevision(): ?AssessmentRevision
+    {
+        return $this->currentRevision;
+    }
+
+    public function getCurrentRevisionNumber(): ?int
     {
         return $this->currentRevisionNumber;
+    }
+
+    #[Ignore]
+    public function getPublishedRevision(): ?AssessmentRevision
+    {
+        return $this->publishedRevision;
     }
 
     public function getPublishedRevisionNumber(): ?int
@@ -167,19 +189,33 @@ class Assessment
         return $this->updatedAt;
     }
 
+    /**
+     * Prepare identity for a new revision: Published → Draft only. Does not touch current pointers.
+     */
     #[Ignore]
-    public function bumpRevisionNumber(\DateTimeImmutable $now): int
+    public function prepareForNewRevision(\DateTimeImmutable $now): void
     {
         if (!$this->status->allowsNewRevision()) {
             throw AssessmentException::invalidTransition();
         }
-        ++$this->currentRevisionNumber;
         if (AssessmentStatus::Published === $this->status) {
             $this->status = AssessmentStatus::Draft;
         }
         $this->updatedAt = $now;
+    }
 
-        return $this->currentRevisionNumber;
+    /**
+     * Point current revision id+number at a sealed or about-to-seal revision of this assessment.
+     */
+    #[Ignore]
+    public function assignCurrentRevision(AssessmentRevision $revision, \DateTimeImmutable $now): void
+    {
+        if (!$revision->getAssessment()->getId()->equals($this->id)) {
+            throw AssessmentException::conflict();
+        }
+        $this->currentRevision = $revision;
+        $this->currentRevisionNumber = $revision->getRevisionNumber();
+        $this->updatedAt = $now;
     }
 
     #[Ignore]
@@ -203,16 +239,23 @@ class Assessment
     }
 
     #[Ignore]
-    public function publish(int $revisionNumber, \DateTimeImmutable $now): void
+    public function publish(AssessmentRevision $revision, \DateTimeImmutable $now): void
     {
         if (!$this->status->canTransitionTo(AssessmentStatus::Published)) {
             throw AssessmentException::invalidTransition();
         }
-        if ($revisionNumber < 1) {
-            throw AssessmentException::invalidInput('revision_number must be >= 1.');
+        if (!$revision->getAssessment()->getId()->equals($this->id)) {
+            throw AssessmentException::conflict();
+        }
+        if (null === $this->currentRevision || !$this->currentRevision->getId()->equals($revision->getId())) {
+            throw AssessmentException::conflict();
+        }
+        if ($this->currentRevisionNumber !== $revision->getRevisionNumber()) {
+            throw AssessmentException::conflict();
         }
         $this->status = AssessmentStatus::Published;
-        $this->publishedRevisionNumber = $revisionNumber;
+        $this->publishedRevision = $revision;
+        $this->publishedRevisionNumber = $revision->getRevisionNumber();
         $this->updatedAt = $now;
     }
 

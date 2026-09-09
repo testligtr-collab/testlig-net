@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Assessment\AssessmentContentPolicy;
 use App\Assessment\AssessmentManifestBuilder;
 use App\Assessment\AssessmentManifestHasher;
+use App\Assessment\AssessmentPublicationIntegrityVerifier;
 use App\Assessment\AssessmentPublicContentHashBuilder;
 use App\Assessment\AssessmentRevisionPublicHashBuilder;
 use App\Assessment\AssessmentScore;
@@ -72,8 +73,8 @@ use Symfony\Component\Uid\Uuid;
  * 6. QuestionRevisions UUID ascending
  * 7. Users UUID ascending
  * 8. Persist AssessmentRevision (is_sealed=false) + sections + items
- * 9. Seal revision (is_sealed 0→1)
- * 10. On publish: AssessmentPublication last
+ * 9. assignCurrentRevision; seal revision (is_sealed 0→1)
+ * 10. On publish: verify public hash → AssessmentPublication → published pointers
  *
  * Known limitation: no multi-process concurrency harness; uniqueness + pessimistic locks
  * provide sequential safety only.
@@ -91,6 +92,7 @@ final class AssessmentManager
         private readonly AssessmentPublicContentHashBuilder $publicContentHashBuilder,
         private readonly AssessmentManifestBuilder $manifestBuilder,
         private readonly AssessmentManifestHasher $manifestHasher,
+        private readonly AssessmentPublicationIntegrityVerifier $publicationIntegrityVerifier,
         private readonly QuestionAnswerIntegrityHasher $answerIntegrityHasher,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
@@ -335,7 +337,8 @@ final class AssessmentManager
                 $this->assertActorMayRevise($freshActor, $lockedAssessment);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
-                $revisionNumber = $lockedAssessment->bumpRevisionNumber($now);
+                $lockedAssessment->prepareForNewRevision($now);
+                $revisionNumber = ($lockedAssessment->getCurrentRevisionNumber() ?? 0) + 1;
                 $this->assessments->save($lockedAssessment, false);
 
                 $revision = $this->persistRevisionBundle(
@@ -463,15 +466,12 @@ final class AssessmentManager
                 }
                 $this->assertAssessmentSnapshotUnchanged($lockedAssessment, $snapshot, full: true);
 
-                $revisionId = $this->fetchRevisionIdForAssessmentNumber(
-                    $assessmentId,
-                    $lockedAssessment->getCurrentRevisionNumber(),
-                );
-                if (null === $revisionId) {
+                $currentRevision = $lockedAssessment->getCurrentRevision();
+                if (!$currentRevision instanceof AssessmentRevision) {
                     throw AssessmentException::notFound();
                 }
                 $revision = $this->freshEntities->findFreshLockedAssessmentRevision(
-                    $revisionId,
+                    $currentRevision->getId(),
                     LockMode::PESSIMISTIC_WRITE,
                 );
                 if (!$revision instanceof AssessmentRevision) {
@@ -483,9 +483,13 @@ final class AssessmentManager
                 if (!$revision->isSealed()) {
                     throw AssessmentException::revisionNotSealed();
                 }
+                if ($lockedAssessment->getCurrentRevisionNumber() !== $revision->getRevisionNumber()) {
+                    throw AssessmentException::conflict();
+                }
 
                 $graph = $this->loadFreshRevisionGraph($revision);
                 $this->assertPublishableGraph($lockedAssessment, $revision, $graph);
+                $this->assertPublicContentHashMatches($revision, $graph);
 
                 $userIds = $this->uniqueSortedIds([
                     $actorId,
@@ -513,9 +517,8 @@ final class AssessmentManager
                 $publicationNumber = $this->nextPublicationNumber($assessmentId);
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $oldStatus = $lockedAssessment->getStatus()->value;
-                $lockedAssessment->publish($revision->getRevisionNumber(), $now);
-                $this->assessments->save($lockedAssessment, false);
 
+                // Publication BEFORE published pointers (MariaDB published-requires-publication trigger).
                 $publication = AssessmentPublication::create(
                     $lockedAssessment,
                     $revision,
@@ -527,6 +530,12 @@ final class AssessmentManager
                     $now,
                 );
                 $this->publications->save($publication, false);
+                $this->entityManager->flush();
+
+                $this->publicationIntegrityVerifier->verify($publication, $lockedAssessment, $revision);
+
+                $lockedAssessment->publish($revision, $now);
+                $this->assessments->save($lockedAssessment, false);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentPublicationCreated,
@@ -825,6 +834,9 @@ final class AssessmentManager
         // otherwise INSERT the post-seal state and BI triggers would reject sections/items).
         $this->entityManager->flush();
 
+        $assessment->assignCurrentRevision($revision, $now);
+        $this->assessments->save($assessment, false);
+
         $revision->seal();
         $this->revisions->save($revision, false);
         $this->entityManager->flush();
@@ -1030,6 +1042,26 @@ final class AssessmentManager
             ->getResult();
 
         return ['sections' => $sections, 'items' => $items];
+    }
+
+    /**
+     * @param array{sections: list<AssessmentSection>, items: list<AssessmentItem>} $graph
+     */
+    private function assertPublicContentHashMatches(AssessmentRevision $revision, array $graph): void
+    {
+        $stored = $revision->getPublicContentHash();
+        if (1 !== preg_match('/^[0-9a-f]{64}$/', $stored)) {
+            throw AssessmentException::publicContentIntegrityFailed();
+        }
+
+        $recomputed = $this->publicContentHashBuilder->hashFromGraph(
+            $revision,
+            $graph['sections'],
+            $graph['items'],
+        );
+        if (!hash_equals($stored, $recomputed)) {
+            throw AssessmentException::publicContentIntegrityFailed();
+        }
     }
 
     /**
@@ -1415,7 +1447,9 @@ final class AssessmentManager
      *     scope: string,
      *     institution_id: ?string,
      *     status: string,
-     *     current_revision_number: int,
+     *     current_revision_id: ?string,
+     *     current_revision_number: ?int,
+     *     published_revision_id: ?string,
      *     published_revision_number: ?int,
      *     created_by_id: string,
      *     grade_level: int,
@@ -1425,7 +1459,9 @@ final class AssessmentManager
     private function fetchAssessmentScopeSnapshot(Uuid $assessmentId): ?array
     {
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT id, scope, institution_id, status, current_revision_number, published_revision_number,
+            'SELECT id, scope, institution_id, status,
+                    current_revision_id, current_revision_number,
+                    published_revision_id, published_revision_number,
                     created_by_id, grade_level, type
              FROM assessments
              WHERE id = ?',
@@ -1441,7 +1477,15 @@ final class AssessmentManager
             'scope' => (string) $row['scope'],
             'institution_id' => null !== $row['institution_id'] ? $this->uuidStringFromBinary($row['institution_id']) : null,
             'status' => (string) $row['status'],
-            'current_revision_number' => (int) $row['current_revision_number'],
+            'current_revision_id' => null !== $row['current_revision_id']
+                ? $this->uuidStringFromBinary($row['current_revision_id'])
+                : null,
+            'current_revision_number' => null !== $row['current_revision_number']
+                ? (int) $row['current_revision_number']
+                : null,
+            'published_revision_id' => null !== $row['published_revision_id']
+                ? $this->uuidStringFromBinary($row['published_revision_id'])
+                : null,
             'published_revision_number' => null !== $row['published_revision_number']
                 ? (int) $row['published_revision_number']
                 : null,
@@ -1457,7 +1501,9 @@ final class AssessmentManager
      *     scope: string,
      *     institution_id: ?string,
      *     status: string,
-     *     current_revision_number: int,
+     *     current_revision_id: ?string,
+     *     current_revision_number: ?int,
+     *     published_revision_id: ?string,
      *     published_revision_number: ?int,
      *     created_by_id: string,
      *     grade_level: int,
@@ -1482,7 +1528,15 @@ final class AssessmentManager
         if ($assessment->getStatus()->value !== $snapshot['status']) {
             throw AssessmentException::conflict();
         }
+        $currentRevisionId = $assessment->getCurrentRevision()?->getId()->toRfc4122();
+        if ($currentRevisionId !== $snapshot['current_revision_id']) {
+            throw AssessmentException::conflict();
+        }
         if ($assessment->getCurrentRevisionNumber() !== $snapshot['current_revision_number']) {
+            throw AssessmentException::conflict();
+        }
+        $publishedRevisionId = $assessment->getPublishedRevision()?->getId()->toRfc4122();
+        if ($publishedRevisionId !== $snapshot['published_revision_id']) {
             throw AssessmentException::conflict();
         }
         if ($assessment->getPublishedRevisionNumber() !== $snapshot['published_revision_number']) {
@@ -1497,20 +1551,6 @@ final class AssessmentManager
         if ($assessment->getType()->value !== $snapshot['type']) {
             throw AssessmentException::conflict();
         }
-    }
-
-    private function fetchRevisionIdForAssessmentNumber(Uuid $assessmentId, int $revisionNumber): ?Uuid
-    {
-        $raw = $this->entityManager->getConnection()->fetchOne(
-            'SELECT id FROM assessment_revisions WHERE assessment_id = ? AND revision_number = ?',
-            [$assessmentId->toBinary(), $revisionNumber],
-            [ParameterType::BINARY, ParameterType::INTEGER],
-        );
-        if (false === $raw || null === $raw) {
-            return null;
-        }
-
-        return $this->uuidFromDb($raw);
     }
 
     private function nextPublicationNumber(Uuid $assessmentId): int

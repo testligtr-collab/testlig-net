@@ -24,5 +24,6 @@ enum AssessmentFailureReason: string
     case ReviewSeparation = 'review_separation';
     case RevisionNotSealed = 'revision_not_sealed';
     case PublicationInvalid = 'publication_invalid';
+    case PublicContentIntegrityFailed = 'public_content_integrity_failed';
     case AnswerIntegrityFailed = 'answer_integrity_failed';
 }

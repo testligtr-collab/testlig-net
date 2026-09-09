@@ -46,5 +46,35 @@ final class AssessmentCompositeForeignKeyListener
                 ['onDelete' => 'RESTRICT'],
             );
         }
+
+        if ($schema->hasTable('assessment_revisions')) {
+            $table = $schema->getTable('assessment_revisions');
+            if (!$table->hasIndex('uniq_ar_id_assessment_number')) {
+                $table->addUniqueIndex(
+                    ['id', 'assessment_id', 'revision_number'],
+                    'uniq_ar_id_assessment_number',
+                );
+            }
+        }
+
+        if ($schema->hasTable('assessments')) {
+            $table = $schema->getTable('assessments');
+            CompositeForeignKeySchemaHelper::ensureForeignKey(
+                $table,
+                'FK_ASSESSMENT_CURRENT_REVISION',
+                'assessment_revisions',
+                ['current_revision_id', 'id', 'current_revision_number'],
+                ['id', 'assessment_id', 'revision_number'],
+                ['onDelete' => 'RESTRICT'],
+            );
+            CompositeForeignKeySchemaHelper::ensureForeignKey(
+                $table,
+                'FK_ASSESSMENT_PUBLISHED_REVISION',
+                'assessment_revisions',
+                ['published_revision_id', 'id', 'published_revision_number'],
+                ['id', 'assessment_id', 'revision_number'],
+                ['onDelete' => 'RESTRICT'],
+            );
+        }
     }
 }

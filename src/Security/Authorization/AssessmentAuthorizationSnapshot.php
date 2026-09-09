@@ -19,7 +19,7 @@ final readonly class AssessmentAuthorizationSnapshot
         public ?Uuid $institutionId,
         public Uuid $createdById,
         public AssessmentStatus $status,
-        public int $currentRevisionNumber,
+        public ?int $currentRevisionNumber,
         public ?int $publishedRevisionNumber,
     ) {
     }
