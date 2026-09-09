@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\SecurityAuditContext;
+use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
@@ -18,6 +19,7 @@ use App\Enum\SecurityAuditOutcome;
 use App\Enum\SubjectStatus;
 use App\Exception\CurriculumException;
 use App\Exception\InstitutionOperationException;
+use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\CurriculumTopicRepository;
 use App\Repository\CurriculumUnitRepository;
@@ -41,6 +43,7 @@ final class CurriculumProgramManager
         private readonly CurriculumProgramRepository $programs,
         private readonly CurriculumUnitRepository $units,
         private readonly CurriculumTopicRepository $topics,
+        private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
@@ -377,6 +380,30 @@ final class CurriculumProgramManager
                             $topicMap[$sourceTopic->getId()->toRfc4122()]->archive($now);
                         }
                     }
+                }
+
+                foreach ($this->outcomes->findByProgram($lockedSource) as $sourceOutcome) {
+                    $this->freshEntities->findFreshLockedCurriculumLearningOutcome(
+                        $sourceOutcome->getId(),
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    $clonedTopic = $topicMap[$sourceOutcome->getTopic()->getId()->toRfc4122()] ?? null;
+                    if (!$clonedTopic instanceof CurriculumTopic) {
+                        throw CurriculumException::conflict();
+                    }
+                    $clonedOutcome = CurriculumLearningOutcome::create(
+                        $clonedTopic,
+                        $clone,
+                        $sourceOutcome->getCode(),
+                        $sourceOutcome->getDescription(),
+                        $sourceOutcome->getNormalizedDescription(),
+                        $sourceOutcome->getPosition(),
+                        $now,
+                    );
+                    if (CurriculumContentStatus::Archived === $sourceOutcome->getStatus()) {
+                        $clonedOutcome->archive($now);
+                    }
+                    $this->outcomes->save($clonedOutcome, false);
                 }
 
                 $this->auditRecorder->record(new SecurityAuditContext(

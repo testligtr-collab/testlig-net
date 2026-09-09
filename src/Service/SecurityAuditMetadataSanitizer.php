@@ -54,6 +54,11 @@ final class SecurityAuditMetadataSanitizer
         'code',
         'old_curriculum_id',
         'new_curriculum_id',
+        'question_id',
+        'revision_id',
+        'revision_number',
+        'learning_outcome_id',
+        'curriculum_program_id',
     ];
 
     /**
@@ -84,6 +89,16 @@ final class SecurityAuditMetadataSanitizer
         'request_body',
         'form',
         'formcontent',
+        'contenthash',
+        'content_hash',
+        'answerintegrity',
+        'answer_integrity',
+        'answerpayload',
+        'answer_payload',
+        'correctstablekey',
+        'correct_stable_key',
+        'stem',
+        'explanation',
     ];
 
     /**

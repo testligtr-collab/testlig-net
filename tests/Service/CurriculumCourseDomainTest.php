@@ -52,6 +52,7 @@ use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -692,11 +693,18 @@ final class CurriculumCourseDomainTest extends KernelTestCase
         if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
             $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
         }
-        foreach ([
+        QuestionBankDbCleanup::deleteTables($connection, [
             'course_teacher_active_guards',
             'course_teacher_assignments',
             'classroom_course_active_guards',
             'classroom_courses',
+            'question_revision_primary_alignment_guards',
+            'question_revision_alignments',
+            'question_answer_keys',
+            'question_revision_options',
+            'question_revisions',
+            'questions',
+            'curriculum_learning_outcomes',
             'curriculum_topics',
             'curriculum_units',
             'curriculum_programs',
@@ -715,11 +723,7 @@ final class CurriculumCourseDomainTest extends KernelTestCase
             'security_bootstrap_guards',
             'reset_password_requests',
             'users',
-        ] as $table) {
-            if ($connection->createSchemaManager()->tablesExist([$table])) {
-                $connection->executeStatement('DELETE FROM '.$table);
-            }
-        }
+        ]);
     }
 
     protected function tearDown(): void
