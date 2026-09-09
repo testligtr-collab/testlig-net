@@ -101,6 +101,17 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Composite FK’ler: `CurriculumCourseCompositeForeignKeyListener` + `CompositeForeignKeySchemaHelper` (2.6 listener ince kaldı).
 - Aktif course teacher assignment, membership suspend/end/role değişimini de bloklar.
 
+### Soru bankası / kazanım (Aşama 2.8)
+
+- `CurriculumLearningOutcome` topic altında; `UNIQUE(program, code)` + `UNIQUE(topic, position)`; yalnız draft curriculum’da mutate; `cloneAsNewVersion` LO’ları yeni UUID ile kopyalar.
+- Versioned `Question` + immutable `QuestionRevision` / options / isolated `QuestionAnswerKey` / alignments + primary alignment guard.
+- Scope: `platform` | `institution` (CHECK + servis); published içerik düzenlenmez — yeni revision.
+- Structured JSON content (paragraph/heading/list/math/image_reference); HTML/script yok; canonical hash.
+- Lifecycle: draft → in_review → published → archived; review separation (publisher ≠ revision author).
+- Yetki: `QuestionVoter` + DBAL snapshot; platform HEAD/EXPERT manage/review/publish; institution owner/manager manage; teacher own drafts; ADMIN/MODERATOR otomatik publish yok.
+- UI/API/sınav motoru yok; at-rest answer encryption ertelendi (ayrı tablo + serializer izolasyonu).
+- Migration: `Version20260909180000` + `QuestionBankCompositeForeignKeyListener` + `QuestionRevisionImmutabilityListener`.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):

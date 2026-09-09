@@ -63,8 +63,20 @@
   - **Yetki matrisi (`ClassroomCourseVoter`):** Owner/Manager tüm `CLASSROOM_COURSE_*`; aktif course teacher yalnızca VIEW + CURRICULUM_VIEW (TEACHERS_VIEW/MANAGE yok); aynı sınıfta aktif HomeroomTeacher VIEW + CURRICULUM_VIEW + TEACHERS_VIEW; Staff yalnızca VIEW; aynı sınıfta aktif kayıtlı Student VIEW + CURRICULUM_VIEW. ADMIN/MODERATOR otomatik yok; active+verified SUPER_ADMIN override. Snapshot’lar `getClassroomCourseSnapshot` / `getCourseTeacherAssignmentSnapshot` / classroom assignment / enrollment; commit sonrası invalidate.
   - **Composite FK / schema extras:** `CompositeForeignKeySchemaHelper` + `CurriculumCourseCompositeForeignKeyListener` (2.6 listener ince). Topic sibling scope: `CurriculumTopicPositionScopeSchemaListener` + migration `Version20260909120000`.
   - **Audit:** `subject_*`, `curriculum_*`, `curriculum_unit_*`, `curriculum_topic_*`, `classroom_course_*`, `course_teacher_*`; metadata’da id’ler (`subject_id`, `curriculum_id`, …) — isim/PII yok.
+- **Soru bankası / kazanım (Aşama 2.8):** `CurriculumLearningOutcome`; versioned `Question` + immutable revisions/options/alignments; isolated `QuestionAnswerKey`. UI/controller/API/sınav motoru yok.
+  - **LearningOutcome:** denormalized `unit_id` + `curriculum_program_id`; `UNIQUE(program, code)`, `UNIQUE(topic, position)`; composite FK topic→unit→program; yalnız draft mutate; clone LO kopyalar.
+  - **Question:** scope platform|institution (CHECK); `currentRevisionNumber` monoton; published düzenlenmez — yeni revision (published→draft).
+  - **Revision immutability:** Doctrine `QuestionRevisionImmutabilityListener` (revision/option/answer key/alignment).
+  - **Content:** schemaVersioned JSON blocks; max 50 blocks / nesting 3 / 20k chars; no HTML; canonical SHA-256 hash.
+  - **Answer policies:** single/multiple choice, true_false, numeric, short_answer merkezi validator; answer key ayrı repo + `#[Ignore]`.
+  - **Alignment:** ≥1 LO, exactly 1 primary (`question_revision_primary_alignment_guards`); publish’te curriculum published + subject/grade uyumu.
+  - **Kilit sırası:** Institution? → Subject → Program → Topic/Outcome → Question → Users(UUID) → Revision.
+  - **Yetki matrisi (`QuestionVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT manage/review/publish/answer; TEACHER own draft manage; published VIEW active+verified; institution Owner/Manager all; Teacher own; Staff/Student deny. ADMIN/MODERATOR otomatik publish yok. Snapshot `getQuestionSnapshot`; commit sonrası invalidate.
+  - **Review separation:** publisher UUID ≠ revision.createdBy UUID.
+  - **DB:** `Version20260909180000` + `QuestionBankCompositeForeignKeyListener`. At-rest encryption deferred (architecture note).
+  - **Bilinen sınırlama:** gerçek multi-process concurrency testi yok; DB unique + TX + lock revalidation var. Concurrent revision race typed `conflict`.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav UI, ödeme, veli bağlantısı, audit UI, müfredat/ders HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası HTTP API.
 
 ## Sonraki aşamalar
 
