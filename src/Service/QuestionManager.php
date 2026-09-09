@@ -745,6 +745,14 @@ final class QuestionManager
             throw QuestionException::answerInvalid('Answer key type does not match revision type.');
         }
 
+        // Integrity before answer-policy validation so tampered keys never reach type policies.
+        $this->answerIntegrityHasher->verify(
+            $answerKey->getAnswerIntegrityHmac(),
+            $answerKey->getAnswerPayload(),
+            $answerKey->getAnswerType(),
+            $revision->getId(),
+        );
+
         $options = $this->findFreshOptionsForRevision($revision);
         $optionSpecs = [];
         foreach ($options as $option) {

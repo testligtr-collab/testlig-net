@@ -75,6 +75,14 @@ final class QuestionException extends \RuntimeException
         return new self(QuestionFailureReason::AnswerInvalid, $detail);
     }
 
+    public static function answerIntegrityFailed(): self
+    {
+        return new self(
+            QuestionFailureReason::AnswerIntegrityFailed,
+            'Answer integrity verification failed.',
+        );
+    }
+
     public static function contentInvalid(string $detail = 'Question content is invalid.'): self
     {
         return new self(QuestionFailureReason::ContentInvalid, $detail);

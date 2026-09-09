@@ -25,6 +25,7 @@ use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Exception\QuestionException;
+use App\Question\Answer\QuestionAnswerIntegrityHasher;
 use App\Question\Content\QuestionContentDocument;
 use App\Question\Content\QuestionContentHasher;
 use App\Question\Content\QuestionPublicContentHashBuilder;
@@ -45,6 +46,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Serializer\SerializerInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
 
 final class QuestionBankSecurityHardeningTest extends KernelTestCase
@@ -433,15 +435,11 @@ final class QuestionBankSecurityHardeningTest extends KernelTestCase
             'created_at' => $now,
         ]);
 
-        $connection->executeStatement('SET @testlig_immutable_delete_bypass = 1');
-        try {
-            $connection->executeStatement(
-                'DELETE FROM question_revision_primary_alignment_guards WHERE revision_id = :id',
-                ['id' => $revision->getId()->toBinary()],
-            );
-        } finally {
-            $connection->executeStatement('SET @testlig_immutable_delete_bypass = NULL');
-        }
+        // Guards have no DELETE trigger; remove the real primary guard so we can probe FK rules.
+        $connection->executeStatement(
+            'DELETE FROM question_revision_primary_alignment_guards WHERE revision_id = :id',
+            ['id' => $revision->getId()->toBinary()],
+        );
 
         try {
             $connection->insert('question_revision_primary_alignment_guards', [
@@ -641,6 +639,483 @@ final class QuestionBankSecurityHardeningTest extends KernelTestCase
         self::assertSame($question->getId()->toRfc4122(), $metadata['question_id'] ?? null);
     }
 
+    public function testDeleteTriggersRejectEvenWithBypassSessionVariable(): void
+    {
+        [$sa, , $subject, , $lo] = $this->platformCurriculum('bypass_reject');
+        $question = $this->questions()->createDraftQuestion(
+            $sa,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade9,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Bypass must not help?'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('A'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('B'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $lo, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'bypass_create',
+        );
+        $revision = $this->revisionFor($question, 1);
+        $connection = $this->em->getConnection();
+
+        /** @var QuestionRevisionOptionRepository $optionRepo */
+        $optionRepo = static::getContainer()->get(QuestionRevisionOptionRepository::class);
+        $options = $optionRepo->findByRevision($revision);
+        self::assertNotEmpty($options);
+        self::assertInstanceOf(QuestionRevisionOption::class, $options[0]);
+
+        /** @var QuestionAnswerKeyRepository $keyRepo */
+        $keyRepo = static::getContainer()->get(QuestionAnswerKeyRepository::class);
+        $key = $keyRepo->findOneByRevision($revision);
+        self::assertInstanceOf(QuestionAnswerKey::class, $key);
+        $originalHmac = $key->getAnswerIntegrityHmac();
+
+        /** @var QuestionRevisionAlignmentRepository $alignmentRepo */
+        $alignmentRepo = static::getContainer()->get(QuestionRevisionAlignmentRepository::class);
+        $alignments = $alignmentRepo->findByRevision($revision);
+        self::assertNotEmpty($alignments);
+
+        $connection->executeStatement('SET @testlig_immutable_delete_bypass = 1');
+        $connection->executeStatement('SET @testlig_immutable_delete_bypass = TRUE');
+        $connection->executeStatement('SET @fake_immutable_bypass = 1');
+        $connection->executeStatement('SET @testlig_immutable = 1');
+
+        foreach ([
+            'question_revisions' => $revision->getId()->toBinary(),
+            'question_revision_options' => $options[0]->getId()->toBinary(),
+            'question_answer_keys' => $key->getId()->toBinary(),
+            'question_revision_alignments' => $alignments[0]->getId()->toBinary(),
+        ] as $table => $idBinary) {
+            try {
+                $connection->executeStatement(
+                    "DELETE FROM {$table} WHERE id = :id",
+                    ['id' => $idBinary],
+                );
+                self::fail($table.' DELETE must still throw with bypass session vars');
+            } catch (\Throwable $e) {
+                self::assertStringContainsStringIgnoringCase('append-only', $e->getMessage());
+            }
+            self::assertSame(1, (int) $connection->fetchOne(
+                "SELECT COUNT(*) FROM {$table} WHERE id = :id",
+                ['id' => $idBinary],
+            ));
+        }
+
+        try {
+            $connection->executeStatement(
+                'UPDATE question_revisions SET content_hash = :h WHERE id = :id',
+                ['h' => str_repeat('a', 64), 'id' => $revision->getId()->toBinary()],
+            );
+            self::fail('revision UPDATE must still throw');
+        } catch (\Throwable $e) {
+            self::assertStringContainsStringIgnoringCase('append-only', $e->getMessage());
+        }
+        try {
+            $connection->executeStatement(
+                'UPDATE question_answer_keys SET answer_integrity_hmac = :h WHERE id = :id',
+                ['h' => str_repeat('b', 64), 'id' => $key->getId()->toBinary()],
+            );
+            self::fail('answer key UPDATE must still throw');
+        } catch (\Throwable $e) {
+            self::assertStringContainsStringIgnoringCase('append-only', $e->getMessage());
+        }
+
+        self::assertSame($originalHmac, $connection->fetchOne(
+            'SELECT answer_integrity_hmac FROM question_answer_keys WHERE id = :id',
+            ['id' => $key->getId()->toBinary()],
+        ));
+        self::assertSame($revision->getContentHash(), $connection->fetchOne(
+            'SELECT content_hash FROM question_revisions WHERE id = :id',
+            ['id' => $revision->getId()->toBinary()],
+        ));
+
+        $this->assertDeleteTriggersBypassFree($connection);
+    }
+
+    public function testParentQuestionCascadeDeletesImmutableChildrenWithoutBypass(): void
+    {
+        [$sa, , $subject, , $lo] = $this->platformCurriculum('cascade_parent');
+        $question = $this->questions()->createDraftQuestion(
+            $sa,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade9,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Cascade wipe?'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('A'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('B'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $lo, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'cascade_create',
+        );
+        $revision = $this->revisionFor($question, 1);
+        $questionId = $question->getId()->toBinary();
+        $revisionId = $revision->getId()->toBinary();
+        $connection = $this->em->getConnection();
+
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revisions WHERE question_id = :id',
+            ['id' => $questionId],
+        ));
+        self::assertGreaterThan(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_options WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_answer_keys WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_alignments WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_primary_alignment_guards WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+
+        $connection->executeStatement('DELETE FROM questions WHERE id = :id', ['id' => $questionId]);
+
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revisions WHERE question_id = :id',
+            ['id' => $questionId],
+        ));
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_options WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_answer_keys WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_alignments WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+        self::assertSame(0, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_revision_primary_alignment_guards WHERE revision_id = :id',
+            ['id' => $revisionId],
+        ));
+
+        $this->assertDeleteTriggersBypassFree($connection);
+    }
+
+    public function testPublishVerifiesAnswerIntegrityHmac(): void
+    {
+        [$sa, $reviewer, $subject, $program, $lo] = $this->platformCurriculum('hmac_pub');
+        $this->programs()->publish($program, $sa, 'pub_curr');
+
+        $valid = $this->questions()->createDraftQuestion(
+            $sa,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade9,
+            QuestionType::TrueFalse,
+            QuestionContentDocument::paragraph('Valid HMAC publish?'),
+            null,
+            [],
+            ['correct' => true],
+            [['learningOutcome' => $lo, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'hmac_valid_create',
+        );
+        $this->questions()->submitForReview($valid, $sa, 'hmac_valid_submit');
+        $valid = $this->reloadQuestion($valid->getId());
+        $reviewer = $this->users->find($reviewer->getId());
+        self::assertInstanceOf(User::class, $reviewer);
+
+        $connection = $this->em->getConnection();
+        $publishedBefore = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM security_audit_events WHERE action = :a',
+            ['a' => SecurityAuditAction::QuestionPublished->value],
+        );
+
+        $this->questions()->publish($valid, $reviewer, 'hmac_valid_publish');
+        $valid = $this->reloadQuestion($valid->getId());
+        self::assertSame(QuestionStatus::Published, $valid->getStatus());
+        self::assertSame($publishedBefore + 1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM security_audit_events WHERE action = :a',
+            ['a' => SecurityAuditAction::QuestionPublished->value],
+        ));
+
+        $sa = $this->users->find($sa->getId());
+        $reviewer = $this->users->find($reviewer->getId());
+        $subject = $this->em->find(Subject::class, $subject->getId());
+        $program = $this->em->find(CurriculumProgram::class, $program->getId());
+        $lo = $this->em->find(CurriculumLearningOutcome::class, $lo->getId());
+        self::assertInstanceOf(User::class, $sa);
+        self::assertInstanceOf(User::class, $reviewer);
+        self::assertInstanceOf(Subject::class, $subject);
+        self::assertInstanceOf(CurriculumProgram::class, $program);
+        self::assertInstanceOf(CurriculumLearningOutcome::class, $lo);
+
+        $badHmac = str_repeat('ab', 32); // 64 lowercase hex, cryptographically wrong
+        $tamperedId = $this->insertTrueFalseQuestionGraphViaDbal(
+            $sa,
+            $subject,
+            $program,
+            $lo,
+            QuestionStatus::InReview,
+            $badHmac,
+            ['correct' => false],
+            'Tampered HMAC publish?',
+        );
+        $tampered = $this->reloadQuestion($tamperedId);
+        $publishedBeforeTamper = (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM security_audit_events WHERE action = :a',
+            ['a' => SecurityAuditAction::QuestionPublished->value],
+        );
+
+        try {
+            $this->questions()->publish($tampered, $reviewer, 'hmac_tamper_publish');
+            self::fail('publish must reject wrong HMAC');
+        } catch (QuestionException $e) {
+            self::assertSame(QuestionFailureReason::AnswerIntegrityFailed, $e->getReason());
+            self::assertStringNotContainsStringIgnoringCase('hmac', $e->getMessage());
+            self::assertStringNotContainsStringIgnoringCase('payload', $e->getMessage());
+            self::assertStringNotContainsStringIgnoringCase('key', $e->getMessage());
+            self::assertStringNotContainsString($badHmac, $e->getMessage());
+        }
+
+        $tampered = $this->reloadQuestion($tamperedId);
+        self::assertSame(QuestionStatus::InReview, $tampered->getStatus());
+        self::assertSame($publishedBeforeTamper, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM security_audit_events WHERE action = :a',
+            ['a' => SecurityAuditAction::QuestionPublished->value],
+        ));
+    }
+
+    public function testPublishRejectsHmacBoundToWrongRevisionOrAnswerType(): void
+    {
+        [$sa, $reviewer, $subject, $program, $lo] = $this->platformCurriculum('hmac_bind');
+        $this->programs()->publish($program, $sa, 'pub_curr');
+        /** @var QuestionAnswerIntegrityHasher $hasher */
+        $hasher = static::getContainer()->get(QuestionAnswerIntegrityHasher::class);
+
+        $payload = ['correct' => true];
+        $wrongRevisionHmac = $hasher->hash($payload, QuestionType::TrueFalse, new UuidV7());
+        $wrongRevisionId = $this->insertTrueFalseQuestionGraphViaDbal(
+            $sa,
+            $subject,
+            $program,
+            $lo,
+            QuestionStatus::InReview,
+            $wrongRevisionHmac,
+            $payload,
+            'Wrong revision UUID HMAC?',
+        );
+
+        $sa = $this->users->find($sa->getId());
+        $reviewer = $this->users->find($reviewer->getId());
+        $subject = $this->em->find(Subject::class, $subject->getId());
+        $program = $this->em->find(CurriculumProgram::class, $program->getId());
+        $lo = $this->em->find(CurriculumLearningOutcome::class, $lo->getId());
+        self::assertInstanceOf(User::class, $sa);
+        self::assertInstanceOf(User::class, $reviewer);
+        self::assertInstanceOf(Subject::class, $subject);
+        self::assertInstanceOf(CurriculumProgram::class, $program);
+        self::assertInstanceOf(CurriculumLearningOutcome::class, $lo);
+
+        // HMAC bound to SingleChoice while row stores true_false (type matches revision; verify fails).
+        $revisionIdForType = new UuidV7();
+        $wrongTypeBoundHmac = $hasher->hash($payload, QuestionType::SingleChoice, $revisionIdForType);
+        $wrongTypeQuestionId = $this->insertTrueFalseQuestionGraphViaDbal(
+            $sa,
+            $subject,
+            $program,
+            $lo,
+            QuestionStatus::InReview,
+            $wrongTypeBoundHmac,
+            $payload,
+            'Wrong answer type HMAC?',
+            $revisionIdForType,
+        );
+
+        foreach ([$wrongRevisionId, $wrongTypeQuestionId] as $questionId) {
+            $question = $this->reloadQuestion($questionId);
+            $reviewer = $this->users->find($reviewer->getId());
+            self::assertInstanceOf(User::class, $reviewer);
+            try {
+                $this->questions()->publish($question, $reviewer, 'hmac_bind_publish');
+                self::fail('publish must reject HMAC bound to wrong inputs');
+            } catch (QuestionException $e) {
+                self::assertSame(QuestionFailureReason::AnswerIntegrityFailed, $e->getReason());
+            }
+            $question = $this->reloadQuestion($questionId);
+            self::assertSame(QuestionStatus::InReview, $question->getStatus());
+        }
+    }
+
+    public function testAnswerIntegrityHmacCheckConstraint(): void
+    {
+        [$sa, , $subject, $program, $lo] = $this->platformCurriculum('hmac_chk');
+        $connection = $this->em->getConnection();
+        $revisionId = new UuidV7();
+        $this->insertTrueFalseQuestionGraphViaDbal(
+            $sa,
+            $subject,
+            $program,
+            $lo,
+            QuestionStatus::Draft,
+            str_repeat('cd', 32),
+            ['correct' => true],
+            'CHECK constraint host?',
+            $revisionId,
+            withAnswerKey: false,
+        );
+
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $base = [
+            'revision_id' => $revisionId->toBinary(),
+            'answer_type' => QuestionType::TrueFalse->value,
+            'answer_payload' => json_encode(['correct' => true], \JSON_THROW_ON_ERROR),
+            'created_at' => $now,
+        ];
+
+        foreach ([
+            '' => 'empty',
+            str_repeat('a', 63) => 'too short',
+            str_repeat('a', 65) => 'too long',
+            str_repeat('g', 64) => 'non-hex',
+            strtoupper(str_repeat('ab', 32)) => 'uppercase',
+        ] as $hmac => $label) {
+            try {
+                $connection->insert('question_answer_keys', $base + [
+                    'id' => (new UuidV7())->toBinary(),
+                    'answer_integrity_hmac' => $hmac,
+                ]);
+                self::fail('CHECK must reject '.$label.' HMAC');
+            } catch (\Throwable $e) {
+                self::assertNotSame('', $e->getMessage());
+            }
+        }
+
+        $connection->insert('question_answer_keys', $base + [
+            'id' => (new UuidV7())->toBinary(),
+            'answer_integrity_hmac' => str_repeat('ef', 32),
+        ]);
+        self::assertSame(1, (int) $connection->fetchOne(
+            'SELECT COUNT(*) FROM question_answer_keys WHERE revision_id = :id',
+            ['id' => $revisionId->toBinary()],
+        ));
+    }
+
+    private function assertDeleteTriggersBypassFree(\Doctrine\DBAL\Connection $connection): void
+    {
+        $statements = $connection->fetchFirstColumn(
+            "SELECT ACTION_STATEMENT FROM information_schema.TRIGGERS
+             WHERE TRIGGER_SCHEMA = DATABASE()
+               AND TRIGGER_NAME IN (
+                 'trg_question_revisions_bd',
+                 'trg_question_revision_options_bd',
+                 'trg_question_answer_keys_bd',
+                 'trg_question_revision_alignments_bd'
+               )",
+        );
+        self::assertCount(4, $statements);
+        foreach ($statements as $statement) {
+            self::assertIsString($statement);
+            self::assertStringNotContainsStringIgnoringCase('bypass', $statement);
+            self::assertStringNotContainsStringIgnoringCase('testlig_immutable', $statement);
+        }
+    }
+
+    /**
+     * Inserts a platform TrueFalse question graph via DBAL (not QuestionManager) so the
+     * answer_integrity_hmac can be fabricated without going through UPDATE (append-only).
+     *
+     * @param array{correct: bool} $answerPayload
+     */
+    private function insertTrueFalseQuestionGraphViaDbal(
+        User $createdBy,
+        Subject $subject,
+        CurriculumProgram $program,
+        CurriculumLearningOutcome $lo,
+        QuestionStatus $status,
+        string $answerIntegrityHmac,
+        array $answerPayload,
+        string $stemText,
+        ?Uuid $revisionId = null,
+        bool $withAnswerKey = true,
+    ): Uuid {
+        $connection = $this->em->getConnection();
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $questionId = new UuidV7();
+        $revisionId ??= new UuidV7();
+        $alignmentId = new UuidV7();
+        $topic = $lo->getTopic();
+        $stem = QuestionContentDocument::paragraph($stemText)->toArray();
+        $contentHash = str_repeat('11', 32);
+
+        $connection->insert('questions', [
+            'id' => $questionId->toBinary(),
+            'scope' => QuestionScope::Platform->value,
+            'institution_id' => null,
+            'subject_id' => $subject->getId()->toBinary(),
+            'grade_level' => GradeLevel::Grade9->value,
+            'created_by_id' => $createdBy->getId()->toBinary(),
+            'status' => $status->value,
+            'current_revision_number' => 1,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+        $connection->insert('question_revisions', [
+            'id' => $revisionId->toBinary(),
+            'question_id' => $questionId->toBinary(),
+            'revision_number' => 1,
+            'type' => QuestionType::TrueFalse->value,
+            'stem_content' => json_encode($stem, \JSON_THROW_ON_ERROR),
+            'explanation_content' => null,
+            'difficulty' => QuestionDifficulty::Easy->value,
+            'estimated_seconds' => null,
+            'source_type' => QuestionSourceType::Original->value,
+            'source_reference' => null,
+            'created_by_id' => $createdBy->getId()->toBinary(),
+            'created_at' => $now,
+            'content_hash' => $contentHash,
+            'schema_version' => QuestionContentDocument::SCHEMA_VERSION,
+        ]);
+        $connection->insert('question_revision_alignments', [
+            'id' => $alignmentId->toBinary(),
+            'revision_id' => $revisionId->toBinary(),
+            'curriculum_program_id' => $program->getId()->toBinary(),
+            'subject_id' => $subject->getId()->toBinary(),
+            'curriculum_topic_id' => $topic->getId()->toBinary(),
+            'learning_outcome_id' => $lo->getId()->toBinary(),
+            'is_primary' => 1,
+            'created_at' => $now,
+        ]);
+        $connection->insert('question_revision_primary_alignment_guards', [
+            'revision_id' => $revisionId->toBinary(),
+            'alignment_id' => $alignmentId->toBinary(),
+            'must_be_primary' => 1,
+        ]);
+
+        if ($withAnswerKey) {
+            $connection->insert('question_answer_keys', [
+                'id' => (new UuidV7())->toBinary(),
+                'revision_id' => $revisionId->toBinary(),
+                'answer_type' => QuestionType::TrueFalse->value,
+                'answer_payload' => json_encode($answerPayload, \JSON_THROW_ON_ERROR),
+                'answer_integrity_hmac' => $answerIntegrityHmac,
+                'created_at' => $now,
+            ]);
+        }
+
+        return $questionId;
+    }
+
     private function assertAppendOnlyBlocked(
         \Doctrine\DBAL\Connection $connection,
         string $table,
@@ -711,7 +1186,7 @@ final class QuestionBankSecurityHardeningTest extends KernelTestCase
         return [$sa, $reviewer, $subject, $draft, $lo];
     }
 
-    private function reloadQuestion(\Symfony\Component\Uid\Uuid $id): Question
+    private function reloadQuestion(Uuid $id): Question
     {
         $this->em->clear();
         $this->rebind();

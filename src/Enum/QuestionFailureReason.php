@@ -16,6 +16,7 @@ enum QuestionFailureReason: string
     case AlignmentInvalid = 'alignment_invalid';
     case CurriculumNotPublished = 'curriculum_not_published';
     case AnswerInvalid = 'answer_invalid';
+    case AnswerIntegrityFailed = 'answer_integrity_failed';
     case ContentInvalid = 'content_invalid';
     case Immutable = 'immutable';
 }
