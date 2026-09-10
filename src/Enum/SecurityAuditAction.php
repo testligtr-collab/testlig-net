@@ -67,4 +67,11 @@ enum SecurityAuditAction: string
     case QuestionReturnedToDraft = 'question_returned_to_draft';
     case QuestionPublished = 'question_published';
     case QuestionArchived = 'question_archived';
+    case AssessmentCreated = 'assessment_created';
+    case AssessmentRevisionCreated = 'assessment_revision_created';
+    case AssessmentSubmittedForReview = 'assessment_submitted_for_review';
+    case AssessmentReturnedToDraft = 'assessment_returned_to_draft';
+    case AssessmentPublished = 'assessment_published';
+    case AssessmentArchived = 'assessment_archived';
+    case AssessmentPublicationCreated = 'assessment_publication_created';
 }

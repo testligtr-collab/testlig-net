@@ -117,6 +117,16 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - UI/API/sınav motoru yok.
 - Migrations: `Version20260909180000` + `Version20260909190000` (tarihsel bypass yalnızca bu dosyada) + `Version20260909200000` (bypass-free DELETE + HMAC hex CHECK).
 
+### Sınav / deneme tanımı (Aşama 2.9)
+
+- Stable `Assessment` + sealed immutable `AssessmentRevision` / `AssessmentSection` / `AssessmentItem` + append-only `AssessmentPublication` (public manifest + SHA-256).
+- Puanlar `DECIMAL` string + bcmath (PHP float yok). Manifest cevap/HMAC/e-posta/secret içermez.
+- Sealed revision: bundle sonrası `is_sealed` 0→1; sealed’a section/item INSERT trigger reddeder. Bypass/session değişkeni yok.
+- Test cleanup: `DELETE FROM assessments` (CASCADE) — `AssessmentDbCleanup`. Pointer NULL UPDATE yok; production trigger publication varken published pointer temizlemeyi reddeder. Uygulamada hard-delete yok (archive); testler fixture wipe için parent DELETE kullanır.
+- Kilit: snapshot → Institution? → Assessment → Subjects → Questions → QuestionRevisions → Users → Revision/sections/items → Publication.
+- Yetki: `AssessmentVoter` (VIEW/CREATE/REVISE/SUBMIT/REVIEW/PUBLISH/ARCHIVE); review separation; ADMIN/MODERATOR otomatik publish yok.
+- Delivery / attempt / scoring / result / UI / API yok. Multi-process concurrency testi yok. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000`.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
@@ -206,7 +216,7 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 - Web kayıt/giriş/e-posta doğrulama, şifre sıfırlama ve oturum içi parola değiştirme vardır; “beni hatırla”, OAuth/JWT, MFA ve sosyal giriş yok.
 - Public kayıt yalnızca öğrenci içindir; öğretmen/veli/kurum/admin davet veya yönetici süreçleri sonraki aşamalarda.
-- Soru bankası, sınav, ödeme UI ve HTTP müfredat/ders API’leri yok (domain foundation Aşama 2.7’de var).
+- Soru bankası / sınav blueprint domain foundation var; delivery/UI/HTTP API ve ödeme yok.
 - Production dağıtım yapılandırması yok.
 - Yerel Windows ortamında PHP 8.3 ve Docker bulunmayabilir; hedef runtime Docker’daki PHP 8.3’tür.
 - `symfony/redis-messenger` paketinin Composer kurulumu için `ext-redis` gerekir (Docker imajında vardır). Yerelde `ext-redis` yoksa paket `--ignore-platform-req=ext-redis` ile kurulmuştur.

@@ -6,6 +6,8 @@ namespace App\Service;
 
 use App\Entity\AcademicYear;
 use App\Entity\AcademicYearStudentEnrollmentGuard;
+use App\Entity\Assessment;
+use App\Entity\AssessmentRevision;
 use App\Entity\Classroom;
 use App\Entity\ClassroomCourse;
 use App\Entity\ClassroomCourseActiveGuard;
@@ -143,6 +145,22 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(QuestionRevision::class, $id, $lockMode);
 
         return $entity instanceof QuestionRevision ? $entity : null;
+    }
+
+    public function findFreshLockedAssessment(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?Assessment
+    {
+        $entity = $this->findFresh(Assessment::class, $id, $lockMode);
+
+        return $entity instanceof Assessment ? $entity : null;
+    }
+
+    public function findFreshLockedAssessmentRevision(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?AssessmentRevision {
+        $entity = $this->findFresh(AssessmentRevision::class, $id, $lockMode);
+
+        return $entity instanceof AssessmentRevision ? $entity : null;
     }
 
     public function findFreshLockedClassroomCourse(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomCourse

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Enum\AssessmentScope;
+use App\Enum\AssessmentStatus;
 use App\Enum\ClassroomCourseStatus;
 use App\Enum\ClassroomStatus;
 use App\Enum\CourseTeacherAssignmentStatus;
@@ -17,6 +19,7 @@ use App\Enum\StudentEnrollmentStatus;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
 use App\Enum\UserStatus;
+use App\Security\Authorization\AssessmentAuthorizationSnapshot;
 use App\Security\Authorization\ClassroomAuthorizationSnapshot;
 use App\Security\Authorization\ClassroomCourseAuthorizationSnapshot;
 use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
@@ -69,6 +72,9 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
 
     /** @var array<string, QuestionAuthorizationSnapshot|null> */
     private array $questions = [];
+
+    /** @var array<string, AssessmentAuthorizationSnapshot|null> */
+    private array $assessments = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -178,6 +184,16 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         }
 
         return $this->questions[$key];
+    }
+
+    public function getAssessmentSnapshot(Uuid $assessmentId): ?AssessmentAuthorizationSnapshot
+    {
+        $key = $assessmentId->toRfc4122();
+        if (!\array_key_exists($key, $this->assessments)) {
+            $this->assessments[$key] = $this->fetchAssessmentSnapshot($assessmentId);
+        }
+
+        return $this->assessments[$key];
     }
 
     public function invalidateUser(Uuid $userId): void
@@ -328,6 +344,13 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         });
     }
 
+    public function invalidateAssessment(Uuid $assessmentId): void
+    {
+        $this->safe(function () use ($assessmentId): void {
+            unset($this->assessments[$assessmentId->toRfc4122()]);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
@@ -340,6 +363,7 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         $this->courseTeacherAssignments = [];
         $this->curriculumPrograms = [];
         $this->questions = [];
+        $this->assessments = [];
     }
 
     private function dropMembershipsForInstitution(Uuid $institutionId): void
@@ -594,6 +618,34 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             subjectId: $this->uuidFromBinary($row['subject_id']),
             createdById: $this->uuidFromBinary($row['created_by_id']),
             status: QuestionStatus::from((string) $row['status']),
+        );
+    }
+
+    private function fetchAssessmentSnapshot(Uuid $assessmentId): ?AssessmentAuthorizationSnapshot
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, scope, institution_id, created_by_id, status, current_revision_number, published_revision_number
+             FROM assessments
+             WHERE id = :id
+             LIMIT 1',
+            ['id' => $assessmentId->toBinary()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new AssessmentAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            scope: AssessmentScope::from((string) $row['scope']),
+            institutionId: null !== $row['institution_id'] ? $this->uuidFromBinary($row['institution_id']) : null,
+            createdById: $this->uuidFromBinary($row['created_by_id']),
+            status: AssessmentStatus::from((string) $row['status']),
+            currentRevisionNumber: null !== $row['current_revision_number']
+                ? (int) $row['current_revision_number']
+                : null,
+            publishedRevisionNumber: null !== $row['published_revision_number']
+                ? (int) $row['published_revision_number']
+                : null,
         );
     }
 

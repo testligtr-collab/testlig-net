@@ -14,6 +14,7 @@ RUN apt-get update \
         pdo_mysql \
         opcache \
         zip \
+        bcmath \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/*

@@ -59,6 +59,13 @@ final class SecurityAuditMetadataSanitizer
         'revision_number',
         'learning_outcome_id',
         'curriculum_program_id',
+        'assessment_id',
+        'assessment_revision_id',
+        'publication_id',
+        'publication_number',
+        'assessment_type',
+        'section_count',
+        'item_count',
     ];
 
     /**
