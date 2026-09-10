@@ -66,6 +66,11 @@ final class SecurityAuditMetadataSanitizer
         'assessment_type',
         'section_count',
         'item_count',
+        'delivery_id',
+        'audience_type',
+        'recipient_id',
+        'recipient_count',
+        'assessment_publication_id',
     ];
 
     /**

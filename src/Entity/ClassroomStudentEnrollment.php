@@ -23,6 +23,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_cse_id_classroom_year', columns: ['id', 'classroom_id', 'academic_year_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cse_id_year_membership', columns: ['id', 'academic_year_id', 'student_membership_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_cse_id_classroom_year_membership', columns: ['id', 'classroom_id', 'academic_year_id', 'student_membership_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_cse_id_classroom_membership', columns: ['id', 'classroom_id', 'student_membership_id'])]
 #[ORM\Index(name: 'idx_cse_classroom_status', columns: ['classroom_id', 'status'])]
 #[ORM\Index(name: 'idx_cse_year_membership_status', columns: ['academic_year_id', 'student_membership_id', 'status'])]
 #[ORM\Index(name: 'idx_cse_membership_status', columns: ['student_membership_id', 'status'])]

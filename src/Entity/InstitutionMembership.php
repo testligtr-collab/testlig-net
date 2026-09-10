@@ -22,6 +22,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Table(name: 'institution_memberships')]
 #[ORM\UniqueConstraint(name: 'uniq_institution_membership_user', columns: ['institution_id', 'user_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_membership_id_institution', columns: ['id', 'institution_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_membership_id_institution_user', columns: ['id', 'institution_id', 'user_id'])]
 #[ORM\Index(name: 'idx_membership_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\Index(name: 'idx_membership_user_status', columns: ['user_id', 'status'])]
 #[ORM\Index(name: 'idx_membership_institution_role_status', columns: ['institution_id', 'role', 'status'])]

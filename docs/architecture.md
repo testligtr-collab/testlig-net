@@ -92,8 +92,18 @@
   - **DB:** `Version20260910120000` + `Version20260910200000` (pointers/FKs/BI) + `Version20260910300000` (publication→pointer AI sync + sequential numbers + latest-publication BU) + `Version20260910400000` (detach hole kapatma; pointer FK ON DELETE CASCADE ile güvenli parent DELETE) + `AssessmentCompositeForeignKeyListener` + `AssessmentImmutabilityListener`.
   - **Test cleanup / parent DELETE:** `AssessmentDbCleanup` → yalnız `DELETE FROM assessments`. Pointer FKs `ON DELETE CASCADE` (simple + composite); child append-only BD trigger’lar CASCADE’te ateşlenmez. Production’da uygulama hard-delete yok (archive); publication varken pointer NULL UPDATE yok.
   - **Bilinen sınırlama:** multi-process parallel concurrency harness yok; sequential unique/pessimistic lock güvencesi.
+- **Sınav atama / delivery (Aşama 2.10):** `AssessmentDelivery` (tenant) + immutable `AssessmentDeliveryRecipient` snapshot + `AssessmentDeliveryAccessGate`. Attempt/scoring/result/UI/API yok.
+  - **Audience:** institution (tüm active student membership’ler) | classroom (active enrollment) | student (tek membership). CHECK ile hedef kolonları zorunlu.
+  - **Lifecycle:** draft→active|cancelled; active→closed|cancelled. Aktivasyonda recipient materialize; sıfır eligible → `no_eligible_recipients` + draft kalır. Publication/audience/target immutable (ORM listener + BU trigger).
+  - **Publication:** composite FK `(publication_id, assessment_id, publication_number)`. Platform publication herhangi aktif kurumda; institution assessment yalnız aynı kurum. Archived assessment’a yeni delivery yok; mevcut active delivery archive sonrası publication snapshot ile yaşar.
+  - **Access gate sırası:** delivery → recipient(user) → user active+verified → institution active → membership active+student → recipient eligible → delivery active → window → publication integrity; `attemptQuotaMustBeChecked=true`.
+  - **Yetki (`AssessmentDeliveryVoter`):** Owner/Manager full; Teacher classroom/student audience yalnız atanmış sınıf; Staff deny; Student ACCESS_SELF. DBAL snapshot + `invalidateAssessmentDelivery` commit sonrası.
+  - **Audit:** `assessment_delivery_*`; metadata `delivery_id` / `audience_type` / `recipient_id` / `recipient_count` / `assessment_publication_id`.
+  - **DB:** `Version20260910500000` + `AssessmentDeliveryCompositeForeignKeyListener` + `AssessmentDeliveryImmutabilityListener`.
+  - **Test cleanup:** `AssessmentDeliveryDbCleanup` → `DELETE FROM assessment_deliveries` (recipients CASCADE); `AssessmentDbCleanup` önce delivery siler (assessment RESTRICT).
+  - **Bilinen sınırlama:** multi-process harness yok; attempt kotası Stage 2.11.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav delivery UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 
 ## Sonraki aşamalar
 

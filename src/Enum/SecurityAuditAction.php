@@ -74,4 +74,11 @@ enum SecurityAuditAction: string
     case AssessmentPublished = 'assessment_published';
     case AssessmentArchived = 'assessment_archived';
     case AssessmentPublicationCreated = 'assessment_publication_created';
+    case AssessmentDeliveryCreated = 'assessment_delivery_created';
+    case AssessmentDeliveryDraftUpdated = 'assessment_delivery_draft_updated';
+    case AssessmentDeliveryActivated = 'assessment_delivery_activated';
+    case AssessmentDeliveryClosed = 'assessment_delivery_closed';
+    case AssessmentDeliveryCancelled = 'assessment_delivery_cancelled';
+    case AssessmentDeliveryRecipientAdded = 'assessment_delivery_recipient_added';
+    case AssessmentDeliveryRecipientRevoked = 'assessment_delivery_recipient_revoked';
 }

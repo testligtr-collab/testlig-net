@@ -127,6 +127,15 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Yetki: `AssessmentVoter` (VIEW/CREATE/REVISE/SUBMIT/REVIEW/PUBLISH/ARCHIVE); review separation; ADMIN/MODERATOR otomatik publish yok.
 - Delivery / attempt / scoring / result / UI / API yok. Multi-process concurrency testi yok. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000`.
 
+### Sınav atama / delivery (Aşama 2.10)
+
+- `AssessmentDelivery` + immutable `AssessmentDeliveryRecipient` snapshot; `AssessmentDeliveryManager` / `AssessmentDeliveryAccessGate`.
+- Audience: institution | classroom | student; lifecycle draft→active|cancelled, active→closed|cancelled.
+- Aktivasyonda eligible öğrenciler materialize edilir; transfer eski snapshot’ı silmez; sonradan katılan otomatik eklenmez (`addEligibleRecipient` kontrollü).
+- Access gate: fresh user/membership/institution/window/publication integrity; `attemptQuotaMustBeChecked=true` (attempt entity yok).
+- Yetki: `AssessmentDeliveryVoter` (Owner/Manager full; Teacher yalnız atanmış sınıf; Student ACCESS_SELF).
+- Attempt / scoring / result / UI / API yok. Migration: `Version20260910500000`.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):

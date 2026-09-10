@@ -20,6 +20,9 @@ final class AssessmentDbCleanup
 {
     public static function deleteAssessments(Connection $connection): void
     {
+        // Deliveries RESTRICT on assessment/publication — wipe deliveries first.
+        AssessmentDeliveryDbCleanup::deleteDeliveries($connection);
+
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessments'])) {
             $connection->executeStatement('DELETE FROM assessments');
