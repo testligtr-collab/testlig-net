@@ -15,6 +15,7 @@ use App\Enum\QuestionOrderMode;
 use App\Enum\QuestionType;
 use App\Exception\AssessmentAttemptException;
 use App\Repository\QuestionRevisionOptionRepository;
+use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
@@ -40,7 +41,7 @@ final class AssessmentAttemptItemMaterializer
         $sections = $this->loadSectionsOrdered($revision);
         $itemsBySection = $this->loadItemsGroupedBySection($revision);
 
-        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+        $now = UtcInstant::ensure($this->clock->now());
         $presentationPosition = 1;
         $result = [];
 

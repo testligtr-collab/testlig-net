@@ -23,6 +23,7 @@ use App\Enum\InstitutionStatus;
 use App\Enum\UserStatus;
 use App\Exception\AssessmentDeliveryException;
 use App\Exception\AssessmentException;
+use App\Time\UtcInstant;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -79,8 +80,8 @@ final class AssessmentDeliveryAccessGate
         $publicationIdStr = $delivery->getAssessmentPublication()->getId()->toRfc4122();
         $publicationNumber = $delivery->getPublicationNumber();
         $maxAttempts = $delivery->getMaxAttempts();
-        $opensAt = $delivery->getOpensAt();
-        $closesAt = $delivery->getClosesAt();
+        $opensAt = UtcInstant::ensure($delivery->getOpensAt());
+        $closesAt = UtcInstant::ensure($delivery->getClosesAt());
 
         $recipient = $this->findFreshRecipientForUser($delivery->getId(), $student->getId());
         if (!$recipient instanceof AssessmentDeliveryRecipient) {
@@ -233,8 +234,8 @@ final class AssessmentDeliveryAccessGate
             );
         }
 
-        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
-        if ($now < $opensAt) {
+        $now = UtcInstant::ensure($this->clock->now());
+        if ($now->getTimestamp() < $opensAt->getTimestamp()) {
             return AssessmentDeliveryAccessDecision::denied(
                 AssessmentDeliveryAccessReason::NotOpenYet,
                 $deliveryIdStr,
@@ -245,7 +246,7 @@ final class AssessmentDeliveryAccessGate
                 $closesAt,
             );
         }
-        if ($now >= $closesAt) {
+        if ($now->getTimestamp() >= $closesAt->getTimestamp()) {
             return AssessmentDeliveryAccessDecision::denied(
                 AssessmentDeliveryAccessReason::Expired,
                 $deliveryIdStr,

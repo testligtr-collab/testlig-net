@@ -49,6 +49,14 @@ Uygulama: http://localhost:8080
 Sağlık kontrolü: http://localhost:8080/health
 Mailpit (doğrulama e-postaları): http://localhost:8025
 
+### Zaman dilimi (UTC persistence)
+
+- Database DATETIME alanları **UTC** saklanır.
+- PHP runtime (`date.timezone`), Doctrine bağlantısı (`SET time_zone = '+00:00'`) ve MariaDB session/default timezone UTC’dir.
+- `User::$timezone` (varsayılan `Europe/Istanbul`) yalnız **gösterim** tercihidir; UTC → kullanıcı timezone dönüşümü presentation katmanında yapılır (`App\Time\UtcInstant`).
+- İstemci timestamp’i güvenlik/expiry kararının kaynağı değildir.
+- Production’da DB connection session timezone `+00:00` zorunlu ayarlanmalıdır (middleware + INIT_COMMAND ile sağlanır).
+
 Kayıt: http://localhost:8080/kayit · Giriş: http://localhost:8080/giris · Hesap: http://localhost:8080/hesabim
 Şifremi unuttum: http://localhost:8080/sifremi-unuttum · Parola değiştir: http://localhost:8080/hesabim/sifre-degistir
 

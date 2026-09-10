@@ -37,6 +37,7 @@ use App\Exception\AssessmentException;
 use App\Repository\AssessmentAttemptAnswerRepository;
 use App\Repository\AssessmentAttemptRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
+use App\Time\UtcInstant;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -178,7 +179,7 @@ final class AssessmentAttemptManager
                     throw AssessmentAttemptException::publicationIntegrityFailed();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = $this->utcNow();
                 if ($now < $lockedDelivery->getOpensAt()) {
                     throw AssessmentAttemptException::notOpenYet();
                 }
@@ -317,7 +318,7 @@ final class AssessmentAttemptManager
                     throw AssessmentAttemptException::attemptNotInProgress();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = $this->utcNow();
                 if ($now >= $lockedAttempt->getExpiresAt()) {
                     $this->expireLocked($lockedAttempt, 'system_expire');
 
@@ -444,7 +445,7 @@ final class AssessmentAttemptManager
                     throw AssessmentAttemptException::attemptNotInProgress();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = $this->utcNow();
                 if ($now >= $lockedAttempt->getExpiresAt()) {
                     $this->expireLocked($lockedAttempt, 'system_expire');
 
@@ -551,7 +552,7 @@ final class AssessmentAttemptManager
                     throw AssessmentAttemptException::attemptNotInProgress();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = $this->utcNow();
                 $lockedAttempt->cancel($freshActor, $cancellationReasonCode, $now);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
@@ -595,7 +596,7 @@ final class AssessmentAttemptManager
             throw AssessmentAttemptException::invalidTransition();
         }
 
-        $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+        $now = $this->utcNow();
         if ($now < $attempt->getExpiresAt()) {
             throw AssessmentAttemptException::invalidInput('Assessment attempt has not expired yet.');
         }
@@ -707,11 +708,18 @@ final class AssessmentAttemptManager
         }
     }
 
+    private function utcNow(): \DateTimeImmutable
+    {
+        return UtcInstant::ensure($this->clock->now());
+    }
+
     private function computeExpiresAt(
         \DateTimeImmutable $startedAt,
         \DateTimeImmutable $closesAt,
         ?int $durationSeconds,
     ): \DateTimeImmutable {
+        $startedAt = UtcInstant::ensure($startedAt);
+        $closesAt = UtcInstant::ensure($closesAt);
         if (null === $durationSeconds) {
             return $closesAt;
         }
@@ -721,7 +729,7 @@ final class AssessmentAttemptManager
 
         $candidate = $startedAt->modify(\sprintf('+%d seconds', $durationSeconds));
 
-        return $candidate <= $closesAt ? $candidate : $closesAt;
+        return $candidate->getTimestamp() <= $closesAt->getTimestamp() ? $candidate : $closesAt;
     }
 
     private function mapAccessDenial(AssessmentDeliveryAccessDecision $decision): AssessmentAttemptException
