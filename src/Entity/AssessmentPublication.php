@@ -22,6 +22,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_assessment_publication_revision', columns: ['assessment_revision_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_assessment_publication_id_assessment', columns: ['id', 'assessment_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_assessment_publication_id_revision', columns: ['id', 'assessment_revision_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_ap_id_assessment_number', columns: ['id', 'assessment_id', 'publication_number'])]
 #[ORM\Index(name: 'idx_assessment_publication_assessment', columns: ['assessment_id'])]
 #[ORM\Index(name: 'idx_assessment_publication_published_by', columns: ['published_by_id'])]
 class AssessmentPublication

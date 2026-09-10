@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Enum\AssessmentDeliveryAudienceType;
+use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\ClassroomCourseStatus;
@@ -20,6 +22,7 @@ use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
 use App\Enum\UserStatus;
 use App\Security\Authorization\AssessmentAuthorizationSnapshot;
+use App\Security\Authorization\AssessmentDeliveryAuthorizationSnapshot;
 use App\Security\Authorization\ClassroomAuthorizationSnapshot;
 use App\Security\Authorization\ClassroomCourseAuthorizationSnapshot;
 use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
@@ -75,6 +78,9 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
 
     /** @var array<string, AssessmentAuthorizationSnapshot|null> */
     private array $assessments = [];
+
+    /** @var array<string, AssessmentDeliveryAuthorizationSnapshot|null> */
+    private array $assessmentDeliveries = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -194,6 +200,16 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         }
 
         return $this->assessments[$key];
+    }
+
+    public function getAssessmentDeliverySnapshot(Uuid $deliveryId): ?AssessmentDeliveryAuthorizationSnapshot
+    {
+        $key = $deliveryId->toRfc4122();
+        if (!\array_key_exists($key, $this->assessmentDeliveries)) {
+            $this->assessmentDeliveries[$key] = $this->fetchAssessmentDeliverySnapshot($deliveryId);
+        }
+
+        return $this->assessmentDeliveries[$key];
     }
 
     public function invalidateUser(Uuid $userId): void
@@ -351,6 +367,13 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         });
     }
 
+    public function invalidateAssessmentDelivery(Uuid $deliveryId): void
+    {
+        $this->safe(function () use ($deliveryId): void {
+            unset($this->assessmentDeliveries[$deliveryId->toRfc4122()]);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
@@ -364,6 +387,7 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         $this->curriculumPrograms = [];
         $this->questions = [];
         $this->assessments = [];
+        $this->assessmentDeliveries = [];
     }
 
     private function dropMembershipsForInstitution(Uuid $institutionId): void
@@ -646,6 +670,37 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             publishedRevisionNumber: null !== $row['published_revision_number']
                 ? (int) $row['published_revision_number']
                 : null,
+        );
+    }
+
+    private function fetchAssessmentDeliverySnapshot(Uuid $deliveryId): ?AssessmentDeliveryAuthorizationSnapshot
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT d.id, d.institution_id, d.assessment_id, d.assessment_publication_id, d.audience_type,
+                    d.classroom_id, d.student_membership_id, d.status, d.created_by_id, m.user_id AS student_user_id
+             FROM assessment_deliveries d
+             LEFT JOIN institution_memberships m ON m.id = d.student_membership_id
+             WHERE d.id = :id
+             LIMIT 1',
+            ['id' => $deliveryId->toBinary()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new AssessmentDeliveryAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            institutionId: $this->uuidFromBinary($row['institution_id']),
+            assessmentId: $this->uuidFromBinary($row['assessment_id']),
+            assessmentPublicationId: $this->uuidFromBinary($row['assessment_publication_id']),
+            audienceType: AssessmentDeliveryAudienceType::from((string) $row['audience_type']),
+            classroomId: null !== $row['classroom_id'] ? $this->uuidFromBinary($row['classroom_id']) : null,
+            studentMembershipId: null !== $row['student_membership_id']
+                ? $this->uuidFromBinary($row['student_membership_id'])
+                : null,
+            studentUserId: null !== $row['student_user_id'] ? $this->uuidFromBinary($row['student_user_id']) : null,
+            status: AssessmentDeliveryStatus::from((string) $row['status']),
+            createdById: $this->uuidFromBinary($row['created_by_id']),
         );
     }
 
