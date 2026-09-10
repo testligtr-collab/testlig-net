@@ -100,8 +100,17 @@
   - **Yetki (`AssessmentDeliveryVoter`):** Owner/Manager full; Teacher classroom/student audience yalnız atanmış sınıf; Staff deny; Student ACCESS_SELF. DBAL snapshot + `invalidateAssessmentDelivery` commit sonrası.
   - **Audit:** `assessment_delivery_*`; metadata `delivery_id` / `audience_type` / `recipient_id` / `recipient_count` / `assessment_publication_id`.
   - **DB:** `Version20260910500000` + `AssessmentDeliveryCompositeForeignKeyListener` + `AssessmentDeliveryImmutabilityListener`.
-  - **Test cleanup:** `AssessmentDeliveryDbCleanup` → `DELETE FROM assessment_deliveries` (recipients CASCADE); `AssessmentDbCleanup` önce delivery siler (assessment RESTRICT).
-  - **Bilinen sınırlama:** multi-process harness yok; attempt kotası Stage 2.11.
+  - **Test cleanup:** `AssessmentDeliveryDbCleanup` → önce attempts, sonra `DELETE FROM assessment_deliveries` (recipients CASCADE); `AssessmentDbCleanup` önce delivery siler (assessment RESTRICT).
+  - **Bilinen sınırlama:** multi-process harness yok; sequential unique/pessimistic lock güvencesi.
+- **Sınav attempt / cevap (Aşama 2.11):** `AssessmentAttempt` + `AssessmentAttemptItem` (materialize) + `AssessmentAttemptActiveGuard` (operasyonel sync) + şifreli `AssessmentAttemptAnswer`. Scoring/result/UI/API yok.
+  - **Lifecycle:** `in_progress` → `submitted` | `expired` | `cancelled` (tek yön). Kota `maxAttempts`; `active_recipient_scope_id` UNIQUE = birincil tek-aktif güvence; `active_guard` DB trigger sahipliğinde (app create/remove etmez).
+  - **Cevap şifreleme:** XChaCha20-Poly1305; AAD = attempt/item/user + encryptionVersion; plaintext DB’de yok; `#[Ignore]` ciphertext/nonce. Autosave: `client_revision` optimistic concurrency (`stale_answer_version`). Answer BI/BU `UTC_TIMESTAMP()` kullanır; servis kararları `ClockInterface` → `UtcInstant::ensure` (UTC persistence).
+  - **Zaman sözleşmesi (UTC garantisi):** PHP runtime/`date.timezone` = UTC; Doctrine her bağlantıda `SET time_zone = '+00:00'`; MariaDB default/session UTC (`+00:00`). Tüm delivery/attempt/answer DATETIME alanları UTC wall-clock saklanır. `User::$timezone` yalnız presentation tercihidir (`UtcInstant::forPresentation`); istemci timestamp’i expiry güvenliğinin kaynağı değildir. Production DB connection session timezone `+00:00` zorunlu.
+  - **Kilit sırası:** Delivery WRITE → Recipient WRITE → Institution/User/Membership → Attempt WRITE → answers/items → audit; delivery auth cache invalidate commit sonrası (start).
+  - **Yetki (`AssessmentAttemptVoter`):** Student START/VIEW/SAVE/SUBMIT own (CANCEL yok); Owner/Manager VIEW+CANCEL; Teacher VIEW (classroom coverage, CANCEL yok); Staff deny. DBAL snapshot. Answer decrypt (`AttemptAnswerReader`): yalnız attempt owner (fresh-DB); privileged roller owner değilse deny.
+  - **Audit:** `assessment_attempt_started` / `answer_saved` / `submitted` / `expired` / `cancelled`; metadata ids/counts/status — cevap plaintext yok.
+  - **DB:** `Version20260910700000` + `Version20260910800000` (hardening: generated scope UNIQUE, publication/revision graph FKs, guard sync triggers, answer format) + `AssessmentAttemptCompositeForeignKeyListener` + `AssessmentAttemptImmutabilityListener`. `expires_at` immutable (expire için Clock). `max_attempts` COUNT BI’da tek başına race-safe değil; concurrency = locks + generated unique.
+  - **Test cleanup:** `AssessmentAttemptDbCleanup` → answers/items, in_progress→expired (AU guard siler), guards/attempts; `AssessmentDeliveryDbCleanup` önce attempt siler (delivery RESTRICT).
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 

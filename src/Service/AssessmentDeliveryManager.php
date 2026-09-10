@@ -40,6 +40,7 @@ use App\Exception\AssessmentException;
 use App\Repository\AssessmentDeliveryRecipientRepository;
 use App\Repository\AssessmentDeliveryRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
+use App\Time\UtcInstant;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
@@ -105,6 +106,8 @@ final class AssessmentDeliveryManager
         $instructionsOverride = $this->contentPolicy->normalizeOptionalInstructionsOverride($instructionsOverride);
         $this->assertWindow($opensAt, $closesAt);
         $this->assertMaxAttempts($maxAttempts);
+        $opensAt = UtcInstant::ensure($opensAt);
+        $closesAt = UtcInstant::ensure($closesAt);
 
         $institutionId = $institution->getId();
         $publicationId = $publication->getId();
@@ -187,7 +190,7 @@ final class AssessmentDeliveryManager
                     $studentMembership,
                 );
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = UtcInstant::ensure($this->clock->now());
                 $delivery = AssessmentDelivery::createDraft(
                     $lockedInstitution,
                     $assessment,
@@ -288,7 +291,7 @@ final class AssessmentDeliveryManager
                 $this->assertWindow($nextOpens, $nextCloses);
                 $this->assertMaxAttempts($nextMax);
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = UtcInstant::ensure($this->clock->now());
                 $lockedDelivery->updateDraftWindow(
                     $nextOpens,
                     $nextCloses,
@@ -342,7 +345,7 @@ final class AssessmentDeliveryManager
                     throw AssessmentDeliveryException::invalidTransition();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = UtcInstant::ensure($this->clock->now());
                 if ($lockedDelivery->getClosesAt() <= $now) {
                     throw AssessmentDeliveryException::invalidInput('closesAt must be in the future at activation.');
                 }
@@ -461,7 +464,7 @@ final class AssessmentDeliveryManager
                     throw AssessmentDeliveryException::recipientNotFound();
                 }
 
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = UtcInstant::ensure($this->clock->now());
                 $lockedRecipient->revoke($freshActor, $revocationReasonCode, $now);
                 $this->entityManager->flush();
 
@@ -540,7 +543,7 @@ final class AssessmentDeliveryManager
                     $lockedDelivery,
                     $lockedMembership,
                     $studentUser,
-                    \DateTimeImmutable::createFromInterface($this->clock->now()),
+                    UtcInstant::ensure($this->clock->now()),
                 );
                 if (null === $candidate) {
                     throw AssessmentDeliveryException::invalidInput('Membership is not eligible for this delivery.');
@@ -611,7 +614,7 @@ final class AssessmentDeliveryManager
                 $this->assertActorMayManage($freshActor, $lockedDelivery, $manageOp);
 
                 $oldStatus = $lockedDelivery->getStatus();
-                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $now = UtcInstant::ensure($this->clock->now());
                 $mutator($lockedDelivery, $freshActor, $now);
                 $this->entityManager->flush();
 

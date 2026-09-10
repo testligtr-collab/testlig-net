@@ -10,6 +10,7 @@ parameters:
     env(ALLOW_SUPER_ADMIN_BOOTSTRAP): '0'
     env(AUDIT_HASH_KEY): 'change-me-audit-hash-key-not-for-production'
     env(QUESTION_ANSWER_INTEGRITY_KEY): 'change-me-question-answer-integrity-key-not-for-production'
+    env(ATTEMPT_ANSWER_ENCRYPTION_KEY): '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
 
 services:
     # default configuration for services in *this* file
@@ -53,6 +54,14 @@ services:
     App\Doctrine\AssessmentDeliveryCompositeForeignKeyListener:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\AssessmentAttemptCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
+        tags:
+            - { name: doctrine.dbal.middleware }
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -194,6 +203,22 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\AssessmentDeliveryAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentAttemptManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Attempt\Answer\AttemptAnswerReader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Attempt\Answer\AttemptAnswerEncryptor:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Attempt\Answer\AttemptStudentAnswerValidator:
             public: true
             autowire: true
             autoconfigure: true
@@ -421,6 +446,26 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\AssessmentDeliveryRecipientRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentAttemptRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentAttemptItemRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentAttemptAnswerRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\AssessmentAttemptActiveGuardRepository:
             public: true
             autowire: true
             autoconfigure: true

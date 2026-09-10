@@ -81,4 +81,9 @@ enum SecurityAuditAction: string
     case AssessmentDeliveryCancelled = 'assessment_delivery_cancelled';
     case AssessmentDeliveryRecipientAdded = 'assessment_delivery_recipient_added';
     case AssessmentDeliveryRecipientRevoked = 'assessment_delivery_recipient_revoked';
+    case AssessmentAttemptStarted = 'assessment_attempt_started';
+    case AssessmentAttemptAnswerSaved = 'assessment_attempt_answer_saved';
+    case AssessmentAttemptSubmitted = 'assessment_attempt_submitted';
+    case AssessmentAttemptExpired = 'assessment_attempt_expired';
+    case AssessmentAttemptCancelled = 'assessment_attempt_cancelled';
 }

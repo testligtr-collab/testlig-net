@@ -71,6 +71,12 @@ final class SecurityAuditMetadataSanitizer
         'recipient_id',
         'recipient_count',
         'assessment_publication_id',
+        'attempt_id',
+        'attempt_number',
+        'attempt_item_id',
+        'answer_version',
+        'answered_item_count',
+        'unanswered_required_count',
     ];
 
     /**
@@ -111,6 +117,19 @@ final class SecurityAuditMetadataSanitizer
         'correct_stable_key',
         'stem',
         'explanation',
+        'ciphertext',
+        'nonce',
+        'encryption_key',
+        'encryptionkey',
+        'plaintext',
+        'selectedstablekey',
+        'selected_stable_key',
+        'selectedstablekeys',
+        'selected_stable_keys',
+        'answerciphertext',
+        'answer_ciphertext',
+        'answernonce',
+        'answer_nonce',
     ];
 
     /**
