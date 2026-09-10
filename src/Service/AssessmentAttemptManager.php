@@ -12,7 +12,6 @@ use App\Attempt\Answer\AttemptStudentAnswerValidator;
 use App\Dto\SecurityAuditContext;
 use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
-use App\Entity\AssessmentAttemptActiveGuard;
 use App\Entity\AssessmentAttemptAnswer;
 use App\Entity\AssessmentAttemptItem;
 use App\Entity\AssessmentDelivery;
@@ -35,7 +34,6 @@ use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserStatus;
 use App\Exception\AssessmentAttemptException;
 use App\Exception\AssessmentException;
-use App\Repository\AssessmentAttemptActiveGuardRepository;
 use App\Repository\AssessmentAttemptAnswerRepository;
 use App\Repository\AssessmentAttemptRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
@@ -57,18 +55,17 @@ use Symfony\Component\Uid\Uuid;
  * 2. AssessmentDeliveryRecipient (delivery+user) PESSIMISTIC_WRITE + HINT_REFRESH
  * 3. Institution / User / Membership fresh checks (READ/WRITE as needed)
  * 4. AssessmentAttempt PESSIMISTIC_WRITE + HINT_REFRESH (mutators)
- * 5. Active guard / answers / items persist or remove
+ * 5. Answers / items persist; active_guard is owned by DB AFTER INSERT/UPDATE triggers
  * 6. Audit in same transaction; invalidate delivery auth cache only after commit (start)
  *
- * Known limitation: no multi-process concurrency harness; uniqueness + pessimistic locks
- * provide sequential safety only.
+ * Single-active concurrency: uniq_aa_active_recipient_scope + pessimistic locks.
+ * max_attempts COUNT alone is not race-safe.
  */
 final class AssessmentAttemptManager
 {
     public function __construct(
         private readonly AssessmentAttemptRepository $attempts,
         private readonly AssessmentAttemptAnswerRepository $answers,
-        private readonly AssessmentAttemptActiveGuardRepository $activeGuards,
         private readonly AssessmentAttemptItemMaterializer $itemMaterializer,
         private readonly AssessmentAttemptContentPolicy $contentPolicy,
         private readonly AttemptStudentAnswerValidator $answerValidator,
@@ -225,14 +222,12 @@ final class AssessmentAttemptManager
                     $now,
                     $expiresAt,
                 );
-                $guard = AssessmentAttemptActiveGuard::bind($recipient, $attempt);
                 $items = $this->itemMaterializer->materialize($attempt, $publication);
                 if ([] === $items) {
                     throw AssessmentAttemptException::invalidInput('Attempt has no materializable items.');
                 }
 
                 $this->attempts->save($attempt, false);
-                $this->activeGuards->save($guard, false);
                 foreach ($items as $item) {
                     $this->entityManager->persist($item);
                 }
@@ -460,7 +455,6 @@ final class AssessmentAttemptManager
                 $unansweredRequired = $this->answers->countUnansweredRequired($lockedAttempt->getId());
 
                 $lockedAttempt->submit($now);
-                $this->removeActiveGuard($lockedAttempt);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentAttemptSubmitted,
@@ -559,7 +553,6 @@ final class AssessmentAttemptManager
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $lockedAttempt->cancel($freshActor, $cancellationReasonCode, $now);
-                $this->removeActiveGuard($lockedAttempt);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentAttemptCancelled,
@@ -608,7 +601,6 @@ final class AssessmentAttemptManager
         }
 
         $attempt->expire($now);
-        $this->removeActiveGuard($attempt);
 
         $this->auditRecorder->record(new SecurityAuditContext(
             action: SecurityAuditAction::AssessmentAttemptExpired,
@@ -712,14 +704,6 @@ final class AssessmentAttemptManager
             InstitutionMembershipRole::Manager,
         ], true)) {
             throw AssessmentAttemptException::unauthorized();
-        }
-    }
-
-    private function removeActiveGuard(AssessmentAttempt $attempt): void
-    {
-        $guard = $this->activeGuards->findForRecipient($attempt->getRecipient()->getId());
-        if ($guard instanceof AssessmentAttemptActiveGuard) {
-            $this->activeGuards->remove($guard, false);
         }
     }
 

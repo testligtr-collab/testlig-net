@@ -30,6 +30,8 @@ final class AssessmentAttemptImmutabilityListener
         'cancellationReasonCode',
         'lastActivityAt',
         'updatedAt',
+        // DB STORED generated; may appear in UoW after status transitions.
+        'activeRecipientScopeId',
     ];
 
     private const ANSWER_MUTABLE = [

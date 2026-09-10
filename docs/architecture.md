@@ -102,15 +102,14 @@
   - **DB:** `Version20260910500000` + `AssessmentDeliveryCompositeForeignKeyListener` + `AssessmentDeliveryImmutabilityListener`.
   - **Test cleanup:** `AssessmentDeliveryDbCleanup` → önce attempts, sonra `DELETE FROM assessment_deliveries` (recipients CASCADE); `AssessmentDbCleanup` önce delivery siler (assessment RESTRICT).
   - **Bilinen sınırlama:** multi-process harness yok; sequential unique/pessimistic lock güvencesi.
-- **Sınav attempt / cevap (Aşama 2.11):** `AssessmentAttempt` + `AssessmentAttemptItem` (materialize) + `AssessmentAttemptActiveGuard` (tek aktif) + şifreli `AssessmentAttemptAnswer`. Scoring/result/UI/API yok.
-  - **Lifecycle:** `in_progress` → `submitted` | `expired` | `cancelled` (tek yön). Kota `maxAttempts`; aktif guard + unique `(delivery, recipient, attempt_number)`.
-  - **Cevap şifreleme:** XChaCha20-Poly1305; AAD = attempt/item/user + encryptionVersion; plaintext DB’de yok; `#[Ignore]` ciphertext/nonce. Autosave: `client_revision` optimistic concurrency (`stale_answer_version`).
-  - **Kilit sırası:** Delivery WRITE → Recipient WRITE → Institution/User/Membership → Attempt WRITE → guard/answers/items → audit; delivery auth cache invalidate commit sonrası (start).
-  - **Yetki (`AssessmentAttemptVoter`):** Student START/VIEW/SAVE/SUBMIT own (CANCEL yok); Owner/Manager VIEW+CANCEL; Teacher VIEW (classroom coverage, CANCEL yok); Staff deny. DBAL snapshot.
+- **Sınav attempt / cevap (Aşama 2.11):** `AssessmentAttempt` + `AssessmentAttemptItem` (materialize) + `AssessmentAttemptActiveGuard` (operasyonel sync) + şifreli `AssessmentAttemptAnswer`. Scoring/result/UI/API yok.
+  - **Lifecycle:** `in_progress` → `submitted` | `expired` | `cancelled` (tek yön). Kota `maxAttempts`; `active_recipient_scope_id` UNIQUE = birincil tek-aktif güvence; `active_guard` DB trigger sahipliğinde (app create/remove etmez).
+  - **Cevap şifreleme:** XChaCha20-Poly1305; AAD = attempt/item/user + encryptionVersion; plaintext DB’de yok; `#[Ignore]` ciphertext/nonce. Autosave: `client_revision` optimistic concurrency (`stale_answer_version`). Answer BI/BU `UTC_TIMESTAMP()` kullanır; servis kararları `ClockInterface`. MariaDB `UTC_TIMESTAMP()`/`NOW()` UTC olmalı; app `date.timezone` da UTC olmalı (naive DATETIME karşılaştırması). Container PHP şu an `Europe/Istanbul` ise DB vs app saat duvarı sapması riski vardır — üretimde hizala.
+  - **Kilit sırası:** Delivery WRITE → Recipient WRITE → Institution/User/Membership → Attempt WRITE → answers/items → audit; delivery auth cache invalidate commit sonrası (start).
+  - **Yetki (`AssessmentAttemptVoter`):** Student START/VIEW/SAVE/SUBMIT own (CANCEL yok); Owner/Manager VIEW+CANCEL; Teacher VIEW (classroom coverage, CANCEL yok); Staff deny. DBAL snapshot. Answer decrypt (`AttemptAnswerReader`): yalnız attempt owner (fresh-DB); privileged roller owner değilse deny.
   - **Audit:** `assessment_attempt_started` / `answer_saved` / `submitted` / `expired` / `cancelled`; metadata ids/counts/status — cevap plaintext yok.
-  - **DB:** `Version20260910700000` + `AssessmentAttemptCompositeForeignKeyListener` + `AssessmentAttemptImmutabilityListener`. `expires_at` immutable (expire için Clock).
-  - **Test cleanup:** `AssessmentAttemptDbCleanup` → answers/items/guards/attempts; `AssessmentDeliveryDbCleanup` önce attempt siler (delivery RESTRICT).
-  - **Bilinen sınırlama:** multi-process concurrency harness yok.
+  - **DB:** `Version20260910700000` + `Version20260910800000` (hardening: generated scope UNIQUE, publication/revision graph FKs, guard sync triggers, answer format) + `AssessmentAttemptCompositeForeignKeyListener` + `AssessmentAttemptImmutabilityListener`. `expires_at` immutable (expire için Clock). `max_attempts` COUNT BI’da tek başına race-safe değil; concurrency = locks + generated unique.
+  - **Test cleanup:** `AssessmentAttemptDbCleanup` → answers/items, in_progress→expired (AU guard siler), guards/attempts; `AssessmentDeliveryDbCleanup` önce attempt siler (delivery RESTRICT).
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 

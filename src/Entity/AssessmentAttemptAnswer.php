@@ -113,6 +113,9 @@ class AssessmentAttemptAnswer
     ): void {
         $this->bumpRevision($expectedVersion);
         $this->assertEncryptedPayload($answerCiphertext, $answerNonce, $encryptionVersion);
+        if ($answerNonce === $this->getAnswerNonce()) {
+            throw AssessmentAttemptException::invalidInput('Encrypted answer nonce must change on update.');
+        }
         $this->answerCiphertext = $answerCiphertext;
         $this->answerNonce = $answerNonce;
         $this->encryptionVersion = $encryptionVersion;
@@ -186,6 +189,20 @@ class AssessmentAttemptAnswer
     {
         if ('' === $ciphertext || '' === $nonce) {
             throw AssessmentAttemptException::invalidInput('Encrypted answer ciphertext and nonce are required.');
+        }
+        if (\SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES !== \strlen($nonce)) {
+            throw AssessmentAttemptException::invalidInput(
+                'Encrypted answer nonce must be '
+                .\SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_NPUBBYTES
+                .' bytes.',
+            );
+        }
+        if (\strlen($ciphertext) < \SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES) {
+            throw AssessmentAttemptException::invalidInput(
+                'Encrypted answer ciphertext must be at least '
+                .\SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_ABYTES
+                .' bytes.',
+            );
         }
         if ($encryptionVersion < 1) {
             throw AssessmentAttemptException::invalidInput('encryptionVersion must be >= 1.');

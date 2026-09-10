@@ -30,6 +30,8 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_aa_id_user', columns: ['id', 'user_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_aa_id_membership', columns: ['id', 'student_membership_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_aa_id_delivery_recipient', columns: ['id', 'delivery_id', 'recipient_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_aa_id_revision', columns: ['id', 'assessment_revision_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_aa_active_recipient_scope', columns: ['active_recipient_scope_id'])]
 #[ORM\Index(name: 'idx_aa_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\Index(name: 'idx_aa_delivery_status', columns: ['delivery_id', 'status'])]
 #[ORM\Index(name: 'idx_aa_recipient_status', columns: ['recipient_id', 'status'])]
@@ -67,6 +69,24 @@ class AssessmentAttempt
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'assessment_publication_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private AssessmentPublication $assessmentPublication;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'assessment_revision_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    private AssessmentRevision $assessmentRevision;
+
+    /**
+     * STORED generated: IF(status = 'in_progress', recipient_id, NULL).
+     * Primary single-active guarantee via uniq_aa_active_recipient_scope.
+     */
+    #[ORM\Column(
+        name: 'active_recipient_scope_id',
+        type: UuidType::NAME,
+        nullable: true,
+        insertable: false,
+        updatable: false,
+        generated: 'ALWAYS',
+    )]
+    private ?Uuid $activeRecipientScopeId = null;
 
     #[ORM\Column(name: 'publication_number')]
     private int $publicationNumber;
@@ -137,6 +157,10 @@ class AssessmentAttempt
         $this->user = $recipient->getUser();
         $this->assessment = $delivery->getAssessment();
         $this->assessmentPublication = $delivery->getAssessmentPublication();
+        $this->assessmentRevision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+        if (!$this->assessmentPublication->getAssessmentRevision()->getId()->equals($this->assessmentRevision->getId())) {
+            throw AssessmentAttemptException::scopeMismatch();
+        }
         $this->publicationNumber = $delivery->getPublicationNumber();
         $this->attemptNumber = $attemptNumber;
         $this->status = AssessmentAttemptStatus::InProgress;
@@ -244,6 +268,17 @@ class AssessmentAttempt
     public function getAssessmentPublication(): AssessmentPublication
     {
         return $this->assessmentPublication;
+    }
+
+    #[Ignore]
+    public function getAssessmentRevision(): AssessmentRevision
+    {
+        return $this->assessmentRevision;
+    }
+
+    public function getActiveRecipientScopeId(): ?Uuid
+    {
+        return $this->activeRecipientScopeId;
     }
 
     public function getPublicationNumber(): int

@@ -11,8 +11,9 @@ use Symfony\Component\Serializer\Attribute\Ignore;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Ensures at most one in-progress attempt per delivery recipient.
- * Clear by removing the row from the entity manager.
+ * Operational sync row for one in-progress attempt per delivery recipient.
+ * Canonical create/delete ownership is DB AFTER INSERT/UPDATE triggers on assessment_attempts;
+ * primary single-active guarantee is uniq_aa_active_recipient_scope.
  */
 #[ORM\Entity(repositoryClass: AssessmentAttemptActiveGuardRepository::class)]
 #[ORM\Table(name: 'assessment_attempt_active_guards')]

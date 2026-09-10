@@ -23,6 +23,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_aai_attempt_presentation', columns: ['attempt_id', 'presentation_position'])]
 #[ORM\UniqueConstraint(name: 'uniq_aai_attempt_assessment_item', columns: ['attempt_id', 'assessment_item_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_aai_id_attempt', columns: ['id', 'attempt_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_aai_id_attempt_revision', columns: ['id', 'attempt_id', 'assessment_revision_id'])]
 #[ORM\Index(name: 'idx_aai_attempt', columns: ['attempt_id'])]
 #[ORM\Index(name: 'idx_aai_question_revision', columns: ['question_revision_id'])]
 class AssessmentAttemptItem
@@ -34,6 +35,10 @@ class AssessmentAttemptItem
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private AssessmentAttempt $attempt;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'assessment_revision_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    private AssessmentRevision $assessmentRevision;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'assessment_section_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
@@ -116,6 +121,13 @@ class AssessmentAttemptItem
         if (!$assessmentItem->getSection()->getId()->equals($assessmentSection->getId())) {
             throw AssessmentAttemptException::scopeMismatch();
         }
+        $this->assessmentRevision = $attempt->getAssessmentRevision();
+        if (!$assessmentSection->getRevision()->getId()->equals($this->assessmentRevision->getId())) {
+            throw AssessmentAttemptException::scopeMismatch();
+        }
+        if (!$assessmentItem->getAssessmentRevision()->getId()->equals($this->assessmentRevision->getId())) {
+            throw AssessmentAttemptException::scopeMismatch();
+        }
         $this->assertOptionOrderJson($optionOrderJson);
 
         $this->id = $id ?? new UuidV7();
@@ -185,6 +197,12 @@ class AssessmentAttemptItem
     public function getAttempt(): AssessmentAttempt
     {
         return $this->attempt;
+    }
+
+    #[Ignore]
+    public function getAssessmentRevision(): AssessmentRevision
+    {
+        return $this->assessmentRevision;
     }
 
     #[Ignore]
