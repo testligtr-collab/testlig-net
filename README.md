@@ -151,6 +151,13 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Yetki: `AssessmentAttemptVoter` (Student START/VIEW/SAVE/SUBMIT; Owner/Manager VIEW+CANCEL; Teacher VIEW).
 - Scoring / result / UI / API yok. Migration: `Version20260910700000`. Test cleanup: `AssessmentAttemptDbCleanup` delivery’den önce.
 
+### Sınav puanlama / sonuç (Aşama 2.12)
+
+- Versioned `AssessmentScoringRun` + `AssessmentItemScore` + append-only `AssessmentManualGradeDecision` + `AssessmentResultRelease` (tek aktif released guard).
+- Policy: `testlig_default_v1` (bcmath; float yok). Otomatik: single/multiple/true_false/numeric; short_answer accepted list veya manual_pending.
+- Öğrenci yalnız active release + `StudentResultView` (cevap anahtarı/ciphertext yok). Regrade yeni run; eski release sessizce değişmez.
+- UI/controller/API/PDF/raporlama yok. Migration: `Version20260910900000`.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
@@ -240,7 +247,7 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 - Web kayıt/giriş/e-posta doğrulama, şifre sıfırlama ve oturum içi parola değiştirme vardır; “beni hatırla”, OAuth/JWT, MFA ve sosyal giriş yok.
 - Public kayıt yalnızca öğrenci içindir; öğretmen/veli/kurum/admin davet veya yönetici süreçleri sonraki aşamalarda.
-- Soru bankası / sınav blueprint / delivery / attempt domain foundation var; scoring/result/UI/HTTP API ve ödeme yok.
+- Soru bankası / sınav blueprint / delivery / attempt / scoring-result domain foundation var; scoring HTTP API / sonuç UI / PDF / analitik ve ödeme yok.
 - Production dağıtım yapılandırması yok.
 - Yerel Windows ortamında PHP 8.3 ve Docker bulunmayabilir; hedef runtime Docker’daki PHP 8.3’tür.
 - `symfony/redis-messenger` paketinin Composer kurulumu için `ext-redis` gerekir (Docker imajında vardır). Yerelde `ext-redis` yoksa paket `--ignore-platform-req=ext-redis` ile kurulmuştur.
