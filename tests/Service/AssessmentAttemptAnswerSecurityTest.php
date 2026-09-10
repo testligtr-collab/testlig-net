@@ -211,10 +211,20 @@ final class AssessmentAttemptAnswerSecurityTest extends KernelTestCase
 
         $tampered = $answer->getAnswerCiphertext();
         $tampered[0] = "\0" === $tampered[0] ? "\1" : "\0";
-        $this->em->getConnection()->executeStatement(
-            'UPDATE assessment_attempt_answers SET answer_ciphertext = ? WHERE id = ?',
-            [$tampered, $answer->getId()->toBinary()],
+        $conn = $this->em->getConnection();
+        $answeredAt = (string) $conn->fetchOne(
+            'SELECT answered_at FROM assessment_attempt_answers WHERE id = ?',
+            [$answer->getId()->toBinary()],
         );
+        $later = (new \DateTimeImmutable($answeredAt))->modify('+1 second')->format('Y-m-d H:i:s');
+        // BU trigger requires revision+1 and a fresh nonce; ciphertext is still adversarially corrupted.
+        $conn->update('assessment_attempt_answers', [
+            'answer_ciphertext' => $tampered,
+            'answer_nonce' => random_bytes(24),
+            'client_revision' => $answer->getClientRevision() + 1,
+            'answered_at' => $later,
+            'updated_at' => $later,
+        ], ['id' => $answer->getId()->toBinary()]);
         $this->em->clear();
 
         $reloaded = $this->em->find(AssessmentAttemptAnswer::class, $answer->getId());

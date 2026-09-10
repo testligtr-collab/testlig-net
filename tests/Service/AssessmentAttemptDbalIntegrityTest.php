@@ -73,6 +73,7 @@ final class AssessmentAttemptDbalIntegrityTest extends KernelTestCase
                 'user_id' => $fx['student']->getId()->toBinary(),
                 'assessment_id' => $fx['assessment']->getId()->toBinary(),
                 'assessment_publication_id' => $fx['publication']->getId()->toBinary(),
+                'assessment_revision_id' => $fx['publication']->getAssessmentRevision()->getId()->toBinary(),
                 'publication_number' => $fx['publication']->getPublicationNumber(),
                 'attempt_number' => $attempt->getAttemptNumber(),
                 'status' => AssessmentAttemptStatus::InProgress->value,
