@@ -17,6 +17,9 @@ final class AssessmentDeliveryDbCleanup
 {
     public static function deleteDeliveries(Connection $connection): void
     {
+        // Attempts RESTRICT on delivery — wipe attempts first.
+        AssessmentAttemptDbCleanup::deleteAttempts($connection);
+
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessment_deliveries'])) {
             $connection->executeStatement('DELETE FROM assessment_deliveries');
