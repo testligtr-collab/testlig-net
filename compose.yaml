@@ -30,6 +30,7 @@ services:
       RESET_PASSWORD_LIFETIME: ${RESET_PASSWORD_LIFETIME:-3600}
       AUDIT_HASH_KEY: ${AUDIT_HASH_KEY:-change_me_dev_audit_hash_not_for_production}
       QUESTION_ANSWER_INTEGRITY_KEY: ${QUESTION_ANSWER_INTEGRITY_KEY:-change_me_dev_question_answer_integrity_not_for_production}
+      ATTEMPT_ANSWER_ENCRYPTION_KEY: ${ATTEMPT_ANSWER_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
       ALLOW_SUPER_ADMIN_BOOTSTRAP: ${ALLOW_SUPER_ADMIN_BOOTSTRAP:-0}
     depends_on:
       database:
