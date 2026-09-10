@@ -122,10 +122,10 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Stable `Assessment` + sealed immutable `AssessmentRevision` / `AssessmentSection` / `AssessmentItem` + append-only `AssessmentPublication` (public manifest + SHA-256).
 - Puanlar `DECIMAL` string + bcmath (PHP float yok). Manifest cevap/HMAC/e-posta/secret içermez.
 - Sealed revision: bundle sonrası `is_sealed` 0→1; sealed’a section/item INSERT trigger reddeder. Bypass/session değişkeni yok.
-- Test cleanup: `DELETE FROM assessments` (CASCADE) — `AssessmentDbCleanup`. Uygulamada hard-delete yok (archive).
+- Test cleanup: `DELETE FROM assessments` (CASCADE) — `AssessmentDbCleanup`. Pointer NULL UPDATE yok; production trigger publication varken published pointer temizlemeyi reddeder. Uygulamada hard-delete yok (archive); testler fixture wipe için parent DELETE kullanır.
 - Kilit: snapshot → Institution? → Assessment → Subjects → Questions → QuestionRevisions → Users → Revision/sections/items → Publication.
 - Yetki: `AssessmentVoter` (VIEW/CREATE/REVISE/SUBMIT/REVIEW/PUBLISH/ARCHIVE); review separation; ADMIN/MODERATOR otomatik publish yok.
-- Delivery / attempt / scoring / result / UI / API yok. Multi-process concurrency testi yok. Migration: `Version20260910120000`.
+- Delivery / attempt / scoring / result / UI / API yok. Multi-process concurrency testi yok. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000`.
 
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 

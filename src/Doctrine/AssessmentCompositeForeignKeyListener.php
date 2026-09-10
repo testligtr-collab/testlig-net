@@ -59,13 +59,17 @@ final class AssessmentCompositeForeignKeyListener
 
         if ($schema->hasTable('assessments')) {
             $table = $schema->getTable('assessments');
+            // CASCADE (not RESTRICT/SET NULL): parent Assessment DELETE must resolve the
+            // assessment↔revision pointer cycle without a production UPDATE that clears
+            // published pointers while publications still exist. Revision rows remain
+            // append-only via BEFORE DELETE SIGNAL; FK cascade does not fire those triggers.
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
                 'FK_ASSESSMENT_CURRENT_REVISION',
                 'assessment_revisions',
                 ['current_revision_id', 'id', 'current_revision_number'],
                 ['id', 'assessment_id', 'revision_number'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
@@ -73,7 +77,7 @@ final class AssessmentCompositeForeignKeyListener
                 'assessment_revisions',
                 ['published_revision_id', 'id', 'published_revision_number'],
                 ['id', 'assessment_id', 'revision_number'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
         }
     }

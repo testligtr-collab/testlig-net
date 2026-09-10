@@ -407,6 +407,148 @@ final class AssessmentPublicationPointerSyncTest extends KernelTestCase
         ));
     }
 
+    public function testCannotClearAllPointersWhilePublicationsExist(): void
+    {
+        [$assessment, $revision] = $this->seedPublishedAssessment('detach');
+        $assessmentId = $assessment->getId();
+        $conn = $this->em->getConnection();
+        $before = $conn->fetchAssociative(
+            'SELECT status, current_revision_id, current_revision_number, published_revision_id, published_revision_number
+             FROM assessments WHERE id = ?',
+            [$assessmentId->toBinary()],
+        );
+        self::assertIsArray($before);
+
+        $conn->beginTransaction();
+        try {
+            $conn->executeStatement(
+                'UPDATE assessments SET
+                    current_revision_id = NULL,
+                    current_revision_number = NULL,
+                    published_revision_id = NULL,
+                    published_revision_number = NULL
+                 WHERE id = ?',
+                [$assessmentId->toBinary()],
+            );
+            $conn->commit();
+            self::fail('clearing pointers while publications exist must be rejected');
+        } catch (DbalException $e) {
+            if ($conn->isTransactionActive()) {
+                $conn->rollBack();
+            }
+            self::assertStringContainsStringIgnoringCase('cannot clear published pointer', $e->getMessage());
+        }
+
+        $this->em->clear();
+        $fresh = $this->freshConnection();
+        $after = $fresh->fetchAssociative(
+            'SELECT status, current_revision_id, current_revision_number, published_revision_id, published_revision_number
+             FROM assessments WHERE id = ?',
+            [$assessmentId->toBinary()],
+        );
+        self::assertIsArray($after);
+        self::assertSame($before['status'], $after['status']);
+        self::assertSame($before['current_revision_id'], $after['current_revision_id']);
+        self::assertSame($before['current_revision_number'], $after['current_revision_number']);
+        self::assertSame($before['published_revision_id'], $after['published_revision_id']);
+        self::assertSame($before['published_revision_number'], $after['published_revision_number']);
+        self::assertSame(1, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_publications WHERE assessment_id = ?',
+            [$assessmentId->toBinary()],
+        ));
+        self::assertSame($revision->getId()->toBinary(), $after['published_revision_id']);
+    }
+
+    public function testCannotClearPublishedPointerAloneWhilePublicationsExist(): void
+    {
+        [$assessment] = $this->seedPublishedAssessment('pubnull');
+        $assessmentId = $assessment->getId();
+        $conn = $this->em->getConnection();
+
+        try {
+            $conn->executeStatement(
+                'UPDATE assessments SET published_revision_id = NULL, published_revision_number = NULL WHERE id = ?',
+                [$assessmentId->toBinary()],
+            );
+            self::fail('clearing published pointer alone must be rejected');
+        } catch (DbalException $e) {
+            self::assertStringContainsStringIgnoringCase('cannot clear published pointer', $e->getMessage());
+        }
+
+        self::assertNotNull($conn->fetchOne(
+            'SELECT published_revision_id FROM assessments WHERE id = ?',
+            [$assessmentId->toBinary()],
+        ));
+    }
+
+    public function testParentAssessmentDeleteCascadesWithoutPointerDetach(): void
+    {
+        [$keepAssessment, $keepRevision] = $this->seedPublishedAssessment('keep');
+        [$dropAssessment] = $this->seedPublishedAssessment('drop');
+        $keepId = $keepAssessment->getId();
+        $dropId = $dropAssessment->getId();
+        $keepRevisionId = $keepRevision->getId();
+
+        $conn = $this->em->getConnection();
+        self::assertSame(2, (int) $conn->fetchOne('SELECT COUNT(*) FROM assessments'));
+        self::assertSame(2, (int) $conn->fetchOne('SELECT COUNT(*) FROM assessment_publications'));
+
+        $conn->beginTransaction();
+        try {
+            $conn->executeStatement('DELETE FROM assessments WHERE id = ?', [$dropId->toBinary()]);
+            $conn->commit();
+        } catch (\Throwable $e) {
+            if ($conn->isTransactionActive()) {
+                $conn->rollBack();
+            }
+            throw $e;
+        }
+
+        $this->em->clear();
+        $fresh = $this->freshConnection();
+        self::assertSame(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessments WHERE id = ?',
+            [$dropId->toBinary()],
+        ));
+        self::assertSame(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_revisions WHERE assessment_id = ?',
+            [$dropId->toBinary()],
+        ));
+        self::assertSame(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_publications WHERE assessment_id = ?',
+            [$dropId->toBinary()],
+        ));
+        self::assertSame(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_sections s
+             INNER JOIN assessment_revisions r ON r.id = s.revision_id
+             WHERE r.assessment_id = ?',
+            [$dropId->toBinary()],
+        ));
+        self::assertSame(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_items i
+             INNER JOIN assessment_revisions r ON r.id = i.assessment_revision_id
+             WHERE r.assessment_id = ?',
+            [$dropId->toBinary()],
+        ));
+
+        $kept = $fresh->fetchAssociative(
+            'SELECT published_revision_id, published_revision_number, status FROM assessments WHERE id = ?',
+            [$keepId->toBinary()],
+        );
+        self::assertIsArray($kept);
+        self::assertSame($keepRevisionId->toBinary(), $kept['published_revision_id']);
+        self::assertSame(1, (int) $kept['published_revision_number']);
+        self::assertSame(AssessmentStatus::Published->value, $kept['status']);
+        self::assertSame(1, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_publications WHERE assessment_id = ?',
+            [$keepId->toBinary()],
+        ));
+        self::assertGreaterThan(0, (int) $fresh->fetchOne(
+            'SELECT COUNT(*) FROM assessment_revisions WHERE assessment_id = ?',
+            [$keepId->toBinary()],
+        ));
+    }
+
     public function testCannotRevertPublishedPointerToOlderRevision(): void
     {
         [$assessment, $revision1] = $this->seedPublishedAssessment('revert');
@@ -520,9 +662,13 @@ final class AssessmentPublicationPointerSyncTest extends KernelTestCase
         $byName = [];
         foreach ($rows as $row) {
             $byName[$row['TRIGGER_NAME']] = $row;
-            self::assertStringNotContainsStringIgnoringCase('@testlig', (string) $row['ACTION_STATEMENT']);
-            self::assertStringNotContainsStringIgnoringCase('bypass', (string) $row['ACTION_STATEMENT']);
-            self::assertStringNotContainsStringIgnoringCase('@', (string) $row['ACTION_STATEMENT']);
+            $body = (string) $row['ACTION_STATEMENT'];
+            self::assertStringNotContainsStringIgnoringCase('@testlig', $body);
+            self::assertStringNotContainsStringIgnoringCase('bypass', $body);
+            self::assertStringNotContainsStringIgnoringCase('FOREIGN_KEY_CHECKS', $body);
+            self::assertStringNotContainsStringIgnoringCase('@', $body);
+            self::assertStringNotContainsStringIgnoringCase('full detach', $body);
+            self::assertStringNotContainsStringIgnoringCase('parent DELETE cleanup', $body);
         }
         self::assertSame('BEFORE', $byName['trg_assessment_publications_bi']['ACTION_TIMING']);
         self::assertSame('INSERT', $byName['trg_assessment_publications_bi']['EVENT_MANIPULATION']);
@@ -530,6 +676,44 @@ final class AssessmentPublicationPointerSyncTest extends KernelTestCase
         self::assertSame('INSERT', $byName['trg_assessment_publications_ai_sync_published']['EVENT_MANIPULATION']);
         self::assertSame('BEFORE', $byName['trg_assessments_bu_published_matches_latest_publication']['ACTION_TIMING']);
         self::assertSame('UPDATE', $byName['trg_assessments_bu_published_matches_latest_publication']['EVENT_MANIPULATION']);
+        self::assertStringContainsString(
+            'cannot clear published pointer while publications exist',
+            (string) $byName['trg_assessments_bu_published_matches_latest_publication']['ACTION_STATEMENT'],
+        );
+    }
+
+    public function testPointerForeignKeysUseOnDeleteCascade(): void
+    {
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT rc.CONSTRAINT_NAME, rc.DELETE_RULE, GROUP_CONCAT(kcu.COLUMN_NAME ORDER BY kcu.ORDINAL_POSITION) AS cols
+             FROM information_schema.REFERENTIAL_CONSTRAINTS rc
+             INNER JOIN information_schema.KEY_COLUMN_USAGE kcu
+               ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+              AND rc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+              AND rc.TABLE_NAME = kcu.TABLE_NAME
+             WHERE rc.CONSTRAINT_SCHEMA = DATABASE()
+               AND rc.TABLE_NAME = 'assessments'
+               AND rc.CONSTRAINT_NAME IN (
+                 'FK_4BFCEC0AA32ED756',
+                 'FK_4BFCEC0AFE671D30',
+                 'FK_ASSESSMENT_CURRENT_REVISION',
+                 'FK_ASSESSMENT_PUBLISHED_REVISION'
+               )
+             GROUP BY rc.CONSTRAINT_NAME, rc.DELETE_RULE
+             ORDER BY rc.CONSTRAINT_NAME",
+        );
+        self::assertCount(4, $rows);
+        foreach ($rows as $row) {
+            self::assertSame('CASCADE', $row['DELETE_RULE'], (string) $row['CONSTRAINT_NAME']);
+        }
+        $byName = [];
+        foreach ($rows as $row) {
+            $byName[$row['CONSTRAINT_NAME']] = $row['cols'];
+        }
+        self::assertSame('current_revision_id', $byName['FK_4BFCEC0AA32ED756']);
+        self::assertSame('published_revision_id', $byName['FK_4BFCEC0AFE671D30']);
+        self::assertSame('current_revision_id,id,current_revision_number', $byName['FK_ASSESSMENT_CURRENT_REVISION']);
+        self::assertSame('published_revision_id,id,published_revision_number', $byName['FK_ASSESSMENT_PUBLISHED_REVISION']);
     }
 
     /**

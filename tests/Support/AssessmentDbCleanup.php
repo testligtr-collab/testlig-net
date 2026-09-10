@@ -10,8 +10,11 @@ use PHPUnit\Framework\Assert;
 /**
  * Test-only cleanup for assessment blueprint fixtures.
  *
- * Does not bypass MariaDB append-only DELETE triggers. Immutable child rows are
- * removed only via ON DELETE CASCADE from parent `assessments`.
+ * Does not bypass MariaDB append-only DELETE triggers and does not NULL published
+ * pointers while publications exist. Immutable child rows are removed only via
+ * ON DELETE CASCADE from parent `assessments` (MariaDB does not fire child DELETE
+ * triggers for FK cascading actions). Pointer FKs use ON DELETE CASCADE so the
+ * assessment↔revision cycle resolves without a detach UPDATE.
  */
 final class AssessmentDbCleanup
 {
@@ -19,18 +22,6 @@ final class AssessmentDbCleanup
     {
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessments'])) {
-            // Break circular assessment↔revision pointer FKs before DELETE.
-            // Clearing published alone is rejected while publications exist; clear current+published together.
-            if ($schema->introspectTable('assessments')->hasColumn('current_revision_id')) {
-                $connection->executeStatement(
-                    'UPDATE assessments SET
-                        published_revision_id = NULL,
-                        published_revision_number = NULL,
-                        current_revision_id = NULL,
-                        current_revision_number = NULL',
-                );
-            }
-            // MariaDB FK CASCADE delete of children does not fire append-only DELETE triggers.
             $connection->executeStatement('DELETE FROM assessments');
         }
         self::assertAssessmentTablesEmpty($connection);

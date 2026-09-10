@@ -55,14 +55,14 @@ class Assessment
     private AssessmentStatus $status;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'current_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'current_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?AssessmentRevision $currentRevision;
 
     #[ORM\Column(name: 'current_revision_number', nullable: true)]
     private ?int $currentRevisionNumber;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'published_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'published_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?AssessmentRevision $publishedRevision;
 
     #[ORM\Column(name: 'published_revision_number', nullable: true)]
