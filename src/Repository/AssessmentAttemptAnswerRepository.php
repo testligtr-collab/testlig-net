@@ -39,6 +39,21 @@ class AssessmentAttemptAnswerRepository extends ServiceEntityRepository
         return $answer;
     }
 
+    /**
+     * @return list<AssessmentAttemptAnswer>
+     */
+    public function findAllForAttempt(Uuid $attemptId): array
+    {
+        /** @var list<AssessmentAttemptAnswer> $answers */
+        $answers = $this->createQueryBuilder('a')
+            ->andWhere('a.attempt = :attemptId')
+            ->setParameter('attemptId', $attemptId, 'uuid')
+            ->getQuery()
+            ->getResult();
+
+        return $answers;
+    }
+
     public function countAnsweredItems(Uuid $attemptId): int
     {
         return (int) $this->createQueryBuilder('a')

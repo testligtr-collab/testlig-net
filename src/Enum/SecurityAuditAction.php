@@ -86,4 +86,13 @@ enum SecurityAuditAction: string
     case AssessmentAttemptSubmitted = 'assessment_attempt_submitted';
     case AssessmentAttemptExpired = 'assessment_attempt_expired';
     case AssessmentAttemptCancelled = 'assessment_attempt_cancelled';
+    case AssessmentScoringStarted = 'assessment_scoring_started';
+    case AssessmentScoringCompleted = 'assessment_scoring_completed';
+    case AssessmentScoringPendingManual = 'assessment_scoring_pending_manual';
+    case AssessmentScoringFailed = 'assessment_scoring_failed';
+    case AssessmentItemManuallyGraded = 'assessment_item_manually_graded';
+    case AssessmentRegraded = 'assessment_regraded';
+    case AssessmentResultReleased = 'assessment_result_released';
+    case AssessmentResultSuperseded = 'assessment_result_superseded';
+    case AssessmentResultWithdrawn = 'assessment_result_withdrawn';
 }

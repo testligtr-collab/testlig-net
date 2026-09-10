@@ -77,6 +77,16 @@ final class SecurityAuditMetadataSanitizer
         'answer_version',
         'answered_item_count',
         'unanswered_required_count',
+        'scoring_run_id',
+        'result_release_id',
+        'run_number',
+        'release_number',
+        'scoring_version',
+        'correct_count',
+        'incorrect_count',
+        'unanswered_count',
+        'manual_pending_count',
+        'status',
     ];
 
     /**
