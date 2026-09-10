@@ -14,9 +14,12 @@ services:
     working_dir: /var/www/html
     volumes:
       - .:/var/www/html:rw
+      # Live php.ini (UTC date.timezone) without requiring image rebuild for TZ changes.
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/zz-testlig.ini:ro
     environment:
       APP_ENV: ${APP_ENV:-dev}
       APP_SECRET: ${APP_SECRET}
+      TZ: UTC
       # Always use Docker DNS names inside the stack (do not reuse host 127.0.0.1 URLs).
       DATABASE_URL: mysql://${MYSQL_USER:-testlig}:${MYSQL_PASSWORD}@database:3306/${MYSQL_DATABASE:-testlig}?serverVersion=10.11.10-MariaDB&charset=utf8mb4
       REDIS_URL: redis://redis:6379
@@ -75,7 +78,9 @@ services:
   database:
     image: mariadb:10.11
     container_name: testlig_database
+    command: ["--default-time-zone=+00:00"]
     environment:
+      TZ: UTC
       MYSQL_DATABASE: ${MYSQL_DATABASE:-testlig}
       MYSQL_USER: ${MYSQL_USER:-testlig}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env.local}

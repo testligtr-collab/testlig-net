@@ -22,6 +22,7 @@ jobs:
       mariadb:
         image: mariadb:10.11
         env:
+          TZ: UTC
           MYSQL_DATABASE: testlig_test
           MYSQL_USER: testlig
           MYSQL_PASSWORD: testlig_ci
@@ -46,6 +47,7 @@ jobs:
 
     env:
       APP_ENV: test
+      TZ: UTC
       APP_SECRET: ci_test_secret_not_for_production
       # Base name is "testlig"; doctrine dbname_suffix "_test" → testlig_test
       DATABASE_URL: "mysql://testlig:testlig_ci@127.0.0.1:3306/testlig?serverVersion=10.11.10-MariaDB&charset=utf8mb4"
@@ -74,6 +76,7 @@ jobs:
           extensions: mbstring, intl, pdo_mysql, zip, opcache, redis
           coverage: none
           tools: composer:v2
+          ini-values: date.timezone=UTC
 
       - name: Validate composer.json
         run: composer validate --strict
