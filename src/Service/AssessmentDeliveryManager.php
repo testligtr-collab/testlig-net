@@ -23,6 +23,7 @@ use App\Enum\AssessmentDeliveryRecipientStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
+use App\Enum\ClassroomCourseStatus;
 use App\Enum\ClassroomStatus;
 use App\Enum\CourseTeacherAssignmentStatus;
 use App\Enum\InstitutionMembershipRole;
@@ -1138,14 +1139,22 @@ final class AssessmentDeliveryManager
             'SELECT 1
              FROM classroom_teacher_assignments a
              INNER JOIN institution_memberships m ON m.id = a.teacher_membership_id
+             INNER JOIN classrooms c ON c.id = a.classroom_id
              WHERE a.classroom_id = :classroomId
                AND m.user_id = :userId
-               AND a.status = :status
+               AND m.role = :teacherRole
+               AND m.status = :membershipStatus
+               AND m.institution_id = c.institution_id
+               AND c.status = :classroomStatus
+               AND a.status = :assignmentStatus
              LIMIT 1',
             [
                 'classroomId' => $classroomId->toBinary(),
                 'userId' => $userId->toBinary(),
-                'status' => TeacherAssignmentStatus::Active->value,
+                'teacherRole' => InstitutionMembershipRole::Teacher->value,
+                'membershipStatus' => InstitutionMembershipStatus::Active->value,
+                'classroomStatus' => ClassroomStatus::Active->value,
+                'assignmentStatus' => TeacherAssignmentStatus::Active->value,
             ],
         );
         if (false !== $homeroom) {
@@ -1157,14 +1166,24 @@ final class AssessmentDeliveryManager
              FROM course_teacher_assignments a
              INNER JOIN institution_memberships m ON m.id = a.teacher_membership_id
              INNER JOIN classroom_courses cc ON cc.id = a.classroom_course_id
+             INNER JOIN classrooms c ON c.id = cc.classroom_id
              WHERE cc.classroom_id = :classroomId
                AND m.user_id = :userId
-               AND a.status = :status
+               AND m.role = :teacherRole
+               AND m.status = :membershipStatus
+               AND m.institution_id = c.institution_id
+               AND c.status = :classroomStatus
+               AND cc.status = :courseStatus
+               AND a.status = :assignmentStatus
              LIMIT 1',
             [
                 'classroomId' => $classroomId->toBinary(),
                 'userId' => $userId->toBinary(),
-                'status' => CourseTeacherAssignmentStatus::Active->value,
+                'teacherRole' => InstitutionMembershipRole::Teacher->value,
+                'membershipStatus' => InstitutionMembershipStatus::Active->value,
+                'classroomStatus' => ClassroomStatus::Active->value,
+                'courseStatus' => ClassroomCourseStatus::Active->value,
+                'assignmentStatus' => CourseTeacherAssignmentStatus::Active->value,
             ],
         );
 
@@ -1177,15 +1196,24 @@ final class AssessmentDeliveryManager
             'SELECT 1
              FROM classroom_student_enrollments e
              INNER JOIN institution_memberships sm ON sm.id = e.student_membership_id
+             INNER JOIN classrooms c ON c.id = e.classroom_id
              WHERE e.institution_id = :institutionId
                AND e.status = :enrollmentStatus
                AND sm.user_id = :studentUserId
+               AND sm.role = :studentRole
+               AND sm.status = :membershipStatus
+               AND sm.institution_id = :institutionId
+               AND c.status = :classroomStatus
+               AND c.institution_id = :institutionId
                AND (
                     EXISTS (
                         SELECT 1 FROM classroom_teacher_assignments ta
                         INNER JOIN institution_memberships tm ON tm.id = ta.teacher_membership_id
                         WHERE ta.classroom_id = e.classroom_id
                           AND tm.user_id = :teacherUserId
+                          AND tm.role = :teacherRole
+                          AND tm.status = :membershipStatus
+                          AND tm.institution_id = :institutionId
                           AND ta.status = :teacherStatus
                     )
                     OR EXISTS (
@@ -1194,6 +1222,10 @@ final class AssessmentDeliveryManager
                         INNER JOIN classroom_courses cc ON cc.id = cta.classroom_course_id
                         WHERE cc.classroom_id = e.classroom_id
                           AND ctm.user_id = :teacherUserId
+                          AND ctm.role = :teacherRole
+                          AND ctm.status = :membershipStatus
+                          AND ctm.institution_id = :institutionId
+                          AND cc.status = :courseStatus
                           AND cta.status = :courseTeacherStatus
                     )
                )
@@ -1202,8 +1234,13 @@ final class AssessmentDeliveryManager
                 'institutionId' => $institutionId->toBinary(),
                 'enrollmentStatus' => StudentEnrollmentStatus::Active->value,
                 'studentUserId' => $studentUserId->toBinary(),
+                'studentRole' => InstitutionMembershipRole::Student->value,
+                'membershipStatus' => InstitutionMembershipStatus::Active->value,
+                'classroomStatus' => ClassroomStatus::Active->value,
                 'teacherUserId' => $teacherUserId->toBinary(),
+                'teacherRole' => InstitutionMembershipRole::Teacher->value,
                 'teacherStatus' => TeacherAssignmentStatus::Active->value,
+                'courseStatus' => ClassroomCourseStatus::Active->value,
                 'courseTeacherStatus' => CourseTeacherAssignmentStatus::Active->value,
             ],
         );

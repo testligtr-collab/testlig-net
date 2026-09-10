@@ -95,6 +95,44 @@ final class AssessmentDeliveryAccessGate
             );
         }
 
+        if (!$recipient->getUser()->getId()->equals($student->getId())) {
+            return AssessmentDeliveryAccessDecision::denied(
+                AssessmentDeliveryAccessReason::RecipientNotFound,
+                $deliveryIdStr,
+                $publicationIdStr,
+                $publicationNumber,
+                $maxAttempts,
+                $opensAt,
+                $closesAt,
+            );
+        }
+
+        if (!$recipient->getInstitution()->getId()->equals($delivery->getInstitution()->getId())) {
+            return AssessmentDeliveryAccessDecision::denied(
+                AssessmentDeliveryAccessReason::Conflict,
+                $deliveryIdStr,
+                $publicationIdStr,
+                $publicationNumber,
+                $maxAttempts,
+                $opensAt,
+                $closesAt,
+            );
+        }
+
+        if (!$delivery->getAssessment()->getId()->equals($delivery->getAssessmentPublication()->getAssessment()->getId())
+            || $delivery->getPublicationNumber() !== $delivery->getAssessmentPublication()->getPublicationNumber()
+        ) {
+            return AssessmentDeliveryAccessDecision::denied(
+                AssessmentDeliveryAccessReason::PublicationIntegrityFailed,
+                $deliveryIdStr,
+                $publicationIdStr,
+                $publicationNumber,
+                $maxAttempts,
+                $opensAt,
+                $closesAt,
+            );
+        }
+
         $freshUser = $this->findFreshUser($student->getId());
         if (!$freshUser instanceof User || UserStatus::Active !== $freshUser->getStatus()) {
             return AssessmentDeliveryAccessDecision::denied(
@@ -149,6 +187,19 @@ final class AssessmentDeliveryAccessGate
         if (InstitutionMembershipRole::Student !== $membership->getRole()) {
             return AssessmentDeliveryAccessDecision::denied(
                 AssessmentDeliveryAccessReason::MembershipNotStudent,
+                $deliveryIdStr,
+                $publicationIdStr,
+                $publicationNumber,
+                $maxAttempts,
+                $opensAt,
+                $closesAt,
+            );
+        }
+        if (!$membership->getUser()->getId()->equals($freshUser->getId())
+            || !$membership->getInstitution()->getId()->equals($delivery->getInstitution()->getId())
+        ) {
+            return AssessmentDeliveryAccessDecision::denied(
+                AssessmentDeliveryAccessReason::Conflict,
                 $deliveryIdStr,
                 $publicationIdStr,
                 $publicationNumber,

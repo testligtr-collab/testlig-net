@@ -175,30 +175,23 @@ final class AssessmentDeliveryAccessGateTest extends KernelTestCase
     public function testExpiredWindowDeniesAccess(): void
     {
         $ctx = $this->publishedDeliveryContext('adag5');
-        [$opens, $closes] = $this->defaultWindow();
-        $delivery = $this->deliveries()->createDraft(
-            $ctx['institution'],
-            $ctx['publication'],
-            AssessmentDeliveryAudienceType::Classroom,
-            $ctx['classroom'],
-            null,
-            $ctx['owner'],
-            $opens,
-            $closes,
-            1,
-            null,
-            null,
-            'create_exp',
-        );
-        $this->deliveries()->activate($delivery, $ctx['owner'], 'activate_exp');
-        $delivery = $this->em->find(AssessmentDelivery::class, $delivery->getId());
-        self::assertInstanceOf(AssessmentDelivery::class, $delivery);
-
-        // Active window is immutable via trigger; seed an expired active row via DBAL for gate coverage.
-        $pastOpen = (new \DateTimeImmutable('-3 days', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
-        $pastClose = (new \DateTimeImmutable('-1 day', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
+        $pastOpen = new \DateTimeImmutable('-3 days', new \DateTimeZone('UTC'));
+        $pastClose = new \DateTimeImmutable('-1 day', new \DateTimeZone('UTC'));
         $expiredId = \Symfony\Component\Uid\Uuid::v7();
         $conn = $this->em->getConnection();
+
+        $enrollmentId = $conn->fetchOne(
+            'SELECT id FROM classroom_student_enrollments
+             WHERE classroom_id = ? AND student_membership_id = ? AND status = ? LIMIT 1',
+            [
+                $ctx['classroom']->getId()->toBinary(),
+                $ctx['studentMembership']->getId()->toBinary(),
+                'active',
+            ],
+        );
+        self::assertIsString($enrollmentId);
+
+        // BI requires draft insert; then recipient; then BU draft→active with past window for gate coverage.
         $conn->insert('assessment_deliveries', [
             'id' => $expiredId->toBinary(),
             'institution_id' => $ctx['institution']->getId()->toBinary(),
@@ -208,22 +201,22 @@ final class AssessmentDeliveryAccessGateTest extends KernelTestCase
             'audience_type' => 'classroom',
             'classroom_id' => $ctx['classroom']->getId()->toBinary(),
             'student_membership_id' => null,
-            'status' => 'active',
-            'opens_at' => $pastOpen,
-            'closes_at' => $pastClose,
+            'status' => 'draft',
+            'opens_at' => $pastOpen->format('Y-m-d H:i:s'),
+            'closes_at' => $pastClose->format('Y-m-d H:i:s'),
             'max_attempts' => 1,
             'title_override' => null,
             'instructions_override' => null,
             'created_by_id' => $ctx['owner']->getId()->toBinary(),
-            'activated_by_id' => $ctx['owner']->getId()->toBinary(),
-            'activated_at' => $pastOpen,
+            'activated_by_id' => null,
+            'activated_at' => null,
             'closed_by_id' => null,
             'closed_at' => null,
             'cancelled_by_id' => null,
             'cancelled_at' => null,
             'cancellation_reason_code' => null,
-            'created_at' => $pastOpen,
-            'updated_at' => $pastOpen,
+            'created_at' => $pastOpen->format('Y-m-d H:i:s'),
+            'updated_at' => $pastOpen->format('Y-m-d H:i:s'),
         ]);
         $conn->insert('assessment_delivery_recipients', [
             'id' => \Symfony\Component\Uid\Uuid::v7()->toBinary(),
@@ -233,12 +226,27 @@ final class AssessmentDeliveryAccessGateTest extends KernelTestCase
             'user_id' => $ctx['student']->getId()->toBinary(),
             'status' => 'eligible',
             'source_classroom_id' => $ctx['classroom']->getId()->toBinary(),
-            'source_enrollment_id' => null,
-            'assigned_at' => $pastOpen,
+            'source_enrollment_id' => $enrollmentId,
+            'assigned_at' => $pastOpen->format('Y-m-d H:i:s'),
             'revoked_at' => null,
             'revoked_by_id' => null,
             'revocation_reason_code' => null,
         ]);
+        $conn->executeStatement(
+            'UPDATE assessment_deliveries
+             SET status = :status,
+                 activated_by_id = :actor,
+                 activated_at = :activatedAt,
+                 updated_at = :updatedAt
+             WHERE id = :id',
+            [
+                'status' => 'active',
+                'actor' => $ctx['owner']->getId()->toBinary(),
+                'activatedAt' => $pastOpen->format('Y-m-d H:i:s'),
+                'updatedAt' => $pastOpen->format('Y-m-d H:i:s'),
+                'id' => $expiredId->toBinary(),
+            ],
+        );
 
         $this->em->clear();
         $student = $this->users->find($ctx['student']->getId());
