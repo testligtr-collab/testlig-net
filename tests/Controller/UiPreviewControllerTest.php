@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Kernel;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Routing\RouterInterface;
+use Symfony\Component\Yaml\Yaml;
 
 final class UiPreviewControllerTest extends WebTestCase
 {
@@ -98,6 +99,47 @@ final class UiPreviewControllerTest extends WebTestCase
         } finally {
             $kernel->shutdown();
         }
+    }
+
+    public function testProductionSecurityConfigOmitsOnizlemePublicAccessException(): void
+    {
+        $parsed = Yaml::parseFile(\dirname(__DIR__, 2).'/config/packages/security.yaml');
+        self::assertIsArray($parsed);
+        self::assertArrayHasKey('security', $parsed);
+
+        /** @var list<array{path?: string, roles?: string|list<string>}> $rules */
+        $rules = $parsed['security']['access_control'] ?? [];
+        self::assertNotEmpty($rules);
+
+        foreach ($rules as $rule) {
+            $path = (string) ($rule['path'] ?? '');
+            if (!str_contains($path, 'onizleme')) {
+                continue;
+            }
+
+            $roles = $rule['roles'] ?? [];
+            $roleList = \is_array($roles) ? $roles : [$roles];
+            self::assertNotContains(
+                'PUBLIC_ACCESS',
+                $roleList,
+                'Global security.access_control must not open ^/onizleme with PUBLIC_ACCESS.',
+            );
+        }
+
+        $onizlemePublic = array_filter(
+            $rules,
+            static function (array $rule): bool {
+                $path = (string) ($rule['path'] ?? '');
+                if (!str_starts_with($path, '^/onizleme')) {
+                    return false;
+                }
+                $roles = $rule['roles'] ?? [];
+                $roleList = \is_array($roles) ? $roles : [$roles];
+
+                return \in_array('PUBLIC_ACCESS', $roleList, true);
+            },
+        );
+        self::assertSame([], $onizlemePublic);
     }
 
     public function testAccountStillRequiresAuthentication(): void

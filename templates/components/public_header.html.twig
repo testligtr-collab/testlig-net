@@ -38,7 +38,13 @@
         </button>
     </div>
 
-    <div id="mobile-site-nav" class="mobile-drawer" data-mobile-nav-target="drawer" hidden>
+    <div
+        id="mobile-site-nav"
+        class="mobile-drawer"
+        data-mobile-nav-target="drawer"
+        data-action="click->mobile-nav#closeOnNavigate"
+        hidden
+    >
         <nav aria-label="Mobil ana menü">
             <a href="{{ path('app_home') }}">Ana Sayfa</a>
             <a href="{{ path('app_home') }}#siniflar">Sınıflar</a>

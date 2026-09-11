@@ -39,10 +39,38 @@ final class DesignSystemContractTest extends TestCase
     public function testPublicHeaderExposesAccessibilityAttributes(): void
     {
         $header = (string) file_get_contents(\dirname(__DIR__, 2).'/templates/components/public_header.html.twig');
-        self::assertStringContainsString('aria-expanded', $header);
-        self::assertStringContainsString('aria-controls', $header);
+        self::assertMatchesRegularExpression('/aria-controls="mobile-site-nav"/', $header);
+        self::assertMatchesRegularExpression('/aria-expanded="false"/', $header);
+        self::assertMatchesRegularExpression('/id="mobile-site-nav"[\s\S]*?\bhidden\b/', $header);
         self::assertStringContainsString('aria-current', $header);
         self::assertStringContainsString('aria-label="Ana menü"', $header);
+        self::assertStringContainsString('data-action="click->mobile-nav#closeOnNavigate"', $header);
+    }
+
+    public function testMobileNavControllerHandlesEscapeResizeAndCleanup(): void
+    {
+        $js = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/controllers/mobile_nav_controller.js');
+
+        self::assertStringContainsString('disconnect()', $js);
+        self::assertStringContainsString("removeEventListener('keydown'", $js);
+        self::assertStringContainsString("removeEventListener('resize'", $js);
+        self::assertStringContainsString("addEventListener('keydown'", $js);
+        self::assertStringContainsString("addEventListener('resize'", $js);
+        self::assertStringContainsString("event.key === 'Escape'", $js);
+        self::assertStringContainsString('restoreFocus', $js);
+        self::assertStringContainsString('closeOnNavigate', $js);
+        self::assertStringContainsString("const DESKTOP_MQ = '(min-width: 1024px)'", $js);
+        self::assertStringContainsString('matchMedia(DESKTOP_MQ)', $js);
+        self::assertStringContainsString('buttonTarget.focus()', $js);
+    }
+
+    public function testSkipLinkAndFocusVisibleRemainAvailable(): void
+    {
+        $base = (string) file_get_contents(\dirname(__DIR__, 2).'/templates/base.html.twig');
+        $css = (string) file_get_contents(\dirname(__DIR__, 2).'/assets/styles/app.css');
+
+        self::assertStringContainsString('skip-link', $base);
+        self::assertStringContainsString(':focus-visible', $css);
     }
 
     public function testPreviewViewsLiveUnderUiPreviewNamespaceAndAreImmutableDemos(): void
