@@ -10,6 +10,7 @@ use Symfony\Component\Uid\Uuid;
  * Safe student result-review projection governed by an active review policy.
  *
  * Never includes ciphertext, nonce, HMAC, or raw answer-key field names.
+ * Score summary keys are omitted entirely when scoreSummaryIncluded is false.
  */
 final class StudentResultReviewView
 {
@@ -78,32 +79,32 @@ final class StudentResultReviewView
 
     public function getFinalPoints(): ?string
     {
-        return $this->finalPoints;
+        return $this->scoreSummaryIncluded ? $this->finalPoints : null;
     }
 
     public function getMaximumPoints(): ?string
     {
-        return $this->maximumPoints;
+        return $this->scoreSummaryIncluded ? $this->maximumPoints : null;
     }
 
     public function getPercentage(): ?string
     {
-        return $this->percentage;
+        return $this->scoreSummaryIncluded ? $this->percentage : null;
     }
 
     public function getCorrectCount(): ?int
     {
-        return $this->correctCount;
+        return $this->scoreSummaryIncluded ? $this->correctCount : null;
     }
 
     public function getIncorrectCount(): ?int
     {
-        return $this->incorrectCount;
+        return $this->scoreSummaryIncluded ? $this->incorrectCount : null;
     }
 
     public function getUnansweredCount(): ?int
     {
-        return $this->unansweredCount;
+        return $this->scoreSummaryIncluded ? $this->unansweredCount : null;
     }
 
     public function getSensitiveRevealAt(): ?\DateTimeImmutable
@@ -124,7 +125,7 @@ final class StudentResultReviewView
      */
     public function toArray(): array
     {
-        return [
+        $out = [
             'attemptId' => $this->attemptId->toRfc4122(),
             'assessmentId' => $this->assessmentId->toRfc4122(),
             'deliveryId' => $this->deliveryId->toRfc4122(),
@@ -133,17 +134,26 @@ final class StudentResultReviewView
             'releaseNumber' => $this->releaseNumber,
             'releasedAt' => $this->releasedAt->format(\DateTimeInterface::ATOM),
             'scoreSummaryIncluded' => $this->scoreSummaryIncluded,
-            'finalPoints' => $this->finalPoints,
-            'maximumPoints' => $this->maximumPoints,
-            'percentage' => $this->percentage,
-            'correctCount' => $this->correctCount,
-            'incorrectCount' => $this->incorrectCount,
-            'unansweredCount' => $this->unansweredCount,
-            'sensitiveRevealAt' => $this->sensitiveRevealAt?->format(\DateTimeInterface::ATOM),
-            'items' => array_map(
-                static fn (StudentResultReviewItemView $item): array => $item->toArray(),
-                $this->items,
-            ),
         ];
+
+        if ($this->scoreSummaryIncluded) {
+            $out['finalPoints'] = $this->finalPoints;
+            $out['maximumPoints'] = $this->maximumPoints;
+            $out['percentage'] = $this->percentage;
+            $out['correctCount'] = $this->correctCount;
+            $out['incorrectCount'] = $this->incorrectCount;
+            $out['unansweredCount'] = $this->unansweredCount;
+        }
+
+        if (null !== $this->sensitiveRevealAt) {
+            $out['sensitiveRevealAt'] = $this->sensitiveRevealAt->format(\DateTimeInterface::ATOM);
+        }
+
+        $out['items'] = array_map(
+            static fn (StudentResultReviewItemView $item): array => $item->toArray(),
+            $this->items,
+        );
+
+        return $out;
     }
 }

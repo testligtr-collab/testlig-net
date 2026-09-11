@@ -6,6 +6,9 @@ namespace App\Dto;
 
 /**
  * Per-item projection for student result review.
+ *
+ * Sensitive keys are omitted from toArray() when policy/time denies them —
+ * never emitted as null placeholders.
  */
 final class StudentResultReviewItemView
 {
@@ -20,9 +23,12 @@ final class StudentResultReviewItemView
         private readonly string $awardedPoints,
         private readonly string $maximumPoints,
         private readonly string $scoringMethod,
-        private readonly ?array $studentAnswer,
-        private readonly ?CorrectAnswerPresentation $correctAnswer,
-        private readonly ?array $explanation,
+        private readonly bool $includeStudentAnswer,
+        private readonly bool $includeCorrectAnswer,
+        private readonly bool $includeExplanation,
+        private readonly ?array $studentAnswer = null,
+        private readonly ?CorrectAnswerPresentation $correctAnswer = null,
+        private readonly ?array $explanation = null,
     ) {
     }
 
@@ -56,17 +62,32 @@ final class StudentResultReviewItemView
         return $this->scoringMethod;
     }
 
+    public function includesStudentAnswer(): bool
+    {
+        return $this->includeStudentAnswer;
+    }
+
+    public function includesCorrectAnswer(): bool
+    {
+        return $this->includeCorrectAnswer;
+    }
+
+    public function includesExplanation(): bool
+    {
+        return $this->includeExplanation;
+    }
+
     /**
      * @return array<string, mixed>|null
      */
     public function getStudentAnswer(): ?array
     {
-        return $this->studentAnswer;
+        return $this->includeStudentAnswer ? $this->studentAnswer : null;
     }
 
     public function getCorrectAnswer(): ?CorrectAnswerPresentation
     {
-        return $this->correctAnswer;
+        return $this->includeCorrectAnswer ? $this->correctAnswer : null;
     }
 
     /**
@@ -74,7 +95,7 @@ final class StudentResultReviewItemView
      */
     public function getExplanation(): ?array
     {
-        return $this->explanation;
+        return $this->includeExplanation ? $this->explanation : null;
     }
 
     /**
@@ -82,16 +103,25 @@ final class StudentResultReviewItemView
      */
     public function toArray(): array
     {
-        return [
+        $out = [
             'attemptItemId' => $this->attemptItemId,
             'presentationPosition' => $this->presentationPosition,
             'outcome' => $this->outcome,
             'awardedPoints' => $this->awardedPoints,
             'maximumPoints' => $this->maximumPoints,
             'scoringMethod' => $this->scoringMethod,
-            'studentAnswer' => $this->studentAnswer,
-            'correctAnswer' => $this->correctAnswer?->toArray(),
-            'explanation' => $this->explanation,
         ];
+
+        if ($this->includeStudentAnswer) {
+            $out['studentAnswer'] = $this->studentAnswer;
+        }
+        if ($this->includeCorrectAnswer) {
+            $out['correctAnswer'] = $this->correctAnswer?->toArray();
+        }
+        if ($this->includeExplanation) {
+            $out['explanation'] = $this->explanation;
+        }
+
+        return $out;
     }
 }
