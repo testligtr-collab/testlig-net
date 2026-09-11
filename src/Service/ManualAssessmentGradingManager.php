@@ -103,7 +103,10 @@ final class ManualAssessmentGradingManager
                 );
 
                 $now = $this->utcNow();
-                $decisionNumber = $this->decisions->findMaxDecisionNumber($itemId) + 1;
+                $decisionNumber = $this->decisions->findMaxDecisionNumberForRunItem(
+                    $lockedRun->getId(),
+                    $itemId,
+                ) + 1;
                 $decision = AssessmentManualGradeDecision::record(
                     $lockedRun,
                     $itemScore->getAttemptItem(),
@@ -115,11 +118,10 @@ final class ManualAssessmentGradingManager
                     $now,
                 );
                 $this->decisions->save($decision, false);
+                // Decision must be durable before item_score can transition (DB BI/BU contract).
+                $this->entityManager->flush();
 
                 $itemScore->applyManualGrade($normalizedAwarded, $freshActor, $reasonCode, $now);
-
-                // Flush item/decision while run is still pending_manual. Completing the run in the
-                // same UoW would make AssessmentScoringImmutabilityListener see a terminal status.
                 $this->entityManager->flush();
 
                 $allScores = $this->itemScores->findAllForRun($lockedRun->getId());

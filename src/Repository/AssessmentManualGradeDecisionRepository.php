@@ -36,6 +36,20 @@ class AssessmentManualGradeDecisionRepository extends ServiceEntityRepository
         return null === $max ? 0 : (int) $max;
     }
 
+    public function findMaxDecisionNumberForRunItem(Uuid $scoringRunId, Uuid $attemptItemId): int
+    {
+        $max = $this->createQueryBuilder('d')
+            ->select('MAX(d.decisionNumber)')
+            ->andWhere('d.scoringRun = :runId')
+            ->andWhere('d.attemptItem = :itemId')
+            ->setParameter('runId', $scoringRunId, 'uuid')
+            ->setParameter('itemId', $attemptItemId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return null === $max ? 0 : (int) $max;
+    }
+
     /**
      * @return list<AssessmentManualGradeDecision>
      */

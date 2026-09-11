@@ -16,6 +16,7 @@ use App\Repository\AssessmentItemScoreRepository;
 use App\Repository\AssessmentResultReleaseRepository;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Reads the active released result for an attempt (never unpublished regrades).
@@ -33,14 +34,23 @@ final class AssessmentResultReader
 
     public function readReleasedResult(User $actor, AssessmentAttempt $attempt): StudentResultView
     {
-        return $this->entityManager->wrapInTransaction(function () use ($actor, $attempt): StudentResultView {
-            $this->accessGate->assertCanViewResult($actor, $attempt);
+        $attemptId = $attempt->getId();
 
-            $release = $this->releases->findActiveReleasedForAttempt($attempt->getId());
+        return $this->entityManager->wrapInTransaction(function () use ($actor, $attemptId): StudentResultView {
+            $freshAttempt = $this->requireFreshAttempt($attemptId);
+            // AccessGate reloads actor by UUID with HINT_REFRESH; ignore identity-map User state.
+            $this->accessGate->assertCanViewResult($actor, $freshAttempt);
+
+            $release = $this->releases->findActiveReleasedForAttempt($attemptId);
             if (!$release instanceof AssessmentResultRelease
                 || ResultReleaseStatus::Released !== $release->getStatus()
             ) {
                 throw AssessmentScoringException::resultNotReleased();
+            }
+            if (!$release->getAttempt()->getId()->equals($attemptId)
+                || !$release->getScoringRun()->getAttempt()->getId()->equals($attemptId)
+            ) {
+                throw AssessmentScoringException::scopeMismatch();
             }
 
             $releasedAt = $release->getReleasedAt();
@@ -51,11 +61,14 @@ final class AssessmentResultReader
             $run = $release->getScoringRun();
             $scoresByItem = [];
             foreach ($this->itemScores->findAllForRun($run->getId()) as $score) {
+                if (!$score->getAttempt()->getId()->equals($attemptId)) {
+                    throw AssessmentScoringException::scopeMismatch();
+                }
                 $scoresByItem[$score->getAttemptItem()->getId()->toRfc4122()] = $score;
             }
 
             $items = [];
-            foreach ($this->attemptItems->findItemsForAttemptOrdered($attempt->getId()) as $attemptItem) {
+            foreach ($this->attemptItems->findItemsForAttemptOrdered($attemptId) as $attemptItem) {
                 $score = $scoresByItem[$attemptItem->getId()->toRfc4122()] ?? null;
                 if (!$score instanceof AssessmentItemScore) {
                     continue;
@@ -71,8 +84,8 @@ final class AssessmentResultReader
             }
 
             return new StudentResultView(
-                $attempt->getId(),
-                $attempt->getAssessment()->getId(),
+                $attemptId,
+                $freshAttempt->getAssessment()->getId(),
                 $release->getReleaseNumber(),
                 UtcInstant::ensure($releasedAt),
                 $run->getFinalPoints(),
@@ -84,5 +97,22 @@ final class AssessmentResultReader
                 $items,
             );
         });
+    }
+
+    private function requireFreshAttempt(Uuid $attemptId): AssessmentAttempt
+    {
+        $qb = $this->entityManager->createQueryBuilder()
+            ->select('a')
+            ->from(AssessmentAttempt::class, 'a')
+            ->where('a.id = :id')
+            ->setParameter('id', $attemptId, 'uuid');
+        $query = $qb->getQuery();
+        $query->setHint(\Doctrine\ORM\Query::HINT_REFRESH, true);
+        $attempt = $query->getOneOrNullResult();
+        if (!$attempt instanceof AssessmentAttempt) {
+            throw AssessmentScoringException::notFound();
+        }
+
+        return $attempt;
     }
 }
