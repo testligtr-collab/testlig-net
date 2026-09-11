@@ -336,9 +336,13 @@ final class AssessmentAnalyticsReader
                 $suppression = AnalyticsSuppression::of(AnalyticsSuppressionReason::NoReleasedResults);
             }
 
+            // Order by immutable blueprint positions snapshotted on attempt items
+            // (section_position / item_position). Never use presentation_position — that is
+            // per-attempt shuffle order and MIN() would drift as the cohort grows.
             $rows = $this->connection->fetchAllAssociative(
                 'SELECT s.question_id, s.question_revision_id,
-                        MIN(ai.presentation_position) AS presentation_position,
+                        MIN(ai.section_position) AS section_position,
+                        MIN(ai.item_position) AS item_position,
                         COUNT(*) AS scored_response_count,
                         SUM(CASE WHEN s.outcome = :correct THEN 1 ELSE 0 END) AS correct_count,
                         SUM(CASE WHEN s.outcome = :incorrect THEN 1 ELSE 0 END) AS incorrect_count,
@@ -357,7 +361,8 @@ final class AssessmentAnalyticsReader
                  INNER JOIN assessment_item_scores s ON s.scoring_run_id = sr.id
                  INNER JOIN assessment_attempt_items ai ON ai.id = s.attempt_item_id
                  GROUP BY s.question_id, s.question_revision_id
-                 ORDER BY presentation_position ASC',
+                 ORDER BY section_position ASC, item_position ASC,
+                          s.question_id ASC, s.question_revision_id ASC',
                 [
                     'deliveryId' => $deliveryId->toBinary(),
                     'released' => ResultReleaseStatus::Released->value,
@@ -392,7 +397,8 @@ final class AssessmentAnalyticsReader
                 $views[] = new QuestionAnalyticsView(
                     Uuid::fromBinary((string) $row['question_id']),
                     Uuid::fromBinary((string) $row['question_revision_id']),
-                    (int) $row['presentation_position'],
+                    (int) $row['section_position'],
+                    (int) $row['item_position'],
                     $scored,
                     $suppression,
                     $outcomes,
