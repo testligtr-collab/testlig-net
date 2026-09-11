@@ -87,6 +87,9 @@ final class SecurityAuditMetadataSanitizer
         'unanswered_count',
         'manual_pending_count',
         'status',
+        'policy_id',
+        'policy_version',
+        'availability_mode',
     ];
 
     /**

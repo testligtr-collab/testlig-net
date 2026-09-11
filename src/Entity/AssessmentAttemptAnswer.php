@@ -40,6 +40,12 @@ class AssessmentAttemptAnswer
     #[ORM\Column(name: 'answer_nonce', type: Types::BLOB)]
     private mixed $answerNonce;
 
+    /** @var string|null in-memory cache after first BLOB stream read (not persisted) */
+    private ?string $answerCiphertextCache = null;
+
+    /** @var string|null in-memory cache after first BLOB stream read (not persisted) */
+    private ?string $answerNonceCache = null;
+
     #[ORM\Column(name: 'encryption_version')]
     private int $encryptionVersion;
 
@@ -74,6 +80,8 @@ class AssessmentAttemptAnswer
         $this->attemptItem = $attemptItem;
         $this->answerCiphertext = $answerCiphertext;
         $this->answerNonce = $answerNonce;
+        $this->answerCiphertextCache = $answerCiphertext;
+        $this->answerNonceCache = $answerNonce;
         $this->encryptionVersion = $encryptionVersion;
         $this->clientRevision = 1;
         $this->answeredAt = $answeredAt;
@@ -118,6 +126,8 @@ class AssessmentAttemptAnswer
         }
         $this->answerCiphertext = $answerCiphertext;
         $this->answerNonce = $answerNonce;
+        $this->answerCiphertextCache = $answerCiphertext;
+        $this->answerNonceCache = $answerNonce;
         $this->encryptionVersion = $encryptionVersion;
         $this->answeredAt = $answeredAt;
         $this->updatedAt = $answeredAt;
@@ -151,13 +161,25 @@ class AssessmentAttemptAnswer
     #[Ignore]
     public function getAnswerCiphertext(): string
     {
-        return $this->normalizeBinary($this->answerCiphertext);
+        if (null !== $this->answerCiphertextCache) {
+            return $this->answerCiphertextCache;
+        }
+
+        $this->answerCiphertextCache = $this->normalizeBinary($this->answerCiphertext);
+
+        return $this->answerCiphertextCache;
     }
 
     #[Ignore]
     public function getAnswerNonce(): string
     {
-        return $this->normalizeBinary($this->answerNonce);
+        if (null !== $this->answerNonceCache) {
+            return $this->answerNonceCache;
+        }
+
+        $this->answerNonceCache = $this->normalizeBinary($this->answerNonce);
+
+        return $this->answerNonceCache;
     }
 
     public function getEncryptionVersion(): int

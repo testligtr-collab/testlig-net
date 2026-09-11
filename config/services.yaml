@@ -63,6 +63,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\AssessmentResultReviewCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
@@ -231,6 +235,22 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\AssessmentResultReader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultReviewPolicyManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultReviewAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultReviewReader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\ResultReview\AssessmentResultReviewPolicyHasher:
             public: true
             autowire: true
             autoconfigure: true
