@@ -366,6 +366,115 @@ trait AssessmentDeliveryTestFixtures
     }
 
     /**
+     * Multi-section / multi-item platform assessment with shuffle so attempt presentation_position
+     * can diverge from immutable blueprint section/item positions.
+     *
+     * @return array{
+     *     assessment: Assessment,
+     *     publication: AssessmentPublication,
+     *     questions: list<Question>,
+     *     revisions: list<QuestionRevision>
+     * }
+     */
+    private function publishShuffledMultiItemPlatformAssessment(User $sa, User $reviewer, string $suffix): array
+    {
+        $subject = $this->subjects()->create($sa, 'math_'.$suffix, 'Math '.$suffix, 'create_subj');
+        $draft = $this->programs()->createDraft($subject, $sa, GradeLevel::Grade9, 'math_'.$suffix, 'Math', '1.0', 'prog');
+        $unit = $this->units()->create($draft, $sa, 'u1', 'Unit', 1, 'create_u');
+        $topic = $this->topics()->createRoot($unit, $sa, 't1', 'Topic', 1, 'create_t');
+        $lo = $this->outcomes()->create($topic, $sa, 'lo_'.$suffix, 'Outcome', 1, 'create_lo');
+        $this->programs()->publish($draft, $sa, 'pub_curr');
+
+        /** @var QuestionRevisionRepository $qRevisions */
+        $qRevisions = static::getContainer()->get(QuestionRevisionRepository::class);
+        $questions = [];
+        $revisions = [];
+        for ($i = 1; $i <= 3; ++$i) {
+            $question = $this->createPublishedPlatformQuestion($sa, $reviewer, $subject, $lo, $suffix.'_q'.$i);
+            $qRevision = $qRevisions->findForQuestionNumber($question, 1);
+            self::assertInstanceOf(QuestionRevision::class, $qRevision);
+            $questions[] = $question;
+            $revisions[] = $qRevision;
+        }
+
+        $assessment = $this->assessments()->createDraftAssessment(
+            $sa,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade9,
+            'Shuffled Blueprint '.$suffix,
+            null,
+            null,
+            3600,
+            NavigationMode::Free,
+            QuestionOrderMode::Shuffle,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Immediate,
+            null,
+            [
+                [
+                    'title' => 'Section A',
+                    'position' => 1,
+                    'questionOrderMode' => QuestionOrderMode::Shuffle,
+                    'items' => [
+                        [
+                            'questionId' => $questions[0]->getId(),
+                            'questionRevisionId' => $revisions[0]->getId(),
+                            'position' => 1,
+                            'points' => '1.00',
+                            'penaltyPoints' => '0.00',
+                            'required' => true,
+                        ],
+                        [
+                            'questionId' => $questions[1]->getId(),
+                            'questionRevisionId' => $revisions[1]->getId(),
+                            'position' => 2,
+                            'points' => '1.00',
+                            'penaltyPoints' => '0.00',
+                            'required' => true,
+                        ],
+                    ],
+                ],
+                [
+                    'title' => 'Section B',
+                    'position' => 2,
+                    'questionOrderMode' => QuestionOrderMode::Shuffle,
+                    'items' => [[
+                        'questionId' => $questions[2]->getId(),
+                        'questionRevisionId' => $revisions[2]->getId(),
+                        'position' => 1,
+                        'points' => '1.00',
+                        'penaltyPoints' => '0.00',
+                        'required' => true,
+                    ]],
+                ],
+            ],
+            'create_a_shuf',
+        );
+        $this->assessments()->submitForReview($assessment, $sa, 'submit_a_shuf');
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+        $reviewer = $this->users->find($reviewer->getId());
+        self::assertInstanceOf(User::class, $reviewer);
+        $this->assessments()->publish($assessment, $reviewer, 'publish_a_shuf');
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+
+        /** @var AssessmentPublicationRepository $pubs */
+        $pubs = static::getContainer()->get(AssessmentPublicationRepository::class);
+        $publication = $pubs->findOneBy(['assessment' => $assessment, 'publicationNumber' => 1]);
+        self::assertInstanceOf(AssessmentPublication::class, $publication);
+
+        return [
+            'assessment' => $assessment,
+            'publication' => $publication,
+            'questions' => $questions,
+            'revisions' => $revisions,
+        ];
+    }
+
+    /**
      * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable}
      */
     private function defaultWindow(): array

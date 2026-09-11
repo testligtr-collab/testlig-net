@@ -99,4 +99,9 @@ enum SecurityAuditAction: string
     case AssessmentResultReviewPolicyUpdated = 'assessment_result_review_policy_updated';
     case AssessmentResultReviewPolicyActivated = 'assessment_result_review_policy_activated';
     case AssessmentResultReviewPolicySuperseded = 'assessment_result_review_policy_superseded';
+    case AssessmentAnalyticsViewed = 'assessment_analytics_viewed';
+    case ClassroomAnalyticsViewed = 'classroom_analytics_viewed';
+    case StudentAnalyticsViewed = 'student_analytics_viewed';
+    case QuestionAnalyticsViewed = 'question_analytics_viewed';
+    case LearningOutcomeAnalyticsViewed = 'learning_outcome_analytics_viewed';
 }

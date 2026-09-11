@@ -250,6 +250,22 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\AssessmentAnalyticsAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentAnalyticsReader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Analytics\AnalyticsPrivacyPolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Analytics\AnalyticsMetricsPolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\ResultReview\AssessmentResultReviewPolicyHasher:
             public: true
             autowire: true
