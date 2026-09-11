@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Enum\ResultReviewAvailabilityMode;
 use App\Tests\Support\AssessmentResultReviewTestFixtures;
 use App\Tests\Support\JsonKeyTree;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -38,6 +39,20 @@ final class AssessmentResultReviewSecurityLeakTest extends KernelTestCase
         'encryptionVersion',
         'encryption_version',
         'QUESTION_ANSWER_INTEGRITY_KEY',
+        'ATTEMPT_ANSWER_ENCRYPTION_KEY',
+        'email',
+        'normalizedEmail',
+        'ip',
+        'userAgent',
+    ];
+
+    private const SCORE_SUMMARY_KEYS = [
+        'finalPoints',
+        'maximumPoints',
+        'percentage',
+        'correctCount',
+        'incorrectCount',
+        'unansweredCount',
     ];
 
     protected function setUp(): void
@@ -105,5 +120,148 @@ final class AssessmentResultReviewSecurityLeakTest extends KernelTestCase
             self::assertStringNotContainsString('ciphertext', $msg);
             self::assertStringNotContainsString('hmac', strtolower($msg));
         }
+    }
+
+    public function testScoreSummaryKeysOmittedWhenDisabled(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy(
+            'arrsl3',
+            showScoreSummary: false,
+            showItemOutcomes: true,
+            showStudentAnswer: false,
+            showCorrectAnswer: false,
+            showExplanation: false,
+        );
+
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        self::assertFalse($view->isScoreSummaryIncluded());
+        $payload = $view->toArray();
+        self::assertArrayHasKey('scoreSummaryIncluded', $payload);
+        self::assertFalse($payload['scoreSummaryIncluded']);
+        foreach (self::SCORE_SUMMARY_KEYS as $key) {
+            self::assertArrayNotHasKey($key, $payload);
+        }
+        self::assertNotContains('studentAnswer', JsonKeyTree::collectKeys($payload));
+    }
+
+    public function testStudentAnswerKeyOmittedWhenFlagFalse(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy(
+            'arrsl4',
+            showStudentAnswer: false,
+            showCorrectAnswer: false,
+            showExplanation: false,
+        );
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $tree = JsonKeyTree::collectKeys($view->toArray());
+        self::assertNotContains('studentAnswer', $tree);
+        self::assertNotContains('correctAnswer', $tree);
+        self::assertNotContains('explanation', $tree);
+        self::assertContains('outcome', $tree);
+    }
+
+    public function testCorrectAnswerAndExplanationKeysOmittedBeforeClosesAt(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy('arrsl5');
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $tree = JsonKeyTree::collectKeys($view->toArray());
+        self::assertContains('studentAnswer', $tree);
+        self::assertNotContains('correctAnswer', $tree);
+        self::assertNotContains('explanation', $tree);
+    }
+
+    public function testCorrectAnswerAndExplanationKeysPresentAfterClosesAt(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy('arrsl6');
+        $delivery = $this->reloadDelivery($fx['delivery']->getId());
+        Clock::set(new MockClock($delivery->getClosesAt()->modify('+1 hour')));
+
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $payload = $view->toArray();
+        $tree = JsonKeyTree::collectKeys($payload);
+        self::assertContains('correctAnswer', $tree);
+        self::assertContains('explanation', $tree);
+        self::assertContains('studentAnswer', $tree);
+        self::assertArrayHasKey('items', $payload);
+        self::assertNotEmpty($payload['items']);
+        self::assertArrayHasKey('correctAnswer', $payload['items'][0]);
+        self::assertIsArray($payload['items'][0]['correctAnswer']);
+        self::assertArrayHasKey('questionType', $payload['items'][0]['correctAnswer']);
+    }
+
+    public function testCancelledDeliveryOmitsSensitiveKeys(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy('arrsl7');
+        $delivery = $this->reloadDelivery($fx['delivery']->getId());
+        $this->deliveries()->cancel(
+            $delivery,
+            $this->reloadUser($fx['owner']->getId()),
+            'cancel_arrsl7',
+            'cancelled_for_dto_keys',
+        );
+        Clock::set(new MockClock($delivery->getClosesAt()->modify('+1 day')));
+
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $tree = JsonKeyTree::collectKeys($view->toArray());
+        self::assertNotContains('correctAnswer', $tree);
+        self::assertNotContains('explanation', $tree);
+    }
+
+    public function testFiveQuestionTypesPresentationOmitsRawAnswerKeyNames(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy('arrsl8');
+        $delivery = $this->reloadDelivery($fx['delivery']->getId());
+        Clock::set(new MockClock($delivery->getClosesAt()->modify('+2 hours')));
+
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $tree = JsonKeyTree::collectKeys($view->toArray());
+        foreach (['correctStableKey', 'correctStableKeys', 'acceptedAnswers', 'answerPayload'] as $forbidden) {
+            self::assertNotContains($forbidden, $tree);
+        }
+        self::assertContains('stableKey', $tree);
+    }
+
+    public function testNeverModeOmitsItemSensitiveKeys(): void
+    {
+        [$attempt, , $fx] = $this->submitScoreReleaseWithPolicy(
+            'arrsl9',
+            ResultReviewAvailabilityMode::Never,
+            showScoreSummary: true,
+            showItemOutcomes: false,
+            showStudentAnswer: false,
+            showCorrectAnswer: false,
+            showExplanation: false,
+        );
+        $view = $this->reviewReader()->readReview(
+            $this->reloadUser($fx['student']->getId()),
+            $this->reloadAttempt($attempt->getId()),
+        );
+        $payload = $view->toArray();
+        self::assertSame([], $payload['items']);
+        foreach (self::SCORE_SUMMARY_KEYS as $key) {
+            self::assertArrayHasKey($key, $payload);
+        }
+        $tree = JsonKeyTree::collectKeys($payload);
+        self::assertNotContains('studentAnswer', $tree);
+        self::assertNotContains('correctAnswer', $tree);
+        self::assertNotContains('explanation', $tree);
     }
 }

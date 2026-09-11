@@ -143,7 +143,8 @@
   - **Cancelled delivery:** doğru cevap / açıklama otomatik reveal yok (fail-closed / `delivery_not_safely_closed` semantiği).
   - **Flag kuralları:** `never` ⇒ item/student/correct/explanation false; `showCorrectAnswer` veya `showExplanation` ⇒ `showItemOutcomes` true.
   - **StudentResultReviewView:** skor özeti (opsiyonel), item outcomes, sanitize student answer, `CorrectAnswerPresentation` (stableKey/stableKeys/booleanValue/numericValue/acceptedTexts — ham `correctStableKey` yok), explanation content; ciphertext/HMAC/policyHash yok.
-  - **Yetki:** Manage policy = Owner/Manager + SUPER_ADMIN (Teacher deny). **StudentResultReviewView okuma = yalnız kendi attempt’ına sahip active student (+ SUPER_ADMIN override)**; Teacher/Owner/Manager öğrenci review DTO’sunu alamaz (öğretmen analiz DTO’su sonraki aşama).
+  - **Yetki:** Manage policy = Owner/Manager + SUPER_ADMIN (Teacher deny). **StudentResultReviewView okuma = yalnız attempt sahibi active+verified student + eligible recipient zinciri**; SUPER_ADMIN dahil hiçbir privileged rol başka (veya sahip olunmayan) öğrenci review DTO’sunu okuyamaz. Teacher/Owner/Manager/Staff/ADMIN/MODERATOR öğrenci review DTO’sunu alamaz (öğretmen analiz DTO’su sonraki aşama).
+  - **DTO alan görünürlüğü:** `toArray()` yalnız policy+zaman izinli anahtarları içerir; `studentAnswer` / `correctAnswer` / `explanation` ve skor özeti alanları izin yoksa null placeholder olarak değil, anahtar olarak hiç çıkmaz.
   - **Kilit sırası:** Institution → Delivery WRITE → Users → Policy → audit. Activate: previous active supersede + flush → new activate (guard AU/AI çakışmasın).
   - **Integrity:** `AssessmentResultReviewPolicyHasher` canonical JSON + SHA-256; read path verify. Answer-key HMAC doğru cevap dahil edilmeden önce; decrypt yalnız `showStudentAnswer` + item outcomes açıkken.
   - **Audit:** `assessment_result_review_policy_*`; metadata allowlist `policy_id` / `policy_version` / `availability_mode` (+ mevcut ids).

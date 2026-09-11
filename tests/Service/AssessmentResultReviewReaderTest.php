@@ -286,6 +286,9 @@ final class AssessmentResultReviewReaderTest extends KernelTestCase
         );
         self::assertNull($view->getItems()[0]->getCorrectAnswer());
         self::assertNull($view->getItems()[0]->getExplanation());
+        $itemPayload = $view->getItems()[0]->toArray();
+        self::assertArrayNotHasKey('correctAnswer', $itemPayload);
+        self::assertArrayNotHasKey('explanation', $itemPayload);
     }
 
     public function testTeacherAndOwnerCannotReadStudentReviewDto(): void
