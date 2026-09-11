@@ -14,7 +14,9 @@ final class HomeControllerTest extends WebTestCase
         $client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'Testlig');
-        self::assertSelectorTextContains('p', 'Yeni eğitim platformu hazırlanıyor.');
+        self::assertSelectorTextContains('h1', 'Öğren, çöz, gelişimini gör.');
+        self::assertSelectorExists('a.skip-link');
+        self::assertSelectorExists('header.site-header');
+        self::assertSelectorTextContains('body', 'Testlig nasıl yardımcı olur?');
     }
 }
