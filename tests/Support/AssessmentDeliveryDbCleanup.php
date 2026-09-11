@@ -12,6 +12,9 @@ use PHPUnit\Framework\Assert;
  *
  * Deletes parent deliveries; recipients cascade. Does not use FOREIGN_KEY_CHECKS
  * or session-variable bypasses.
+ *
+ * Review policies (active/superseded) are append-only; MariaDB CASCADE from
+ * delivery DELETE clears them without firing child BEFORE DELETE triggers.
  */
 final class AssessmentDeliveryDbCleanup
 {
@@ -19,6 +22,8 @@ final class AssessmentDeliveryDbCleanup
     {
         // Attempts RESTRICT on delivery — wipe attempts first.
         AssessmentAttemptDbCleanup::deleteAttempts($connection);
+        // Draft review policies (if any remaining) before delivery delete.
+        AssessmentAttemptDbCleanup::deleteReviewPolicyRows($connection);
 
         $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessment_deliveries'])) {
@@ -30,7 +35,12 @@ final class AssessmentDeliveryDbCleanup
     public static function assertDeliveryTablesEmpty(Connection $connection): void
     {
         $schema = $connection->createSchemaManager();
-        foreach (['assessment_delivery_recipients', 'assessment_deliveries'] as $table) {
+        foreach ([
+            'assessment_result_active_review_policy_guards',
+            'assessment_result_review_policies',
+            'assessment_delivery_recipients',
+            'assessment_deliveries',
+        ] as $table) {
             if (!$schema->tablesExist([$table])) {
                 continue;
             }

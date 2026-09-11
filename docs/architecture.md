@@ -124,7 +124,7 @@
   - **Güvenlik:** Answer-key HMAC puanlama öncesi verify; öğrenci cevabı yalnız işlem belleğinde XChaCha20-Poly1305 decrypt + AAD; ciphertext/nonce/plaintext/HMAC/key audit/log/exception/DTO’ya yazılmaz. Hatalı item → transaction rollback; yarım item score commit yok; başarı audit yok.
   - **Attempt uygunluğu:** yalnız `submitted` | `expired`. `in_progress` / `cancelled` puanlanamaz. Snapshot = attempt materialize revision; canlı soru versiyonuna geçilmez; publication integrity verify.
   - **Result release:** yalnız `completed` run yayımlanır; `pending_manual`/`failed` reddedilir. `release_number` monoton UNIQUE; tek aktif `released` guard (DB). Yeni release önceki aktifi `superseded` yapar; `withdraw` geçmişi silmez. Öğrenci yalnız active release’e bağlı scoring run’ı görür (en son run sorgusu yok).
-  - **StudentResultView:** attempt/assessment ids, releaseNumber/releasedAt, final/maximum/percentage, sayaçlar, item outcome özeti — doğru cevap / answerPayload / HMAC / ciphertext yok. Review-policy (açıklama) sonraki aşama.
+  - **StudentResultView:** attempt/assessment ids, releaseNumber/releasedAt, final/maximum/percentage, sayaçlar, item outcome özeti — doğru cevap / answerPayload / HMAC / ciphertext yok.
   - **Yetki (`AssessmentResultAccessGate`):** Student kendi released sonucu; Owner/Manager kurum sonuçları + release + manuel; Teacher yalnız aktif sınıf/ders coverage (manuel + view); Staff deny; SUPER_ADMIN active+verified override; ADMIN/MODERATOR otomatik tenant yok; ROLE_TEACHER tek başına tenant yok.
   - **Kilit sırası (scoring):** Delivery READ → Recipient READ → Institution/User/Membership → Attempt WRITE → Publication/Revision verify → ScoringRun/ItemScores → audit (aynı TX). Manuel: ScoringRun WRITE → item → decision append → audit. Release: ScoringRun READ → previous Release WRITE (supersede flush) → new Release → audit.
   - **Idempotency / regrade:** aynı `reasonCode` ile ilk score tamamlanmış/pending_manual run’a idempotent dönüş; `regradeAttempt` yeni `runNumber`. Concurrent ilk run → conflict/unique.
@@ -134,6 +134,23 @@
   - **Test cleanup:** `AssessmentAttemptDbCleanup` önce manual decisions / item scores / release guards / releases / scoring runs siler.
   - **Bilinen sınırlama:** multi-process parallel concurrency harness yok; constraint + lock + TX revalidation sınırı. Controller/UI/API/PDF/analitik/leaderboard yok.
   - **Pre-merge hardening (`Version20260911120000`):** scoring run INSERT yalnız `processing` + sıfır aggregates; completed/pending_manual geçişinde item coverage + aggregate/sayaç/yüzde DB doğrulaması; release aynı defense-in-depth; manual decision BI + item_score BU decision-binding; run/release/decision numaraları monoton `MAX+1`; AccessGate actor’ü HINT_REFRESH fresh yükler (stale SUPER_ADMIN/status override yok); numeric scoring string-only (PHP float yok).
+- **Sonuç inceleme politikası (Aşama 2.13):** Versioned `AssessmentResultReviewPolicy` per delivery + `AssessmentResultActiveReviewPolicyGuard`. UI/controller/API yok.
+  - **Default fail-closed:** Aktif review policy yoksa `AssessmentResultReviewReader` tüm review DTO’yu reddeder (`review_policy_not_active`). Skor özeti Stage 2.12 `AssessmentResultReader` ile policy’siz çalışmaya devam eder (kırılmaz).
+  - **availabilityMode:**
+    - `never` → item-level review yok (outcomes/student/correct/explanation false zorunlu); `showScoreSummary=true` ise aktif policy ile review DTO’da yalnız skor özeti.
+    - `after_delivery_closed` → item outcomes / student answer flag’lere göre release sonrası; **doğru cevap ve açıklama asla `closesAt` öncesi**; `now >= closesAt` ve delivery cancelled değilse flag’lere göre açılır.
+    - `scheduled_after_close` → `scheduledAt` zorunlu; sensitive reveal = `max(scheduledAt, closesAt)`.
+  - **Cancelled delivery:** doğru cevap / açıklama otomatik reveal yok (fail-closed / `delivery_not_safely_closed` semantiği).
+  - **Flag kuralları:** `never` ⇒ item/student/correct/explanation false; `showCorrectAnswer` veya `showExplanation` ⇒ `showItemOutcomes` true.
+  - **StudentResultReviewView:** skor özeti (opsiyonel), item outcomes, sanitize student answer, `CorrectAnswerPresentation` (stableKey/stableKeys/booleanValue/numericValue/acceptedTexts — ham `correctStableKey` yok), explanation content; ciphertext/HMAC/policyHash yok.
+  - **Yetki:** Manage policy = Owner/Manager + SUPER_ADMIN (Teacher deny). **StudentResultReviewView okuma = yalnız attempt sahibi active+verified student + eligible recipient zinciri**; SUPER_ADMIN dahil hiçbir privileged rol başka (veya sahip olunmayan) öğrenci review DTO’sunu okuyamaz. Teacher/Owner/Manager/Staff/ADMIN/MODERATOR öğrenci review DTO’sunu alamaz (öğretmen analiz DTO’su sonraki aşama).
+  - **DTO alan görünürlüğü:** `toArray()` yalnız policy+zaman izinli anahtarları içerir; `studentAnswer` / `correctAnswer` / `explanation` ve skor özeti alanları izin yoksa null placeholder olarak değil, anahtar olarak hiç çıkmaz.
+  - **Kilit sırası:** Institution → Delivery WRITE → Users → Policy → audit. Activate: previous active supersede + flush → new activate (guard AU/AI çakışmasın).
+  - **Integrity:** `AssessmentResultReviewPolicyHasher` canonical JSON + SHA-256; read path verify. Answer-key HMAC doğru cevap dahil edilmeden önce; decrypt yalnız `showStudentAnswer` + item outcomes açıkken.
+  - **Audit:** `assessment_result_review_policy_*`; metadata allowlist `policy_id` / `policy_version` / `availability_mode` (+ mevcut ids).
+  - **DB:** `Version20260911200000` + composite FK listener + immutability listener. UNIQUE(delivery, version), active guard, CHECK flags/mode/lifecycle, sequential version MAX+1, active/superseded content immutable + DELETE engeli (draft DELETE serbest). Bypass/`FOREIGN_KEY_CHECKS` yok. Irreversible down.
+  - **Test cleanup:** review guards/policies attempt cleanup öncesi (draft); active/superseded delivery CASCADE.
+  - **Bilinen sınırlama:** multi-process harness yok; Stage 2.14 (HTTP/UI) yok; explanation yalnızca revision snapshot’tan.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 

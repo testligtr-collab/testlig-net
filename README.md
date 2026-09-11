@@ -158,6 +158,14 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Öğrenci yalnız active release + `StudentResultView` (cevap anahtarı/ciphertext yok). Regrade yeni run; eski release sessizce değişmez.
 - UI/controller/API/PDF/raporlama yok. Migration: `Version20260910900000`.
 
+### Sonuç inceleme politikası (Aşama 2.13)
+
+- Versioned `AssessmentResultReviewPolicy` per `AssessmentDelivery` + `AssessmentResultActiveReviewPolicyGuard` (tek aktif).
+- Fail-closed: aktif policy yoksa `AssessmentResultReviewReader` → `review_policy_not_active`; skor özeti Stage 2.12 `AssessmentResultReader` ile çalışmaya devam eder.
+- `availabilityMode`: `never` | `after_delivery_closed` | `scheduled_after_close`. Doğru cevap / açıklama asla `closesAt` öncesi; iptal delivery’de otomatik reveal yok.
+- `StudentResultReviewView` yalnız attempt sahibi active student + eligible recipient; SUPER_ADMIN policy yönetebilir fakat öğrenci DTO okuyamaz. İzinsiz alan anahtarları `toArray()` çıktısında yer almaz.
+- UI/controller/API yok. Migration: `Version20260911200000`.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):

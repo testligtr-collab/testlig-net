@@ -95,4 +95,8 @@ enum SecurityAuditAction: string
     case AssessmentResultReleased = 'assessment_result_released';
     case AssessmentResultSuperseded = 'assessment_result_superseded';
     case AssessmentResultWithdrawn = 'assessment_result_withdrawn';
+    case AssessmentResultReviewPolicyCreated = 'assessment_result_review_policy_created';
+    case AssessmentResultReviewPolicyUpdated = 'assessment_result_review_policy_updated';
+    case AssessmentResultReviewPolicyActivated = 'assessment_result_review_policy_activated';
+    case AssessmentResultReviewPolicySuperseded = 'assessment_result_review_policy_superseded';
 }
