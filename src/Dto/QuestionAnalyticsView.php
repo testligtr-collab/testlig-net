@@ -10,6 +10,11 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Per-question aggregate analytics for a delivery's active released results.
  *
+ * Ordering uses immutable blueprint section/item positions (not shuffled presentation_position).
+ *
+ * Under cohort suppression, only identity + suppression metadata are exposed — outcome counts and
+ * rates would otherwise reveal a single student's item performance when cohort size is 1–4.
+ *
  * Option distribution is intentionally omitted in Stage 2.14: selectedStableKey is only
  * available inside encrypted attempt answers; aggregate option counts would require decrypt.
  *
@@ -23,7 +28,8 @@ final class QuestionAnalyticsView
     public function __construct(
         private readonly Uuid $questionId,
         private readonly Uuid $questionRevisionId,
-        private readonly int $presentationPosition,
+        private readonly int $sectionPosition,
+        private readonly int $itemPosition,
         private readonly int $scoredResponseCount,
         private readonly AnalyticsSuppression $suppression,
         private readonly OutcomeCountBreakdown $outcomes,
@@ -42,14 +48,19 @@ final class QuestionAnalyticsView
         return $this->questionRevisionId;
     }
 
-    public function getPresentationPosition(): int
+    public function getSectionPosition(): int
     {
-        return $this->presentationPosition;
+        return $this->sectionPosition;
     }
 
-    public function getScoredResponseCount(): int
+    public function getItemPosition(): int
     {
-        return $this->scoredResponseCount;
+        return $this->itemPosition;
+    }
+
+    public function getScoredResponseCount(): ?int
+    {
+        return $this->suppression->isSuppressed() ? null : $this->scoredResponseCount;
     }
 
     public function isSuppressed(): bool
@@ -62,9 +73,9 @@ final class QuestionAnalyticsView
         return $this->suppression->getReason();
     }
 
-    public function getOutcomes(): OutcomeCountBreakdown
+    public function getOutcomes(): ?OutcomeCountBreakdown
     {
-        return $this->outcomes;
+        return $this->suppression->isSuppressed() ? null : $this->outcomes;
     }
 
     public function getCorrectRate(): ?string
@@ -92,10 +103,9 @@ final class QuestionAnalyticsView
         $out = [
             'questionId' => $this->questionId->toRfc4122(),
             'questionRevisionId' => $this->questionRevisionId->toRfc4122(),
-            'presentationPosition' => $this->presentationPosition,
-            'scoredResponseCount' => $this->scoredResponseCount,
+            'sectionPosition' => $this->sectionPosition,
+            'itemPosition' => $this->itemPosition,
             'suppressed' => $this->suppression->isSuppressed(),
-            'outcomes' => $this->outcomes->toArray(),
         ];
 
         if ($this->suppression->isSuppressed() && null !== $this->suppression->getReason()) {
@@ -103,6 +113,8 @@ final class QuestionAnalyticsView
         }
 
         if (!$this->suppression->isSuppressed()) {
+            $out['scoredResponseCount'] = $this->scoredResponseCount;
+            $out['outcomes'] = $this->outcomes->toArray();
             $out['correctRate'] = $this->correctRate;
             if (null !== $this->optionDistribution) {
                 $out['optionDistribution'] = $this->optionDistribution;

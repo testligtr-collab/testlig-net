@@ -10,7 +10,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Delivery-level aggregate analytics projection (released results only).
  *
- * Sensitive percentages/distributions are omitted from toArray() when suppressed.
+ * Sensitive percentages/distributions/rates are omitted from toArray() when suppressed.
+ * Summary counts (eligible/started/completed/released) may remain under small-cohort suppression;
+ * that is distinct from question-level outcome counts, which are fully suppressed.
  */
 final class AssessmentAnalyticsSummaryView
 {
@@ -83,12 +85,12 @@ final class AssessmentAnalyticsSummaryView
 
     public function getParticipationRate(): ?string
     {
-        return $this->participationRate;
+        return $this->suppression->isSuppressed() ? null : $this->participationRate;
     }
 
     public function getCompletionRate(): ?string
     {
-        return $this->completionRate;
+        return $this->suppression->isSuppressed() ? null : $this->completionRate;
     }
 
     public function getAveragePercentage(): ?string
@@ -139,14 +141,13 @@ final class AssessmentAnalyticsSummaryView
             $out['suppressionReason'] = $this->suppression->getReason()->value;
         }
 
-        if (null !== $this->participationRate) {
-            $out['participationRate'] = $this->participationRate;
-        }
-        if (null !== $this->completionRate) {
-            $out['completionRate'] = $this->completionRate;
-        }
-
         if (!$this->suppression->isSuppressed()) {
+            if (null !== $this->participationRate) {
+                $out['participationRate'] = $this->participationRate;
+            }
+            if (null !== $this->completionRate) {
+                $out['completionRate'] = $this->completionRate;
+            }
             $out['averagePercentage'] = $this->averagePercentage;
             $out['medianPercentage'] = $this->medianPercentage;
             $out['minPercentage'] = $this->minPercentage;

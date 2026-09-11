@@ -9,6 +9,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Classroom-scoped delivery analytics projection.
+ *
+ * Rate/percentage fields follow the same suppression contract as AssessmentAnalyticsSummaryView.
  */
 final class ClassroomAnalyticsView
 {
@@ -85,6 +87,44 @@ final class ClassroomAnalyticsView
         return $this->suppression->getReason();
     }
 
+    public function getParticipationRate(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->participationRate;
+    }
+
+    public function getCompletionRate(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->completionRate;
+    }
+
+    public function getAveragePercentage(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->averagePercentage;
+    }
+
+    public function getMedianPercentage(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->medianPercentage;
+    }
+
+    public function getMinPercentage(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->minPercentage;
+    }
+
+    public function getMaxPercentage(): ?string
+    {
+        return $this->suppression->isSuppressed() ? null : $this->maxPercentage;
+    }
+
+    /**
+     * @return list<PercentageDistributionBucket>|null
+     */
+    public function getDistribution(): ?array
+    {
+        return $this->suppression->isSuppressed() ? null : $this->distribution;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -106,14 +146,13 @@ final class ClassroomAnalyticsView
             $out['suppressionReason'] = $this->suppression->getReason()->value;
         }
 
-        if (null !== $this->participationRate) {
-            $out['participationRate'] = $this->participationRate;
-        }
-        if (null !== $this->completionRate) {
-            $out['completionRate'] = $this->completionRate;
-        }
-
         if (!$this->suppression->isSuppressed()) {
+            if (null !== $this->participationRate) {
+                $out['participationRate'] = $this->participationRate;
+            }
+            if (null !== $this->completionRate) {
+                $out['completionRate'] = $this->completionRate;
+            }
             $out['averagePercentage'] = $this->averagePercentage;
             $out['medianPercentage'] = $this->medianPercentage;
             $out['minPercentage'] = $this->minPercentage;
