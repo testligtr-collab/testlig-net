@@ -64,9 +64,10 @@ final class AssessmentResultReleaseManagerTest extends KernelTestCase
         $this->resetDoctrineDelivery();
         $this->cleanupDeliveryFixtures();
 
-        [$attempt, , $fx] = $this->submitAndScoreClassroomAttempt('arr2b');
+        [$attempt, $completedRun, $fx] = $this->submitAndScoreClassroomAttempt('arr2b');
         $now = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s');
         $failedId = Uuid::v7();
+        $nextRun = $completedRun->getRunNumber() + 1;
         $this->em->getConnection()->insert('assessment_scoring_runs', [
             'id' => $failedId->toBinary(),
             'attempt_id' => $attempt->getId()->toBinary(),
@@ -80,8 +81,8 @@ final class AssessmentResultReleaseManagerTest extends KernelTestCase
             'publication_number' => $fx['publication']->getPublicationNumber(),
             'scoring_policy_id' => 'testlig_default_v1',
             'scoring_version' => 1,
-            'run_number' => 99,
-            'status' => ScoringRunStatus::Failed->value,
+            'run_number' => $nextRun,
+            'status' => ScoringRunStatus::Processing->value,
             'raw_points' => '0.00',
             'final_points' => '0.00',
             'maximum_points' => '0.00',
@@ -97,6 +98,10 @@ final class AssessmentResultReleaseManagerTest extends KernelTestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        $this->em->getConnection()->executeStatement(
+            "UPDATE assessment_scoring_runs SET status = 'failed', updated_at = ? WHERE id = ?",
+            [$now, $failedId->toBinary()],
+        );
         $failed = $this->reloadScoringRun($failedId);
         try {
             $this->releases()->release(

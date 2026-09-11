@@ -133,6 +133,7 @@
   - **DB:** `Version20260910900000` + `AssessmentScoringCompositeForeignKeyListener` + `AssessmentScoringImmutabilityListener`. UNIQUE(attempt,run_number), UNIQUE(run,attempt_item), release UNIQUE + active guard, composite FK attempt zinciri, CHECK puan/status/timestamp, completed immutability triggers (bypass yok).
   - **Test cleanup:** `AssessmentAttemptDbCleanup` önce manual decisions / item scores / release guards / releases / scoring runs siler.
   - **Bilinen sınırlama:** multi-process parallel concurrency harness yok; constraint + lock + TX revalidation sınırı. Controller/UI/API/PDF/analitik/leaderboard yok.
+  - **Pre-merge hardening (`Version20260911120000`):** scoring run INSERT yalnız `processing` + sıfır aggregates; completed/pending_manual geçişinde item coverage + aggregate/sayaç/yüzde DB doğrulaması; release aynı defense-in-depth; manual decision BI + item_score BU decision-binding; run/release/decision numaraları monoton `MAX+1`; AccessGate actor’ü HINT_REFRESH fresh yükler (stale SUPER_ADMIN/status override yok); numeric scoring string-only (PHP float yok).
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 
