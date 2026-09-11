@@ -59,6 +59,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\AssessmentScoringCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
@@ -207,6 +211,38 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\AssessmentAttemptManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentScoringManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\ManualAssessmentGradingManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultReleaseManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AssessmentResultReader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Scoring\DecimalScoreCalculator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Scoring\AutomaticAnswerEvaluator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Scoring\ScoringContentPolicy:
             public: true
             autowire: true
             autoconfigure: true

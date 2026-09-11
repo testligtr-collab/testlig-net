@@ -110,9 +110,32 @@
   - **Yetki (`AssessmentAttemptVoter`):** Student START/VIEW/SAVE/SUBMIT own (CANCEL yok); Owner/Manager VIEW+CANCEL; Teacher VIEW (classroom coverage, CANCEL yok); Staff deny. DBAL snapshot. Answer decrypt (`AttemptAnswerReader`): yalnız attempt owner (fresh-DB); privileged roller owner değilse deny.
   - **Audit:** `assessment_attempt_started` / `answer_saved` / `submitted` / `expired` / `cancelled`; metadata ids/counts/status — cevap plaintext yok.
   - **DB:** `Version20260910700000` + `Version20260910800000` (hardening: generated scope UNIQUE, publication/revision graph FKs, guard sync triggers, answer format) + `AssessmentAttemptCompositeForeignKeyListener` + `AssessmentAttemptImmutabilityListener`. `expires_at` immutable (expire için Clock). `max_attempts` COUNT BI’da tek başına race-safe değil; concurrency = locks + generated unique.
-  - **Test cleanup:** `AssessmentAttemptDbCleanup` → answers/items, in_progress→expired (AU guard siler), guards/attempts; `AssessmentDeliveryDbCleanup` önce attempt siler (delivery RESTRICT).
+  - **Test cleanup:** `AssessmentAttemptDbCleanup` → scoring/result tables first, then answers/items, in_progress→expired (AU guard siler), guards/attempts; `AssessmentDeliveryDbCleanup` önce attempt siler (delivery RESTRICT).
+- **Sınav puanlama / sonuç yayınlama (Aşama 2.12):** Versioned `AssessmentScoringRun` + `AssessmentItemScore` + append-only `AssessmentManualGradeDecision` + versioned `AssessmentResultRelease` (+ `AssessmentResultActiveReleaseGuard`). UI/controller/API/PDF/raporlama yok.
+  - **Scoring sürüm modeli:** Sonuç attempt üzerinde overwrite edilmez. Her score/regrade ayrı immutable run (`run_number` monoton UNIQUE per attempt). Policy id snapshot: `testlig_default_v1` + `scoring_version`. Tamamlanmış run UPDATE/DELETE korumalı; eski run regrade’de korunur.
+  - **Item score / manuel karar:** Run içinde her attempt item için en fazla bir efektif item score (UNIQUE run+item). Otomatik değerlendirilemeyen short_answer → `manual_pending`. Manuel kararlar append-only `AssessmentManualGradeDecision`; tamamlanmış satır UPDATE ile geçmiş silinmez. Tüm manuel item’lar bitince run `completed`.
+  - **Otomatik evaluator matrisi (mevcut answer-key / payload şeması):**
+    - `single_choice`: `selectedStableKey` ≡ `correctStableKey`
+    - `multiple_choice`: sıra bağımsız exact set; duplicate key → incorrect; kısmi puan yok
+    - `true_false`: `selected` ≡ `correct` (bool)
+    - `numeric`: bcmath exact veya `tolerance`; PHP float yok; geçersiz payload → incorrect (exception sızıntısı yok)
+    - `short_answer`: `acceptedAnswers` doluysa NFKC+trim (+ optional case-fold) exact match; liste yoksa `manual_pending` (yakınlık/regex yok)
+  - **Puan politikası (`DecimalScoreCalculator`):** scale points=2, percentage=4; unanswered=0 (ceza yok); incorrect → `-penaltyPoints`; awarded ∈ `[-penalty, maximum]`; `rawPoints` = sum (negatif olabilir); `finalPoints` = max(0, raw); `percentage` = final/maximum×100; maximumPoints > 0 zorunlu.
+  - **Güvenlik:** Answer-key HMAC puanlama öncesi verify; öğrenci cevabı yalnız işlem belleğinde XChaCha20-Poly1305 decrypt + AAD; ciphertext/nonce/plaintext/HMAC/key audit/log/exception/DTO’ya yazılmaz. Hatalı item → transaction rollback; yarım item score commit yok; başarı audit yok.
+  - **Attempt uygunluğu:** yalnız `submitted` | `expired`. `in_progress` / `cancelled` puanlanamaz. Snapshot = attempt materialize revision; canlı soru versiyonuna geçilmez; publication integrity verify.
+  - **Result release:** yalnız `completed` run yayımlanır; `pending_manual`/`failed` reddedilir. `release_number` monoton UNIQUE; tek aktif `released` guard (DB). Yeni release önceki aktifi `superseded` yapar; `withdraw` geçmişi silmez. Öğrenci yalnız active release’e bağlı scoring run’ı görür (en son run sorgusu yok).
+  - **StudentResultView:** attempt/assessment ids, releaseNumber/releasedAt, final/maximum/percentage, sayaçlar, item outcome özeti — doğru cevap / answerPayload / HMAC / ciphertext yok. Review-policy (açıklama) sonraki aşama.
+  - **Yetki (`AssessmentResultAccessGate`):** Student kendi released sonucu; Owner/Manager kurum sonuçları + release + manuel; Teacher yalnız aktif sınıf/ders coverage (manuel + view); Staff deny; SUPER_ADMIN active+verified override; ADMIN/MODERATOR otomatik tenant yok; ROLE_TEACHER tek başına tenant yok.
+  - **Kilit sırası (scoring):** Delivery READ → Recipient READ → Institution/User/Membership → Attempt WRITE → Publication/Revision verify → ScoringRun/ItemScores → audit (aynı TX). Manuel: ScoringRun WRITE → item → decision append → audit. Release: ScoringRun READ → previous Release WRITE (supersede flush) → new Release → audit.
+  - **Idempotency / regrade:** aynı `reasonCode` ile ilk score tamamlanmış/pending_manual run’a idempotent dönüş; `regradeAttempt` yeni `runNumber`. Concurrent ilk run → conflict/unique.
+  - **Audit:** `assessment_scoring_*` / `assessment_item_manually_graded` / `assessment_regraded` / `assessment_result_*`; metadata allowlist ids/counts/status/reason — cevap/PII yok. Audit fail → kritik işlem rollback. Cache invalidate yalnız commit sonrası.
+  - **UTC:** started/completed/evaluated/released/withdrawn + audit `occurredAt` = `UtcInstant` / session `+00:00`.
+  - **DB:** `Version20260910900000` + `AssessmentScoringCompositeForeignKeyListener` + `AssessmentScoringImmutabilityListener`. UNIQUE(attempt,run_number), UNIQUE(run,attempt_item), release UNIQUE + active guard, composite FK attempt zinciri, CHECK puan/status/timestamp, completed immutability triggers (bypass yok).
+  - **Test cleanup:** `AssessmentAttemptDbCleanup` önce manual decisions / item scores / release guards / releases / scoring runs siler.
+  - **Bilinen sınırlama:** multi-process parallel concurrency harness yok; constraint + lock + TX revalidation sınırı. Controller/UI/API/PDF/analitik/leaderboard yok.
+  - **Pre-merge hardening (`Version20260911120000`):** scoring run INSERT yalnız `processing` + sıfır aggregates; completed/pending_manual geçişinde item coverage + aggregate/sayaç/yüzde DB doğrulaması; release aynı defense-in-depth; manual decision BI + item_score BU decision-binding; run/release/decision numaraları monoton `MAX+1`; AccessGate actor’ü HINT_REFRESH fresh yükler (stale SUPER_ADMIN/status override yok); numeric scoring string-only (PHP float yok).
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
 
 ## Sonraki aşamalar
 
