@@ -1,0 +1,12 @@
+{# @var string label #}
+{# @var string|null href #}
+{# @var string variant primary|cta|ghost #}
+{# @var string|null type #}
+{# @var bool block #}
+{% set variant = variant|default('primary') %}
+{% set classes = 'btn btn--' ~ variant ~ (block|default(false) ? ' btn--block' : '') %}
+{% if href is defined and href %}
+    <a class="{{ classes }}" href="{{ href }}">{{ label }}</a>
+{% else %}
+    <button class="{{ classes }}" type="{{ type|default('button') }}">{{ label }}</button>
+{% endif %}

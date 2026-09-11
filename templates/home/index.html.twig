@@ -1,8 +1,162 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Testlig{% endblock %}
+{% block title %}Testlig — Öğren, çöz, gelişimini gör{% endblock %}
 
 {% block body %}
-    <h1>Testlig</h1>
-    <p>Yeni eğitim platformu hazırlanıyor.</p>
+<section class="hero">
+    <div class="container hero__grid">
+        <div>
+            <div class="hero__brand">
+                {% include 'components/brand.html.twig' with { variant: 'hero' } %}
+            </div>
+            <h1 class="hero__title">Öğren, çöz, gelişimini gör.</h1>
+            <p class="hero__lead">
+                Testlig; dersleri, soruları, sınavları ve gelişim raporlarını tek ve anlaşılır bir öğrenme deneyiminde buluşturur.
+            </p>
+            <div class="btn-group">
+                {% include 'components/button.html.twig' with { label: 'Ücretsiz Başla', href: path('app_register'), variant: 'cta' } %}
+                {% include 'components/button.html.twig' with { label: 'Testlig’i Keşfet', href: '#nasil', variant: 'ghost' } %}
+            </div>
+        </div>
+
+        <aside class="hero-preview" aria-label="Öğrenci ilerleme ön izlemesi">
+            <p class="hero-preview__title">Bugünkü öğrenme özeti</p>
+            <ul class="hero-preview__list">
+                <li>
+                    <span class="hero-preview__label">Bugünkü hedef</span>
+                    <span class="hero-preview__value">Matematik · 20 soru</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Tamamlanma</span>
+                    <span class="hero-preview__value">%65</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Son deneme</span>
+                    <span class="hero-preview__value">82 / 100</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Sıradaki çalışma</span>
+                    <span class="hero-preview__value">Kesirler tekrarı</span>
+                </li>
+            </ul>
+            <svg class="hero-art" style="margin-top:1.25rem;width:100%;height:auto;" viewBox="0 0 420 160" role="img" aria-label="Sade öğrenme ilerleme illüstrasyonu">
+                <rect x="0" y="0" width="420" height="160" rx="16" fill="#eef5fb"/>
+                <rect x="28" y="36" width="160" height="14" rx="7" fill="#2b7bb9" opacity="0.85"/>
+                <rect x="28" y="64" width="220" height="10" rx="5" fill="#b8c6d6"/>
+                <rect x="28" y="88" width="180" height="10" rx="5" fill="#d4dde8"/>
+                <circle cx="320" cy="80" r="42" fill="#d9ebf7"/>
+                <path d="M300 82l12 12 28-28" fill="none" stroke="#2f9e7a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </aside>
+    </div>
+</section>
+
+<section id="siniflar" class="section section--alt">
+    <div class="container">
+        {% include 'components/section_heading.html.twig' with {
+            title: 'Sınıf seviyeleri',
+            lead: 'İlkokuldan liseye, her seviye için sade bir başlangıç.'
+        } %}
+        <div class="grade-bands">
+            <article class="grade-band">
+                <h3>İlkokul</h3>
+                <div class="grade-band__links" aria-label="İlkokul sınıfları">
+                    {% for g in 1..4 %}<a href="#">{{ g }}. sınıf</a>{% endfor %}
+                </div>
+            </article>
+            <article class="grade-band">
+                <h3>Ortaokul</h3>
+                <div class="grade-band__links" aria-label="Ortaokul sınıfları">
+                    {% for g in 5..8 %}<a href="#">{{ g }}. sınıf</a>{% endfor %}
+                </div>
+            </article>
+            <article class="grade-band">
+                <h3>Lise</h3>
+                <div class="grade-band__links" aria-label="Lise sınıfları">
+                    {% for g in 9..12 %}<a href="#">{{ g }}. sınıf</a>{% endfor %}
+                </div>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="nasil" class="section">
+    <div class="container">
+        {% include 'components/section_heading.html.twig' with {
+            title: 'Testlig nasıl yardımcı olur?',
+            lead: 'Dört net odak: çalışma yolu, soru sistemi, gelişim ve destek.'
+        } %}
+        <div class="feature-grid" id="sinavlar">
+            <article class="feature-item">
+                <h3>Kişisel çalışma yolu</h3>
+                <p>Günün hedefini netleştirir, sıradaki çalışmayı sade tutar.</p>
+            </article>
+            <article class="feature-item">
+                <h3>Güçlü soru ve sınav sistemi</h3>
+                <p>Deneme ve ödevleri tek akışta izlenebilir hale getirir.</p>
+            </article>
+            <article class="feature-item" id="ogrenme">
+                <h3>Anlaşılır gelişim raporları</h3>
+                <p>İlerlemeyi abartısız, okunabilir göstergelerle anlatır.</p>
+            </article>
+            <article class="feature-item">
+                <h3>Öğretmen ve veli desteği</h3>
+                <p>Sınıf ve aile görünümlerini aynı dilde, sakin tutar.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="akis" class="section section--alt">
+    <div class="container">
+        {% include 'components/section_heading.html.twig' with {
+            title: 'Günlük öğrenme akışı',
+            lead: 'Üç adımda netleşen bir gün.'
+        } %}
+        <div class="flow-grid">
+            <article class="flow-item">
+                <span class="flow-item__step" aria-hidden="true">1</span>
+                <h3>Hedefini gör</h3>
+                <p>Bugün ne çalışacağını tek bakışta anla.</p>
+            </article>
+            <article class="flow-item">
+                <span class="flow-item__step" aria-hidden="true">2</span>
+                <h3>Çalış ve çöz</h3>
+                <p>Sorulara ve denemelere odaklan, akışı bozma.</p>
+            </article>
+            <article class="flow-item">
+                <span class="flow-item__step" aria-hidden="true">3</span>
+                <h3>Gelişimini takip et</h3>
+                <p>Sonucu sakin bir özetle gör, sıradaki adımı seç.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="guven" class="section">
+    <div class="container">
+        {% include 'components/section_heading.html.twig' with {
+            title: 'Güven ve platform',
+            lead: 'Kısa, sakin ve kurumsal bir temel.'
+        } %}
+        <div class="trust-grid" id="kurumlar">
+            <article class="trust-item">
+                <h3>Güvenli kullanım</h3>
+                <p>Hesap ve erişim kontrolleri korumalı tutulur.</p>
+            </article>
+            <article class="trust-item">
+                <h3>Mobil ve tablet uyumu</h3>
+                <p>Aynı dil, her ekranda okunabilir düzen.</p>
+            </article>
+            <article class="trust-item">
+                <h3>Kurum ve öğretmen desteği</h3>
+                <p>Sınıf yönetimi için sade panel önizlemeleri.</p>
+            </article>
+            <article class="trust-item">
+                <h3>Veriye dayalı gelişim</h3>
+                <p>Raporlar abartısız, anlaşılır göstergelerle gelir.</p>
+            </article>
+        </div>
+    </div>
+</section>
 {% endblock %}
