@@ -90,6 +90,10 @@ final class SecurityAuditMetadataSanitizer
         'policy_id',
         'policy_version',
         'availability_mode',
+        'analytics_type',
+        'cohort_size',
+        'suppressed',
+        'release_id',
     ];
 
     /**
