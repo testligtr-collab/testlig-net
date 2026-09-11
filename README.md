@@ -166,6 +166,15 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - `StudentResultReviewView` yalnız attempt sahibi active student + eligible recipient; SUPER_ADMIN policy yönetebilir fakat öğrenci DTO okuyamaz. İzinsiz alan anahtarları `toArray()` çıktısında yer almaz.
 - UI/controller/API yok. Migration: `Version20260911200000`.
 
+### Assessment analytics / öğretmen insight (Aşama 2.14)
+
+- Optimize Doctrine/DBAL okuma + DTO projection; **materialized analytics snapshot tablosu yok**.
+- Kaynak: active `AssessmentResultRelease` (guard) → completed `AssessmentScoringRun` → `AssessmentItemScore` → alignments → learning outcomes.
+- Cohort gizlilik eşiği **5**; ortalama/medyan/dağılım/LO yüzdeleri eşiğin altında `suppressed` (yanıltıcı 0 yok — anahtarlar `toArray()`’dan çıkar).
+- Option distribution **yok** (selectedStableKey yalnız şifreli cevapta; decrypt etmeden aggregate güvenli değil).
+- Yetki: Owner/Manager; Teacher sınıf coverage; Student yalnız kendi attempt DTO; SUPER_ADMIN aggregate OK / student DTO DENY; Staff/Admin/Moderator deny. Fresh auth + tenant isolation.
+- UI/controller/API/PDF/Excel/bildirim/veli yok. Migration: **none** (gerekli indeksler zaten mevcut: `idx_ais_run_outcome`, `uniq_qra_revision_outcome`).
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):
