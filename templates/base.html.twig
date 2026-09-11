@@ -9,24 +9,14 @@
             {% block importmap %}{{ importmap('app') }}{% endblock %}
         {% endblock %}
     </head>
-    <body>
-        <header class="site-header">
-            <a class="brand" href="{{ path('app_home') }}">Testlig</a>
-            <nav class="nav-links" aria-label="Ana menü">
-                {% if app.user %}
-                    <a href="{{ path('app_account') }}">Hesabım</a>
-                    <form method="post" action="{{ path('app_logout') }}" class="logout-form">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
-                        <button type="submit" class="linkish">Çıkış</button>
-                    </form>
-                {% else %}
-                    <a href="{{ path('app_login') }}">Giriş</a>
-                    <a href="{{ path('app_register') }}">Kayıt</a>
-                {% endif %}
-            </nav>
-        </header>
+    <body class="{% block body_class %}{% endblock %}">
+        <a class="skip-link" href="#main-content">İçeriğe geç</a>
 
-        <main>
+        {% block site_chrome %}
+            {% include 'components/public_header.html.twig' %}
+        {% endblock %}
+
+        <main id="main-content">
             {% for label, messages in app.flashes %}
                 {% for message in messages %}
                     <div class="page flash flash-{{ label }}" role="status">{{ message }}</div>
@@ -35,5 +25,9 @@
 
             {% block body %}{% endblock %}
         </main>
+
+        {% block site_footer %}
+            {% include 'components/public_footer.html.twig' %}
+        {% endblock %}
     </body>
 </html>

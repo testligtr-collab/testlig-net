@@ -1,0 +1,15 @@
+{# @var string label #}
+{# @var string value #}
+{# @var int|null percent 0-100 #}
+<div class="progress" role="group" aria-label="{{ label }}">
+    <div class="progress__meta" style="display:flex;justify-content:space-between;gap:1rem;">
+        <span class="muted">{{ label }}</span>
+        <strong>{{ value }}</strong>
+    </div>
+    {% if percent is defined and percent is not null %}
+        <div class="progress__track" aria-hidden="true">
+            <div class="progress__bar" style="width: {{ percent }}%;"></div>
+        </div>
+        <span class="sr-only">Yüzde {{ percent }}</span>
+    {% endif %}
+</div>

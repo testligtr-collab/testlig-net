@@ -1,0 +1,11 @@
+{# @var iterable mobile_nav #}
+<nav class="bottom-nav" aria-label="Mobil panel menüsü">
+    {% for item in mobile_nav %}
+        <a href="#{{ item.id }}" {% if item.current %}aria-current="page"{% endif %}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="5" y="5" width="14" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            {{ item.label }}
+        </a>
+    {% endfor %}
+</nav>

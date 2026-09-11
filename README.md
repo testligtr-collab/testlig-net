@@ -176,6 +176,14 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Yetki: Owner/Manager; Teacher sınıf coverage; Student yalnız kendi attempt DTO; SUPER_ADMIN aggregate OK / student DTO DENY; Staff/Admin/Moderator deny. Fresh auth + tenant isolation.
 - UI/controller/API/PDF/Excel/bildirim/veli yok. Migration: **none** (gerekli indeksler zaten mevcut: `idx_ais_run_outcome`, `uniq_qra_revision_outcome`).
 
+### Tasarım sistemi ve UI önizlemeleri (Aşama 2.14.1)
+
+- Merkezi CSS token’ları: `assets/styles/app.css` (`docs/ui-design-system.md`).
+- Yenilenen kamu ana sayfa: `/`
+- Rol paneli önizlemeleri (**yalnızca `dev` / `test`**): `/onizleme/ogrenci`, `/onizleme/ogretmen`, `/onizleme/veli`
+- Demo ViewModel’ler: `App\UiPreview\*` — veritabanı yok, mutasyon yok (`docs/ui-preview.md`).
+- Production route tablosunda `/onizleme` yok.
+
 Compose, container içinde `DATABASE_URL` / `REDIS_URL` değerlerini Docker DNS adlarıyla (`database`, `redis`) ayarlar. MariaDB host’a yayınlanmaz (XAMPP 3306 çakışmasını önlemek için). Host’taki `.env` içindeki `127.0.0.1` adresleri yalnızca Docker dışı çalıştırma içindir.
 
 Container içinde PHPUnit çalıştırırken `APP_ENV` değerini test’e sabitleyin (Compose `APP_ENV=dev` geçirir):

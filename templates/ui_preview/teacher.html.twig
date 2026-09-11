@@ -1,0 +1,81 @@
+{% extends 'layouts/panel_preview.html.twig' %}
+
+{% block title %}Öğretmen paneli önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <h1 class="panel-greeting" id="overview">{{ view.greeting }}</h1>
+
+    <section class="surface stack-md" aria-labelledby="tasks-heading">
+        <h2 id="tasks-heading" style="margin:0;font-size:1.15rem;">Bugünkü işler</h2>
+        <ul class="list-plain">
+            {% for item in view.todayTasks %}
+                <li>
+                    <div>
+                        <strong>{{ item.label }}</strong>
+                        <p class="muted" style="margin:0.2rem 0 0;">{{ item.meta }}</p>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="surface stack-md" style="margin-top:1rem;" aria-labelledby="quick-heading">
+        <h2 id="quick-heading" style="margin:0;font-size:1.15rem;">Hızlı işlem</h2>
+        <div class="quick-actions">
+            {% for action in view.quickActions %}
+                {% include 'components/button.html.twig' with { label: action.label, variant: 'ghost', href: '#' } %}
+            {% endfor %}
+        </div>
+        <p class="muted" style="margin:0;font-size:0.9rem;">Canlı ders bu aşamada yalnızca sakin bir önizleme girişidir.</p>
+    </section>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="class-heading">
+            <h2 id="class-heading" style="margin:0;font-size:1.15rem;">Sınıf özeti</h2>
+            <div class="stat-row">
+                {% for item in view.classSummary %}
+                    {% include 'components/stat_card.html.twig' with { label: item.label, value: item.value } %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="pending-heading">
+            <h2 id="pending-heading" style="margin:0;font-size:1.15rem;">Değerlendirme bekleyenler</h2>
+            <ul class="list-plain">
+                {% for item in view.pendingReviews %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.meta }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="analytics-heading">
+            <h2 id="analytics-heading" style="margin:0;font-size:1.15rem;">Kazanım performansı</h2>
+            <p class="panel-note">{{ view.privacyNote }}</p>
+            <ul class="list-plain">
+                {% for item in view.outcomePreview %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.value }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="cal-heading">
+            <h2 id="cal-heading" style="margin:0;font-size:1.15rem;">Yaklaşan takvim</h2>
+            <ul class="list-plain">
+                {% for item in view.calendar %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.when }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+{% endblock %}

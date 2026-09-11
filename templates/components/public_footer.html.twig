@@ -1,0 +1,37 @@
+<footer class="site-footer">
+    <div class="container site-footer__grid">
+        <div>
+            <h2>Platform</h2>
+            <ul>
+                <li><a href="{{ path('app_home') }}#siniflar">Sınıflar</a></li>
+                <li><a href="{{ path('app_home') }}#sinavlar">Sınavlar</a></li>
+                <li><a href="{{ path('app_home') }}#ogrenme">Öğrenme araçları</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Kurumlar</h2>
+            <ul>
+                <li><a href="{{ path('app_home') }}#kurumlar">Okullar için</a></li>
+                <li><a href="{{ path('app_home') }}#guven">Öğretmen desteği</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Destek</h2>
+            <ul>
+                <li><a href="{{ path('app_home') }}#akis">Nasıl çalışır?</a></li>
+                <li><a href="{{ path('app_login') }}">Hesap girişi</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Yasal</h2>
+            <ul>
+                <li><a href="#">Gizlilik (yakında)</a></li>
+                <li><a href="#">Kullanım koşulları (yakında)</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="container site-footer__meta">
+        <p style="margin:0;">© {{ 'now'|date('Y') }} Testlig. Tüm hakları saklıdır.</p>
+        <p style="margin:0;" class="muted">Sosyal bağlantılar yakında eklenecek.</p>
+    </div>
+</footer>

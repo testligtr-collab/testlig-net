@@ -1,0 +1,8 @@
+{# @var string title #}
+{# @var string|null lead #}
+<header class="section-heading-block">
+    <h2 class="section-heading">{{ title }}</h2>
+    {% if lead is defined and lead %}
+        <p class="section-lead">{{ lead }}</p>
+    {% endif %}
+</header>

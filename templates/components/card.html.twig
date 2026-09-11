@@ -1,0 +1,13 @@
+{# Card surface — use with embed:
+   {% embed 'components/card.html.twig' with { labelledby: 'x' } %}
+     {% block body %}...{% endblock %}
+   {% endembed %}
+#}
+{# @var string|null labelledby #}
+{# @var string|null class #}
+<section
+    class="surface stack-md{{ class is defined and class ? ' ' ~ class : '' }}"
+    {% if labelledby is defined and labelledby %}aria-labelledby="{{ labelledby }}"{% endif %}
+>
+    {% block body %}{% endblock %}
+</section>

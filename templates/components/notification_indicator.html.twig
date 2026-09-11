@@ -1,0 +1,17 @@
+{# @var bool hasUnread #}
+<button
+    type="button"
+    class="icon-btn"
+    data-action="notifications#toggle"
+    data-notifications-target="button"
+    aria-expanded="false"
+    aria-controls="demo-notifications"
+    aria-label="Bildirimler"
+>
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M12 22a2.2 2.2 0 0 0 2.2-2.2h-4.4A2.2 2.2 0 0 0 12 22Zm7-6.2V11a7 7 0 1 0-14 0v4.8L3 17.8V19h18v-1.2l-2-1.999Z"/>
+    </svg>
+    {% if hasUnread|default(false) %}
+        <span class="icon-btn__dot" aria-hidden="true"></span>
+    {% endif %}
+</button>

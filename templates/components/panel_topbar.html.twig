@@ -1,0 +1,37 @@
+{# @var string display_name #}
+{# @var string avatar_initials #}
+{# @var string panel_role_label #}
+{# @var iterable notifications #}
+<header class="panel-topbar">
+    <div class="panel-topbar__meta">
+        {% include 'components/avatar.html.twig' with { initials: avatar_initials, name: display_name } %}
+        <div>
+            <p class="panel-topbar__title">{{ display_name }}</p>
+            <p class="muted" style="margin:0;font-size:0.85rem;">{{ panel_role_label }} önizlemesi</p>
+        </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;align-items:center;">
+        {% include 'components/notification_indicator.html.twig' with { hasUnread: true } %}
+        <a class="btn btn--ghost" href="{{ path('app_home') }}">Ana sayfa</a>
+    </div>
+    <div
+        id="demo-notifications"
+        class="notif-panel"
+        data-notifications-target="panel"
+        hidden
+        role="region"
+        aria-label="Demo bildirimler"
+    >
+        <p style="margin:0 0 0.75rem;font-weight:600;">Bildirimler</p>
+        <ul class="list-plain">
+            {% for note in notifications %}
+                <li>
+                    <div>
+                        <strong>{{ note.title }}</strong>
+                        <p class="muted" style="margin:0.25rem 0 0;">{{ note.body }}</p>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+</header>

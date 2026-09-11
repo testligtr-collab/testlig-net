@@ -1,0 +1,31 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}is-panel-preview{% endblock %}
+
+{% block site_chrome %}
+    <div class="preview-banner" role="status">
+        UI önizleme · yalnızca geliştirme/test ortamı · demo veri, gerçek hesap değil
+    </div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
+{% block body %}
+<div
+    class="panel-shell"
+    data-controller="panel-shell notifications"
+    data-panel-shell-collapsed-class="is-collapsed"
+>
+    {% include 'components/panel_sidebar.html.twig' %}
+
+    <div class="panel-main">
+        {% include 'components/panel_topbar.html.twig' %}
+
+        <div class="panel-content">
+            {% block panel_content %}{% endblock %}
+        </div>
+    </div>
+
+    {% include 'components/mobile_bottom_nav.html.twig' %}
+</div>
+{% endblock %}

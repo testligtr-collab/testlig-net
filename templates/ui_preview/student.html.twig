@@ -1,0 +1,68 @@
+{% extends 'layouts/panel_preview.html.twig' %}
+
+{% block title %}Öğrenci paneli önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <h1 class="panel-greeting" id="home">{{ view.greeting }}</h1>
+
+    <section class="surface stack-md" aria-labelledby="plan-heading">
+        <h2 id="plan-heading" style="margin:0;font-size:1.15rem;">Bugünün planı</h2>
+        <ul class="list-plain">
+            {% for item in view.todayPlan %}
+                <li>
+                    <div>
+                        <strong>{{ item.label }}</strong>
+                        <p class="muted" style="margin:0.2rem 0 0;">{{ item.meta }}</p>
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        {% include 'components/button.html.twig' with { label: view.primaryCtaLabel, variant: 'cta', href: '#' } %}
+    </section>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="week-heading">
+            <h2 id="week-heading" style="margin:0;font-size:1.15rem;">Haftalık ilerleme</h2>
+            {% include 'components/progress.html.twig' with {
+                label: view.weeklyProgressLabel,
+                value: view.weeklyProgressValue,
+                percent: view.weeklyProgressPercent
+            } %}
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="upcoming-heading">
+            <h2 id="upcoming-heading" style="margin:0;font-size:1.15rem;">Yaklaşan sınav / ödev</h2>
+            <ul class="list-plain">
+                {% for item in view.upcoming %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.when }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="strength-heading">
+            <h2 id="strength-heading" style="margin:0;font-size:1.15rem;">Güçlü olduğun alanlar</h2>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                {% for item in view.strengths %}
+                    {% include 'components/status_chip.html.twig' with { label: item.label, variant: item.tone } %}
+                {% endfor %}
+            </div>
+            <h2 style="margin:1rem 0 0.5rem;font-size:1rem;">Destek gereken alanlar</h2>
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                {% for item in view.supportAreas %}
+                    {% include 'components/status_chip.html.twig' with { label: item.label, variant: item.tone } %}
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="badge-heading">
+            <h2 id="badge-heading" style="margin:0;font-size:1.15rem;">Son başarı</h2>
+            <p style="margin:0;">{{ view.recentAchievement }}</p>
+            {% include 'components/status_chip.html.twig' with { label: 'Tamamlandı', variant: 'success' } %}
+        </section>
+    </div>
+{% endblock %}
