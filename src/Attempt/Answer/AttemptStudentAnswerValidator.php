@@ -27,7 +27,13 @@ final class AttemptStudentAnswerValidator
 {
     public const PAYLOAD_VERSION = 1;
     public const SHORT_ANSWER_MAX_LENGTH = 2000;
-    public const NUMERIC_ABS_MAX = 1.0e12;
+    /**
+     * Absolute magnitude bound as canonical numeric string (bcmath; no PHP float).
+     * Matches prior 1.0e12 policy without float conversion.
+     */
+    public const NUMERIC_ABS_MAX = '1000000000000';
+
+    public const NUMERIC_MAX_LENGTH = 64;
 
     public function __construct(
         private readonly QuestionRevisionOptionRepository $options,
@@ -140,16 +146,29 @@ final class AttemptStudentAnswerValidator
     private function normalizeNumeric(array $payload): array
     {
         $value = $payload['value'] ?? null;
-        if (\is_int($value) || \is_float($value)) {
-            $value = (string) $value;
-        }
         if (!\is_string($value) || '' === trim($value)) {
             throw AssessmentAttemptException::answerInvalid('numeric value is required.');
         }
-        if (1 !== preg_match('/^-?(?:\d+)(?:\.\d+)?$/', $value)) {
+        $value = trim($value);
+        if (\strlen($value) > self::NUMERIC_MAX_LENGTH) {
+            throw AssessmentAttemptException::answerInvalid('numeric value exceeds maximum length.');
+        }
+        if (1 !== preg_match('/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/', $value)) {
             throw AssessmentAttemptException::answerInvalid('numeric value format is invalid.');
         }
-        if (abs((float) $value) > self::NUMERIC_ABS_MAX) {
+        if (1 === preg_match('/[eE]/', $value)
+            || 0 === strcasecmp($value, 'nan')
+            || 0 === strcasecmp($value, 'inf')
+            || 0 === strcasecmp($value, '+inf')
+            || 0 === strcasecmp($value, '-inf')
+        ) {
+            throw AssessmentAttemptException::answerInvalid('numeric value format is invalid.');
+        }
+
+        $abs = str_starts_with($value, '-') ? substr($value, 1) : $value;
+        /** @var numeric-string $abs */
+        $abs = $abs;
+        if (1 === bccomp($abs, self::NUMERIC_ABS_MAX, 0)) {
             throw AssessmentAttemptException::answerInvalid('numeric value is out of range.');
         }
 

@@ -162,19 +162,16 @@ final class AutomaticAnswerEvaluator
         string $penaltyPoints,
     ): ItemEvaluationResult {
         $studentRaw = $studentPayload['value'] ?? null;
-        if (\is_int($studentRaw) || \is_float($studentRaw)) {
-            $studentRaw = (string) $studentRaw;
-        }
         if (!\is_string($studentRaw)) {
             return $this->incorrect($penaltyPoints);
         }
 
         $studentValue = $this->tryNormalizeDecimal($studentRaw);
         $correctRaw = $answerKeyPayload['value'] ?? null;
-        if (null === $studentValue || (!\is_string($correctRaw) && !\is_int($correctRaw) && !\is_float($correctRaw))) {
+        if (null === $studentValue || !\is_string($correctRaw)) {
             return $this->incorrect($penaltyPoints);
         }
-        $correctValue = $this->tryNormalizeDecimal((string) $correctRaw);
+        $correctValue = $this->tryNormalizeDecimal($correctRaw);
         if (null === $correctValue) {
             return $this->incorrect($penaltyPoints);
         }
@@ -186,10 +183,10 @@ final class AutomaticAnswerEvaluator
                 : $this->incorrect($penaltyPoints);
         }
 
-        if (!\is_string($toleranceRaw) && !\is_int($toleranceRaw) && !\is_float($toleranceRaw)) {
+        if (!\is_string($toleranceRaw)) {
             return $this->incorrect($penaltyPoints);
         }
-        $tolerance = $this->tryNormalizeDecimal((string) $toleranceRaw);
+        $tolerance = $this->tryNormalizeDecimal($toleranceRaw);
         if (null === $tolerance || str_starts_with($tolerance, '-')) {
             return $this->incorrect($penaltyPoints);
         }

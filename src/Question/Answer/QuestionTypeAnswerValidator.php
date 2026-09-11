@@ -144,16 +144,16 @@ final class QuestionTypeAnswerValidator
             throw QuestionException::answerInvalid('numeric must not include option rows.');
         }
         $value = $answerSpec['value'] ?? null;
-        if (!\is_string($value) && !\is_int($value) && !\is_float($value)) {
-            throw QuestionException::answerInvalid('numeric requires a numeric value.');
+        if (!\is_string($value)) {
+            throw QuestionException::answerInvalid('numeric requires a canonical numeric string value.');
         }
-        $normalized = $this->normalizeDecimal((string) $value);
+        $normalized = $this->normalizeDecimal($value);
         $tolerance = $answerSpec['tolerance'] ?? null;
         if (null !== $tolerance) {
-            if (!\is_string($tolerance) && !\is_int($tolerance) && !\is_float($tolerance)) {
-                throw QuestionException::answerInvalid('tolerance must be numeric.');
+            if (!\is_string($tolerance)) {
+                throw QuestionException::answerInvalid('tolerance must be a canonical numeric string.');
             }
-            $toleranceNormalized = $this->normalizeDecimal((string) $tolerance);
+            $toleranceNormalized = $this->normalizeDecimal($tolerance);
             if (str_starts_with($toleranceNormalized, '-')) {
                 throw QuestionException::answerInvalid('tolerance must be >= 0.');
             }
@@ -262,16 +262,22 @@ final class QuestionTypeAnswerValidator
 
     private function normalizeDecimal(string $raw): string
     {
-        $raw = trim(str_replace(',', '.', $raw));
-        if (1 !== preg_match('/^-?\d+(\.\d+)?$/', $raw)) {
+        $raw = trim($raw);
+        if (str_contains($raw, ',') || 1 === preg_match('/[eE]/', $raw)) {
+            throw QuestionException::answerInvalid('Invalid decimal value.');
+        }
+        if (1 !== preg_match('/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/', $raw)) {
+            throw QuestionException::answerInvalid('Invalid decimal value.');
+        }
+        if (\strlen($raw) > 64) {
             throw QuestionException::answerInvalid('Invalid decimal value.');
         }
         if (!str_contains($raw, '.')) {
-            return $raw;
+            return '-0' === $raw ? '0' : $raw;
         }
         $raw = rtrim(rtrim($raw, '0'), '.');
 
-        return '' === $raw || '-' === $raw ? '0' : $raw;
+        return '' === $raw || '-' === $raw || '-0' === $raw ? '0' : $raw;
     }
 
     private function normalizeShortAnswer(string $value): string
