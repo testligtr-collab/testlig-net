@@ -170,7 +170,8 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 
 - Optimize Doctrine/DBAL okuma + DTO projection; **materialized analytics snapshot tablosu yok**.
 - Kaynak: active `AssessmentResultRelease` (guard) → completed `AssessmentScoringRun` → `AssessmentItemScore` → alignments → learning outcomes.
-- Cohort gizlilik eşiği **5**; ortalama/medyan/dağılım/LO yüzdeleri eşiğin altında `suppressed` (yanıltıcı 0 yok — anahtarlar `toArray()`’dan çıkar).
+- Cohort gizlilik eşiği **5**; ortalama/medyan/dağılım/LO yüzdeleri **ve** `participationRate` / `completionRate` eşiğin altında `suppressed` (yanıltıcı 0 yok — anahtarlar `toArray()`’dan çıkar). Summary’deki eligible/started/completed sayıları kalabilir; **soru düzeyinde** `outcomes` / `scoredResponseCount` / `correctRate` tamamen gizlenir (tek öğrenci çıkarımı engeli).
+- Soru sırası: immutable blueprint `sectionPosition` + `itemPosition` (`assessment_attempt_items` snapshot); **shuffle `presentation_position` kullanılmaz**.
 - Option distribution **yok** (selectedStableKey yalnız şifreli cevapta; decrypt etmeden aggregate güvenli değil).
 - Yetki: Owner/Manager; Teacher sınıf coverage; Student yalnız kendi attempt DTO; SUPER_ADMIN aggregate OK / student DTO DENY; Staff/Admin/Moderator deny. Fresh auth + tenant isolation.
 - UI/controller/API/PDF/Excel/bildirim/veli yok. Migration: **none** (gerekli indeksler zaten mevcut: `idx_ais_run_outcome`, `uniq_qra_revision_outcome`).

@@ -141,6 +141,8 @@ final class AssessmentAnalyticsReaderTest extends KernelTestCase
         self::assertNotContains('averagePercentage', $keys);
         self::assertNotContains('medianPercentage', $keys);
         self::assertNotContains('distribution', $keys);
+        self::assertNotContains('participationRate', $keys);
+        self::assertNotContains('completionRate', $keys);
         self::assertContains('eligibleRecipientCount', $keys);
     }
 
@@ -157,6 +159,8 @@ final class AssessmentAnalyticsReaderTest extends KernelTestCase
         self::assertArrayHasKey('averagePercentage', $payload);
         self::assertArrayHasKey('medianPercentage', $payload);
         self::assertArrayHasKey('distribution', $payload);
+        self::assertArrayHasKey('participationRate', $payload);
+        self::assertArrayHasKey('completionRate', $payload);
         self::assertSame('100.0000', $payload['averagePercentage']);
     }
 

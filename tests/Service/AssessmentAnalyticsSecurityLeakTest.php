@@ -96,5 +96,7 @@ final class AssessmentAnalyticsSecurityLeakTest extends KernelTestCase
         self::assertArrayNotHasKey('minPercentage', $payload);
         self::assertArrayNotHasKey('maxPercentage', $payload);
         self::assertArrayNotHasKey('distribution', $payload);
+        self::assertArrayNotHasKey('participationRate', $payload);
+        self::assertArrayNotHasKey('completionRate', $payload);
     }
 }
