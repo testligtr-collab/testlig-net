@@ -43,6 +43,8 @@ security:
         - { path: ^/sifre-yenile, roles: PUBLIC_ACCESS }
         - { path: ^/giris, roles: PUBLIC_ACCESS }
         - { path: ^/cikis, roles: PUBLIC_ACCESS }
+        # Preview routes exist only in dev/test (see config/routes/ui_preview.yaml).
+        - { path: ^/onizleme, roles: PUBLIC_ACCESS }
         - { path: ^/hesabim, roles: ROLE_USER }
         - { path: ^/$, roles: PUBLIC_ACCESS }
 

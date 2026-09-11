@@ -1,0 +1,63 @@
+{% extends 'layouts/panel_preview.html.twig' %}
+
+{% block title %}Veli paneli önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <h1 class="panel-greeting" id="overview">{{ view.title }}</h1>
+
+    <section class="surface stack-md" aria-labelledby="summary-heading">
+        <h2 id="summary-heading" style="margin:0;font-size:1.15rem;">Haftalık özet</h2>
+        <div class="stat-row">
+            {% for item in view.weekSummary %}
+                {% include 'components/stat_card.html.twig' with { label: item.label, value: item.value } %}
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="done-heading">
+            <h2 id="done-heading" style="margin:0;font-size:1.15rem;">Tamamlanan çalışma</h2>
+            <ul class="list-plain">
+                {% for item in view.completed %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.meta }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="tasks-heading">
+            <h2 id="tasks-heading" style="margin:0;font-size:1.15rem;">Yaklaşan görevler</h2>
+            <ul class="list-plain">
+                {% for item in view.upcoming %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.when }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    </div>
+
+    <div class="panel-grid-2" style="margin-top:1rem;">
+        <section class="surface stack-md" aria-labelledby="growth-heading">
+            <h2 id="growth-heading" style="margin:0;font-size:1.15rem;">Ders / kazanım gelişimi</h2>
+            <ul class="list-plain">
+                {% for item in view.growth %}
+                    <li>
+                        <strong>{{ item.label }}</strong>
+                        <span class="muted">{{ item.value }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+
+        <section class="surface stack-md" aria-labelledby="feedback-heading">
+            <h2 id="feedback-heading" style="margin:0;font-size:1.15rem;">Öğretmen geri bildirimi</h2>
+            <p style="margin:0;">{{ view.teacherFeedback }}</p>
+            <h2 style="margin:1rem 0 0.5rem;font-size:1rem;">Destekleyici öneri</h2>
+            <p class="muted" style="margin:0;">{{ view.supportTip }}</p>
+        </section>
+    </div>
+{% endblock %}

@@ -1,0 +1,15 @@
+# UI panel previews — only registered in dev and test (absent from production route table).
+
+when@dev:
+    ui_preview_controllers:
+        resource:
+            path: ../../src/UiPreview/Controller/
+            namespace: App\UiPreview\Controller
+        type: attribute
+
+when@test:
+    ui_preview_controllers:
+        resource:
+            path: ../../src/UiPreview/Controller/
+            namespace: App\UiPreview\Controller
+        type: attribute

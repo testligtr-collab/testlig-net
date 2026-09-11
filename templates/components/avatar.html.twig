@@ -1,0 +1,6 @@
+{# @var string initials #}
+{# @var string|null name #}
+<span class="avatar" aria-hidden="{{ name is not defined or name is empty ? 'true' : 'false' }}"{% if name is defined and name %} title="{{ name }}"{% endif %}>{{ initials }}</span>
+{% if name is defined and name %}
+    <span class="sr-only">{{ name }}</span>
+{% endif %}
