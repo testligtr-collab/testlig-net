@@ -30,6 +30,7 @@ final class AssessmentAttemptDbCleanup
             return;
         }
 
+        self::deleteReviewPolicyRows($connection);
         self::deleteScoringResultRows($connection);
 
         if ($schema->tablesExist(['assessment_attempt_answers'])) {
@@ -55,6 +56,34 @@ final class AssessmentAttemptDbCleanup
         $connection->executeStatement('DELETE FROM assessment_attempts');
 
         self::assertAttemptTablesEmpty($connection);
+    }
+
+    /**
+     * Clears review-policy tables before scoring/attempt deletes.
+     *
+     * Order: active_review_policy_guards → review_policies (draft only when
+     * no active/superseded rows). Active/superseded DELETE is blocked by
+     * triggers and cleared later via assessment_deliveries ON DELETE CASCADE.
+     */
+    public static function deleteReviewPolicyRows(Connection $connection): void
+    {
+        $schema = $connection->createSchemaManager();
+        if (!$schema->tablesExist(['assessment_result_review_policies'])) {
+            return;
+        }
+
+        $hasAppendOnly = (int) $connection->fetchOne(<<<'SQL'
+            SELECT COUNT(*) FROM assessment_result_review_policies
+             WHERE status IN ('active', 'superseded')
+            SQL);
+        if ($hasAppendOnly > 0) {
+            return;
+        }
+
+        if ($schema->tablesExist(['assessment_result_active_review_policy_guards'])) {
+            $connection->executeStatement('DELETE FROM assessment_result_active_review_policy_guards');
+        }
+        $connection->executeStatement('DELETE FROM assessment_result_review_policies');
     }
 
     /**
