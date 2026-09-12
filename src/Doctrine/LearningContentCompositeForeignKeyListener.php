@@ -17,13 +17,25 @@ final class LearningContentCompositeForeignKeyListener
 
         if ($schema->hasTable('learning_contents')) {
             $table = $schema->getTable('learning_contents');
+            // CASCADE (not RESTRICT): parent LearningContent DELETE must resolve the
+            // content↔revision pointer cycle without a production UPDATE that clears
+            // published pointers while publications still exist. Revision rows remain
+            // append-only via BEFORE DELETE SIGNAL; FK cascade does not fire those triggers.
+            CompositeForeignKeySchemaHelper::ensureForeignKey(
+                $table,
+                'FK_LC_CURRENT_REVISION_CONTENT',
+                'learning_content_revisions',
+                ['current_revision_id', 'id', 'current_revision_number'],
+                ['id', 'content_id', 'revision_number'],
+                ['onDelete' => 'CASCADE'],
+            );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
                 'FK_LC_PUBLISHED_REVISION_CONTENT',
                 'learning_content_revisions',
                 ['published_revision_id', 'id', 'published_revision_number'],
                 ['id', 'content_id', 'revision_number'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
         }
 

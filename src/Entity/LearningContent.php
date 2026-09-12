@@ -71,15 +71,19 @@ class LearningContent
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $summary;
 
-    #[ORM\Column(name: 'current_revision_number')]
-    private int $currentRevisionNumber;
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'current_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
+    private ?LearningContentRevision $currentRevision = null;
+
+    #[ORM\Column(name: 'current_revision_number', nullable: true)]
+    private ?int $currentRevisionNumber = null;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'published_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
-    private ?LearningContentRevision $publishedRevision;
+    #[ORM\JoinColumn(name: 'published_revision_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
+    private ?LearningContentRevision $publishedRevision = null;
 
     #[ORM\Column(name: 'published_revision_number', nullable: true)]
-    private ?int $publishedRevisionNumber;
+    private ?int $publishedRevisionNumber = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'created_by_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
@@ -131,7 +135,8 @@ class LearningContent
         $this->title = $title;
         $this->normalizedTitle = $normalizedTitle;
         $this->summary = $summary;
-        $this->currentRevisionNumber = 1;
+        $this->currentRevision = null;
+        $this->currentRevisionNumber = null;
         $this->publishedRevision = null;
         $this->publishedRevisionNumber = null;
         $this->createdBy = $createdBy;
@@ -238,7 +243,13 @@ class LearningContent
         return $this->summary;
     }
 
-    public function getCurrentRevisionNumber(): int
+    #[Ignore]
+    public function getCurrentRevision(): ?LearningContentRevision
+    {
+        return $this->currentRevision;
+    }
+
+    public function getCurrentRevisionNumber(): ?int
     {
         return $this->currentRevisionNumber;
     }
@@ -280,20 +291,33 @@ class LearningContent
         return $this->archivedAt;
     }
 
+    /**
+     * Prepare identity for a new revision: Published → Draft only. Does not touch pointers.
+     */
     #[Ignore]
-    public function bumpRevisionNumber(\DateTimeImmutable $now): int
+    public function prepareForNewRevision(\DateTimeImmutable $now): void
     {
         if (!$this->status->allowsNewRevision()) {
             throw LearningContentException::invalidTransition();
         }
-        ++$this->currentRevisionNumber;
         if (LearningContentStatus::Published === $this->status) {
             $this->status = LearningContentStatus::Draft;
-            $this->publishedAt = null;
         }
         $this->updatedAt = $now;
+    }
 
-        return $this->currentRevisionNumber;
+    /**
+     * Point current revision id+number at a revision of this content.
+     */
+    #[Ignore]
+    public function assignCurrentRevision(LearningContentRevision $revision, \DateTimeImmutable $now): void
+    {
+        if (!$revision->getContent()->getId()->equals($this->id)) {
+            throw LearningContentException::conflict();
+        }
+        $this->currentRevision = $revision;
+        $this->currentRevisionNumber = $revision->getRevisionNumber();
+        $this->updatedAt = $now;
     }
 
     /**
@@ -341,6 +365,10 @@ class LearningContent
         $this->updatedAt = $now;
     }
 
+    /**
+     * @deprecated Published pointer/status are applied by AFTER INSERT publication trigger.
+     *             LearningContentManager must not call this — kept for parity with Assessment.
+     */
     #[Ignore]
     public function publish(LearningContentRevision $revision, \DateTimeImmutable $now): void
     {
@@ -350,7 +378,10 @@ class LearningContent
         if (!$revision->getContent()->getId()->equals($this->id)) {
             throw LearningContentException::conflict();
         }
-        if ($revision->getRevisionNumber() !== $this->currentRevisionNumber) {
+        if (null === $this->currentRevision || !$this->currentRevision->getId()->equals($revision->getId())) {
+            throw LearningContentException::conflict();
+        }
+        if ($this->currentRevisionNumber !== $revision->getRevisionNumber()) {
             throw LearningContentException::conflict();
         }
         if (!$revision->isSealed()) {
