@@ -31,12 +31,16 @@ final class AccessEntitlementDbCleanup
         }
 
         if ($schema->tablesExist(['access_package_versions'])) {
+            // Draft-only grant DELETE triggers (Version20260912170000) require draft status
+            // before grant rows can be removed — including CASCADE from version delete.
             $connection->executeStatement(
                 "UPDATE access_package_versions
-                 SET status = 'superseded',
-                     superseded_at = COALESCE(superseded_at, UTC_TIMESTAMP()),
+                 SET status = 'draft',
+                     activated_at = NULL,
+                     activated_by_id = NULL,
+                     superseded_at = NULL,
                      updated_at = UTC_TIMESTAMP()
-                 WHERE status = 'active'",
+                 WHERE status IN ('active', 'superseded')",
             );
         }
 
