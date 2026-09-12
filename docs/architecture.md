@@ -163,8 +163,16 @@
   - **Audit:** best-effort (read fail etmez) `assessment_analytics_viewed` / `classroom_analytics_viewed` / `student_analytics_viewed` / `question_analytics_viewed` / `learning_outcome_analytics_viewed`; metadata allowlist `analytics_type` / `cohort_size` / `suppressed` (+ mevcut ids). Cache yok.
   - **DB / migration:** Yeni tablo yok. Gerekli indeksler zaten mevcut (`idx_ais_run_outcome`, `uniq_qra_revision_outcome` / `idx_qra_revision`); **migration none**.
   - **Sonraki adımlar:** HTTP/API, öğretmen paneli UI, PDF/Excel export, bildirimler, veli erişimi, opsiyonel denormalized option-choice aggregates (decrypt’siz).
+- **Öğrenme içeriği / medya temeli (Aşama 2.15):** Versioned `LearningContent` + sealable `LearningContentRevision` + append-only `LearningContentPublication` + outcome alignments + `StoredMediaAsset` metadata. UI/controller/API/upload/SDK/ödeme/AI yok. Detay: `docs/architecture-learning-content.md`.
+  - **Structured content:** `src/LearningContent/Content/` (Question content’ten ayrı); allowlist bloklar; mediaId UUID only; hash oracle-safe.
+  - **Medya:** provider-neutral enum; app-generated `storageKey` (serializer Ignore); MIME/size/sha256 policy.
+  - **Yetki (`LearningContentVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT create/review/publish; TEACHER own draft (no publish); institution Owner/Manager manage+publish; Teacher own draft; Staff/Student deny; global ADMIN/MODERATOR no auto publish / no tenant access alone.
+  - **AccessGate:** fail-closed; published content → `entitlement_required` (ücretsiz öğrenci erişimi yok).
+  - **Kilit sırası:** Institution → Subject → Curriculum → LearningContent → Users → Revision → Alignment → Asset → Publication/Audit.
+  - **DB:** `Version20260912120000` + Doctrine immutability/composite FK/schema listeners; sealed BU/BD triggers; no session bypass.
+  - **Bilinen sınırlama:** gerçek upload/SDK yok; entitlement pending; multi-process harness yok.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği HTTP API.
 
 ## Sonraki aşamalar
 

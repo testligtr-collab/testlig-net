@@ -67,6 +67,14 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\LearningContentCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\LearningContentSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
@@ -199,6 +207,18 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\QuestionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\LearningContentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\StoredMediaAssetManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\LearningContentAccessGate:
             public: true
             autowire: true
             autoconfigure: true

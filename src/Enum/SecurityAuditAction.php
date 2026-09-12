@@ -104,4 +104,20 @@ enum SecurityAuditAction: string
     case StudentAnalyticsViewed = 'student_analytics_viewed';
     case QuestionAnalyticsViewed = 'question_analytics_viewed';
     case LearningOutcomeAnalyticsViewed = 'learning_outcome_analytics_viewed';
+    case LearningContentCreated = 'learning_content_created';
+    case LearningContentRevisionCreated = 'learning_content_revision_created';
+    case LearningContentRevisionUpdated = 'learning_content_revision_updated';
+    case LearningContentSubmittedForReview = 'learning_content_submitted_for_review';
+    case LearningContentReturnedToDraft = 'learning_content_returned_to_draft';
+    case LearningContentPublished = 'learning_content_published';
+    case LearningContentArchived = 'learning_content_archived';
+    case LearningContentCloned = 'learning_content_cloned';
+    case LearningContentOutcomesAligned = 'learning_content_outcomes_aligned';
+    case LearningContentAssetAttached = 'learning_content_asset_attached';
+    case LearningContentAssetDetached = 'learning_content_asset_detached';
+    case StoredMediaAssetRegistered = 'stored_media_asset_registered';
+    case StoredMediaAssetScanUpdated = 'stored_media_asset_scan_updated';
+    case StoredMediaAssetMarkedReady = 'stored_media_asset_marked_ready';
+    case StoredMediaAssetQuarantined = 'stored_media_asset_quarantined';
+    case StoredMediaAssetArchived = 'stored_media_asset_archived';
 }

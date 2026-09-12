@@ -176,6 +176,13 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Yetki: Owner/Manager; Teacher sınıf coverage; Student yalnız kendi attempt DTO; SUPER_ADMIN aggregate OK / student DTO DENY; Staff/Admin/Moderator deny. Fresh auth + tenant isolation.
 - UI/controller/API/PDF/Excel/bildirim/veli yok. Migration: **none** (gerekli indeksler zaten mevcut: `idx_ais_run_outcome`, `uniq_qra_revision_outcome`).
 
+### Öğrenme içeriği / medya temeli (Aşama 2.15)
+
+- Versioned `LearningContent` + sealable revision + append-only publication + outcome alignment + `StoredMediaAsset` metadata registry.
+- Structured content: `src/LearningContent/` (Question content’ten ayrı); HTML/script/iframe/external URL yok; mediaId UUID only.
+- AccessGate fail-closed: published içerik `entitlement_required` (ücretsiz öğrenci erişimi yok). Review separation zorunlu.
+- Gerçek upload/storage SDK/ödeme/AI/UI/API yok. Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
+
 ### Tasarım sistemi ve UI önizlemeleri (Aşama 2.14.1)
 
 - Merkezi CSS token’ları: `assets/styles/app.css` (`docs/ui-design-system.md`).

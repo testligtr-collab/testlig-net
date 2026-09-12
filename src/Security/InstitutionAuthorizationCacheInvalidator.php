@@ -40,5 +40,7 @@ interface InstitutionAuthorizationCacheInvalidator
 
     public function invalidateAssessmentDelivery(Uuid $deliveryId): void;
 
+    public function invalidateLearningContent(Uuid $contentId): void;
+
     public function reset(): void;
 }
