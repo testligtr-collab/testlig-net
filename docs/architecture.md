@@ -167,13 +167,20 @@
   - **Structured content:** `src/LearningContent/Content/` (Question content’ten ayrı); allowlist bloklar; mediaId UUID only; hash oracle-safe.
   - **Medya:** provider-neutral enum; app-generated `storageKey` (serializer Ignore); MIME/size/sha256 policy.
   - **Yetki (`LearningContentVoter`):** SUPER_ADMIN all; platform HEAD/EXPERT create/review/publish; TEACHER own draft (no publish); institution Owner/Manager manage+publish; Teacher own draft; Staff/Student deny; global ADMIN/MODERATOR no auto publish / no tenant access alone.
-  - **AccessGate:** fail-closed; published content → `entitlement_required` (ücretsiz öğrenci erişimi yok).
+  - **AccessGate:** fail-closed; published + auth/membership/asset checks sonra `EntitlementAccessGate` (free policy allow; aksi halde lisans/koltuk).
   - **Kilit sırası:** Institution → Subject → Curriculum → LearningContent → Users → Revision → Alignment → Asset → Publication/Audit.
   - **DB:** `Version20260912120000` + Doctrine immutability/composite FK/schema listeners; sealed BU/BD triggers; no session bypass.
-  - **Bilinen sınırlama:** gerçek upload/SDK yok; entitlement pending; multi-process harness yok.
+  - **Bilinen sınırlama:** gerçek upload/SDK yok; multi-process harness yok.
+- **Access package / license / entitlement (Aşama 2.16):** Domain-only `AccessPackage` + versioned grants + `AccessLicense` + institution seats + resource access policies. UI/API/payment SDK yok. Detay: `docs/architecture-access-entitlement.md`.
+  - **Model:** package (individual|institution target) → versions (draft/active/superseded + policyHash) → LC/assessment/catalog grants; licenses (user|institution); seats with active guard; `LearningContentAccessPolicy` / `AssessmentAccessPolicy` (`free`|`entitlement_required`).
+  - **Adaptation:** Assessment entity has **no subject** — assessment catalog grants use `grade_level` only; LC catalog grants require subject+grade.
+  - **Gate:** `EntitlementAccessGate` priority free → individual license → institution seat; `validFrom <= now < validUntil`; high-volume allows not audited per view.
+  - **Auth:** SUPER_ADMIN activate commercial packages; HEAD/EXPERT prepare drafts only; Institution Owner licenses+seats; Manager seats only; global `ROLE_INSTITUTION_MANAGER` alone never grants tenant access.
+  - **DB:** `Version20260912160000` CHECKs/guards/triggers + `AccessEntitlementCompositeForeignKeyListener` / schema listener.
+  - **Sonraki (2.17):** payment will only trigger license commands; live lesson out of scope here.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği/access package HTTP API.
 
 ## Sonraki aşamalar
 
-Davet akışları, paneller ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.
+Davet akışları, paneller, ödeme (2.17) ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.
