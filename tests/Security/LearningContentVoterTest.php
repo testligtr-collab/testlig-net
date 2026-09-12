@@ -56,7 +56,9 @@ final class LearningContentVoterTest extends KernelTestCase
         $sa = $this->superAdmin('lcv-sa@example.com');
         $head = $this->activeUser('lcv-head@example.com', UserRole::HeadTeacher);
         $teacher = $this->activeUser('lcv-teacher@example.com', UserRole::Teacher);
-        $admin = $this->activeUser('lcv-admin@example.com', UserRole::Admin);
+        $admin = $this->activeUser('lcv-admin@example.com', UserRole::Student);
+        $admin->addGlobalRole(UserRole::Admin);
+        $this->users->save($admin);
         $student = $this->activeUser('lcv-student@example.com', UserRole::Student);
 
         $subjects = static::getContainer()->get(SubjectManager::class);

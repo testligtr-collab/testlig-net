@@ -21,7 +21,6 @@ use App\LearningContent\LearningContentAccessDecision;
 use App\Repository\LearningContentRevisionAssetRepository;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
-use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Symfony\Component\Uid\Uuid;
@@ -31,12 +30,13 @@ use Symfony\Component\Uid\Uuid;
  *
  * Published platform content returns entitlement_required (no free student access).
  * Entitlement wiring is intentionally pending in Stage 2.15.
+ *
+ * Fresh loads use HINT_REFRESH without pessimistic locks (read path; no open TX required).
  */
 final class LearningContentAccessGate
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly LearningContentRevisionAssetRepository $revisionAssets,
     ) {
     }
@@ -52,10 +52,7 @@ final class LearningContentAccessGate
 
     private function doEvaluate(Uuid $contentId, User $actor): LearningContentAccessDecision
     {
-        $content = $this->freshEntities->findFreshLockedLearningContent(
-            $contentId,
-            LockMode::PESSIMISTIC_READ,
-        );
+        $content = $this->findFreshContent($contentId);
         if (!$content instanceof LearningContent) {
             return LearningContentAccessDecision::denied(LearningContentAccessDecisionReason::NotFound);
         }
@@ -86,10 +83,7 @@ final class LearningContentAccessGate
             );
         }
 
-        $revision = $this->freshEntities->findFreshLockedLearningContentRevision(
-            $publishedRevision->getId(),
-            LockMode::PESSIMISTIC_READ,
-        );
+        $revision = $this->findFreshRevision($publishedRevision->getId());
         if (!$revision instanceof LearningContentRevision || !$revision->isSealed()) {
             return LearningContentAccessDecision::denied(
                 LearningContentAccessDecisionReason::AccessPolicyNotConfigured,
@@ -100,7 +94,7 @@ final class LearningContentAccessGate
         $revisionIdStr = $revision->getId()->toRfc4122();
         $revisionNumber = $revision->getRevisionNumber();
 
-        $freshUser = $this->freshEntities->findFreshLockedUser($actor->getId(), LockMode::PESSIMISTIC_READ);
+        $freshUser = $this->findFreshUser($actor->getId());
         if (!$freshUser instanceof User || UserStatus::Active !== $freshUser->getStatus()) {
             return LearningContentAccessDecision::denied(
                 LearningContentAccessDecisionReason::Unauthorized,
@@ -119,7 +113,6 @@ final class LearningContentAccessGate
         }
 
         if (LearningContentScope::Platform === $content->getScope()) {
-            // Fail-closed: student delivery requires entitlement (not implemented yet).
             return LearningContentAccessDecision::denied(
                 LearningContentAccessDecisionReason::EntitlementRequired,
                 $contentIdStr,
@@ -138,10 +131,7 @@ final class LearningContentAccessGate
             );
         }
 
-        $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
-            $institution->getId(),
-            LockMode::PESSIMISTIC_READ,
-        );
+        $lockedInstitution = $this->findFreshInstitution($institution->getId());
         if (!$lockedInstitution instanceof Institution
             || InstitutionStatus::Active !== $lockedInstitution->getStatus()
         ) {
@@ -174,7 +164,6 @@ final class LearningContentAccessGate
             );
         }
 
-        // Institution published content still fail-closed without entitlement/access policy.
         return LearningContentAccessDecision::denied(
             LearningContentAccessDecisionReason::EntitlementRequired,
             $contentIdStr,
@@ -194,6 +183,62 @@ final class LearningContentAccessGate
         }
 
         return true;
+    }
+
+    private function findFreshContent(Uuid $id): ?LearningContent
+    {
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('c')
+            ->from(LearningContent::class, 'c')
+            ->where('c.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true);
+        $entity = $query->getOneOrNullResult();
+
+        return $entity instanceof LearningContent ? $entity : null;
+    }
+
+    private function findFreshRevision(Uuid $id): ?LearningContentRevision
+    {
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('r')
+            ->from(LearningContentRevision::class, 'r')
+            ->where('r.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true);
+        $entity = $query->getOneOrNullResult();
+
+        return $entity instanceof LearningContentRevision ? $entity : null;
+    }
+
+    private function findFreshUser(Uuid $id): ?User
+    {
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->where('u.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true);
+        $entity = $query->getOneOrNullResult();
+
+        return $entity instanceof User ? $entity : null;
+    }
+
+    private function findFreshInstitution(Uuid $id): ?Institution
+    {
+        $query = $this->entityManager->createQueryBuilder()
+            ->select('i')
+            ->from(Institution::class, 'i')
+            ->where('i.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true);
+        $entity = $query->getOneOrNullResult();
+
+        return $entity instanceof Institution ? $entity : null;
     }
 
     private function findActiveMembership(User $user, Institution $institution): ?InstitutionMembership
