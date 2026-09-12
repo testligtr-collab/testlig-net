@@ -24,8 +24,11 @@ use App\Entity\CurriculumUnit;
 use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
 use App\Entity\InstitutionMembership;
+use App\Entity\LearningContent;
+use App\Entity\LearningContentRevision;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
+use App\Entity\StoredMediaAsset;
 use App\Entity\Subject;
 use App\Entity\User;
 use Doctrine\DBAL\LockMode;
@@ -161,6 +164,33 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(AssessmentRevision::class, $id, $lockMode);
 
         return $entity instanceof AssessmentRevision ? $entity : null;
+    }
+
+    public function findFreshLockedLearningContent(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?LearningContent {
+        $entity = $this->findFresh(LearningContent::class, $id, $lockMode);
+
+        return $entity instanceof LearningContent ? $entity : null;
+    }
+
+    public function findFreshLockedLearningContentRevision(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?LearningContentRevision {
+        $entity = $this->findFresh(LearningContentRevision::class, $id, $lockMode);
+
+        return $entity instanceof LearningContentRevision ? $entity : null;
+    }
+
+    public function findFreshLockedStoredMediaAsset(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?StoredMediaAsset {
+        $entity = $this->findFresh(StoredMediaAsset::class, $id, $lockMode);
+
+        return $entity instanceof StoredMediaAsset ? $entity : null;
     }
 
     public function findFreshLockedClassroomCourse(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?ClassroomCourse

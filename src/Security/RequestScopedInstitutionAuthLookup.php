@@ -15,6 +15,8 @@ use App\Enum\CurriculumStatus;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
+use App\Enum\LearningContentScope;
+use App\Enum\LearningContentStatus;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use App\Enum\StudentEnrollmentStatus;
@@ -28,6 +30,7 @@ use App\Security\Authorization\ClassroomCourseAuthorizationSnapshot;
 use App\Security\Authorization\CourseTeacherAssignmentAuthorizationSnapshot;
 use App\Security\Authorization\CurriculumProgramAuthorizationSnapshot;
 use App\Security\Authorization\InstitutionAuthorizationSnapshot;
+use App\Security\Authorization\LearningContentAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
 use App\Security\Authorization\QuestionAuthorizationSnapshot;
 use App\Security\Authorization\StudentEnrollmentAuthorizationSnapshot;
@@ -81,6 +84,9 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
 
     /** @var array<string, AssessmentDeliveryAuthorizationSnapshot|null> */
     private array $assessmentDeliveries = [];
+
+    /** @var array<string, LearningContentAuthorizationSnapshot|null> */
+    private array $learningContents = [];
 
     public function __construct(
         private readonly Connection $connection,
@@ -210,6 +216,16 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         }
 
         return $this->assessmentDeliveries[$key];
+    }
+
+    public function getLearningContentSnapshot(Uuid $contentId): ?LearningContentAuthorizationSnapshot
+    {
+        $key = $contentId->toRfc4122();
+        if (!\array_key_exists($key, $this->learningContents)) {
+            $this->learningContents[$key] = $this->fetchLearningContentSnapshot($contentId);
+        }
+
+        return $this->learningContents[$key];
     }
 
     public function invalidateUser(Uuid $userId): void
@@ -374,6 +390,13 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         });
     }
 
+    public function invalidateLearningContent(Uuid $contentId): void
+    {
+        $this->safe(function () use ($contentId): void {
+            unset($this->learningContents[$contentId->toRfc4122()]);
+        });
+    }
+
     public function reset(): void
     {
         $this->users = [];
@@ -388,6 +411,7 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
         $this->questions = [];
         $this->assessments = [];
         $this->assessmentDeliveries = [];
+        $this->learningContents = [];
     }
 
     private function dropMembershipsForInstitution(Uuid $institutionId): void
@@ -642,6 +666,29 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             subjectId: $this->uuidFromBinary($row['subject_id']),
             createdById: $this->uuidFromBinary($row['created_by_id']),
             status: QuestionStatus::from((string) $row['status']),
+        );
+    }
+
+    private function fetchLearningContentSnapshot(Uuid $contentId): ?LearningContentAuthorizationSnapshot
+    {
+        $row = $this->connection->fetchAssociative(
+            'SELECT id, scope, institution_id, subject_id, created_by_id, status
+             FROM learning_contents
+             WHERE id = :id
+             LIMIT 1',
+            ['id' => $contentId->toBinary()],
+        );
+        if (false === $row) {
+            return null;
+        }
+
+        return new LearningContentAuthorizationSnapshot(
+            id: $this->uuidFromBinary($row['id']),
+            scope: LearningContentScope::from((string) $row['scope']),
+            institutionId: null !== $row['institution_id'] ? $this->uuidFromBinary($row['institution_id']) : null,
+            subjectId: $this->uuidFromBinary($row['subject_id']),
+            createdById: $this->uuidFromBinary($row['created_by_id']),
+            status: LearningContentStatus::from((string) $row['status']),
         );
     }
 

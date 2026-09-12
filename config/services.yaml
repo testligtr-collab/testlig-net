@@ -210,6 +210,18 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\LearningContentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\StoredMediaAssetManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\LearningContentAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\AssessmentManager:
             public: true
             autowire: true
