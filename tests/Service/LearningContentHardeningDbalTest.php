@@ -385,11 +385,14 @@ final class LearningContentHardeningDbalTest extends KernelTestCase
         $conn = $this->em->getConnection();
         $id = $asset->getId()->toBinary();
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+        $later = (new \DateTimeImmutable('+1 second'))->format('Y-m-d H:i:s');
+        $later2 = (new \DateTimeImmutable('+2 seconds'))->format('Y-m-d H:i:s');
+        $later3 = (new \DateTimeImmutable('+3 seconds'))->format('Y-m-d H:i:s');
 
         try {
             $conn->executeStatement(
-                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, scan_status = \'pending\' WHERE id = ?',
-                [$now, $id],
+                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, scan_status = \'pending\', updated_at = ? WHERE id = ?',
+                [$later, $later, $id],
             );
             self::fail('ready without clean');
         } catch (DbalException $e) {
@@ -397,18 +400,18 @@ final class LearningContentHardeningDbalTest extends KernelTestCase
         }
 
         $conn->executeStatement(
-            'UPDATE stored_media_assets SET scan_status = \'clean\' WHERE id = ?',
-            [$id],
+            'UPDATE stored_media_assets SET scan_status = \'clean\', updated_at = ? WHERE id = ?',
+            [$later, $id],
         );
         $conn->executeStatement(
-            'UPDATE stored_media_assets SET status = \'ready\', ready_at = ? WHERE id = ?',
-            [$now, $id],
+            'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, updated_at = ? WHERE id = ?',
+            [$later2, $later2, $id],
         );
 
         try {
             $conn->executeStatement(
-                'UPDATE stored_media_assets SET status = \'pending\', ready_at = NULL, scan_status = \'pending\' WHERE id = ?',
-                [$id],
+                'UPDATE stored_media_assets SET status = \'pending\', ready_at = NULL, scan_status = \'pending\', updated_at = ? WHERE id = ?',
+                [$later3, $id],
             );
             self::fail('ready to pending');
         } catch (DbalException $e) {
@@ -416,29 +419,30 @@ final class LearningContentHardeningDbalTest extends KernelTestCase
         }
 
         $conn->executeStatement(
-            'UPDATE stored_media_assets SET status = \'quarantined\', ready_at = NULL, quarantined_at = ?, scan_status = \'infected\' WHERE id = ?',
-            [$now, $id],
+            'UPDATE stored_media_assets SET status = \'quarantined\', ready_at = NULL, quarantined_at = ?, scan_status = \'infected\', updated_at = ? WHERE id = ?',
+            [$later3, $later3, $id],
         );
 
         try {
             $conn->executeStatement(
-                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, quarantined_at = NULL, scan_status = \'clean\' WHERE id = ?',
-                [$now, $id],
+                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, quarantined_at = NULL, scan_status = \'clean\', updated_at = ? WHERE id = ?',
+                [$later3, $later3, $id],
             );
             self::fail('quarantined to ready');
         } catch (DbalException $e) {
             self::assertNotSame('', $e->getMessage());
         }
 
+        $archAt = (new \DateTimeImmutable('+4 seconds'))->format('Y-m-d H:i:s');
         $conn->executeStatement(
-            'UPDATE stored_media_assets SET status = \'archived\', archived_at = ? WHERE id = ?',
-            [$now, $id],
+            'UPDATE stored_media_assets SET status = \'archived\', archived_at = ?, updated_at = ? WHERE id = ?',
+            [$archAt, $archAt, $id],
         );
 
         try {
             $conn->executeStatement(
-                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, archived_at = NULL, scan_status = \'clean\' WHERE id = ?',
-                [$now, $id],
+                'UPDATE stored_media_assets SET status = \'ready\', ready_at = ?, archived_at = NULL, scan_status = \'clean\', updated_at = ? WHERE id = ?',
+                [$archAt, $archAt, $id],
             );
             self::fail('archived to ready');
         } catch (DbalException $e) {
