@@ -26,6 +26,9 @@ final class QuestionBankDbCleanup
         // Assessment graph must go before questions/users (RESTRICT FKs on authors).
         AssessmentDbCleanup::deleteAssessments($connection);
 
+        // Learning content graph before questions/curriculum (RESTRICT FKs on outcomes/media).
+        LearningContentDbCleanup::deleteLearningContents($connection);
+
         // Parent cascade clears revisions/options/answer_keys/alignments/guards.
         if ($schema->tablesExist(['questions'])) {
             $connection->executeStatement('DELETE FROM questions');
