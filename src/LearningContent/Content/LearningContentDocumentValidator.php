@@ -256,7 +256,7 @@ final class LearningContentDocumentValidator
         ) {
             throw LearningContentException::contentInvalid('Content must not contain HTML, script, iframe, or inline handlers.');
         }
-        if (preg_match('#https?://#i', $text) === 1) {
+        if (1 === preg_match('#https?://#i', $text)) {
             throw LearningContentException::contentInvalid('External URL embeds are forbidden.');
         }
     }

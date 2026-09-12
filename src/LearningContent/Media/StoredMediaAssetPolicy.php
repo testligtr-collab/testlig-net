@@ -78,10 +78,7 @@ final class StoredMediaAssetPolicy
         int $byteSize,
         string $contentSha256,
     ): void {
-        $rules = self::KIND_RULES[$kind->value] ?? null;
-        if (null === $rules) {
-            throw LearningContentException::assetInvalid('Unsupported media kind.');
-        }
+        $rules = self::KIND_RULES[$kind->value];
 
         $mimeType = strtolower(trim($mimeType));
         if (!\in_array($mimeType, $rules['mimes'], true)) {

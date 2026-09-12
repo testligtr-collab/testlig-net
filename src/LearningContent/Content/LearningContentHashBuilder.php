@@ -14,7 +14,7 @@ namespace App\LearningContent\Content;
 final class LearningContentHashBuilder
 {
     /**
-     * @param array<string, mixed>      $structuredContent
+     * @param array<string, mixed>       $structuredContent
      * @param AccessibilityMetadata|null $accessibilityMetadata
      *
      * @return array{

@@ -61,7 +61,7 @@ final class StorageKeyFactory
             || str_contains($storageKey, '\\')
             || str_contains($storageKey, '..')
             || str_starts_with($storageKey, '/')
-            || preg_match('#^[a-zA-Z]:#', $storageKey) === 1
+            || 1 === preg_match('#^[a-zA-Z]:#', $storageKey)
         ) {
             throw LearningContentException::assetInvalid('storageKey must not contain traversal, null bytes, or absolute paths.');
         }

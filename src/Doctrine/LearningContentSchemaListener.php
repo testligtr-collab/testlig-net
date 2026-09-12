@@ -64,7 +64,7 @@ final class LearningContentSchemaListener
     }
 
     /**
-     * @param list<string> $columns
+     * @param non-empty-list<string> $columns
      */
     private function ensureUnique(Table $table, string $name, array $columns): void
     {

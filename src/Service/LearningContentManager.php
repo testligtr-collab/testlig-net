@@ -46,7 +46,6 @@ use App\Repository\LearningContentRepository;
 use App\Repository\LearningContentRevisionAssetRepository;
 use App\Repository\LearningContentRevisionPrimaryAlignmentGuardRepository;
 use App\Repository\LearningContentRevisionRepository;
-use App\Repository\StoredMediaAssetRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
@@ -55,7 +54,6 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -75,7 +73,6 @@ final class LearningContentManager
         private readonly LearningContentOutcomeAlignmentRepository $alignments,
         private readonly LearningContentRevisionPrimaryAlignmentGuardRepository $primaryGuards,
         private readonly LearningContentRevisionAssetRepository $revisionAssets,
-        private readonly StoredMediaAssetRepository $mediaAssets,
         private readonly LearningContentDocumentValidator $documentValidator,
         private readonly LearningContentHasher $contentHasher,
         private readonly LearningContentHashBuilder $hashBuilder,
@@ -91,9 +88,9 @@ final class LearningContentManager
     }
 
     /**
-     * @param LearningContentDocument|array<string, mixed>                     $structuredContent
+     * @param LearningContentDocument|array<string, mixed>                             $structuredContent
      * @param list<array{learningOutcome: CurriculumLearningOutcome, isPrimary: bool}> $alignments
-     * @param array<string, mixed>|null                                        $accessibilityMetadata
+     * @param array<string, mixed>|null                                                $accessibilityMetadata
      */
     public function createDraft(
         User $actor,
@@ -243,9 +240,9 @@ final class LearningContentManager
     }
 
     /**
-     * @param LearningContentDocument|array<string, mixed>                     $structuredContent
+     * @param LearningContentDocument|array<string, mixed>                             $structuredContent
      * @param list<array{learningOutcome: CurriculumLearningOutcome, isPrimary: bool}> $alignments
-     * @param array<string, mixed>|null                                        $accessibilityMetadata
+     * @param array<string, mixed>|null                                                $accessibilityMetadata
      */
     public function createRevision(
         LearningContent $content,
@@ -1221,7 +1218,7 @@ final class LearningContentManager
     private function assertAssetTenantCompatible(LearningContent $content, StoredMediaAsset $asset): void
     {
         if (LearningContentScope::Platform === $content->getScope()) {
-            if ($asset->getScope()->value !== 'platform') {
+            if ('platform' !== $asset->getScope()->value) {
                 throw LearningContentException::scopeMismatch();
             }
 

@@ -36,89 +36,77 @@ final class StoredMediaAssetPolicyTest extends TestCase
         self::assertSame(10_485_760, $this->policy->maxBytesFor(StoredMediaAssetKind::Image));
     }
 
-    public function testRejectsMimeSizePathTraversalAndChecksum(): void
+    public function testRejectsDisallowedMime(): void
     {
-        $sha = str_repeat('ab', 32);
-
-        try {
-            $this->policy->assertValidRegistration(
-                StoredMediaAssetKind::Image,
-                'application/x-msdownload',
-                'cover.png',
-                1024,
-                $sha,
-            );
-            self::fail('bad mime');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
-
-        try {
-            $this->policy->assertValidRegistration(
-                StoredMediaAssetKind::Image,
-                'image/png',
-                'cover.png',
-                50_000_000,
-                $sha,
-            );
-            self::fail('oversize');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
-
-        try {
-            $this->policy->assertValidRegistration(
-                StoredMediaAssetKind::Image,
-                'image/png',
-                '../cover.png',
-                1024,
-                $sha,
-            );
-            self::fail('traversal filename');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
-
-        try {
-            $this->policy->assertValidRegistration(
-                StoredMediaAssetKind::Image,
-                'image/png',
-                'cover.png',
-                1024,
-                'NOTHEX',
-            );
-            self::fail('bad sha');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
+        $this->expectException(LearningContentException::class);
+        $this->policy->assertValidRegistration(
+            StoredMediaAssetKind::Image,
+            'application/x-msdownload',
+            'cover.png',
+            1024,
+            str_repeat('ab', 32),
+        );
     }
 
-    public function testStorageKeyFactoryRejectsAbsoluteAndTraversal(): void
+    public function testRejectsOversize(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->policy->assertValidRegistration(
+            StoredMediaAssetKind::Image,
+            'image/png',
+            'cover.png',
+            50_000_000,
+            str_repeat('ab', 32),
+        );
+    }
+
+    public function testRejectsTraversalFilename(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->policy->assertValidRegistration(
+            StoredMediaAssetKind::Image,
+            'image/png',
+            '../cover.png',
+            1024,
+            str_repeat('ab', 32),
+        );
+    }
+
+    public function testRejectsInvalidChecksum(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->policy->assertValidRegistration(
+            StoredMediaAssetKind::Image,
+            'image/png',
+            'cover.png',
+            1024,
+            'NOTHEX',
+        );
+    }
+
+    public function testStorageKeyFactoryBuildsScopedKey(): void
     {
         $id = new UuidV7();
         $sha = str_repeat('cd', 32);
         $key = $this->keys->create(StoredMediaAssetScope::Platform, null, StoredMediaAssetKind::Image, $id, $sha);
         self::assertStringStartsWith('media/platform/image/', $key);
+    }
 
-        try {
-            $this->keys->assertSafeKey('/etc/passwd');
-            self::fail('absolute');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
+    public function testStorageKeyFactoryRejectsAbsolutePath(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->keys->assertSafeKey('/etc/passwd');
+    }
 
-        try {
-            $this->keys->assertSafeKey('media/../secret');
-            self::fail('traversal');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
+    public function testStorageKeyFactoryRejectsTraversal(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->keys->assertSafeKey('media/../secret');
+    }
 
-        try {
-            $this->keys->assertSafeKey('C:\\windows\\system32');
-            self::fail('windows path');
-        } catch (LearningContentException) {
-            self::assertTrue(true);
-        }
+    public function testStorageKeyFactoryRejectsWindowsPath(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->keys->assertSafeKey('C:\\windows\\system32');
     }
 }

@@ -20,7 +20,7 @@ final class LearningContentTitleNormalizer
         if ('' === $title || mb_strlen($title) > 200) {
             throw LearningContentException::invalidInput('Title must be 1-200 characters.');
         }
-        if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $title) === 1) {
+        if (1 === preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $title)) {
             throw LearningContentException::invalidInput('Title must not contain control characters.');
         }
 
@@ -71,7 +71,7 @@ final class LearningContentTitleNormalizer
         if (mb_strlen($summary) > 2000) {
             throw LearningContentException::invalidInput('Summary must be at most 2000 characters.');
         }
-        if (preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $summary) === 1) {
+        if (1 === preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', $summary)) {
             throw LearningContentException::invalidInput('Summary must not contain control characters.');
         }
 
