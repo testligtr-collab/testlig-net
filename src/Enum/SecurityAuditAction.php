@@ -120,4 +120,24 @@ enum SecurityAuditAction: string
     case StoredMediaAssetMarkedReady = 'stored_media_asset_marked_ready';
     case StoredMediaAssetQuarantined = 'stored_media_asset_quarantined';
     case StoredMediaAssetArchived = 'stored_media_asset_archived';
+    case AccessPackageCreated = 'access_package_created';
+    case AccessPackageUpdated = 'access_package_updated';
+    case AccessPackageActivated = 'access_package_activated';
+    case AccessPackageRetired = 'access_package_retired';
+    case AccessPackageVersionCreated = 'access_package_version_created';
+    case AccessPackageVersionUpdated = 'access_package_version_updated';
+    case AccessPackageVersionActivated = 'access_package_version_activated';
+    case AccessPackageVersionSuperseded = 'access_package_version_superseded';
+    case AccessPackageGrantAdded = 'access_package_grant_added';
+    case AccessPackageGrantRemoved = 'access_package_grant_removed';
+    case AccessLicenseCreated = 'access_license_created';
+    case AccessLicenseActivated = 'access_license_activated';
+    case AccessLicenseSuspended = 'access_license_suspended';
+    case AccessLicenseReactivated = 'access_license_reactivated';
+    case AccessLicenseRevoked = 'access_license_revoked';
+    case AccessLicenseExpired = 'access_license_expired';
+    case InstitutionLicenseSeatAssigned = 'institution_license_seat_assigned';
+    case InstitutionLicenseSeatRevoked = 'institution_license_seat_revoked';
+    case LearningContentAccessPolicySet = 'learning_content_access_policy_set';
+    case AssessmentAccessPolicySet = 'assessment_access_policy_set';
 }
