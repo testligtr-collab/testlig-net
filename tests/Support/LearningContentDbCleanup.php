@@ -10,10 +10,11 @@ use PHPUnit\Framework\Assert;
 /**
  * Test-only cleanup for learning content + stored media fixtures.
  *
- * Does not bypass MariaDB append-only DELETE triggers. Immutable child rows are
- * removed only via ON DELETE CASCADE from parent `learning_contents` (MariaDB does
- * not fire child DELETE triggers for FK cascading actions). Published pointers are
- * nulled first so RESTRICT pointer FKs do not block parent delete.
+ * Does not bypass MariaDB append-only DELETE triggers and does not NULL published
+ * pointers while publications exist. Immutable child rows are removed only via
+ * ON DELETE CASCADE from parent `learning_contents` (MariaDB does not fire child
+ * DELETE triggers for FK cascading actions). Pointer FKs use ON DELETE CASCADE so
+ * the content↔revision cycle resolves without a detach UPDATE.
  */
 final class LearningContentDbCleanup
 {
@@ -22,15 +23,6 @@ final class LearningContentDbCleanup
         $schema = $connection->createSchemaManager();
 
         if ($schema->tablesExist(['learning_contents'])) {
-            $connection->executeStatement(
-                'UPDATE learning_contents
-                 SET published_revision_id = NULL,
-                     published_revision_number = NULL,
-                     published_at = NULL,
-                     archived_at = NULL,
-                     status = \'draft\'
-                 WHERE published_revision_id IS NOT NULL OR status IN (\'published\', \'archived\')',
-            );
             $connection->executeStatement('DELETE FROM learning_contents');
         }
         if ($schema->tablesExist(['stored_media_assets'])) {
