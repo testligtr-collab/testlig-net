@@ -75,6 +75,14 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\AccessEntitlementCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\AccessEntitlementSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
@@ -219,6 +227,26 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\LearningContentAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AccessPackageManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AccessPackageVersionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\AccessLicenseManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionLicenseSeatManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\EntitlementAccessGate:
             public: true
             autowire: true
             autoconfigure: true
