@@ -67,6 +67,14 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\LearningContentCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\LearningContentSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
