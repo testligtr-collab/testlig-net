@@ -190,6 +190,8 @@ final class LearningContentManager
                 $this->contents->save($content, false);
                 $this->entityManager->flush();
 
+                // MariaDB cannot defer FKs: content INSERT keeps null current until revision 1
+                // exists; trg_lcr_ai_sync_current then owns the pointer in this same transaction.
                 $revision = $this->persistRevisionBundle(
                     $content,
                     1,
@@ -1310,9 +1312,14 @@ final class LearningContentManager
         $this->revisions->save($revision, false);
         $this->entityManager->flush();
 
-        $content->assignCurrentRevision($revision, $now);
-        $this->contents->save($content, false);
-        $this->entityManager->flush();
+        // trg_lcr_ai_sync_current owns the DB current pointer; refresh so UoW matches.
+        $this->entityManager->refresh($content);
+        if ($content->getCurrentRevisionNumber() !== $revision->getRevisionNumber()
+            || null === $content->getCurrentRevision()
+            || !$content->getCurrentRevision()->getId()->equals($revision->getId())
+        ) {
+            throw LearningContentException::conflict();
+        }
 
         $this->persistAlignments($revision, $outcomeBundle, $now);
         $this->entityManager->flush();
