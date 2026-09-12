@@ -457,6 +457,7 @@ final class InstitutionStaleAuthorizationTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        \App\Tests\Support\AccessEntitlementDbCleanup::deleteAll($connection);
         foreach (['institution_memberships', 'institutions', 'security_audit_events', 'security_bootstrap_guards', 'reset_password_requests', 'users'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

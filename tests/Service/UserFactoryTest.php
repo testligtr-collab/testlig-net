@@ -216,6 +216,7 @@ final class UserFactoryTest extends KernelTestCase
     protected function tearDown(): void
     {
         $connection = $this->em->getConnection();
+        \App\Tests\Support\AccessEntitlementDbCleanup::deleteAll($connection);
         \App\Tests\Support\AssessmentDbCleanup::deleteAssessments($connection);
         foreach (['security_audit_events', 'security_bootstrap_guards', 'reset_password_requests', 'users'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
