@@ -33,6 +33,21 @@ Stage 2.16 packages are platform commercial catalog products: grants may only re
 access decisions recompute and `hash_equals()` against stored `policyHash` /
 `policySnapshotHash`.
 
+**Access-time (PR #20 hardening):** `EntitlementAccessGate` loads package/version and the
+full grant graph via DBAL projections (`EntitlementAuthorizationProjector`), recomputes the
+canonical hash, and requires triple agreement:
+
+1. fresh graph hash ↔ version `policyHash`
+2. fresh graph hash ↔ license `policySnapshotHash`
+3. version `policyHash` ↔ license `policySnapshotHash`
+
+Any mismatch returns `integrity_failed`. Seat/membership/institution/license chains also use
+fresh DBAL snapshots (managed Doctrine associations are not trusted).
+
+**DB grant immutability (`Version20260912170000`):** INSERT/DELETE on grant tables is allowed
+only while the package version is `draft`. Active and superseded versions reject grant
+mutation at the trigger layer (UPDATE already immutable since Stage 2.16).
+
 ## Licenses and seats
 
 - User license: `licenseeType=user`, institution NULL, no seat limit.
