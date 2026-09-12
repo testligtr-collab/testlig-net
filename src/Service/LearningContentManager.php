@@ -63,6 +63,9 @@ use Symfony\Component\Uid\Uuid;
  * Lock order (documented in docs/architecture-learning-content.md):
  * Institution → Subject → Curriculum/Program → Topic/Outcome → LearningContent
  * → Users UUID order → Revision → Alignment → Asset → RevisionAsset/guard/publication → Audit
+ *
+ * Snapshot IDs without locks first; then acquire locks in the order above.
+ * Published pointer/status are owned by AFTER INSERT publication trigger — do not call publish().
  */
 final class LearningContentManager
 {
@@ -288,6 +291,8 @@ final class LearningContentManager
                     throw LearningContentException::notFound();
                 }
 
+                $outcomeBundle = $this->lockAlignmentOutcomes($alignments, $lockedSubject, allowDraftCurriculum: true);
+
                 $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
                     $contentId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -297,7 +302,6 @@ final class LearningContentManager
                 }
                 $this->assertContentSnapshotUnchanged($lockedContent, $snapshot);
 
-                $outcomeBundle = $this->lockAlignmentOutcomes($alignments, $lockedSubject, allowDraftCurriculum: true);
                 $users = $this->freshEntities->findFreshLockedUsers(
                     $this->uniqueSortedIds([$actorId, $lockedContent->getCreatedBy()->getId()]),
                     LockMode::PESSIMISTIC_READ,
@@ -309,7 +313,8 @@ final class LearningContentManager
                 $this->assertActorMayManage($freshActor, $lockedContent);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
-                $revisionNumber = $lockedContent->bumpRevisionNumber($now);
+                $lockedContent->prepareForNewRevision($now);
+                $revisionNumber = ($lockedContent->getCurrentRevisionNumber() ?? 0) + 1;
                 $this->contents->save($lockedContent, false);
 
                 $revision = $this->persistRevisionBundle(
@@ -394,6 +399,56 @@ final class LearningContentManager
                 $accessibilityMetadata,
                 $reasonCode,
             ): LearningContentRevision {
+                $revisionMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT r.id AS revision_id, r.content_id, lc.institution_id, lc.subject_id, r.revision_number
+                       FROM learning_content_revisions r
+                       INNER JOIN learning_contents lc ON lc.id = r.content_id
+                      WHERE r.id = ?',
+                    [$revisionId->toBinary()],
+                    [ParameterType::BINARY],
+                );
+                if (false === $revisionMeta) {
+                    throw LearningContentException::notFound();
+                }
+                $contentId = Uuid::fromBinary((string) $revisionMeta['content_id']);
+                $subjectId = Uuid::fromBinary((string) $revisionMeta['subject_id']);
+                $institutionId = null !== $revisionMeta['institution_id']
+                    ? Uuid::fromBinary((string) $revisionMeta['institution_id'])
+                    : null;
+
+                if (null !== $institutionId) {
+                    $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
+                        $institutionId,
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
+                }
+
+                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
+                    $subjectId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedSubject instanceof Subject) {
+                    throw LearningContentException::notFound();
+                }
+
+                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
+                    $contentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedContent instanceof LearningContent) {
+                    throw LearningContentException::notFound();
+                }
+
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw LearningContentException::userNotFound();
+                }
+                $this->assertActorMayManage($freshActor, $lockedContent);
+
                 $lockedRevision = $this->freshEntities->findFreshLockedLearningContentRevision(
                     $revisionId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -404,25 +459,9 @@ final class LearningContentManager
                 if ($lockedRevision->isSealed()) {
                     throw LearningContentException::revisionSealed();
                 }
-
-                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
-                    $lockedRevision->getContent()->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$lockedContent instanceof LearningContent) {
-                    throw LearningContentException::notFound();
-                }
                 if ($lockedContent->getCurrentRevisionNumber() !== $lockedRevision->getRevisionNumber()) {
                     throw LearningContentException::conflict();
                 }
-
-                $this->lockInstitutionForContent($lockedContent);
-                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
-                $freshActor = $users[$actorId->toRfc4122()] ?? null;
-                if (!$freshActor instanceof User) {
-                    throw LearningContentException::userNotFound();
-                }
-                $this->assertActorMayManage($freshActor, $lockedContent);
 
                 $this->sourceReferencePolicy->assertValid($sourceReference);
                 $this->documentValidator->validate($document);
@@ -528,25 +567,29 @@ final class LearningContentManager
                 }
                 $this->assertContentSnapshotUnchanged($lockedContent, $snapshot, full: true);
 
-                $revision = $this->revisions->findOneByContentAndNumber(
-                    $lockedContent,
-                    $lockedContent->getCurrentRevisionNumber(),
-                );
-                if (!$revision instanceof LearningContentRevision) {
+                if (null === $snapshot['current_revision_id']) {
                     throw LearningContentException::notFound();
                 }
                 $revision = $this->freshEntities->findFreshLockedLearningContentRevision(
-                    $revision->getId(),
+                    Uuid::fromString($snapshot['current_revision_id']),
                     LockMode::PESSIMISTIC_WRITE,
                 );
                 if (!$revision instanceof LearningContentRevision) {
                     throw LearningContentException::notFound();
                 }
+                if (!$revision->getContent()->getId()->equals($lockedContent->getId())) {
+                    throw LearningContentException::conflict();
+                }
                 if (!$revision->isSealed()) {
                     throw LearningContentException::revisionNotSealed();
                 }
+                if ($snapshot['current_revision_number'] !== $revision->getRevisionNumber()) {
+                    throw LearningContentException::conflict();
+                }
 
+                $this->assertContentHashMatchesRevision($revision);
                 $this->assertPublishableAlignments($revision, $lockedContent);
+                $this->assertPublishableReferencedAssets($revision, $lockedContent);
 
                 $userIds = $this->uniqueSortedIds([
                     $actorId,
@@ -576,9 +619,7 @@ final class LearningContentManager
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $oldStatus = $lockedContent->getStatus()->value;
 
-                $lockedContent->publish($revision, $now);
-                $this->contents->save($lockedContent, false);
-
+                // Published pointer/status are applied by AFTER INSERT trigger — do not mutate content here.
                 $publication = LearningContentPublication::create(
                     $lockedContent,
                     $revision,
@@ -589,6 +630,17 @@ final class LearningContentManager
                     $now,
                 );
                 $this->publications->save($publication, false);
+                $this->entityManager->flush();
+
+                $this->entityManager->refresh($lockedContent);
+                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
+                    $contentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedContent instanceof LearningContent) {
+                    throw LearningContentException::notFound();
+                }
+                $this->assertPublishedPointerMatchesRevision($lockedContent, $revision);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::LearningContentPublished,
@@ -601,6 +653,7 @@ final class LearningContentManager
                         'content_id' => $lockedContent->getId()->toRfc4122(),
                         'revision_id' => $revision->getId()->toRfc4122(),
                         'revision_number' => $revision->getRevisionNumber(),
+                        'publication_id' => $publication->getId()->toRfc4122(),
                         'publication_number' => $publicationNumber,
                         'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
                         'old_status' => $oldStatus,
@@ -626,7 +679,14 @@ final class LearningContentManager
     public function cloneAsNewRevision(LearningContent $content, User $actor, string $reasonCode): LearningContentRevision
     {
         $contentId = $content->getId();
-        $source = $this->revisions->findOneByContentAndNumber($content, $content->getCurrentRevisionNumber());
+        $source = $content->getCurrentRevision();
+        if (!$source instanceof LearningContentRevision) {
+            $number = $content->getCurrentRevisionNumber();
+            if (null === $number) {
+                throw LearningContentException::notFound();
+            }
+            $source = $this->revisions->findOneByContentAndNumber($content, $number);
+        }
         if (!$source instanceof LearningContentRevision) {
             throw LearningContentException::notFound();
         }
@@ -673,6 +733,58 @@ final class LearningContentManager
                 $alignments,
                 $reasonCode,
             ): void {
+                $revisionMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT r.id AS revision_id, r.content_id, lc.institution_id, lc.subject_id
+                       FROM learning_content_revisions r
+                       INNER JOIN learning_contents lc ON lc.id = r.content_id
+                      WHERE r.id = ?',
+                    [$revisionId->toBinary()],
+                    [ParameterType::BINARY],
+                );
+                if (false === $revisionMeta) {
+                    throw LearningContentException::notFound();
+                }
+                $contentId = Uuid::fromBinary((string) $revisionMeta['content_id']);
+                $subjectId = Uuid::fromBinary((string) $revisionMeta['subject_id']);
+                $institutionId = null !== $revisionMeta['institution_id']
+                    ? Uuid::fromBinary((string) $revisionMeta['institution_id'])
+                    : null;
+
+                if (null !== $institutionId) {
+                    $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
+                        $institutionId,
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
+                }
+
+                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
+                    $subjectId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedSubject instanceof Subject) {
+                    throw LearningContentException::notFound();
+                }
+
+                $outcomeBundle = $this->lockAlignmentOutcomes($alignments, $lockedSubject, allowDraftCurriculum: true);
+
+                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
+                    $contentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedContent instanceof LearningContent) {
+                    throw LearningContentException::notFound();
+                }
+
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw LearningContentException::userNotFound();
+                }
+                $this->assertActorMayManage($freshActor, $lockedContent);
+
                 $lockedRevision = $this->freshEntities->findFreshLockedLearningContentRevision(
                     $revisionId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -683,31 +795,6 @@ final class LearningContentManager
                 if ($lockedRevision->isSealed()) {
                     throw LearningContentException::revisionSealed();
                 }
-
-                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
-                    $lockedRevision->getContent()->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$lockedContent instanceof LearningContent) {
-                    throw LearningContentException::notFound();
-                }
-
-                $this->lockInstitutionForContent($lockedContent);
-                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
-                    $lockedContent->getSubject()->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$lockedSubject instanceof Subject) {
-                    throw LearningContentException::notFound();
-                }
-
-                $outcomeBundle = $this->lockAlignmentOutcomes($alignments, $lockedSubject, allowDraftCurriculum: true);
-                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
-                $freshActor = $users[$actorId->toRfc4122()] ?? null;
-                if (!$freshActor instanceof User) {
-                    throw LearningContentException::userNotFound();
-                }
-                $this->assertActorMayManage($freshActor, $lockedContent);
 
                 $existingGuard = $this->primaryGuards->find($lockedRevision->getId());
                 if ($existingGuard instanceof LearningContentRevisionPrimaryAlignmentGuard) {
@@ -776,6 +863,56 @@ final class LearningContentManager
                 $caption,
                 $reasonCode,
             ): LearningContentRevisionAsset {
+                $revisionMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT r.id AS revision_id, r.content_id, lc.institution_id, lc.subject_id
+                       FROM learning_content_revisions r
+                       INNER JOIN learning_contents lc ON lc.id = r.content_id
+                      WHERE r.id = ?',
+                    [$revisionId->toBinary()],
+                    [ParameterType::BINARY],
+                );
+                if (false === $revisionMeta) {
+                    throw LearningContentException::notFound();
+                }
+                $contentId = Uuid::fromBinary((string) $revisionMeta['content_id']);
+                $subjectId = Uuid::fromBinary((string) $revisionMeta['subject_id']);
+                $institutionId = null !== $revisionMeta['institution_id']
+                    ? Uuid::fromBinary((string) $revisionMeta['institution_id'])
+                    : null;
+
+                if (null !== $institutionId) {
+                    $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
+                        $institutionId,
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
+                }
+
+                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
+                    $subjectId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedSubject instanceof Subject) {
+                    throw LearningContentException::notFound();
+                }
+
+                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
+                    $contentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedContent instanceof LearningContent) {
+                    throw LearningContentException::notFound();
+                }
+
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw LearningContentException::userNotFound();
+                }
+                $this->assertActorMayManage($freshActor, $lockedContent);
+
                 $lockedRevision = $this->freshEntities->findFreshLockedLearningContentRevision(
                     $revisionId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -786,15 +923,6 @@ final class LearningContentManager
                         : LearningContentException::notFound();
                 }
 
-                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
-                    $lockedRevision->getContent()->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$lockedContent instanceof LearningContent) {
-                    throw LearningContentException::notFound();
-                }
-                $this->lockInstitutionForContent($lockedContent);
-
                 $lockedAsset = $this->freshEntities->findFreshLockedStoredMediaAsset(
                     $assetId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -803,13 +931,6 @@ final class LearningContentManager
                     throw LearningContentException::notFound();
                 }
                 $this->assertAssetTenantCompatible($lockedContent, $lockedAsset);
-
-                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
-                $freshActor = $users[$actorId->toRfc4122()] ?? null;
-                if (!$freshActor instanceof User) {
-                    throw LearningContentException::userNotFound();
-                }
-                $this->assertActorMayManage($freshActor, $lockedContent);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $link = LearningContentRevisionAsset::create(
@@ -869,12 +990,60 @@ final class LearningContentManager
 
         try {
             $this->entityManager->wrapInTransaction(function () use ($linkId, $actorId, $reasonCode): void {
-                $link = $this->revisionAssets->find($linkId);
-                if (!$link instanceof LearningContentRevisionAsset) {
+                $linkMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT la.id AS link_id, la.revision_id, r.content_id, lc.institution_id, lc.subject_id, la.asset_id
+                       FROM learning_content_revision_assets la
+                       INNER JOIN learning_content_revisions r ON r.id = la.revision_id
+                       INNER JOIN learning_contents lc ON lc.id = r.content_id
+                      WHERE la.id = ?',
+                    [$linkId->toBinary()],
+                    [ParameterType::BINARY],
+                );
+                if (false === $linkMeta) {
                     throw LearningContentException::notFound();
                 }
+                $revisionId = Uuid::fromBinary((string) $linkMeta['revision_id']);
+                $contentId = Uuid::fromBinary((string) $linkMeta['content_id']);
+                $subjectId = Uuid::fromBinary((string) $linkMeta['subject_id']);
+                $institutionId = null !== $linkMeta['institution_id']
+                    ? Uuid::fromBinary((string) $linkMeta['institution_id'])
+                    : null;
+
+                if (null !== $institutionId) {
+                    $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
+                        $institutionId,
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
+                }
+
+                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
+                    $subjectId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedSubject instanceof Subject) {
+                    throw LearningContentException::notFound();
+                }
+
+                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
+                    $contentId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedContent instanceof LearningContent) {
+                    throw LearningContentException::notFound();
+                }
+
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw LearningContentException::userNotFound();
+                }
+                $this->assertActorMayManage($freshActor, $lockedContent);
+
                 $lockedRevision = $this->freshEntities->findFreshLockedLearningContentRevision(
-                    $link->getRevision()->getId(),
+                    $revisionId,
                     LockMode::PESSIMISTIC_WRITE,
                 );
                 if (!$lockedRevision instanceof LearningContentRevision) {
@@ -884,21 +1053,10 @@ final class LearningContentManager
                     throw LearningContentException::revisionSealed();
                 }
 
-                $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
-                    $lockedRevision->getContent()->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$lockedContent instanceof LearningContent) {
+                $link = $this->revisionAssets->find($linkId);
+                if (!$link instanceof LearningContentRevisionAsset) {
                     throw LearningContentException::notFound();
                 }
-                $this->lockInstitutionForContent($lockedContent);
-
-                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
-                $freshActor = $users[$actorId->toRfc4122()] ?? null;
-                if (!$freshActor instanceof User) {
-                    throw LearningContentException::userNotFound();
-                }
-                $this->assertActorMayManage($freshActor, $lockedContent);
 
                 $assetId = $link->getAsset()->getId()->toRfc4122();
                 $this->revisionAssets->remove($link, false);
@@ -964,6 +1122,14 @@ final class LearningContentManager
                     throw LearningContentException::notFound();
                 }
                 $lockedInstitution = $this->lockInstitutionFromSnapshot($snapshot);
+                $lockedSubject = $this->freshEntities->findFreshLockedSubject(
+                    Uuid::fromString($snapshot['subject_id']),
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedSubject instanceof Subject) {
+                    throw LearningContentException::notFound();
+                }
+
                 $lockedContent = $this->freshEntities->findFreshLockedLearningContent(
                     $contentId,
                     LockMode::PESSIMISTIC_WRITE,
@@ -972,21 +1138,6 @@ final class LearningContentManager
                     throw LearningContentException::notFound();
                 }
                 $this->assertContentSnapshotUnchanged($lockedContent, $snapshot, full: true);
-
-                $revision = $this->revisions->findOneByContentAndNumber(
-                    $lockedContent,
-                    $lockedContent->getCurrentRevisionNumber(),
-                );
-                if (!$revision instanceof LearningContentRevision) {
-                    throw LearningContentException::notFound();
-                }
-                $revision = $this->freshEntities->findFreshLockedLearningContentRevision(
-                    $revision->getId(),
-                    LockMode::PESSIMISTIC_WRITE,
-                );
-                if (!$revision instanceof LearningContentRevision) {
-                    throw LearningContentException::notFound();
-                }
 
                 $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
@@ -998,6 +1149,17 @@ final class LearningContentManager
                     $this->assertActorMayPublish($freshActor, $lockedContent);
                 } else {
                     $this->assertActorMayManage($freshActor, $lockedContent);
+                }
+
+                if (null === $snapshot['current_revision_id']) {
+                    throw LearningContentException::notFound();
+                }
+                $revision = $this->freshEntities->findFreshLockedLearningContentRevision(
+                    Uuid::fromString($snapshot['current_revision_id']),
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$revision instanceof LearningContentRevision) {
+                    throw LearningContentException::notFound();
                 }
 
                 $oldStatus = $lockedContent->getStatus()->value;
@@ -1148,6 +1310,10 @@ final class LearningContentManager
         $this->revisions->save($revision, false);
         $this->entityManager->flush();
 
+        $content->assignCurrentRevision($revision, $now);
+        $this->contents->save($content, false);
+        $this->entityManager->flush();
+
         $this->persistAlignments($revision, $outcomeBundle, $now);
         $this->entityManager->flush();
 
@@ -1191,22 +1357,31 @@ final class LearningContentManager
 
     private function assertPublishableAlignments(LearningContentRevision $revision, LearningContent $content): void
     {
-        $rows = $this->alignments->findByRevision($revision);
+        $rows = $this->entityManager->getConnection()->fetchAllAssociative(
+            'SELECT a.is_primary, a.subject_id, p.status AS program_status, o.status AS outcome_status
+               FROM learning_content_outcome_alignments a
+               INNER JOIN curriculum_programs p ON p.id = a.curriculum_program_id
+               INNER JOIN curriculum_learning_outcomes o ON o.id = a.learning_outcome_id
+              WHERE a.revision_id = ?',
+            [$revision->getId()->toBinary()],
+            [ParameterType::BINARY],
+        );
         if ([] === $rows) {
             throw LearningContentException::alignmentInvalid('Published content requires alignments.');
         }
         $primary = 0;
+        $contentSubject = $content->getSubject()->getId()->toBinary();
         foreach ($rows as $row) {
-            if ($row->isPrimary()) {
+            if (1 === (int) $row['is_primary']) {
                 ++$primary;
             }
-            if (!$row->getSubject()->getId()->equals($content->getSubject()->getId())) {
+            if ((string) $row['subject_id'] !== $contentSubject) {
                 throw LearningContentException::alignmentInvalid('Alignment subject mismatch.');
             }
-            if (CurriculumStatus::Published !== $row->getCurriculumProgram()->getStatus()) {
+            if (CurriculumStatus::Published->value !== (string) $row['program_status']) {
                 throw LearningContentException::curriculumNotPublished();
             }
-            if (CurriculumContentStatus::Active !== $row->getLearningOutcome()->getStatus()) {
+            if (CurriculumContentStatus::Active->value !== (string) $row['outcome_status']) {
                 throw LearningContentException::alignmentInvalid('Learning outcome must be active.');
             }
         }
@@ -1215,8 +1390,101 @@ final class LearningContentManager
         }
     }
 
+    private function assertContentHashMatchesRevision(LearningContentRevision $revision): void
+    {
+        $stored = $revision->getContentHash();
+        if (1 !== preg_match('/^[0-9a-f]{64}$/', $stored)) {
+            throw LearningContentException::conflict();
+        }
+
+        $payload = $this->hashBuilder->build(
+            $revision->getSchemaVersion(),
+            $revision->getLanguage(),
+            $revision->getEstimatedMinutes(),
+            $revision->getSourceType()->value,
+            $revision->getSourceReference(),
+            $revision->getStructuredContent(),
+            $revision->getAccessibilityMetadata(),
+        );
+        $recomputed = $this->contentHasher->hash($payload);
+        if (!hash_equals($stored, $recomputed)) {
+            throw LearningContentException::conflict();
+        }
+    }
+
+    private function assertPublishableReferencedAssets(
+        LearningContentRevision $revision,
+        LearningContent $content,
+    ): void {
+        $mediaIds = $this->collectMediaIds($revision->getStructuredContent());
+        foreach ($mediaIds as $mediaId) {
+            $asset = $this->freshEntities->findFreshLockedStoredMediaAsset(
+                $mediaId,
+                LockMode::PESSIMISTIC_WRITE,
+            );
+            if (!$asset instanceof StoredMediaAsset) {
+                throw LearningContentException::assetInvalid('Referenced media asset was not found.');
+            }
+            $this->assertAssetTenantCompatible($content, $asset);
+            if (StoredMediaAssetStatus::Ready !== $asset->getStatus()) {
+                throw LearningContentException::assetInvalid('Referenced media asset must be ready.');
+            }
+            if (\App\Enum\StoredMediaScanStatus::Clean !== $asset->getScanStatus()) {
+                throw LearningContentException::assetInvalid('Referenced media asset must be clean.');
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $structuredContent
+     *
+     * @return list<Uuid>
+     */
+    private function collectMediaIds(array $structuredContent): array
+    {
+        $ids = [];
+        $walk = static function (mixed $node) use (&$walk, &$ids): void {
+            if (!\is_array($node)) {
+                return;
+            }
+            if (isset($node['mediaId']) && \is_string($node['mediaId']) && Uuid::isValid($node['mediaId'])) {
+                $ids[Uuid::fromString($node['mediaId'])->toRfc4122()] = Uuid::fromString($node['mediaId']);
+            }
+            foreach ($node as $child) {
+                $walk($child);
+            }
+        };
+        $walk($structuredContent);
+        $sorted = array_values($ids);
+        usort($sorted, static fn (Uuid $a, Uuid $b): int => $a->toRfc4122() <=> $b->toRfc4122());
+
+        return $sorted;
+    }
+
+    private function assertPublishedPointerMatchesRevision(
+        LearningContent $content,
+        LearningContentRevision $revision,
+    ): void {
+        if (LearningContentStatus::Published !== $content->getStatus()) {
+            throw LearningContentException::conflict();
+        }
+        $published = $content->getPublishedRevision();
+        if (!$published instanceof LearningContentRevision) {
+            throw LearningContentException::conflict();
+        }
+        if (!$published->getId()->equals($revision->getId())) {
+            throw LearningContentException::conflict();
+        }
+        if ($content->getPublishedRevisionNumber() !== $revision->getRevisionNumber()) {
+            throw LearningContentException::conflict();
+        }
+    }
+
     private function assertAssetTenantCompatible(LearningContent $content, StoredMediaAsset $asset): void
     {
+        if (StoredMediaAssetStatus::Archived === $asset->getStatus()) {
+            throw LearningContentException::assetInvalid('Archived assets cannot be attached.');
+        }
         if (LearningContentScope::Platform === $content->getScope()) {
             if ('platform' !== $asset->getScope()->value) {
                 throw LearningContentException::scopeMismatch();
@@ -1225,15 +1493,18 @@ final class LearningContentManager
             return;
         }
         $contentInstitution = $content->getInstitution();
+        if (null === $contentInstitution) {
+            throw LearningContentException::scopeMismatch();
+        }
+        if ('platform' === $asset->getScope()->value) {
+            return;
+        }
         $assetInstitution = $asset->getInstitution();
-        if (null === $contentInstitution || null === $assetInstitution) {
+        if (null === $assetInstitution) {
             throw LearningContentException::scopeMismatch();
         }
         if (!$contentInstitution->getId()->equals($assetInstitution->getId())) {
             throw LearningContentException::scopeMismatch();
-        }
-        if (StoredMediaAssetStatus::Archived === $asset->getStatus()) {
-            throw LearningContentException::assetInvalid('Archived assets cannot be attached.');
         }
     }
 
@@ -1389,14 +1660,16 @@ final class LearningContentManager
      *     subject_id: string,
      *     grade_level: int,
      *     status: string,
-     *     current_revision_number: int,
+     *     current_revision_id: ?string,
+     *     current_revision_number: ?int,
      *     created_by_id: string
      * }|null
      */
     private function fetchContentSnapshot(Uuid $contentId): ?array
     {
         $row = $this->entityManager->getConnection()->fetchAssociative(
-            'SELECT id, scope, institution_id, subject_id, grade_level, status, current_revision_number, created_by_id
+            'SELECT id, scope, institution_id, subject_id, grade_level, status,
+                    current_revision_id, current_revision_number, created_by_id
              FROM learning_contents WHERE id = ?',
             [$contentId->toBinary()],
             [ParameterType::BINARY],
@@ -1414,7 +1687,12 @@ final class LearningContentManager
             'subject_id' => Uuid::fromBinary((string) $row['subject_id'])->toRfc4122(),
             'grade_level' => (int) $row['grade_level'],
             'status' => (string) $row['status'],
-            'current_revision_number' => (int) $row['current_revision_number'],
+            'current_revision_id' => null !== $row['current_revision_id']
+                ? Uuid::fromBinary((string) $row['current_revision_id'])->toRfc4122()
+                : null,
+            'current_revision_number' => null !== $row['current_revision_number']
+                ? (int) $row['current_revision_number']
+                : null,
             'created_by_id' => Uuid::fromBinary((string) $row['created_by_id'])->toRfc4122(),
         ];
     }
@@ -1427,7 +1705,8 @@ final class LearningContentManager
      *     subject_id: string,
      *     grade_level: int,
      *     status: string,
-     *     current_revision_number: int,
+     *     current_revision_id: ?string,
+     *     current_revision_number: ?int,
      *     created_by_id: string
      * } $snapshot
      */
@@ -1483,22 +1762,6 @@ final class LearningContentManager
         }
 
         return $locked;
-    }
-
-    private function lockInstitutionForContent(LearningContent $content): ?Institution
-    {
-        if (LearningContentScope::Institution !== $content->getScope()) {
-            return null;
-        }
-        $institution = $content->getInstitution();
-        if (!$institution instanceof Institution) {
-            throw LearningContentException::scopeMismatch();
-        }
-
-        return $this->freshEntities->findFreshLockedInstitution(
-            $institution->getId(),
-            LockMode::PESSIMISTIC_WRITE,
-        );
     }
 
     private function nextPublicationNumber(Uuid $contentId): int

@@ -28,6 +28,7 @@ use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -240,30 +241,41 @@ final class StoredMediaAssetManager
                 $action,
                 $mutator,
             ): void {
-                $lockedAsset = $this->freshEntities->findFreshLockedStoredMediaAsset(
-                    $assetId,
-                    LockMode::PESSIMISTIC_WRITE,
+                $assetMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT id, scope, institution_id FROM stored_media_assets WHERE id = ?',
+                    [$assetId->toBinary()],
+                    [ParameterType::BINARY],
                 );
-                if (!$lockedAsset instanceof StoredMediaAsset) {
+                if (false === $assetMeta) {
                     throw LearningContentException::notFound();
                 }
 
                 $lockedInstitution = null;
-                if (StoredMediaAssetScope::Institution === $lockedAsset->getScope()) {
-                    $institution = $lockedAsset->getInstitution();
-                    if (!$institution instanceof Institution) {
+                if ('institution' === (string) $assetMeta['scope']) {
+                    if (null === $assetMeta['institution_id']) {
                         throw LearningContentException::scopeMismatch();
                     }
                     $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
-                        $institution->getId(),
+                        Uuid::fromBinary((string) $assetMeta['institution_id']),
                         LockMode::PESSIMISTIC_WRITE,
                     );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
                 }
 
                 $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
                 $freshActor = $users[$actorId->toRfc4122()] ?? null;
                 if (!$freshActor instanceof User) {
                     throw LearningContentException::userNotFound();
+                }
+
+                $lockedAsset = $this->freshEntities->findFreshLockedStoredMediaAsset(
+                    $assetId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedAsset instanceof StoredMediaAsset) {
+                    throw LearningContentException::notFound();
                 }
                 $this->assertActorMayManageMedia($freshActor, $lockedAsset->getScope(), $lockedInstitution);
 
