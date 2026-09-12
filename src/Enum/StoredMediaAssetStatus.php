@@ -17,7 +17,7 @@ enum StoredMediaAssetStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::Pending => [self::Ready, self::Quarantined, self::Archived],
+            self::Pending => [self::Ready, self::Quarantined],
             self::Ready => [self::Quarantined, self::Archived],
             self::Quarantined => [self::Archived],
             self::Archived => [],

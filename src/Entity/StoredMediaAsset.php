@@ -321,6 +321,8 @@ class StoredMediaAsset
         }
         $this->status = StoredMediaAssetStatus::Archived;
         $this->archivedAt = $now;
+        $this->readyAt = null;
+        // quarantinedAt may remain as historical evidence when archived from quarantine.
         $this->updatedAt = $now;
     }
 }
