@@ -132,13 +132,29 @@ PaymentSettlementManager::cancel    attempt → cancelled + PaymentEvent
 2. authorize the settlement actor (`CommerceAuthorization::assertCanSettlePayments`);
 3. verify the attempt belongs to the order, is `captured`, matches order currency and
    grand total, and has a verified capture `PaymentEvent` in an intact hash chain;
-4. recompute order totals from the items and `hash_equals()` the `orderHash`;
-5. re-verify each line against the live catalog: offer hash, package policy hash
-   (`AccessPackagePolicyHasher`), target type versus purchaser type, package/version state;
+4. recompute order totals from the items and `hash_equals()` the `orderHash` (covers
+   purchaser scope, currency, order totals, and each line's offer/package/version IDs,
+   quantity, unit price, tax rate, line money breakdown, and both snapshot hashes —
+   see `CommerceOrderItem::toHashPayload()`);
+5. re-verify each line against the live catalog:
+   - `CommercialOfferManager::assertOfferIntegrity()` recomputes the offer hash from
+     fresh offer fields + package/version identity (never stored↔stored alone);
+   - currency / price / tax / billing snapshots must still match the live offer;
+   - package policy is recomputed from a **fresh DBAL grant graph** via
+     `EntitlementAuthorizationProjector` + `AccessPackagePolicyHasher`, then
+     `hash_equals()` across fresh graph ↔ `version.policyHash` ↔
+     order-item `packagePolicySnapshotHash` (and again against the minted license
+     `policySnapshotHash` after grant);
+   - target type versus purchaser type and package/version identity chain;
 6. create the `CommerceFulfillment` (pending), then `AccessLicenseManager::createUserLicense`
    / `createInstitutionLicense` with `AccessLicenseSourceType::Purchase` followed by
    `activate()`;
 7. mark the fulfillment `completed`, the order `paid`, record audits, commit.
+
+**Retired offers after checkout:** once an order is sealed, retiring the commercial offer
+does **not** block fulfillment of that order. Purchasability is enforced at order creation;
+fulfillment trusts the frozen item snapshots plus the live grant-graph digest, not
+`CommercialOfferStatus::Active`.
 
 Replaying the same idempotency key returns the **same** fulfillment and the same license.
 The database also guards it: a partial unique index allows only one `completed` fulfillment
@@ -262,8 +278,10 @@ mandatory and recorded in the same transaction with `flush: false`, matching Sta
 `SecurityAuditMetadataSanitizer::ALLOWED_KEYS` gains commerce identifiers, integer minor-unit
 amounts, digests and enum values only. The sanitizer **refuses** (throws
 `SecurityAuditMetadataException`) rather than silently dropping unknown keys, so
-`idempotency_key`, `card_number`, `cvv` or `email` in commerce metadata is a hard failure in
-tests and in production. Only `idempotency_key_hash` is allowed.
+`idempotency_key`, `idempotency_key_hash`, `card_number`, `cvv` or `email` in commerce
+metadata is a hard failure in tests and in production. Idempotency HMAC digests stay on
+access-controlled commerce tables (`payment_attempts`, `payment_events`, `payment_refunds`,
+`commerce_fulfillments`) and are never copied into audit metadata.
 
 ## 12. Environment
 
@@ -300,6 +318,9 @@ subsequent attempt is rejected. There is no cron/worker in this stage.
 - `PaymentProviderAdapterInterface` has no production implementation, so nothing charges
   real money yet. Wiring a provider is Stage 2.18+ work and must keep the settlement path
   (event chain → capture verification → fulfillment) untouched.
+- Concurrent refund races are bounded by the payment-attempt `PESSIMISTIC_WRITE` lock and
+  the `uniq_pr_idempotency_key_hash` / cumulative-refund trigger checks. There is **no**
+  separate DB-level SERIALIZABLE isolation claim beyond those mechanisms.
 
 ## 15. UTC
 
