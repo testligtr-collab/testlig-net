@@ -177,10 +177,21 @@
   - **Gate:** `EntitlementAccessGate` priority free → individual license → institution seat; `validFrom <= now < validUntil`; high-volume allows not audited per view.
   - **Auth:** SUPER_ADMIN activate commercial packages; HEAD/EXPERT prepare drafts only; Institution Owner licenses+seats; Manager seats only; global `ROLE_INSTITUTION_MANAGER` alone never grants tenant access.
   - **DB:** `Version20260912160000` CHECKs/guards/triggers + `AccessEntitlementCompositeForeignKeyListener` / schema listener.
-  - **Sonraki (2.17):** payment will only trigger license commands; live lesson out of scope here.
+  - **Sonraki (2.17):** payment yalnızca license komutlarını tetikler; live lesson bu kapsamda değil.
+- **Ticaret / ödeme / abonelik / fulfillment (Aşama 2.17):** Domain-only `CommercialOffer` → `CommerceOrder`/`CommerceOrderItem` → `PaymentAttempt` + append-only `PaymentEvent` → `CommerceSubscription` / `CommerceFulfillment` / `PaymentRefund`. Gerçek ödeme SDK'sı, checkout UI, REST/webhook controller, kart verisi yok. Detay: `docs/architecture-commerce-payment.md`.
+  - **Para:** `App\Money\Money` yalnızca tamsayı minor unit (float yok), tek para birimi/sipariş, `TRY` önce; overflow/negatif/currency-mismatch tipli exception.
+  - **Vergi:** fiyatlar **vergi hariç** + `taxRateBasisPoints` snapshot; `grandTotal = subtotal - discount + tax`; satır başına deterministik half-up yuvarlama; discount varsayılan 0.
+  - **Hash:** `CommerceIdempotencyKeyHasher` (HMAC-SHA256, `COMMERCE_IDEMPOTENCY_HASH_KEY`, APP_SECRET fallback yok, raw key asla saklanmaz) + offer/order/event/subscription canonical SHA-256 hash'leri; `PaymentEvent` zinciri `previousEventHash` ile bağlı.
+  - **Fulfillment (tek TX):** order lock → captured attempt/event + zincir doğrulama → totaller ve hash'ler → purchaser/target → `AccessLicenseManager` create+activate (`purchase`) → fulfillment completed → order paid → audit. Aynı idempotency key aynı fulfillment/license'ı döndürür.
+  - **Lisans süresi:** tek seferlik `validityDays` (version ?? package default) zorunlu, yoksa `validity_policy_missing`; abonelikte lisans dönemi = `currentPeriodStart/End`, `period_key` ile tekilleştirilir.
+  - **İade:** kısmi iade erişimi düşürmez, tam iade otomatik iptal etmez; iptal yalnızca açık `CommerceFulfillmentManager::reverse()` (fulfillment reversed + license revoke aynı TX).
+  - **Yetki:** katalog ve settlement yalnızca aktif+doğrulanmış SUPER_ADMIN; bireysel satın alma yalnızca kişinin kendisi (ADMIN/MODERATOR/SUPER_ADMIN proxy yok); kurumsal ödeme yalnızca Owner, Manager seat-only; yetki her mutasyonda taze satırdan yeniden kanıtlanır.
+  - **Kilit sırası:** Institution → Purchaser/Membership → Offer → Package → Version → Order → OrderItem → Subscription → PaymentAttempt → PaymentEvent/Refund → Fulfillment → AccessLicense → Audit.
+  - **DB:** `Version20260913120000` (preflight abort, `down()` irreversible) 8 tablo + CHECK/unique guard + 19 trigger (lifecycle, append-only ledger, identity immutability, fulfillment tekilliği, refund cap) + `CommerceCompositeForeignKeyListener` / `CommerceSchemaListener`.
+  - **Bilinen sınırlama:** provider adapter implementasyonu yok (yalnızca interface); otomatik yenileme/dunning/proration/kupon yok; fatura/PDF yok; multi-process harness yok.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, ödeme, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği/access package HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, checkout UI / ödeme sağlayıcı SDK'sı / webhook controller, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği/access package/commerce HTTP API.
 
 ## Sonraki aşamalar
 
-Davet akışları, paneller, ödeme (2.17) ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.
+Davet akışları, paneller, gerçek ödeme sağlayıcı entegrasyonu + checkout yüzeyi (2.17 domain temeli üzerine) ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.
