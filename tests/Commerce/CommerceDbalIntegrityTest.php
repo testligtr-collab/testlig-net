@@ -359,14 +359,20 @@ final class CommerceDbalIntegrityTest extends KernelTestCase
             'order_id' => '018f0000-0000-7000-8000-000000000000',
             'amount_minor' => 12000,
             'currency' => 'TRY',
-            'idempotency_key_hash' => str_repeat('a', 64),
         ]);
         $sanitizedKeys = array_keys($sanitized);
         sort($sanitizedKeys);
         self::assertSame(
-            ['amount_minor', 'currency', 'idempotency_key_hash', 'order_id'],
+            ['amount_minor', 'currency', 'order_id'],
             $sanitizedKeys,
         );
+
+        try {
+            $sanitizer->sanitize(['idempotency_key_hash' => str_repeat('a', 64)]);
+            self::fail('idempotency_key_hash must be refused in audit metadata');
+        } catch (SecurityAuditMetadataException $e) {
+            self::assertStringContainsString('idempotency_key_hash', $e->getMessage());
+        }
 
         // Anything outside the allowlist is refused loudly rather than silently dropped.
         foreach (['idempotency_key', 'card_number', 'email', 'cvv'] as $forbidden) {

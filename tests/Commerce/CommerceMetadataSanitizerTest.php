@@ -166,7 +166,6 @@ final class CommerceMetadataSanitizerTest extends TestCase
             ['billing_type'],
             ['provider_code'],
             ['provider_environment'],
-            ['idempotency_key_hash'],
         ];
     }
 
@@ -204,6 +203,7 @@ final class CommerceMetadataSanitizerTest extends TestCase
             ['pan'],
             ['cvv'],
             ['idempotency_key'],
+            ['idempotency_key_hash'],
             ['buyer_email'],
             ['email'],
         ];

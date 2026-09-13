@@ -151,7 +151,6 @@ final class SecurityAuditMetadataSanitizer
         'event_hash',
         'sequence_number',
         'failure_code',
-        'idempotency_key_hash',
         'refund_id',
         'refund_number',
         'subscription_id',

@@ -155,7 +155,6 @@ final class PaymentAttemptManager
                         'provider_environment' => $attempt->getEnvironment()->value,
                         'currency' => $attempt->getCurrency(),
                         'amount_minor' => $attempt->getAmountMinor(),
-                        'idempotency_key_hash' => $attempt->getIdempotencyKeyHash(),
                         'status' => $attempt->getStatus()->value,
                     ],
                     captureRequestHashes: false,

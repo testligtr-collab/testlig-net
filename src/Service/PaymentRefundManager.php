@@ -355,7 +355,6 @@ final class PaymentRefundManager
                 'amount_minor' => $attempt->getAmountMinor(),
                 'cancellation_reason_code' => $refund->getReasonCode()->value,
                 'failure_code' => $refund->getFailureCode(),
-                'idempotency_key_hash' => $refund->getIdempotencyKeyHash(),
                 'status' => $refund->getStatus()->value,
             ],
             captureRequestHashes: false,
