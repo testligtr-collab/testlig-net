@@ -319,16 +319,43 @@ final class CommercialOfferManager
     }
 
     /**
-     * Recomputes and hash_equals-verifies the stored offer hash.
+     * Recomputes and hash_equals-verifies the stored offer hash from fresh catalog identity
+     * and offer scalar fields. Never compares only a stored offer hash to an order-item
+     * snapshot — callers still hash_equals the item snapshot against `$offer->getOfferHash()`
+     * after this method proves the offer row itself is intact.
+     *
+     * Offer status is intentionally ignored: a sealed order may still fulfill after the offer
+     * is retired, because checkout already froze the commercial terms in the order item.
      */
     public function assertOfferIntegrity(CommercialOffer $offer): void
     {
+        $package = $this->freshCommerce->findFreshPackage(
+            $offer->getPackage()->getId(),
+            LockMode::NONE,
+        );
+        if (!$package instanceof AccessPackage) {
+            throw CommerceException::notFound();
+        }
+        $version = $this->freshCommerce->findFreshPackageVersion(
+            $offer->getPackageVersion()->getId(),
+            LockMode::NONE,
+        );
+        if (!$version instanceof AccessPackageVersion) {
+            throw CommerceException::notFound();
+        }
+        if (!$version->getPackage()->getId()->equals($package->getId())) {
+            throw CommerceException::scopeMismatch('Offer package version does not belong to the offer package.');
+        }
+        if (!$offer->getTargetType()->matchesPackageTarget($package->getTargetType())) {
+            throw CommerceException::scopeMismatch('Offer target type does not match the package target type.');
+        }
+
         $this->offerHasher->verify(
             $offer->getOfferHash(),
             $offer->getId(),
             $offer->getCode(),
-            $offer->getPackage()->getId(),
-            $offer->getPackageVersion()->getId(),
+            $package->getId(),
+            $version->getId(),
             $offer->getTargetType(),
             $offer->getBillingType(),
             $offer->getBillingInterval(),

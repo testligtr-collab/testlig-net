@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Access\AccessPackagePolicyHasher;
+use App\Access\EntitlementAuthorizationProjector;
 use App\Commerce\CommerceIdempotencyKeyHasher;
 use App\Commerce\CommerceInputNormalizer;
 use App\Dto\SecurityAuditContext;
@@ -50,14 +51,23 @@ use Symfony\Component\Uid\Uuid;
  * 2. attempt belongs to the order, is `captured`, and its amount equals the grand total
  * 3. a verified `captured` PaymentEvent exists and the whole event hash chain is intact
  * 4. persisted order items reproduce the stored totals and the order hash
- * 5. every line's offer snapshot hash and package policy snapshot hash still match
- * 6. purchaser type matches the offer target type and the package target type
- * 7. per item: AccessLicenseManager creates + activates a `purchase` license
- * 8. CommerceFulfillment completed, order paid, audit, commit
+ * 5. every line's offer snapshot is re-verified from fresh offer fields (not stored↔stored)
+ * 6. every line's package policy is re-verified from a fresh DBAL grant graph via
+ *    Stage 2.16 {@see EntitlementAuthorizationProjector} + {@see AccessPackagePolicyHasher}:
+ *    fresh graph hash ↔ version.policyHash ↔ order-item snapshot (and later the license)
+ * 7. purchaser type matches the offer target type and the package target type
+ * 8. per item: AccessLicenseManager creates + activates a `purchase` license
+ * 9. CommerceFulfillment completed, order paid, audit, commit
  *
  * Idempotency: the caller's key is fanned out per order item via
  * {@see CommerceIdempotencyKeyHasher::hashScoped()}. Replaying the same key returns the
  * same fulfillments and the same licenses instead of granting access twice.
+ * The HMAC digest stays on the commerce fulfillment row only — it is never copied into
+ * audit metadata (avoids unnecessary cross-table correlation).
+ *
+ * Retired offers: retiring an offer after an order is sealed does **not** block fulfillment.
+ * The order item already froze offer + package-policy snapshots; fulfillment re-proves those
+ * digests against the live catalog rows and grant graph, not against `CommercialOfferStatus`.
  *
  * Lock order: Institution → purchaser → Offer → Package → Version → Order → OrderItem
  * → Subscription → PaymentAttempt → PaymentEvent → Fulfillment → AccessLicense → Audit
@@ -74,6 +84,7 @@ final class CommerceFulfillmentManager
         private readonly CommerceSubscriptionManager $subscriptionManager,
         private readonly PaymentSettlementManager $settlementManager,
         private readonly AccessLicenseManager $licenseManager,
+        private readonly EntitlementAuthorizationProjector $entitlementProjector,
         private readonly CommerceIdempotencyKeyHasher $idempotencyHasher,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
@@ -291,7 +302,7 @@ final class CommerceFulfillmentManager
         \DateTimeImmutable $now,
         string $reasonCode,
     ): CommerceFulfillment {
-        $version = $this->assertLineIntegrity($order, $item);
+        [$version, $freshPolicyHash] = $this->assertLineIntegrity($order, $item);
 
         $subscription = null;
         $periodKey = null;
@@ -340,6 +351,7 @@ final class CommerceFulfillmentManager
             $periodKey,
             $reasonCode,
         );
+        $this->assertLicensePolicySnapshotIntact($license, $version, $item, $freshPolicyHash);
         $fulfillment->complete($license, $now);
 
         $this->recordFulfillmentAudit(
@@ -443,10 +455,13 @@ final class CommerceFulfillmentManager
     }
 
     /**
-     * Re-verifies one line's frozen snapshots against the live catalog rows and returns the
-     * locked package version the license will be minted from.
+     * Re-verifies one line's frozen snapshots against live catalog rows and a fresh DBAL
+     * entitlement grant graph. Returns the locked package version plus the recomputed
+     * package-policy hash used for post-license cross-checks.
+     *
+     * @return array{0: AccessPackageVersion, 1: non-empty-string}
      */
-    private function assertLineIntegrity(CommerceOrder $order, CommerceOrderItem $item): AccessPackageVersion
+    private function assertLineIntegrity(CommerceOrder $order, CommerceOrderItem $item): array
     {
         if (!$item->getOrder()->getId()->equals($order->getId())) {
             throw CommerceException::scopeMismatch('Order item does not belong to the order.');
@@ -456,6 +471,7 @@ final class CommerceFulfillmentManager
         if (null === $offer) {
             throw CommerceException::notFound();
         }
+        // Recomputes offerHash from fresh scalar fields + identity chain — never stored↔stored only.
         $this->offerManager->assertOfferIntegrity($offer);
         if (!hash_equals($item->getOfferSnapshotHash(), $offer->getOfferHash())) {
             throw CommerceException::hashMismatch();
@@ -479,17 +495,73 @@ final class CommerceFulfillmentManager
         if (!$version instanceof AccessPackageVersion) {
             throw CommerceException::notFound();
         }
+        if (!$version->getPackage()->getId()->equals($package->getId())) {
+            throw CommerceException::scopeMismatch('Package version does not belong to the offer package.');
+        }
+        if (!$item->getOffer()->getId()->equals($offer->getId())
+            || !$item->getPackage()->getId()->equals($package->getId())
+            || !$item->getPackageVersion()->getId()->equals($version->getId())
+        ) {
+            throw CommerceException::scopeMismatch('Order item catalog identity does not match the live offer chain.');
+        }
+        if ($item->getCurrency() !== $offer->getCurrency()
+            || $item->getCurrency() !== $order->getCurrency()
+            || $item->getBillingType() !== $offer->getBillingType()
+            || $item->getBillingInterval() !== $offer->getBillingInterval()
+            || $item->getTaxRateBasisPoints() !== $offer->getTaxRateBasisPoints()
+            || $item->getUnitPriceAmountMinor() !== $offer->getPriceAmountMinor()
+        ) {
+            throw CommerceException::totalMismatch();
+        }
+        $expectedUnitTax = $offer->getPrice()->percentageOfBasisPoints($offer->getTaxRateBasisPoints());
+        if ($item->getUnitTaxAmountMinor() !== $expectedUnitTax->getAmountMinor()) {
+            throw CommerceException::totalMismatch();
+        }
         if (1 !== preg_match(
             '/^[0-9a-f]{'.AccessPackagePolicyHasher::HASH_HEX_LENGTH.'}$/',
             $version->getPolicyHash(),
         )) {
             throw CommerceException::hashMismatch();
         }
-        if (!hash_equals($item->getPackagePolicySnapshotHash(), $version->getPolicyHash())) {
+
+        // Fresh grant graph via DBAL — never the managed Doctrine grant collections.
+        $graph = $this->entitlementProjector->loadGrantGraph($version->getId());
+        $freshPolicyHash = $this->entitlementProjector->computeFreshPolicyHashForPackageVersion(
+            $package,
+            $version,
+            $graph,
+        );
+        if (!hash_equals($freshPolicyHash, $version->getPolicyHash())
+            || !hash_equals($freshPolicyHash, $item->getPackagePolicySnapshotHash())
+            || !hash_equals($version->getPolicyHash(), $item->getPackagePolicySnapshotHash())
+        ) {
+            throw CommerceException::hashMismatch();
+        }
+        if ('' === $freshPolicyHash) {
             throw CommerceException::hashMismatch();
         }
 
-        return $version;
+        return [$version, $freshPolicyHash];
+    }
+
+    /**
+     * After minting the purchase license, prove its snapshot still matches the fulfillment
+     * hash matrix (fresh graph ↔ version ↔ order item ↔ license).
+     */
+    private function assertLicensePolicySnapshotIntact(
+        AccessLicense $license,
+        AccessPackageVersion $version,
+        CommerceOrderItem $item,
+        string $freshPolicyHash,
+    ): void {
+        $licenseSnapshot = $license->getPolicySnapshotHash();
+        if (!hash_equals($licenseSnapshot, $freshPolicyHash)
+            || !hash_equals($licenseSnapshot, $version->getPolicyHash())
+            || !hash_equals($licenseSnapshot, $item->getPackagePolicySnapshotHash())
+            || !hash_equals($version->getPolicyHash(), $item->getPackagePolicySnapshotHash())
+        ) {
+            throw CommerceException::hashMismatch();
+        }
     }
 
     /**
@@ -567,7 +639,6 @@ final class CommerceFulfillmentManager
                 'license_id' => $fulfillment->getAccessLicense()?->getId()->toRfc4122(),
                 'package_id' => $fulfillment->getOrderItem()->getPackage()->getId()->toRfc4122(),
                 'package_version_id' => $fulfillment->getOrderItem()->getPackageVersion()->getId()->toRfc4122(),
-                'idempotency_key_hash' => $fulfillment->getIdempotencyKeyHash(),
                 'status' => $fulfillment->getStatus()->value,
                 'reversal_reason_code' => $fulfillment->getReversalReasonCode(),
             ],

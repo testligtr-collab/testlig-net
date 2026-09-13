@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Access;
 
+use App\Entity\AccessPackage;
+use App\Entity\AccessPackageVersion;
 use App\Enum\AccessPackageCatalogResourceKind;
 use App\Enum\AccessPackageTargetType;
 use App\Enum\GradeLevel;
@@ -206,6 +208,30 @@ final class EntitlementAuthorizationProjector
             $graph->assessmentIds,
             $graph->catalogGrants,
             $license->schemaVersion,
+        );
+    }
+
+    /**
+     * Recomputes the Stage 2.16 package-policy digest from a fresh package/version row plus a
+     * DBAL-loaded grant graph. Used at fulfillment so payment→license never trusts two stored
+     * hashes alone when the live grant graph has drifted.
+     */
+    public function computeFreshPolicyHashForPackageVersion(
+        AccessPackage $package,
+        AccessPackageVersion $version,
+        EntitlementGrantGraph $graph,
+    ): string {
+        return $this->hasher->hash(
+            $package->getId(),
+            $package->getCode(),
+            $version->getVersionNumber(),
+            $package->getTargetType(),
+            $version->getValidityDays(),
+            $version->getSeatLimit(),
+            $graph->learningContentIds,
+            $graph->assessmentIds,
+            $graph->catalogGrants,
+            $version->getSchemaVersion(),
         );
     }
 
