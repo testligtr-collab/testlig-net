@@ -180,8 +180,14 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 
 - Versioned `LearningContent` + sealable revision + append-only publication + outcome alignment + `StoredMediaAsset` metadata registry.
 - Structured content: `src/LearningContent/` (Question content’ten ayrı); HTML/script/iframe/external URL yok; mediaId UUID only.
-- AccessGate fail-closed: published içerik `entitlement_required` (ücretsiz öğrenci erişimi yok). Review separation zorunlu.
+- AccessGate fail-closed: published içerik entitlement gate’e delege eder (free policy veya lisans). Review separation zorunlu.
 - Gerçek upload/storage SDK/ödeme/AI/UI/API yok. Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
+
+### Access package / license / entitlement (Aşama 2.16)
+
+- Domain-only packages, versioned grants, licenses, institution seats, resource access policies (`free`|`entitlement_required`).
+- Assessment catalog grants: **grade_level only** (Assessment has no subject); LC catalog: subject+grade.
+- Payment SDK/UI/API yok; Stage 2.17 will only trigger license commands. Migration: `Version20260912160000`. Detay: `docs/architecture-access-entitlement.md`.
 
 ### Tasarım sistemi ve UI önizlemeleri (Aşama 2.14.1)
 

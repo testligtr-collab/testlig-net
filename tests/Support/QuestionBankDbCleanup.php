@@ -23,6 +23,9 @@ final class QuestionBankDbCleanup
     {
         $schema = $connection->createSchemaManager();
 
+        // Access packages/licenses reference users, memberships, LC, and assessments.
+        AccessEntitlementDbCleanup::deleteAll($connection);
+
         // Assessment graph must go before questions/users (RESTRICT FKs on authors).
         AssessmentDbCleanup::deleteAssessments($connection);
 

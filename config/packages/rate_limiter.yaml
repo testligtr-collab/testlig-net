@@ -42,15 +42,17 @@ when@test:
                 policy: 'fixed_window'
                 limit: 3
                 interval: '1 minute'
+            # Keep windows long enough for slow Docker/Windows kernel boots so
+            # sequential BrowserKit submits still share one fixed window.
             password_reset_ip:
                 policy: 'fixed_window'
                 limit: 5
-                interval: '1 minute'
+                interval: '15 minutes'
             password_reset_email:
                 policy: 'fixed_window'
                 limit: 3
-                interval: '1 minute'
+                interval: '15 minutes'
             password_reset_token:
                 policy: 'fixed_window'
                 limit: 5
-                interval: '1 minute'
+                interval: '15 minutes'

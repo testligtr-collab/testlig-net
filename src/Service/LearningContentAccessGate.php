@@ -10,6 +10,7 @@ use App\Entity\LearningContent;
 use App\Entity\LearningContentRevision;
 use App\Entity\LearningContentRevisionAsset;
 use App\Entity\User;
+use App\Enum\EntitlementAccessDecisionReason;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\LearningContentAccessDecisionReason;
@@ -28,8 +29,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Fail-closed student/delivery access gate for learning content.
  *
- * Published platform content returns entitlement_required (no free student access).
- * Entitlement wiring is intentionally pending in Stage 2.15.
+ * After published/auth/membership/asset checks, delegates entitlement to EntitlementAccessGate.
+ * Free access policy can allow; otherwise entitlement license/seat evaluation (fail-closed).
  *
  * Fresh loads use HINT_REFRESH without pessimistic locks (read path; no open TX required).
  */
@@ -38,6 +39,7 @@ final class LearningContentAccessGate
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly LearningContentRevisionAssetRepository $revisionAssets,
+        private readonly EntitlementAccessGate $entitlementAccessGate,
     ) {
     }
 
@@ -112,47 +114,40 @@ final class LearningContentAccessGate
             );
         }
 
-        if (LearningContentScope::Platform === $content->getScope()) {
-            return LearningContentAccessDecision::denied(
-                LearningContentAccessDecisionReason::EntitlementRequired,
-                $contentIdStr,
-                $revisionIdStr,
-                $revisionNumber,
-            );
-        }
+        if (LearningContentScope::Institution === $content->getScope()) {
+            $institution = $content->getInstitution();
+            if (!$institution instanceof Institution) {
+                return LearningContentAccessDecision::denied(
+                    LearningContentAccessDecisionReason::TenantMismatch,
+                    $contentIdStr,
+                    $revisionIdStr,
+                    $revisionNumber,
+                );
+            }
 
-        $institution = $content->getInstitution();
-        if (!$institution instanceof Institution) {
-            return LearningContentAccessDecision::denied(
-                LearningContentAccessDecisionReason::TenantMismatch,
-                $contentIdStr,
-                $revisionIdStr,
-                $revisionNumber,
-            );
-        }
+            $lockedInstitution = $this->findFreshInstitution($institution->getId());
+            if (!$lockedInstitution instanceof Institution
+                || InstitutionStatus::Active !== $lockedInstitution->getStatus()
+            ) {
+                return LearningContentAccessDecision::denied(
+                    LearningContentAccessDecisionReason::InstitutionInactive,
+                    $contentIdStr,
+                    $revisionIdStr,
+                    $revisionNumber,
+                );
+            }
 
-        $lockedInstitution = $this->findFreshInstitution($institution->getId());
-        if (!$lockedInstitution instanceof Institution
-            || InstitutionStatus::Active !== $lockedInstitution->getStatus()
-        ) {
-            return LearningContentAccessDecision::denied(
-                LearningContentAccessDecisionReason::InstitutionInactive,
-                $contentIdStr,
-                $revisionIdStr,
-                $revisionNumber,
-            );
-        }
-
-        $membership = $this->findActiveMembership($freshUser, $lockedInstitution);
-        if (!$membership instanceof InstitutionMembership
-            || InstitutionMembershipStatus::Active !== $membership->getStatus()
-        ) {
-            return LearningContentAccessDecision::denied(
-                LearningContentAccessDecisionReason::MembershipInactive,
-                $contentIdStr,
-                $revisionIdStr,
-                $revisionNumber,
-            );
+            $membership = $this->findActiveMembership($freshUser, $lockedInstitution);
+            if (!$membership instanceof InstitutionMembership
+                || InstitutionMembershipStatus::Active !== $membership->getStatus()
+            ) {
+                return LearningContentAccessDecision::denied(
+                    LearningContentAccessDecisionReason::MembershipInactive,
+                    $contentIdStr,
+                    $revisionIdStr,
+                    $revisionNumber,
+                );
+            }
         }
 
         if (!$this->attachedAssetsReady($revision)) {
@@ -164,12 +159,35 @@ final class LearningContentAccessGate
             );
         }
 
+        $entitlement = $this->entitlementAccessGate->evaluateLearningContent($content->getId(), $freshUser);
+        if ($entitlement->granted) {
+            return LearningContentAccessDecision::allowed($contentIdStr, $revisionIdStr, $revisionNumber);
+        }
+
         return LearningContentAccessDecision::denied(
-            LearningContentAccessDecisionReason::EntitlementRequired,
+            $this->mapEntitlementReason($entitlement->reason),
             $contentIdStr,
             $revisionIdStr,
             $revisionNumber,
         );
+    }
+
+    private function mapEntitlementReason(EntitlementAccessDecisionReason $reason): LearningContentAccessDecisionReason
+    {
+        return match ($reason) {
+            EntitlementAccessDecisionReason::AccessPolicyNotConfigured => LearningContentAccessDecisionReason::AccessPolicyNotConfigured,
+            EntitlementAccessDecisionReason::EntitlementRequired,
+            EntitlementAccessDecisionReason::LicenseNotActive,
+            EntitlementAccessDecisionReason::LicenseNotStarted,
+            EntitlementAccessDecisionReason::LicenseExpired,
+            EntitlementAccessDecisionReason::LicenseSuspended,
+            EntitlementAccessDecisionReason::LicenseRevoked,
+            EntitlementAccessDecisionReason::SeatRequired,
+            EntitlementAccessDecisionReason::SeatRevoked => LearningContentAccessDecisionReason::EntitlementRequired,
+            EntitlementAccessDecisionReason::ResourceNotPublished => LearningContentAccessDecisionReason::NotPublished,
+            EntitlementAccessDecisionReason::ResourceNotFound => LearningContentAccessDecisionReason::NotFound,
+            default => LearningContentAccessDecisionReason::Unauthorized,
+        };
     }
 
     private function attachedAssetsReady(LearningContentRevision $revision): bool
