@@ -939,11 +939,15 @@ final class Version20260913120000 extends AbstractMigration
                 IF OLD.status IN ('captured', 'failed', 'cancelled') AND NEW.status <> OLD.status THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'payment_attempt terminal status cannot change';
                 END IF;
-                IF NEW.status = 'authorized' AND OLD.status <> 'initiated' THEN
-                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'payment_attempt can only be authorized from initiated';
-                END IF;
-                IF NEW.status = 'captured' AND OLD.status NOT IN ('initiated', 'authorized') THEN
-                    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'payment_attempt capture requires initiated or authorized';
+                -- Refund events bump event_sequence without touching the status, so the
+                -- transition rules only apply when the status actually changes.
+                IF NEW.status <> OLD.status THEN
+                    IF NEW.status = 'authorized' AND OLD.status <> 'initiated' THEN
+                        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'payment_attempt can only be authorized from initiated';
+                    END IF;
+                    IF NEW.status = 'captured' AND OLD.status NOT IN ('initiated', 'authorized') THEN
+                        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'payment_attempt capture requires initiated or authorized';
+                    END IF;
                 END IF;
             END
             SQL);

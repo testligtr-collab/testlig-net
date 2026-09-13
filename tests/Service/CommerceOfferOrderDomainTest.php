@@ -21,43 +21,28 @@ use App\Enum\CommercialOfferTargetType;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
-use App\Exception\CommerceException;
-use App\Repository\SecurityAuditEventRepository;
 use App\Service\CommerceOrderManager;
 use App\Service\CommercialOfferManager;
 use App\Service\InstitutionMembershipManager;
-use App\Tests\Support\AccessEntitlementDbCleanup;
-use App\Tests\Support\CommerceDbCleanup;
-use App\Tests\Support\CommerceScenario;
-use App\Tests\Support\QuestionBankDbCleanup;
-use Doctrine\DBAL\Exception as DbalException;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ManagerRegistry;
+use App\Tests\Support\CommerceTestFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\Clock;
-use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Clock\NativeClock;
 
 final class CommerceOfferOrderDomainTest extends KernelTestCase
 {
-    private EntityManagerInterface $em;
-    private CommerceScenario $scenario;
-    private MockClock $clock;
+    use CommerceTestFixtures;
 
     protected function setUp(): void
     {
-        self::bootKernel();
-        $this->rebind();
-        $this->clock = new MockClock('2026-09-13 12:00:00');
-        Clock::set($this->clock);
-        $this->cleanup();
+        $this->bootCommerce();
     }
 
     protected function tearDown(): void
     {
         Clock::set(new NativeClock());
         try {
-            $this->cleanup();
+            $this->cleanupCommerce();
         } catch (\Throwable) {
             self::ensureKernelShutdown();
         }
@@ -123,7 +108,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $version = $this->scenario->activeVersion($sa, 'off2');
         $offer = $this->scenario->activeOffer($sa, $version, 'off2_code');
 
-        $this->expectFailure(CommerceFailureReason::InvalidTransition, function () use ($offer, $sa): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidTransition, function () use ($offer, $sa): void {
             $this->offers()->updateDraft(
                 $offer,
                 $sa,
@@ -136,12 +121,12 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
                 'update_offer',
             );
         });
-        $this->expectFailure(CommerceFailureReason::InvalidTransition, function () use ($offer, $sa): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidTransition, function () use ($offer, $sa): void {
             $this->offers()->activate($offer, $sa, 'activate_offer');
         });
 
         $retired = $this->offers()->retire($offer, $sa, 'retire_offer');
-        $this->expectFailure(CommerceFailureReason::InvalidTransition, function () use ($retired, $sa): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidTransition, function () use ($retired, $sa): void {
             $this->offers()->retire($retired, $sa, 'retire_offer');
         });
     }
@@ -151,7 +136,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $sa = $this->scenario->superAdmin('off3-sa@example.com');
         $version = $this->scenario->activeVersion($sa, 'off3');
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
             $this->scenario->draftOffer(
                 $sa,
                 $version,
@@ -162,7 +147,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
                 null,
             );
         });
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
             $this->scenario->draftOffer(
                 $sa,
                 $version,
@@ -191,13 +176,13 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $sa = $this->scenario->superAdmin('off4-sa@example.com');
         $version = $this->scenario->activeVersion($sa, 'off4');
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
             $this->scenario->draftOffer($sa, $version, 'off4_zero', 0);
         });
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
             $this->scenario->draftOffer($sa, $version, 'off4_tax', 19999, 10001);
         });
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $version): void {
             $this->scenario->draftOffer($sa, $version, 'off4_cur', 19999, 2000, CommercialOfferBillingType::OneTime, null, 'TRYY');
         });
 
@@ -215,7 +200,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         self::assertSame('TRY', $normalized->getCurrency());
 
         $this->scenario->draftOffer($sa, $version, 'off4_dup', 19999);
-        $this->expectFailure(CommerceFailureReason::Conflict, function () use ($sa, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Conflict, function () use ($sa, $version): void {
             $this->scenario->draftOffer($sa, $version, 'off4_dup', 29999);
         });
     }
@@ -234,10 +219,10 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
             UserRole::Admin,
         ] as $index => $role) {
             $actor = $this->scenario->activeUser('off5-'.$index.'@example.com', $role);
-            $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($actor, $version): void {
+            $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($actor, $version): void {
                 $this->scenario->draftOffer($actor, $version, 'off5_denied_'.bin2hex(random_bytes(3)));
             });
-            $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($offer, $actor): void {
+            $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($offer, $actor): void {
                 $this->offers()->activate($offer, $actor, 'activate_offer');
             });
         }
@@ -251,14 +236,14 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $unverified = $this->scenario->unverifiedUser('off6-unverified@example.com');
         $unverified->addGlobalRole(UserRole::SuperAdmin);
         $this->scenario->service(\App\Repository\UserRepository::class)->save($unverified);
-        $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($unverified, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($unverified, $version): void {
             $this->scenario->draftOffer($unverified, $version, 'off6_denied_a');
         });
 
         $suspended = $this->scenario->suspendedUser('off6-suspended@example.com');
         $suspended->addGlobalRole(UserRole::SuperAdmin);
         $this->scenario->service(\App\Repository\UserRepository::class)->save($suspended);
-        $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($suspended, $version): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($suspended, $version): void {
             $this->scenario->draftOffer($suspended, $version, 'off6_denied_b');
         });
     }
@@ -351,7 +336,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         self::assertSame(2000, $order->getTaxAmountMinor());
         self::assertSame(9500, $order->getGrandTotalAmountMinor());
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $offer): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $offer): void {
             $this->orders()->createUserOrder(
                 $purchaser,
                 $purchaser,
@@ -370,7 +355,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $active = $this->scenario->activeOffer($sa, $version, 'ord4_active');
         $purchaser = $this->scenario->activeUser('ord4-buyer@example.com');
 
-        $this->expectFailure(CommerceFailureReason::OfferRetired, function () use ($purchaser, $draft): void {
+        $this->expectCommerceFailure(CommerceFailureReason::OfferRetired, function () use ($purchaser, $draft): void {
             $this->orders()->createUserOrder(
                 $purchaser,
                 $purchaser,
@@ -379,7 +364,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
             );
         });
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $active): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $active): void {
             $this->orders()->createUserOrder(
                 $purchaser,
                 $purchaser,
@@ -389,7 +374,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         });
 
         $retired = $this->offers()->retire($active, $sa, 'retire_offer');
-        $this->expectFailure(CommerceFailureReason::OfferRetired, function () use ($purchaser, $retired): void {
+        $this->expectCommerceFailure(CommerceFailureReason::OfferRetired, function () use ($purchaser, $retired): void {
             $this->orders()->createUserOrder(
                 $purchaser,
                 $purchaser,
@@ -414,7 +399,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         );
         $purchaser = $this->scenario->activeUser('ord5-buyer@example.com');
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $offer): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($purchaser, $offer): void {
             $this->orders()->createUserOrder(
                 $purchaser,
                 $purchaser,
@@ -440,7 +425,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $purchaser = $this->scenario->activeUser('ord6-buyer@example.com');
 
         foreach ([0, -1, 11] as $quantity) {
-            $this->expectFailure(
+            $this->expectCommerceFailure(
                 CommerceFailureReason::InvalidInput,
                 function () use ($purchaser, $offer, $quantity): void {
                     $this->orders()->createUserOrder(
@@ -465,7 +450,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $moderator = $this->scenario->activeUser('ord7-mod@example.com', UserRole::Moderator);
 
         foreach ([$admin, $moderator, $sa] as $actor) {
-            $this->expectFailure(
+            $this->expectCommerceFailure(
                 CommerceFailureReason::Unauthorized,
                 function () use ($actor, $purchaser, $offer): void {
                     $this->orders()->createUserOrder(
@@ -486,7 +471,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $offer = $this->scenario->activeOffer($sa, $version, 'ord8_code');
 
         $unverified = $this->scenario->unverifiedUser('ord8-unverified@example.com');
-        $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($unverified, $offer): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($unverified, $offer): void {
             $this->orders()->createUserOrder(
                 $unverified,
                 $unverified,
@@ -496,7 +481,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         });
 
         $suspended = $this->scenario->suspendedUser('ord8-suspended@example.com');
-        $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($suspended, $offer): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($suspended, $offer): void {
             $this->orders()->createUserOrder(
                 $suspended,
                 $suspended,
@@ -514,7 +499,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $version = $this->scenario->activeVersion($sa, 'ord9');
         $offer = $this->scenario->activeOffer($sa, $version, 'ord9_code');
 
-        $this->expectFailure(
+        $this->expectCommerceFailure(
             CommerceFailureReason::ScopeMismatch,
             function () use ($owner, $institution, $offer): void {
                 $this->orders()->createInstitutionOrder(
@@ -568,7 +553,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
 
         foreach ([$manager, $teacher, $student, $outsider] as $actor) {
             $freshActor = $this->scenario->refresh(User::class, $actor->getId());
-            $this->expectFailure(
+            $this->expectCommerceFailure(
                 CommerceFailureReason::Unauthorized,
                 function () use ($freshActor, $institution, $offer): void {
                     $this->orders()->createInstitutionOrder(
@@ -582,7 +567,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         }
 
         $freshSa = $this->scenario->refresh(User::class, $sa->getId());
-        $this->expectFailure(
+        $this->expectCommerceFailure(
             CommerceFailureReason::Unauthorized,
             function () use ($freshSa, $institution, $offer): void {
                 $this->orders()->createInstitutionOrder(
@@ -620,7 +605,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
             CommerceCancellationReasonCode::PurchaserRequested,
             $cancelled->getCancellationReasonCode(),
         );
-        $this->expectFailure(CommerceFailureReason::InvalidTransition, function () use ($cancelled, $purchaser): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidTransition, function () use ($cancelled, $purchaser): void {
             $this->orders()->cancel(
                 $cancelled,
                 $purchaser,
@@ -660,7 +645,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
             [['offer' => $offer, 'quantity' => 1]],
             'create_order',
         );
-        $this->expectFailure(CommerceFailureReason::Unauthorized, function () use ($order, $stranger): void {
+        $this->expectCommerceFailure(CommerceFailureReason::Unauthorized, function () use ($order, $stranger): void {
             $this->orders()->cancel(
                 $order,
                 $stranger,
@@ -743,7 +728,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         );
         $purchaser = $this->scenario->activeUser('ord15-buyer@example.com');
 
-        $this->expectFailure(
+        $this->expectCommerceFailure(
             CommerceFailureReason::CurrencyMismatch,
             function () use ($purchaser, $tryOffer, $usdOffer): void {
                 $this->orders()->createUserOrder(
@@ -786,7 +771,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $rehashed = $this->scenario->refresh(CommerceOrder::class, $order->getId());
         $rehashedItems = $this->scenario->service(\App\Repository\CommerceOrderItemRepository::class)
             ->findForOrder($rehashed->getId());
-        $this->expectFailure(CommerceFailureReason::HashMismatch, function () use ($rehashed, $rehashedItems): void {
+        $this->expectCommerceFailure(CommerceFailureReason::HashMismatch, function () use ($rehashed, $rehashedItems): void {
             $this->orders()->assertOrderIntegrity($rehashed, $rehashedItems);
         });
 
@@ -801,7 +786,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $freshItems = $this->scenario->service(\App\Repository\CommerceOrderItemRepository::class)
             ->findForOrder($tampered->getId());
 
-        $this->expectFailure(CommerceFailureReason::TotalMismatch, function () use ($tampered, $freshItems): void {
+        $this->expectCommerceFailure(CommerceFailureReason::TotalMismatch, function () use ($tampered, $freshItems): void {
             $this->orders()->assertOrderIntegrity($tampered, $freshItems);
         });
     }
@@ -880,10 +865,10 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $tampered = $this->scenario->refresh(CommercialOffer::class, $offer->getId());
         self::assertSame(1, $tampered->getPriceAmountMinor());
 
-        $this->expectFailure(CommerceFailureReason::HashMismatch, function () use ($tampered): void {
+        $this->expectCommerceFailure(CommerceFailureReason::HashMismatch, function () use ($tampered): void {
             $this->offers()->assertOfferIntegrity($tampered);
         });
-        $this->expectFailure(CommerceFailureReason::HashMismatch, function () use ($tampered, $sa): void {
+        $this->expectCommerceFailure(CommerceFailureReason::HashMismatch, function () use ($tampered, $sa): void {
             $this->offers()->activate($tampered, $sa, 'activate_offer');
         });
     }
@@ -906,7 +891,7 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
         $draftVersion = $versions->createDraftVersion($package, $sa, 30, null, 'create_version');
         self::assertInstanceOf(AccessPackageVersion::class, $draftVersion);
 
-        $this->expectFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $draftVersion): void {
+        $this->expectCommerceFailure(CommerceFailureReason::InvalidInput, function () use ($sa, $draftVersion): void {
             $this->scenario->draftOffer($sa, $draftVersion, 'ord18_code');
         });
     }
@@ -919,87 +904,5 @@ final class CommerceOfferOrderDomainTest extends KernelTestCase
     private function orders(): CommerceOrderManager
     {
         return $this->scenario->service(CommerceOrderManager::class);
-    }
-
-    private function auditEvents(): SecurityAuditEventRepository
-    {
-        return $this->scenario->service(SecurityAuditEventRepository::class);
-    }
-
-    private function expectDatabaseRejection(callable $operation): void
-    {
-        try {
-            $operation();
-            self::fail('Expected the database to reject the statement.');
-        } catch (DbalException $e) {
-            self::assertNotSame('', $e->getMessage());
-        } finally {
-            $this->recoverDoctrine();
-        }
-    }
-
-    private function expectFailure(CommerceFailureReason $reason, callable $operation): void
-    {
-        try {
-            $operation();
-            self::fail('Expected CommerceException '.$reason->value);
-        } catch (CommerceException $e) {
-            self::assertSame($reason, $e->getReason(), 'Unexpected failure reason: '.$e->getMessage());
-        } finally {
-            $this->recoverDoctrine();
-        }
-    }
-
-    /**
-     * Managers run inside `wrapInTransaction`, which closes the EntityManager on any
-     * rollback, so every expected failure needs the same Doctrine reset the Stage 2.16
-     * tests use. Entities captured before the reset stay usable because managers only
-     * read their identifiers and reload locked copies inside the transaction.
-     */
-    private function recoverDoctrine(): void
-    {
-        if ($this->em->isOpen()) {
-            return;
-        }
-
-        $doctrine = static::getContainer()->get('doctrine');
-        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
-        $doctrine->resetManager();
-        self::ensureKernelShutdown();
-        self::bootKernel();
-        $this->rebind();
-    }
-
-    private function rebind(): void
-    {
-        $doctrine = static::getContainer()->get('doctrine');
-        self::assertInstanceOf(ManagerRegistry::class, $doctrine);
-        $em = $doctrine->getManager();
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $this->em = $em;
-        $this->scenario = new CommerceScenario(static::getContainer(), $this->em);
-    }
-
-    private function cleanup(): void
-    {
-        $connection = $this->em->getConnection();
-        CommerceDbCleanup::deleteAll($connection);
-        AccessEntitlementDbCleanup::deleteAll($connection);
-        if ($connection->createSchemaManager()->tablesExist(['curriculum_topics'])) {
-            $connection->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
-        }
-        QuestionBankDbCleanup::deleteTables($connection, [
-            'curriculum_learning_outcomes',
-            'curriculum_topics',
-            'curriculum_units',
-            'curriculum_programs',
-            'subjects',
-            'institution_memberships',
-            'institutions',
-            'security_audit_events',
-            'security_bootstrap_guards',
-            'reset_password_requests',
-            'users',
-        ]);
     }
 }

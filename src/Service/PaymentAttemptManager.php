@@ -11,7 +11,6 @@ use App\Entity\CommerceOrder;
 use App\Entity\Institution;
 use App\Entity\PaymentAttempt;
 use App\Entity\User;
-use App\Enum\CommerceOrderStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\PaymentProviderEnvironment;
 use App\Enum\SecurityAuditAction;
@@ -66,7 +65,9 @@ final class PaymentAttemptManager
         $reasonCode = CommerceInputNormalizer::reasonCode($reasonCode);
         $providerCode = CommerceInputNormalizer::providerCode($providerCode);
         $idempotencyKeyHash = $this->idempotencyHasher->hash(self::IDEMPOTENCY_SCOPE, $idempotencyKey);
-        $orderId = $order->getId();
+        // Lazy expiry runs in its own transaction first: a rollback inside the attempt
+        // transaction would otherwise discard the expiry we just recorded.
+        $orderId = $this->orderManager->evaluateAndExpireIfNeeded($order)->getId();
         $actorId = $actor->getId();
 
         try {
@@ -116,21 +117,17 @@ final class PaymentAttemptManager
                 $this->authorization->assertCanManageOrder($freshActor, $locked);
 
                 $now = $this->utcNow();
-                if ($locked->isExpiredAt($now)) {
-                    if ($locked->getStatus()->allowsCancellation()) {
-                        $locked->markExpired($now);
-                        $this->entityManager->flush();
-                    }
-                    throw CommerceException::invalidTransition();
-                }
-                if (CommerceOrderStatus::AwaitingPayment !== $locked->getStatus()
-                    && CommerceOrderStatus::Failed !== $locked->getStatus()
-                ) {
+                if ($locked->isExpiredAt($now) || !$locked->getStatus()->allowsPaymentAttempt()) {
                     throw CommerceException::invalidTransition();
                 }
 
                 $items = $this->freshCommerce->findFreshOrderItems($locked->getId());
                 $this->orderManager->assertOrderIntegrity($locked, $items);
+
+                // The DB trigger only accepts attempts for orders that already left draft,
+                // so the status transition is flushed before the attempt row is inserted.
+                $locked->markPaymentStarted($now);
+                $this->entityManager->flush();
 
                 $attempt = PaymentAttempt::initiate(
                     $locked,
@@ -142,7 +139,6 @@ final class PaymentAttemptManager
                     $now,
                 );
                 $this->attempts->save($attempt, false);
-                $locked->markPaymentStarted($now);
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::PaymentAttemptStarted,
