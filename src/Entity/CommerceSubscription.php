@@ -53,7 +53,7 @@ class CommerceSubscription
     private ?Institution $institution;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'order_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'order_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CommerceOrder $order;
 
     #[ORM\ManyToOne]

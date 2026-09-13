@@ -688,32 +688,32 @@ final class Version20260913120000 extends AbstractMigration
         $this->addSql('ALTER TABLE commerce_order_items ADD CONSTRAINT FK_COI_OFFER_PACKAGE_VERSION FOREIGN KEY (offer_id, package_version_id) REFERENCES commercial_offers (id, package_version_id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_order_items ADD CONSTRAINT FK_COI_ORDER_CURRENCY FOREIGN KEY (order_id, currency) REFERENCES commerce_orders (id, currency) ON DELETE CASCADE');
 
-        $this->addSql('ALTER TABLE payment_attempts ADD CONSTRAINT FK_PA_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE payment_attempts ADD CONSTRAINT FK_PA_ORDER_CURRENCY FOREIGN KEY (order_id, currency) REFERENCES commerce_orders (id, currency) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE payment_attempts ADD CONSTRAINT FK_PA_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE payment_attempts ADD CONSTRAINT FK_PA_ORDER_CURRENCY FOREIGN KEY (order_id, currency) REFERENCES commerce_orders (id, currency) ON DELETE CASCADE');
 
-        $this->addSql('ALTER TABLE payment_events ADD CONSTRAINT FK_PE_ATTEMPT FOREIGN KEY (attempt_id) REFERENCES payment_attempts (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE payment_events ADD CONSTRAINT FK_PE_ATTEMPT FOREIGN KEY (attempt_id) REFERENCES payment_attempts (id) ON DELETE CASCADE');
 
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_USER FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_INSTITUTION FOREIGN KEY (institution_id) REFERENCES institutions (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_OFFER FOREIGN KEY (offer_id) REFERENCES commercial_offers (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_PACKAGE FOREIGN KEY (package_id) REFERENCES access_packages (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_PACKAGE_VERSION FOREIGN KEY (package_version_id) REFERENCES access_package_versions (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_OFFER_PACKAGE FOREIGN KEY (offer_id, package_id) REFERENCES commercial_offers (id, package_id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_OFFER_PACKAGE_VERSION FOREIGN KEY (offer_id, package_version_id) REFERENCES commercial_offers (id, package_version_id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER_USER FOREIGN KEY (order_id, user_id) REFERENCES commerce_orders (id, user_id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER_INSTITUTION FOREIGN KEY (order_id, institution_id) REFERENCES commerce_orders (id, institution_id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER_USER FOREIGN KEY (order_id, user_id) REFERENCES commerce_orders (id, user_id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_subscriptions ADD CONSTRAINT FK_CS_ORDER_INSTITUTION FOREIGN KEY (order_id, institution_id) REFERENCES commerce_orders (id, institution_id) ON DELETE CASCADE');
 
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER_ITEM FOREIGN KEY (order_item_id) REFERENCES commerce_order_items (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER_ITEM_ORDER FOREIGN KEY (order_item_id, order_id) REFERENCES commerce_order_items (id, order_id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ATTEMPT FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ATTEMPT_ORDER FOREIGN KEY (payment_attempt_id, order_id) REFERENCES payment_attempts (id, order_id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_SUBSCRIPTION FOREIGN KEY (subscription_id) REFERENCES commerce_subscriptions (id) ON DELETE RESTRICT');
-        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_SUBSCRIPTION_ORDER FOREIGN KEY (subscription_id, order_id) REFERENCES commerce_subscriptions (id, order_id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER FOREIGN KEY (order_id) REFERENCES commerce_orders (id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER_ITEM FOREIGN KEY (order_item_id) REFERENCES commerce_order_items (id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ORDER_ITEM_ORDER FOREIGN KEY (order_item_id, order_id) REFERENCES commerce_order_items (id, order_id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ATTEMPT FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts (id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_ATTEMPT_ORDER FOREIGN KEY (payment_attempt_id, order_id) REFERENCES payment_attempts (id, order_id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_SUBSCRIPTION FOREIGN KEY (subscription_id) REFERENCES commerce_subscriptions (id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_SUBSCRIPTION_ORDER FOREIGN KEY (subscription_id, order_id) REFERENCES commerce_subscriptions (id, order_id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE commerce_fulfillments ADD CONSTRAINT FK_CF_LICENSE FOREIGN KEY (access_license_id) REFERENCES access_licenses (id) ON DELETE RESTRICT');
 
-        $this->addSql('ALTER TABLE payment_refunds ADD CONSTRAINT FK_PR_ATTEMPT FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE payment_refunds ADD CONSTRAINT FK_PR_ATTEMPT FOREIGN KEY (payment_attempt_id) REFERENCES payment_attempts (id) ON DELETE CASCADE');
     }
 
     /**
@@ -849,8 +849,8 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON commerce_order_items
             FOR EACH ROW
             BEGIN
-                DECLARE o_status VARCHAR(32);
-                DECLARE o_currency CHAR(3);
+                DECLARE o_status VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+                DECLARE o_currency CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 SELECT status, currency INTO o_status, o_currency FROM commerce_orders WHERE id = NEW.order_id;
                 IF o_status IS NULL THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'commerce_order_item order not found';
@@ -870,7 +870,7 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE DELETE ON commerce_order_items
             FOR EACH ROW
             BEGIN
-                DECLARE o_status VARCHAR(32);
+                DECLARE o_status VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 SELECT status INTO o_status FROM commerce_orders WHERE id = OLD.order_id;
                 IF o_status IS NOT NULL AND o_status <> 'draft' THEN
                     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'commerce_order_items can only be removed from draft orders';
@@ -887,9 +887,9 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON payment_attempts
             FOR EACH ROW
             BEGIN
-                DECLARE o_status VARCHAR(32);
+                DECLARE o_status VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 DECLARE o_total BIGINT;
-                DECLARE o_currency CHAR(3);
+                DECLARE o_currency CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 SELECT status, grand_total_amount_minor, currency
                   INTO o_status, o_total, o_currency
                   FROM commerce_orders WHERE id = NEW.order_id;
@@ -969,10 +969,10 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON payment_events
             FOR EACH ROW
             BEGIN
-                DECLARE a_currency CHAR(3);
+                DECLARE a_currency CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 DECLARE a_amount BIGINT;
                 DECLARE last_seq INT;
-                DECLARE last_hash VARCHAR(64);
+                DECLARE last_hash VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 SELECT currency, amount_minor INTO a_currency, a_amount
                   FROM payment_attempts WHERE id = NEW.attempt_id;
                 IF a_currency IS NULL THEN
@@ -1078,8 +1078,8 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON commerce_subscriptions
             FOR EACH ROW
             BEGIN
-                DECLARE o_billing_type VARCHAR(32);
-                DECLARE o_billing_interval VARCHAR(32);
+                DECLARE o_billing_type VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+                DECLARE o_billing_interval VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 SELECT billing_type, billing_interval INTO o_billing_type, o_billing_interval
                   FROM commercial_offers WHERE id = NEW.offer_id;
                 IF o_billing_type IS NULL THEN
@@ -1100,7 +1100,7 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON commerce_fulfillments
             FOR EACH ROW
             BEGIN
-                DECLARE a_status VARCHAR(32);
+                DECLARE a_status VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 DECLARE a_order BINARY(16);
                 DECLARE captured_events INT;
                 SELECT status, order_id INTO a_status, a_order
@@ -1182,9 +1182,9 @@ final class Version20260913120000 extends AbstractMigration
             BEFORE INSERT ON payment_refunds
             FOR EACH ROW
             BEGIN
-                DECLARE a_status VARCHAR(32);
+                DECLARE a_status VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 DECLARE a_amount BIGINT;
-                DECLARE a_currency CHAR(3);
+                DECLARE a_currency CHAR(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
                 DECLARE reserved BIGINT;
                 SELECT status, amount_minor, currency INTO a_status, a_amount, a_currency
                   FROM payment_attempts WHERE id = NEW.payment_attempt_id;

@@ -41,19 +41,19 @@ class CommerceFulfillment
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'order_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'order_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CommerceOrder $order;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'order_item_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'order_item_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private CommerceOrderItem $orderItem;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'payment_attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'payment_attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private PaymentAttempt $paymentAttempt;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'subscription_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'subscription_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?CommerceSubscription $subscription;
 
     #[ORM\ManyToOne]

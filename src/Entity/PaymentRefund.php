@@ -38,7 +38,7 @@ class PaymentRefund
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'payment_attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'payment_attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private PaymentAttempt $paymentAttempt;
 
     #[ORM\Column(name: 'refund_number')]

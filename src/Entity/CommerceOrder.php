@@ -195,7 +195,10 @@ class CommerceOrder
     }
 
     /**
-     * Freezes the recomputed totals and canonical order hash, then awaits payment.
+     * Freezes the recomputed totals and canonical order hash.
+     *
+     * The order stays draft so its line items can still be inserted in the same flush;
+     * {@see self::markPaymentStarted()} is what moves it to awaiting_payment.
      */
     public function sealTotals(
         Money $subtotal,
@@ -226,15 +229,18 @@ class CommerceOrder
         $this->taxAmountMinor = $tax->getAmountMinor();
         $this->grandTotalAmountMinor = $grandTotal->getAmountMinor();
         $this->orderHash = $orderHash;
-        $this->status = CommerceOrderStatus::AwaitingPayment;
         $this->updatedAt = $now;
     }
 
     public function markPaymentStarted(\DateTimeImmutable $startedAt): void
     {
-        if (CommerceOrderStatus::AwaitingPayment !== $this->status
+        if (CommerceOrderStatus::Draft !== $this->status
+            && CommerceOrderStatus::AwaitingPayment !== $this->status
             && CommerceOrderStatus::Failed !== $this->status
         ) {
+            throw CommerceException::invalidTransition();
+        }
+        if (0 === $this->grandTotalAmountMinor) {
             throw CommerceException::invalidTransition();
         }
         $this->status = CommerceOrderStatus::AwaitingPayment;
@@ -399,6 +405,11 @@ class CommerceOrder
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getPaymentStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->paymentStartedAt;
     }
 
     public function getPaidAt(): ?\DateTimeImmutable

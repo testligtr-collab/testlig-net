@@ -39,7 +39,7 @@ class PaymentEvent
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    #[ORM\JoinColumn(name: 'attempt_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private PaymentAttempt $attempt;
 
     #[ORM\Column(name: 'sequence_number')]

@@ -67,7 +67,7 @@ final class CommerceCompositeForeignKeyListener
                 'commerce_orders',
                 ['order_id', 'currency'],
                 ['id', 'currency'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
         }
 
@@ -95,7 +95,7 @@ final class CommerceCompositeForeignKeyListener
                 'commerce_orders',
                 ['order_id', 'user_id'],
                 ['id', 'user_id'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
@@ -103,7 +103,7 @@ final class CommerceCompositeForeignKeyListener
                 'commerce_orders',
                 ['order_id', 'institution_id'],
                 ['id', 'institution_id'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
         }
 
@@ -115,7 +115,7 @@ final class CommerceCompositeForeignKeyListener
                 'commerce_order_items',
                 ['order_item_id', 'order_id'],
                 ['id', 'order_id'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
@@ -123,7 +123,7 @@ final class CommerceCompositeForeignKeyListener
                 'payment_attempts',
                 ['payment_attempt_id', 'order_id'],
                 ['id', 'order_id'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
@@ -131,7 +131,7 @@ final class CommerceCompositeForeignKeyListener
                 'commerce_subscriptions',
                 ['subscription_id', 'order_id'],
                 ['id', 'order_id'],
-                ['onDelete' => 'RESTRICT'],
+                ['onDelete' => 'CASCADE'],
             );
         }
     }

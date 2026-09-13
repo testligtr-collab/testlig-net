@@ -96,7 +96,7 @@ final class CommerceSubscriptionManager
         $subscriberType = $order->getPurchaserType()->toSubscriberType();
         $subscriptionId = Uuid::v7();
         $periodStart = UtcInstant::ensure($capturedAt);
-        $periodEnd = $periodStart->add($interval->toDateInterval());
+        $periodEnd = $interval->advance($periodStart);
         $subscription = CommerceSubscription::createPending(
             $subscriberType,
             $order->getUser(),
@@ -148,7 +148,7 @@ final class CommerceSubscriptionManager
                 $this->authorization->assertCanSettlePayments($freshActor);
                 $this->assertSubscriptionIntegrity($locked);
 
-                $periodEnd = $nextPeriodStart->add($locked->getBillingInterval()->toDateInterval());
+                $periodEnd = $locked->getBillingInterval()->advance($nextPeriodStart);
                 $now = $this->utcNow();
                 $locked->advancePeriod(
                     $nextPeriodStart,
