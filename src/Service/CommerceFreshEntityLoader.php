@@ -13,6 +13,7 @@ use App\Entity\CommerceSubscription;
 use App\Entity\CommercialOffer;
 use App\Entity\PaymentAttempt;
 use App\Entity\PaymentRefund;
+use App\Entity\PaymentWebhookInboxEvent;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
@@ -105,6 +106,15 @@ final class CommerceFreshEntityLoader
         $entity = $this->findFresh(CommerceFulfillment::class, $id, $lockMode);
 
         return $entity instanceof CommerceFulfillment ? $entity : null;
+    }
+
+    public function findFreshWebhookInbox(
+        Uuid $id,
+        LockMode $lockMode = LockMode::PESSIMISTIC_WRITE,
+    ): ?PaymentWebhookInboxEvent {
+        $entity = $this->findFresh(PaymentWebhookInboxEvent::class, $id, $lockMode);
+
+        return $entity instanceof PaymentWebhookInboxEvent ? $entity : null;
     }
 
     /**

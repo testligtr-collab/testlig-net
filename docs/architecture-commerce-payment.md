@@ -106,23 +106,70 @@ before capture is trusted.
 ## 5. Payment lifecycle (provider-neutral)
 
 ```
-PaymentAttemptManager::start        order draft → awaiting_payment, attempt initiated
-PaymentSettlementManager::authorize attempt initiated → authorized   + PaymentEvent
-PaymentSettlementManager::capture   attempt authorized/initiated → captured + PaymentEvent
-PaymentSettlementManager::fail      attempt → failed  + PaymentEvent
-PaymentSettlementManager::cancel    attempt → cancelled + PaymentEvent
+PaymentAttemptManager::start              order draft → awaiting_payment, attempt initiated
+PaymentCheckoutOrchestrator::checkout     attempt → provider authorize (outside DB TX) → settlement
+PaymentSettlementManager::authorize       attempt initiated → authorized   + PaymentEvent
+PaymentSettlementManager::capture         attempt authorized/initiated → captured + PaymentEvent
+PaymentSettlementManager::fail            attempt → failed  + PaymentEvent
+PaymentSettlementManager::cancel          attempt → cancelled + PaymentEvent
+PaymentWebhookIngress + Processor         verified webhook → inbox → settlement/refund/fulfillment
 ```
 
-- `PaymentProviderAdapterInterface` (plus the charge/refund request and result DTOs) is the
-  only provider surface. **No implementation exists in `src/`** — Stage 2.17 ships the seam,
-  and `PaymentProviderSeamTest` fails the build if that changes or if any vendor name
-  appears in executable source.
-- The interface carries `Money`, references and sanitized metadata only. It has no
-  card/PAN/CVV/expiry/holder/IBAN parameter, by test.
-- Every settlement call is idempotent on `(operation, idempotency key)` and returns the same
-  event/attempt on replay instead of double-charging state.
+- `PaymentProviderAdapterInterface` is the only provider charge/refund surface.
+  Stage 2.18 registers a **sandbox** adapter (`SandboxPaymentProviderAdapter`) for
+  dev/test only — no commercial SDK (iyzico/PayTR/Stripe/…) may appear in executable
+  `src/` code. `PaymentProviderRegistry` resolves adapter + webhook verifier + parser by
+  provider code; unknown/disabled providers fail closed.
+- Checkout never accepts client prices: amount/currency/publicReference come from the
+  sealed order. Raw idempotency keys are never persisted (HMAC digest only). Provider
+  network calls run **outside** open DB transactions. Ambiguous/timeout outcomes leave
+  the attempt fail-closed (not marked failed) for webhook/reconciliation.
+- Webhook route: exact `POST /webhook/odeme/{providerCode}` (stateless firewall, no CSRF).
+  Signature verification uses `hash_equals` over the raw body; timestamp replay window
+  applies. Verified events land in append-only `PaymentWebhookInboxEvent` (payload hash +
+  signature fingerprint only — never raw body/signature/secrets/card data).
+- Inbox lifecycle (recovery-hardened):
+  `received → processing → processed|rejected|retry_pending|dead_letter`, and
+  `retry_pending → processing` when `next_retry_at` is due. Stale `processing` leases
+  can be reclaimed after `lease_expires_at`. Terminal states never roll back.
+- Delivery semantics: provider **at-least-once**; application **idempotent convergence**.
+  Inbox `processed` only after event-type post-conditions (attempt/event/fulfillment/
+  license/order) are revalidated from fresh DB state. Duplicate `(provider, environment,
+  event_ref)` is UNIQUE; same ref + different payload hash is an integrity conflict.
+  Transient failures schedule `retry_pending`; integrity mismatches `rejected`; retry
+  exhaustion → `dead_letter` (manual review). Out-of-order: late authorize after capture
+  is a no-op; capture after terminal failure is rejected.
+- Settlement actor for provider-driven mutations is the platform SUPER_ADMIN
+  (`PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID` / test override), never the buyer.
 - Provider metadata passes through `PaymentEventMetadataSanitizer` before storage: an
   allowlist of scalar keys, bounded sizes, no nested payloads, no PII.
+
+### Lock order (Stage 2.18)
+
+Institution → purchaser/actor → CommerceOrder → PaymentAttempt → WebhookInboxEvent →
+PaymentEvent/Refund → Fulfillment/AccessLicense → Audit.
+
+### Webhook transaction boundaries
+
+1. Ingress verify + inbox persist (`received`)
+2. Worker claim (lease CAS under row lock; short committed TX)
+3. Each idempotent domain manager transition (own TX)
+4. Fulfillment (own TX)
+5. Post-condition check + inbox `processed` + success audit (same TX)
+
+Partial capture-then-fulfill failures remain recoverable: retry converges without a second
+PaymentEvent/fulfillment/license.
+
+**EM note:** Doctrine `EntityManager::wrapInTransaction()` closes the EM on any failure.
+Scope validation therefore must not run inside that helper when the worker still needs to
+mark `retry_pending`/`rejected`. After a domain-manager TX failure the processor resets
+the manager via `ManagerRegistry::resetManager()` before inbox recovery writes.
+
+### Webhook denial audit policy
+
+High-volume signature/provider denials record a sparse system audit
+(`payment_webhook_rejected`) with only `provider_code` + `reason_code` — never body,
+signature, headers, or PII — to avoid log amplification.
 
 ## 6. Fulfillment — captured payment becomes exactly one license
 

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Support;
+namespace App\Commerce\Sandbox;
 
 use App\Commerce\PaymentProviderAdapterInterface;
 use App\Commerce\PaymentProviderChargeRequest;
@@ -12,29 +12,54 @@ use App\Commerce\PaymentProviderRefundResult;
 use App\Enum\PaymentEventType;
 use App\Enum\PaymentProviderEnvironment;
 use App\Enum\PaymentRefundStatus;
+use App\Time\UtcInstant;
+use Psr\Clock\ClockInterface;
 
 /**
- * The only adapter that may exist in tests: a deterministic in-memory double.
+ * Deterministic in-process sandbox adapter for dev/test. Not a commercial SDK.
  *
- * Production/dev use {@see \App\Commerce\Sandbox\SandboxPaymentProviderAdapter}; this
- * class remains a lightweight unit-test double without container wiring.
+ * Ambiguous mode simulates network uncertainty without marking the attempt failed.
  */
-final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterface
+final class SandboxPaymentProviderAdapter implements PaymentProviderAdapterInterface
 {
+    public const PROVIDER_CODE = 'sandbox_provider';
+
+    public const MODE_SUCCESS = 'success';
+
+    public const MODE_DECLINE = 'decline';
+
+    public const MODE_AMBIGUOUS = 'ambiguous';
+
     /**
      * @var list<string>
      */
     private array $calls = [];
 
+    private string $mode;
+
     public function __construct(
-        private readonly \DateTimeImmutable $now,
-        private readonly bool $decline = false,
+        private readonly ClockInterface $clock,
+        string $mode = self::MODE_SUCCESS,
     ) {
+        $this->setMode($mode);
+    }
+
+    public function setMode(string $mode): void
+    {
+        if (!\in_array($mode, [self::MODE_SUCCESS, self::MODE_DECLINE, self::MODE_AMBIGUOUS], true)) {
+            throw new \InvalidArgumentException('Unsupported sandbox provider mode.');
+        }
+        $this->mode = $mode;
+    }
+
+    public function getMode(): string
+    {
+        return $this->mode;
     }
 
     public function getProviderCode(): string
     {
-        return 'sandbox_provider';
+        return self::PROVIDER_CODE;
     }
 
     public function getEnvironment(): PaymentProviderEnvironment
@@ -50,10 +75,14 @@ final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterfac
     public function authorize(PaymentProviderChargeRequest $request): PaymentProviderChargeResult
     {
         $this->calls[] = 'authorize:'.$request->paymentAttemptId->toRfc4122();
-        if ($this->decline) {
+        $now = UtcInstant::ensure($this->clock->now());
+        if (self::MODE_AMBIGUOUS === $this->mode) {
+            throw new SandboxProviderAmbiguousException('Sandbox authorize result is ambiguous.');
+        }
+        if (self::MODE_DECLINE === $this->mode) {
             return new PaymentProviderChargeResult(
                 eventType: PaymentEventType::Failed,
-                occurredAt: $this->now,
+                occurredAt: $now,
                 failureCode: 'provider_declined',
                 sanitizedMetadata: ['provider_code' => $this->getProviderCode()],
             );
@@ -61,11 +90,11 @@ final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterfac
 
         return new PaymentProviderChargeResult(
             eventType: PaymentEventType::Authorized,
-            occurredAt: $this->now,
+            occurredAt: $now,
             amount: $request->amount,
-            providerPaymentReference: 'fake_pay_'.substr(bin2hex($request->paymentAttemptId->toBinary()), 0, 12),
-            providerAuthorizationReference: 'fake_auth_1',
-            providerEventReference: 'fake_evt_auth_1',
+            providerPaymentReference: 'sandbox_pay_'.substr(bin2hex($request->paymentAttemptId->toBinary()), 0, 12),
+            providerAuthorizationReference: 'sandbox_auth_1',
+            providerEventReference: 'sandbox_evt_auth_'.substr(bin2hex($request->paymentAttemptId->toBinary()), 0, 10),
             sanitizedMetadata: ['provider_code' => $this->getProviderCode(), 'installment_count' => 1],
         );
     }
@@ -73,13 +102,17 @@ final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterfac
     public function capture(PaymentProviderChargeRequest $request): PaymentProviderChargeResult
     {
         $this->calls[] = 'capture:'.$request->paymentAttemptId->toRfc4122();
+        $now = UtcInstant::ensure($this->clock->now());
+        if (self::MODE_AMBIGUOUS === $this->mode) {
+            throw new SandboxProviderAmbiguousException('Sandbox capture result is ambiguous.');
+        }
 
         return new PaymentProviderChargeResult(
             eventType: PaymentEventType::Captured,
-            occurredAt: $this->now,
+            occurredAt: $now,
             amount: $request->amount,
             providerPaymentReference: $request->providerPaymentReference,
-            providerEventReference: 'fake_evt_cap_1',
+            providerEventReference: 'sandbox_evt_cap_'.substr(bin2hex($request->paymentAttemptId->toBinary()), 0, 10),
             sanitizedMetadata: ['provider_code' => $this->getProviderCode()],
         );
     }
@@ -90,9 +123,9 @@ final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterfac
 
         return new PaymentProviderRefundResult(
             status: PaymentRefundStatus::Succeeded,
-            occurredAt: $this->now,
+            occurredAt: UtcInstant::ensure($this->clock->now()),
             amount: $request->amount,
-            providerRefundReference: 'fake_refund_1',
+            providerRefundReference: 'sandbox_refund_1',
             sanitizedMetadata: ['provider_code' => $this->getProviderCode()],
         );
     }
@@ -103,5 +136,10 @@ final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterfac
     public function getCalls(): array
     {
         return $this->calls;
+    }
+
+    public function resetCalls(): void
+    {
+        $this->calls = [];
     }
 }

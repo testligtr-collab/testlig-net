@@ -21,7 +21,7 @@ use Symfony\Component\Uid\Uuid;
  */
 final class PaymentProviderSeamTest extends TestCase
 {
-    public function testNoProductionCodeImplementsTheAdapterInterface(): void
+    public function testOnlySandboxAdapterMayExistInSource(): void
     {
         $implementations = [];
         foreach ($this->sourceFiles(\dirname(__DIR__, 2).'/src') as $file) {
@@ -32,7 +32,32 @@ final class PaymentProviderSeamTest extends TestCase
                 $implementations[] = $file;
             }
         }
-        self::assertSame([], $implementations, 'No src/ class may implement the payment provider seam yet.');
+        self::assertCount(1, $implementations, 'Exactly one src/ sandbox adapter may implement the payment provider seam.');
+        self::assertStringContainsString('SandboxPaymentProviderAdapter.php', $implementations[0]);
+        self::assertStringContainsString('Sandbox', $implementations[0]);
+    }
+
+    public function testOnlySandboxWebhookSeamImplementationsExistInSource(): void
+    {
+        $verifiers = [];
+        $parsers = [];
+        foreach ($this->sourceFiles(\dirname(__DIR__, 2).'/src') as $file) {
+            $source = (string) file_get_contents($file);
+            if (str_contains($source, 'implements PaymentWebhookSignatureVerifierInterface')
+                || str_contains($source, 'PaymentWebhookSignatureVerifierInterface,')
+            ) {
+                $verifiers[] = $file;
+            }
+            if (str_contains($source, 'implements PaymentWebhookParserInterface')
+                || str_contains($source, 'PaymentWebhookParserInterface,')
+            ) {
+                $parsers[] = $file;
+            }
+        }
+        self::assertCount(1, $verifiers);
+        self::assertCount(1, $parsers);
+        self::assertStringContainsString('SandboxWebhookSignatureVerifier.php', $verifiers[0]);
+        self::assertStringContainsString('SandboxWebhookParser.php', $parsers[0]);
     }
 
     public function testNoVendorPaymentSdkIsReferencedAnywhereInSource(): void

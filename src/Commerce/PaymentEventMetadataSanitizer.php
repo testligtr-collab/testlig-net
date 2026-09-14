@@ -63,7 +63,12 @@ final class PaymentEventMetadataSanitizer
         'name',
         'identity',
         'tckn',
+        'webhook_body',
+        'signing',
     ];
+
+    // Note: keys containing forbidden fragments (e.g. "authorization") are rejected even if
+    // they look related to provider references — pass those as dedicated DTO fields instead.
 
     /**
      * @param array<array-key, mixed> $metadata

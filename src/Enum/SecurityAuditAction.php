@@ -156,6 +156,13 @@ enum SecurityAuditAction: string
     case PaymentRefundRequested = 'payment_refund_requested';
     case PaymentRefundSucceeded = 'payment_refund_succeeded';
     case PaymentRefundFailed = 'payment_refund_failed';
+    case PaymentCheckoutStarted = 'payment_checkout_started';
+    case PaymentCheckoutProviderAccepted = 'payment_checkout_provider_accepted';
+    case PaymentCheckoutProviderRejected = 'payment_checkout_provider_rejected';
+    case PaymentWebhookReceived = 'payment_webhook_received';
+    case PaymentWebhookProcessed = 'payment_webhook_processed';
+    case PaymentWebhookRejected = 'payment_webhook_rejected';
+    case PaymentWebhookIntegrityFailed = 'payment_webhook_integrity_failed';
     case CommerceSubscriptionCreated = 'commerce_subscription_created';
     case CommerceSubscriptionActivated = 'commerce_subscription_activated';
     case CommerceSubscriptionRenewed = 'commerce_subscription_renewed';

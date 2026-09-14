@@ -27,4 +27,9 @@ enum CommerceFailureReason: string
     case RefundExceedsCapture = 'refund_exceeds_capture';
     case AlreadyFulfilled = 'already_fulfilled';
     case PaymentNotCaptured = 'payment_not_captured';
+    case ProviderUnavailable = 'provider_unavailable';
+    case WebhookSignatureInvalid = 'webhook_signature_invalid';
+    case WebhookReplayRejected = 'webhook_replay_rejected';
+    case WebhookIntegrityConflict = 'webhook_integrity_conflict';
+    case WebhookRetryExhausted = 'webhook_retry_exhausted';
 }
