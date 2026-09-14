@@ -72,6 +72,22 @@ class PaymentEventRepository extends ServiceEntityRepository
         return $entity instanceof PaymentEvent ? $entity : null;
     }
 
+    public function findOneForAttemptByProviderEventReference(
+        Uuid $attemptId,
+        string $providerEventReference,
+    ): ?PaymentEvent {
+        $entity = $this->createQueryBuilder('e')
+            ->andWhere('IDENTITY(e.attempt) = :attemptId')
+            ->andWhere('e.providerEventReference = :providerEventReference')
+            ->setParameter('attemptId', $attemptId, 'uuid')
+            ->setParameter('providerEventReference', $providerEventReference)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $entity instanceof PaymentEvent ? $entity : null;
+    }
+
     /** @return list<PaymentEvent> */
     public function findChainForAttempt(Uuid $attemptId): array
     {

@@ -164,6 +164,9 @@ final class SecurityAuditMetadataSanitizer
         'fulfillment_number',
         'cancellation_reason_code',
         'reversal_reason_code',
+        // Stage 2.18 webhook inbox / checkout orchestration (identifiers only).
+        'inbox_event_id',
+        'processing_status',
     ];
 
     /**

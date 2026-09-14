@@ -70,4 +70,19 @@ class PaymentRefundRepository extends ServiceEntityRepository
 
         return \is_int($sum) || \is_string($sum) ? (int) $sum : 0;
     }
+
+    public function findOpenForAttempt(Uuid $attemptId): ?PaymentRefund
+    {
+        $entity = $this->createQueryBuilder('r')
+            ->andWhere('IDENTITY(r.paymentAttempt) = :attemptId')
+            ->andWhere('r.status = :requested')
+            ->setParameter('attemptId', $attemptId, 'uuid')
+            ->setParameter('requested', PaymentRefundStatus::Requested)
+            ->orderBy('r.refundNumber', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $entity instanceof PaymentRefund ? $entity : null;
+    }
 }
