@@ -30,6 +30,7 @@ final class CommerceDbCleanup
      * @var list<string>
      */
     private const TABLES = [
+        'payment_webhook_inbox_events',
         'commerce_fulfillments',
         'payment_refunds',
         'payment_events',
@@ -43,6 +44,10 @@ final class CommerceDbCleanup
     public static function deleteAll(Connection $connection): void
     {
         $schema = $connection->createSchemaManager();
+        if ($schema->tablesExist(['payment_webhook_inbox_events'])) {
+            // Append-only DELETE trigger; TRUNCATE is test-only purge.
+            $connection->executeStatement('TRUNCATE TABLE payment_webhook_inbox_events');
+        }
         foreach (self::ROOT_TABLES as $table) {
             if ($schema->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

@@ -14,9 +14,10 @@ use App\Enum\PaymentProviderEnvironment;
 use App\Enum\PaymentRefundStatus;
 
 /**
- * The only adapter that may exist in Stage 2.17: a deterministic in-memory double.
+ * The only adapter that may exist in tests: a deterministic in-memory double.
  *
- * It proves the seam is usable without a vendor SDK and without ever seeing card data.
+ * Production/dev use {@see \App\Commerce\Sandbox\SandboxPaymentProviderAdapter}; this
+ * class remains a lightweight unit-test double without container wiring.
  */
 final class FakePaymentProviderAdapter implements PaymentProviderAdapterInterface
 {
