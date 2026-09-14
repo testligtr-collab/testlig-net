@@ -127,4 +127,27 @@ final class CommerceException extends \RuntimeException
     {
         return new self(CommerceFailureReason::PaymentNotCaptured, 'Fulfillment requires a captured payment attempt.');
     }
+
+    public static function providerUnavailable(): self
+    {
+        return new self(CommerceFailureReason::ProviderUnavailable, 'Payment provider is unavailable or disabled.');
+    }
+
+    public static function webhookSignatureInvalid(): self
+    {
+        return new self(CommerceFailureReason::WebhookSignatureInvalid, 'Webhook signature verification failed.');
+    }
+
+    public static function webhookReplayRejected(): self
+    {
+        return new self(CommerceFailureReason::WebhookReplayRejected, 'Webhook timestamp is outside the accepted window.');
+    }
+
+    public static function webhookIntegrityConflict(): self
+    {
+        return new self(
+            CommerceFailureReason::WebhookIntegrityConflict,
+            'Webhook event conflicts with a previously recorded payload.',
+        );
+    }
 }
