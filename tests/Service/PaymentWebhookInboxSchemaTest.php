@@ -53,6 +53,18 @@ final class PaymentWebhookInboxSchemaTest extends KernelTestCase
         self::assertStringContainsString('trg_pwie_bd_deny', $source);
     }
 
+    public function testMigrationVersion20260914130000RecoveryIsPresent(): void
+    {
+        $path = \dirname(__DIR__, 2).'/migrations/Version20260914130000.php';
+        self::assertFileExists($path);
+        $source = (string) file_get_contents($path);
+        self::assertStringContainsString('claim_token', $source);
+        self::assertStringContainsString('retry_pending', $source);
+        self::assertStringContainsString('dead_letter', $source);
+        self::assertStringContainsString('lease_expires_at', $source);
+        self::assertStringContainsString('irreversible', $source);
+    }
+
     public function testInboxTableExistsWithCheckConstraints(): void
     {
         self::assertTrue($this->connection()->createSchemaManager()->tablesExist([self::TABLE]));
@@ -65,7 +77,7 @@ final class PaymentWebhookInboxSchemaTest extends KernelTestCase
                 AND CONSTRAINT_TYPE = "CHECK"',
             [self::TABLE],
         );
-        self::assertGreaterThanOrEqual(8, \count($checks));
+        self::assertGreaterThanOrEqual(11, \count($checks));
         foreach ([
             'chk_pwie_environment',
             'chk_pwie_event_type',
@@ -75,6 +87,9 @@ final class PaymentWebhookInboxSchemaTest extends KernelTestCase
             'chk_pwie_provider_code',
             'chk_pwie_provider_event_reference',
             'chk_pwie_processed_null_pair',
+            'chk_pwie_lease_null_pair',
+            'chk_pwie_retry_pending_pair',
+            'chk_pwie_attempt_count',
         ] as $expected) {
             self::assertContains($expected, $checks, $expected.' must exist.');
         }
@@ -152,6 +167,11 @@ final class PaymentWebhookInboxSchemaTest extends KernelTestCase
         }
         self::assertContains('payload_hash', $columns);
         self::assertContains('signature_fingerprint', $columns);
+        self::assertContains('attempt_count', $columns);
+        self::assertContains('claim_token', $columns);
+        self::assertContains('lease_expires_at', $columns);
+        self::assertContains('next_retry_at', $columns);
+        self::assertContains('closed_at', $columns);
     }
 
     public function testCheckConstraintsRejectInvalidRows(): void

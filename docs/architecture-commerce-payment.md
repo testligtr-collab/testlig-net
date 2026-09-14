@@ -128,10 +128,17 @@ PaymentWebhookIngress + Processor         verified webhook → inbox → settlem
   Signature verification uses `hash_equals` over the raw body; timestamp replay window
   applies. Verified events land in append-only `PaymentWebhookInboxEvent` (payload hash +
   signature fingerprint only — never raw body/signature/secrets/card data).
-- Inbox lifecycle: `received → processing → processed|rejected|failed` (terminal states
-  never roll back). Duplicate `(provider, environment, event_ref)` is UNIQUE; same ref +
-  different payload hash is an integrity conflict. Out-of-order: late authorize after
-  capture is a no-op; capture after terminal failure is rejected.
+- Inbox lifecycle (recovery-hardened):
+  `received → processing → processed|rejected|retry_pending|dead_letter`, and
+  `retry_pending → processing` when `next_retry_at` is due. Stale `processing` leases
+  can be reclaimed after `lease_expires_at`. Terminal states never roll back.
+- Delivery semantics: provider **at-least-once**; application **idempotent convergence**.
+  Inbox `processed` only after event-type post-conditions (attempt/event/fulfillment/
+  license/order) are revalidated from fresh DB state. Duplicate `(provider, environment,
+  event_ref)` is UNIQUE; same ref + different payload hash is an integrity conflict.
+  Transient failures schedule `retry_pending`; integrity mismatches `rejected`; retry
+  exhaustion → `dead_letter` (manual review). Out-of-order: late authorize after capture
+  is a no-op; capture after terminal failure is rejected.
 - Settlement actor for provider-driven mutations is the platform SUPER_ADMIN
   (`PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID` / test override), never the buyer.
 - Provider metadata passes through `PaymentEventMetadataSanitizer` before storage: an
@@ -141,6 +148,22 @@ PaymentWebhookIngress + Processor         verified webhook → inbox → settlem
 
 Institution → purchaser/actor → CommerceOrder → PaymentAttempt → WebhookInboxEvent →
 PaymentEvent/Refund → Fulfillment/AccessLicense → Audit.
+
+### Webhook transaction boundaries
+
+1. Ingress verify + inbox persist (`received`)
+2. Worker claim (lease CAS under row lock; short committed TX)
+3. Each idempotent domain manager transition (own TX)
+4. Fulfillment (own TX)
+5. Post-condition check + inbox `processed` + success audit (same TX)
+
+Partial capture-then-fulfill failures remain recoverable: retry converges without a second
+PaymentEvent/fulfillment/license.
+
+**EM note:** Doctrine `EntityManager::wrapInTransaction()` closes the EM on any failure.
+Scope validation therefore must not run inside that helper when the worker still needs to
+mark `retry_pending`/`rejected`. After a domain-manager TX failure the processor resets
+the manager via `ManagerRegistry::resetManager()` before inbox recovery writes.
 
 ### Webhook denial audit policy
 
