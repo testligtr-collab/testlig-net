@@ -11,12 +11,18 @@ use PHPUnit\Framework\Assert;
  * Test-only cleanup for Stage 2.16 access entitlement tables.
  *
  * Active version/seat guards block CASCADE deletes while parents stay active —
- * supersede/revoke first so AU triggers detach guards.
+ * supersede/revoke first so AU triggers detach guards. Stage 2.17 commerce rows
+ * RESTRICT-reference licenses and package versions, so they are purged first.
  */
 final class AccessEntitlementDbCleanup
 {
     public static function deleteAll(Connection $connection): void
     {
+        // Commerce fulfillments RESTRICT-reference access_licenses and offers RESTRICT-
+        // reference package versions, so Stage 2.17 rows must go first. Safe no-op when
+        // the commerce tables are absent.
+        CommerceDbCleanup::deleteAll($connection);
+
         $schema = $connection->createSchemaManager();
 
         if ($schema->tablesExist(['institution_license_seats'])) {

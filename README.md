@@ -187,7 +187,17 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 
 - Domain-only packages, versioned grants, licenses, institution seats, resource access policies (`free`|`entitlement_required`).
 - Assessment catalog grants: **grade_level only** (Assessment has no subject); LC catalog: subject+grade.
-- Payment SDK/UI/API yok; Stage 2.17 will only trigger license commands. Migration: `Version20260912160000`. Detay: `docs/architecture-access-entitlement.md`.
+- Payment SDK/UI/API yok; Stage 2.17 yalnızca license komutlarını tetikler. Migration: `Version20260912160000`. Detay: `docs/architecture-access-entitlement.md`.
+
+### Ticaret / ödeme / abonelik / fulfillment (Aşama 2.17)
+
+- `CommercialOffer` (paket sürümünün fiyatlı sarmalayıcısı), `CommerceOrder` + `CommerceOrderItem` (donmuş snapshot ve totaller), `PaymentAttempt`, append-only `PaymentEvent` zinciri, `CommerceSubscription`, `CommerceFulfillment`, `PaymentRefund`.
+- Para: yalnızca tamsayı minor unit (`App\Money\Money`, float yok), varsayılan `TRY`. Fiyatlar **vergi hariç** (net) + `taxRateBasisPoints` snapshot; `grandTotal = subtotal - discount + tax`, satır başına half-up yuvarlama.
+- Capture → `AccessLicenseManager` ile **bir kez** `purchase` kaynaklı AccessLicense (idempotent). Tek seferlik: `validityDays` zorunlu; abonelik: dönem kapsamlı (period-scoped) lisans.
+- Kısmi iade lisansı düşürmez; tam iade otomatik iptal etmez — geri alma yalnızca açık `CommerceFulfillmentManager::reverse()`.
+- Yetki: katalog + settlement yalnızca aktif/doğrulanmış SUPER_ADMIN; bireysel satın alma yalnızca kişinin kendisi (proxy yok); kurumsal ödeme yalnızca Owner (Manager seat-only kalır).
+- Gerçek ödeme SDK'sı, checkout UI, REST/webhook controller ve kart verisi **yok** — sadece `PaymentProviderAdapterInterface` seam'i. Migration: `Version20260913120000`. Detay: `docs/architecture-commerce-payment.md`.
+- Ek ortam değişkeni: `COMMERCE_IDEMPOTENCY_HASH_KEY` (min 32 byte, APP_SECRET fallback yok).
 
 ### Tasarım sistemi ve UI önizlemeleri (Aşama 2.14.1)
 

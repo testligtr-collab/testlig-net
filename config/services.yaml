@@ -11,6 +11,7 @@ parameters:
     env(AUDIT_HASH_KEY): 'change-me-audit-hash-key-not-for-production'
     env(QUESTION_ANSWER_INTEGRITY_KEY): 'change-me-question-answer-integrity-key-not-for-production'
     env(ATTEMPT_ANSWER_ENCRYPTION_KEY): '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+    env(COMMERCE_IDEMPOTENCY_HASH_KEY): 'change-me-commerce-idempotency-hash-key-not-for-production'
 
 services:
     # default configuration for services in *this* file
@@ -80,6 +81,14 @@ services:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
     App\Doctrine\AccessEntitlementSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\CommerceCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
+    App\Doctrine\CommerceSchemaListener:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
@@ -247,6 +256,70 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\EntitlementAccessGate:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CommercialOfferManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CommerceOrderManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentAttemptManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentSettlementManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentRefundManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CommerceSubscriptionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CommerceFulfillmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CommerceFreshEntityLoader:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Security\CommerceAuthorization:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\CommerceMoneyPolicy:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\CommerceIdempotencyKeyHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\CommercialOfferHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\CommerceOrderHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\PaymentEventHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\CommerceSubscriptionHasher:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\PaymentEventMetadataSanitizer:
             public: true
             autowire: true
             autoconfigure: true
@@ -606,6 +679,46 @@ when@test:
             autoconfigure: true
             tags: ['doctrine.repository_service']
         App\Repository\CourseTeacherActiveGuardRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CommercialOfferRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CommerceOrderRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CommerceOrderItemRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\PaymentAttemptRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\PaymentEventRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CommerceSubscriptionRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\CommerceFulfillmentRepository:
+            public: true
+            autowire: true
+            autoconfigure: true
+            tags: ['doctrine.repository_service']
+        App\Repository\PaymentRefundRepository:
             public: true
             autowire: true
             autoconfigure: true

@@ -11,6 +11,17 @@ Stage 2.16 never talks to a payment provider. Licenses are created by domain com
 must only invoke those license commands after verified settlement — never grant access
 by mutating packages/grants directly.
 
+**Stage 2.17 honours that boundary** (see `docs/architecture-commerce-payment.md`):
+`CommerceFulfillmentManager` is the only commerce code that touches entitlement, and it does
+so exclusively through `AccessLicenseManager::createUserLicense` /
+`createInstitutionLicense` + `activate()` with `sourceType = purchase`, after verifying a
+captured `PaymentAttempt`, its capture event and the order/offer/package hash chain. Money
+state and entitlement state stay separate in both directions: a refund never implicitly
+changes a license, and revocation only happens through the explicit
+`CommerceFulfillmentManager::reverse()` command, which calls
+`AccessLicenseManager::revoke()` in the same transaction. Commerce owns pricing, orders,
+payments and subscriptions; this stage still owns what access *means*.
+
 ## Packages and versions
 
 - `AccessPackage`: immutable snake_case `code`; `targetType` individual|institution;
