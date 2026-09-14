@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Commerce\NullPaymentWebhookProcessingCheckpoint;
+use App\Commerce\PaymentWebhookProcessingCheckpointInterface;
 use App\Dto\SecurityAuditContext;
+use App\Entity\CommerceOrder;
 use App\Entity\Institution;
 use App\Entity\PaymentAttempt;
+use App\Entity\PaymentEvent;
 use App\Entity\PaymentRefund;
 use App\Entity\PaymentWebhookInboxEvent;
 use App\Entity\User;
+use App\Enum\CommerceFailureReason;
+use App\Enum\CommerceOrderStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\PaymentAttemptStatus;
 use App\Enum\PaymentEventType;
@@ -21,31 +27,35 @@ use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
 use App\Exception\CommerceException;
 use App\Money\Money;
+use App\Repository\CommerceFulfillmentRepository;
 use App\Repository\PaymentEventRepository;
 use App\Repository\PaymentRefundRepository;
+use App\Repository\PaymentWebhookInboxEventRepository;
 use App\Time\UtcInstant;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
+use Doctrine\Persistence\ManagerRegistry;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Deterministic processing of verified webhook inbox rows into settlement/refund/fulfillment.
+ * Deterministic webhook processing with at-least-once delivery semantics.
  *
- * Never mutates attempt/order via entity setters directly — only domain managers.
- * Out-of-order policy: late authorize after capture is a no-op success; capture after
- * terminal failure is rejected; duplicates are idempotent.
+ * Provider delivery is at-least-once. Application processing is idempotent convergence
+ * under UNIQUE(provider, env, event_ref) + fresh DB revalidation + claim lease.
+ * Inbox becomes `processed` only after event-type post-conditions are verified.
+ * Domain managers own their transactions; this worker never nests provider HTTP calls.
  *
- * Lock order: Institution → purchaser/actor → CommerceOrder → PaymentAttempt →
- * WebhookInboxEvent → PaymentEvent/Refund → Fulfillment/License → Audit.
+ * Lock order: Institution → actor → Order → Attempt → Inbox → Event/Refund →
+ * Fulfillment/License → Audit.
  */
 final class PaymentWebhookProcessor
 {
     public function __construct(
+        private readonly PaymentWebhookInboxEventRepository $inbox,
         private readonly PaymentSettlementManager $settlementManager,
         private readonly PaymentRefundManager $refundManager,
         private readonly CommerceFulfillmentManager $fulfillmentManager,
@@ -54,331 +64,93 @@ final class PaymentWebhookProcessor
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly PaymentEventRepository $events,
         private readonly PaymentRefundRepository $refunds,
+        private readonly CommerceFulfillmentRepository $fulfillments,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly ManagerRegistry $doctrine,
         private readonly ClockInterface $clock,
+        private readonly PaymentWebhookProcessingCheckpointInterface $checkpoint = new NullPaymentWebhookProcessingCheckpoint(),
         private readonly bool $autoFulfillOnCapture = true,
     ) {
     }
 
+    private function em(): EntityManagerInterface
+    {
+        $em = $this->doctrine->getManager();
+        if (!$em instanceof EntityManagerInterface) {
+            throw CommerceException::conflict();
+        }
+        if (!$em->isOpen()) {
+            $em = $this->doctrine->resetManager();
+            if (!$em instanceof EntityManagerInterface) {
+                throw CommerceException::conflict();
+            }
+        }
+
+        return $em;
+    }
+
     public function process(Uuid $inboxEventId): PaymentWebhookInboxEvent
     {
+        $existing = $this->inbox->findOneById($inboxEventId);
+        if ($existing instanceof PaymentWebhookInboxEvent && $existing->getProcessingStatus()->isTerminal()) {
+            return $existing;
+        }
+
         try {
-            $prepared = $this->prepareForProcessing($inboxEventId);
+            $claimed = $this->inbox->claimForProcessing($inboxEventId);
         } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
             throw CommerceException::conflict();
         }
 
-        if ($prepared['done'] instanceof PaymentWebhookInboxEvent) {
-            return $prepared['done'];
-        }
-
-        if (!isset($prepared['context'], $prepared['inboxId'])) {
+        if (null === $claimed) {
+            $fresh = $this->inbox->findOneById($inboxEventId);
+            if ($fresh instanceof PaymentWebhookInboxEvent && $fresh->getProcessingStatus()->isTerminal()) {
+                return $fresh;
+            }
             throw CommerceException::conflict();
         }
 
-        $context = $prepared['context'];
-        $inboxId = $prepared['inboxId'];
+        $claimToken = $claimed['claimToken'];
+        $this->checkpoint->before('after_claim');
 
         try {
-            // Domain managers open their own transactions — do not nest them under an outer TX
-            // (MariaDB savepoint depth breaks under refund → settlement nesting).
-            $this->applyValidatedEffects($context);
+            $this->checkpoint->before('before_settlement');
+            $this->convergeEffects($inboxEventId);
+            $this->assertPostConditions($inboxEventId);
+            $this->checkpoint->before('after_fulfillment_before_processed');
+
+            return $this->finalizeProcessed($inboxEventId, $claimToken);
         } catch (CommerceException $e) {
-            $this->finalizeRejected($inboxId, $e);
+            $this->handleProcessingFailure($inboxEventId, $claimToken, $e);
+            $after = $this->inbox->findOneById($inboxEventId);
+            if ($after instanceof PaymentWebhookInboxEvent && $after->getProcessingStatus()->isTerminal()) {
+                // Permanent reject/dead-letter: ACK to ingress so providers stop retrying bad payloads.
+                return $after;
+            }
             throw $e;
-        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
-            throw CommerceException::conflict();
-        }
-
-        try {
-            return $this->finalizeProcessed($inboxId);
-        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
+        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException $e) {
+            $this->scheduleRetrySafe($inboxEventId, $claimToken, CommerceFailureReason::Conflict->value);
             throw CommerceException::conflict();
         }
     }
 
-    /**
-     * @return array{done: ?PaymentWebhookInboxEvent, context?: array{inbox: PaymentWebhookInboxEvent, attempt: PaymentAttempt, actor: User, skipMutation: bool}, inboxId?: Uuid}
-     */
-    private function prepareForProcessing(Uuid $inboxEventId): array
+    private function convergeEffects(Uuid $inboxEventId): void
     {
-        return $this->entityManager->wrapInTransaction(function () use ($inboxEventId): array {
-            $inboxEvent = $this->findFreshInbox($inboxEventId, LockMode::PESSIMISTIC_WRITE);
-            if (!$inboxEvent instanceof PaymentWebhookInboxEvent) {
-                throw CommerceException::notFound();
-            }
-            if (PaymentWebhookInboxStatus::Processed === $inboxEvent->getProcessingStatus()
-                || $inboxEvent->getProcessingStatus()->isTerminal()
-            ) {
-                return ['done' => $inboxEvent];
-            }
+        $inboxEvent = $this->requireInbox($inboxEventId);
+        $attempt = $this->requireAttempt($inboxEvent);
+        $actor = $this->settlementActors->resolve();
+        $this->assertProviderAndOrderScope($inboxEvent, $attempt);
 
-            $now = UtcInstant::ensure($this->clock->now());
-            if (PaymentWebhookInboxStatus::Received === $inboxEvent->getProcessingStatus()) {
-                $inboxEvent->markProcessing($now);
-                $this->entityManager->flush();
-            }
-
-            try {
-                $context = $this->lockAndValidate($inboxEvent);
-            } catch (CommerceException $e) {
-                if ($this->isIntegrityFailure($e) || $this->isRejectableBusinessFailure($e)) {
-                    $inboxEvent->markRejected($e->getReason()->value, $now);
-                    if ($this->isIntegrityFailure($e)) {
-                        $this->auditIntegrity($inboxEvent, $e->getReason()->value);
-                    } else {
-                        $this->auditRejected($inboxEvent, $e->getReason()->value);
-                    }
-                    $this->entityManager->flush();
-
-                    return ['done' => $inboxEvent];
-                }
-                throw $e;
-            }
-
-            return [
-                'done' => null,
-                'context' => $context,
-                'inboxId' => $inboxEvent->getId(),
-            ];
-        });
-    }
-
-    private function finalizeProcessed(Uuid $inboxEventId): PaymentWebhookInboxEvent
-    {
-        return $this->entityManager->wrapInTransaction(function () use ($inboxEventId): PaymentWebhookInboxEvent {
-            $inboxEvent = $this->findFreshInbox($inboxEventId, LockMode::PESSIMISTIC_WRITE);
-            if (!$inboxEvent instanceof PaymentWebhookInboxEvent) {
-                throw CommerceException::notFound();
-            }
-            if (PaymentWebhookInboxStatus::Processed === $inboxEvent->getProcessingStatus()
-                || $inboxEvent->getProcessingStatus()->isTerminal()
-            ) {
-                return $inboxEvent;
-            }
-
-            $now = UtcInstant::ensure($this->clock->now());
-            $inboxEvent->markProcessed($now);
-            $this->auditProcessed($inboxEvent, 'processed');
-            $this->entityManager->flush();
-
-            return $inboxEvent;
-        });
-    }
-
-    private function finalizeRejected(Uuid $inboxEventId, CommerceException $e): void
-    {
-        if (!$this->isIntegrityFailure($e) && !$this->isRejectableBusinessFailure($e)) {
-            return;
-        }
-
-        $this->entityManager->wrapInTransaction(function () use ($inboxEventId, $e): void {
-            $inboxEvent = $this->findFreshInbox($inboxEventId, LockMode::PESSIMISTIC_WRITE);
-            if (!$inboxEvent instanceof PaymentWebhookInboxEvent
-                || $inboxEvent->getProcessingStatus()->isTerminal()
-            ) {
-                return;
-            }
-            $now = UtcInstant::ensure($this->clock->now());
-            $inboxEvent->markRejected($e->getReason()->value, $now);
-            if ($this->isIntegrityFailure($e)) {
-                $this->auditIntegrity($inboxEvent, $e->getReason()->value);
-            } else {
-                $this->auditRejected($inboxEvent, $e->getReason()->value);
-            }
-            $this->entityManager->flush();
-        });
-    }
-
-    /**
-     * @return array{
-     *     inbox: PaymentWebhookInboxEvent,
-     *     attempt: PaymentAttempt,
-     *     actor: User,
-     *     skipMutation: bool
-     * }
-     */
-    private function lockAndValidate(PaymentWebhookInboxEvent $inboxEvent): array
-    {
-        $attempt = $inboxEvent->getPaymentAttempt();
-        if (!$attempt instanceof PaymentAttempt) {
-            throw CommerceException::notFound();
-        }
-
-        $orderId = $attempt->getOrder()->getId();
-        $attemptId = $attempt->getId();
-
-        $lockedOrder = $this->freshCommerce->findFreshOrder($orderId, LockMode::PESSIMISTIC_WRITE);
-        if (!$lockedOrder instanceof \App\Entity\CommerceOrder) {
-            throw CommerceException::notFound();
-        }
-        if ($lockedOrder->getInstitution() instanceof Institution) {
-            $institution = $this->freshEntities->findFreshLockedInstitution(
-                $lockedOrder->getInstitution()->getId(),
-                LockMode::PESSIMISTIC_WRITE,
-            );
-            if (!$institution instanceof Institution || InstitutionStatus::Active !== $institution->getStatus()) {
-                throw CommerceException::notFound();
-            }
-        }
-
-        $lockedAttempt = $this->freshCommerce->findFreshPaymentAttempt($attemptId, LockMode::PESSIMISTIC_WRITE);
-        if (!$lockedAttempt instanceof PaymentAttempt) {
-            throw CommerceException::notFound();
-        }
-        if (!$lockedAttempt->getOrder()->getId()->equals($lockedOrder->getId())) {
-            throw CommerceException::scopeMismatch();
-        }
-
-        $this->assertProviderScope($inboxEvent, $lockedAttempt);
-        $this->assertOrderReference($inboxEvent, $lockedOrder);
-        if ($inboxEvent->getEventType()->requiresAmount()) {
-            if (\in_array($inboxEvent->getEventType(), [
-                PaymentEventType::RefundSucceeded,
-                PaymentEventType::RefundRequested,
-                PaymentEventType::RefundFailed,
-            ], true)) {
-                $this->requireRefundMoney($inboxEvent, $lockedAttempt);
-            } else {
-                $this->requireMoney($inboxEvent, $lockedAttempt);
-            }
-        }
-
-        $existingEvent = $this->events->findOneForAttemptByProviderEventReference(
-            $lockedAttempt->getId(),
-            $inboxEvent->getProviderEventReference(),
-        );
-        if ($existingEvent instanceof \App\Entity\PaymentEvent) {
-            if ($existingEvent->getEventType() !== $inboxEvent->getEventType()) {
-                throw CommerceException::webhookIntegrityConflict();
-            }
-
-            return [
-                'inbox' => $inboxEvent,
-                'attempt' => $lockedAttempt,
-                'actor' => $this->settlementActors->resolve(),
-                'skipMutation' => true,
-            ];
-        }
-
-        $eventType = $inboxEvent->getEventType();
-        if (PaymentEventType::Authorized === $eventType
-            && \in_array($lockedAttempt->getStatus(), [
-                PaymentAttemptStatus::Authorized,
-                PaymentAttemptStatus::Captured,
-            ], true)
-        ) {
-            return [
-                'inbox' => $inboxEvent,
-                'attempt' => $lockedAttempt,
-                'actor' => $this->settlementActors->resolve(),
-                'skipMutation' => true,
-            ];
-        }
-        if (PaymentEventType::Captured === $eventType
-            && \in_array($lockedAttempt->getStatus(), [
-                PaymentAttemptStatus::Failed,
-                PaymentAttemptStatus::Cancelled,
-                PaymentAttemptStatus::Captured,
-            ], true)
-        ) {
-            throw CommerceException::invalidTransition();
-        }
-        if (\in_array($eventType, [PaymentEventType::Failed, PaymentEventType::Cancelled], true)
-            && $lockedAttempt->getStatus()->isTerminal()
-        ) {
-            return [
-                'inbox' => $inboxEvent,
-                'attempt' => $lockedAttempt,
-                'actor' => $this->settlementActors->resolve(),
-                'skipMutation' => true,
-            ];
-        }
-        if (PaymentEventType::RefundRequested === $eventType) {
-            throw CommerceException::invalidInput('refund_requested is not accepted from webhook; use refund manager.');
-        }
-
-        return [
-            'inbox' => $inboxEvent,
-            'attempt' => $lockedAttempt,
-            'actor' => $this->settlementActors->resolve(),
-            'skipMutation' => false,
-        ];
-    }
-
-    /**
-     * @param array{
-     *     inbox: PaymentWebhookInboxEvent,
-     *     attempt: PaymentAttempt,
-     *     actor: User,
-     *     skipMutation: bool
-     * } $context
-     */
-    private function applyValidatedEffects(array $context): void
-    {
-        if ($context['skipMutation']) {
-            if ($this->autoFulfillOnCapture
-                && PaymentEventType::Captured === $context['inbox']->getEventType()
-            ) {
-                $this->fulfillCapturedIfNeeded(
-                    $context['attempt'],
-                    $context['actor'],
-                    $context['inbox'],
-                );
-            }
-
-            return;
-        }
-
-        $inboxEvent = $context['inbox'];
-        $lockedAttempt = $context['attempt'];
-        $settlementActor = $context['actor'];
-        $eventType = $inboxEvent->getEventType();
         $meta = $inboxEvent->getSanitizedMetadata();
         $settlementKey = $this->settlementIdempotencyKey($inboxEvent);
 
-        match ($eventType) {
-            PaymentEventType::Authorized => $this->applyAuthorized(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-                $meta,
-            ),
-            PaymentEventType::Captured => $this->applyCaptured(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-                $meta,
-            ),
-            PaymentEventType::Failed => $this->applyFailed(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-                $meta,
-            ),
-            PaymentEventType::Cancelled => $this->applyCancelled(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-                $meta,
-            ),
-            PaymentEventType::RefundSucceeded => $this->applyRefundSucceeded(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-            ),
-            PaymentEventType::RefundFailed => $this->applyRefundFailed(
-                $lockedAttempt,
-                $settlementActor,
-                $inboxEvent,
-                $settlementKey,
-            ),
+        match ($inboxEvent->getEventType()) {
+            PaymentEventType::Authorized => $this->convergeAuthorized($attempt, $actor, $inboxEvent, $settlementKey, $meta),
+            PaymentEventType::Captured => $this->convergeCaptured($attempt, $actor, $inboxEvent, $settlementKey, $meta),
+            PaymentEventType::Failed => $this->convergeFailed($attempt, $actor, $inboxEvent, $settlementKey, $meta),
+            PaymentEventType::Cancelled => $this->convergeCancelled($attempt, $actor, $inboxEvent, $settlementKey, $meta),
+            PaymentEventType::RefundSucceeded => $this->convergeRefundSucceeded($attempt, $actor, $inboxEvent, $settlementKey),
+            PaymentEventType::RefundFailed => $this->convergeRefundFailed($attempt, $actor, $inboxEvent, $settlementKey),
             PaymentEventType::RefundRequested => throw CommerceException::invalidInput(
                 'refund_requested is not accepted from webhook; use refund manager.',
             ),
@@ -388,30 +160,30 @@ final class PaymentWebhookProcessor
     /**
      * @param array<string, bool|int|string|null> $meta
      */
-    private function applyAuthorized(
+    private function convergeAuthorized(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
         array $meta,
     ): void {
-        if (\in_array($attempt->getStatus(), [
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        if ($this->findMatchingEvent($fresh, $inbox) instanceof PaymentEvent) {
+            return;
+        }
+        if (\in_array($fresh->getStatus(), [
             PaymentAttemptStatus::Authorized,
             PaymentAttemptStatus::Captured,
         ], true)) {
-            // Late authorize after capture/authorize: do not move state backwards.
             return;
         }
-        if ($attempt->getStatus()->isTerminal()) {
+        if ($fresh->getStatus()->isTerminal()) {
             throw CommerceException::invalidTransition();
         }
 
-        $amount = $inbox->getSanitizedMetadata()['amount_minor'] ?? null;
-        unset($amount);
-        $money = $this->requireMoney($inbox, $attempt);
-
+        $money = $this->requireMoney($inbox, $fresh);
         $this->settlementManager->recordAuthorized(
-            $attempt,
+            $fresh,
             $actor,
             $money,
             $inbox->getProviderOccurredAt(),
@@ -428,83 +200,69 @@ final class PaymentWebhookProcessor
     /**
      * @param array<string, bool|int|string|null> $meta
      */
-    private function applyCaptured(
+    private function convergeCaptured(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
         array $meta,
     ): void {
-        if (PaymentAttemptStatus::Captured === $attempt->getStatus()) {
-            throw CommerceException::invalidTransition();
-        }
-        if (\in_array($attempt->getStatus(), [
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        $matching = $this->findMatchingEvent($fresh, $inbox);
+
+        if ($matching instanceof PaymentEvent) {
+            if (PaymentEventType::Captured !== $matching->getEventType()) {
+                throw CommerceException::webhookIntegrityConflict();
+            }
+        } elseif (PaymentAttemptStatus::Captured === $fresh->getStatus()) {
+            // Captured by another event/path without this provider reference.
+            throw CommerceException::webhookIntegrityConflict();
+        } elseif (\in_array($fresh->getStatus(), [
             PaymentAttemptStatus::Failed,
             PaymentAttemptStatus::Cancelled,
         ], true)) {
             throw CommerceException::invalidTransition();
+        } else {
+            $money = $this->requireMoney($inbox, $fresh);
+            $this->settlementManager->recordCaptured(
+                $fresh,
+                $actor,
+                $money,
+                $inbox->getProviderOccurredAt(),
+                $settlementKey,
+                'webhook_captured',
+                $this->readVerifiedProviderPaymentReference($inbox) ?? $fresh->getProviderPaymentReference(),
+                $inbox->getProviderEventReference(),
+                $this->settlementSafeMetadata($meta),
+            );
         }
 
-        $money = $this->requireMoney($inbox, $attempt);
-        $this->settlementManager->recordCaptured(
-            $attempt,
-            $actor,
-            $money,
-            $inbox->getProviderOccurredAt(),
-            $settlementKey,
-            'webhook_captured',
-            $this->readVerifiedProviderPaymentReference($inbox) ?? $attempt->getProviderPaymentReference(),
-            $inbox->getProviderEventReference(),
-            $this->settlementSafeMetadata($meta),
-        );
+        $this->checkpoint->before('after_settlement_before_fulfillment');
 
         if ($this->autoFulfillOnCapture) {
-            $this->fulfillCapturedIfNeeded($attempt, $actor, $inbox);
-        }
-    }
-
-    private function fulfillCapturedIfNeeded(
-        PaymentAttempt $attempt,
-        User $actor,
-        PaymentWebhookInboxEvent $inbox,
-    ): void {
-        $freshAttempt = $this->freshCommerce->findFreshPaymentAttempt(
-            $attempt->getId(),
-            LockMode::NONE,
-        );
-        $freshOrder = $this->freshCommerce->findFreshOrder(
-            $attempt->getOrder()->getId(),
-            LockMode::NONE,
-        );
-        if ($freshAttempt instanceof PaymentAttempt
-            && $freshOrder instanceof \App\Entity\CommerceOrder
-            && PaymentAttemptStatus::Captured === $freshAttempt->getStatus()
-        ) {
-            $this->fulfillmentManager->fulfill(
-                $freshOrder,
-                $freshAttempt,
-                $actor,
-                'webhook:fulfill:'.$inbox->getId()->toRfc4122(),
-                'webhook_fulfill',
-            );
+            $this->fulfillCapturedIfNeeded($fresh->getId(), $actor, $inbox);
         }
     }
 
     /**
      * @param array<string, bool|int|string|null> $meta
      */
-    private function applyFailed(
+    private function convergeFailed(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
         array $meta,
     ): void {
-        if ($attempt->getStatus()->isTerminal()) {
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        if ($this->findMatchingEvent($fresh, $inbox) instanceof PaymentEvent) {
+            return;
+        }
+        if ($fresh->getStatus()->isTerminal()) {
             return;
         }
         $this->settlementManager->recordFailed(
-            $attempt,
+            $fresh,
             $actor,
             $this->readFailureCode($inbox),
             $inbox->getProviderOccurredAt(),
@@ -518,18 +276,22 @@ final class PaymentWebhookProcessor
     /**
      * @param array<string, bool|int|string|null> $meta
      */
-    private function applyCancelled(
+    private function convergeCancelled(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
         array $meta,
     ): void {
-        if ($attempt->getStatus()->isTerminal()) {
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        if ($this->findMatchingEvent($fresh, $inbox) instanceof PaymentEvent) {
+            return;
+        }
+        if ($fresh->getStatus()->isTerminal()) {
             return;
         }
         $this->settlementManager->recordCancelled(
-            $attempt,
+            $fresh,
             $actor,
             $this->readFailureCode($inbox),
             $inbox->getProviderOccurredAt(),
@@ -540,14 +302,15 @@ final class PaymentWebhookProcessor
         );
     }
 
-    private function applyRefundSucceeded(
+    private function convergeRefundSucceeded(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
     ): void {
-        $money = $this->requireRefundMoney($inbox, $attempt);
-        $refund = $this->findOrRequestRefund($attempt, $actor, $money, $settlementKey.'.req');
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        $money = $this->requireRefundMoney($inbox, $fresh);
+        $refund = $this->findOrRequestRefund($fresh, $actor, $money, $settlementKey.'.req');
         if (PaymentRefundStatus::Succeeded === $refund->getStatus()) {
             return;
         }
@@ -560,16 +323,14 @@ final class PaymentWebhookProcessor
         );
     }
 
-    private function applyRefundFailed(
+    private function convergeRefundFailed(
         PaymentAttempt $attempt,
         User $actor,
         PaymentWebhookInboxEvent $inbox,
         string $settlementKey,
     ): void {
-        $money = $inbox->getSanitizedMetadata();
-        unset($money);
-        // Prefer matching open refund; if none, reject — do not invent refund rows from failures alone.
-        $open = $this->refunds->findOpenForAttempt($attempt->getId());
+        $fresh = $this->requireFreshAttempt($attempt->getId());
+        $open = $this->refunds->findOpenForAttempt($fresh->getId());
         if (!$open instanceof PaymentRefund) {
             throw CommerceException::notFound();
         }
@@ -583,6 +344,305 @@ final class PaymentWebhookProcessor
             $settlementKey.'.fail',
             'webhook_refund_failed',
         );
+    }
+
+    private function fulfillCapturedIfNeeded(Uuid $attemptId, User $actor, PaymentWebhookInboxEvent $inbox): void
+    {
+        $freshAttempt = $this->requireFreshAttempt($attemptId);
+        $freshOrder = $this->freshCommerce->findFreshOrder(
+            $freshAttempt->getOrder()->getId(),
+            LockMode::NONE,
+        );
+        if (!$freshOrder instanceof CommerceOrder
+            || PaymentAttemptStatus::Captured !== $freshAttempt->getStatus()
+        ) {
+            return;
+        }
+        if ($this->fulfillments->countCompletedForPaymentAttempt($attemptId) >= 1
+            && CommerceOrderStatus::Paid === $freshOrder->getStatus()
+        ) {
+            return;
+        }
+
+        $this->fulfillmentManager->fulfill(
+            $freshOrder,
+            $freshAttempt,
+            $actor,
+            'webhook:fulfill:'.$inbox->getId()->toRfc4122(),
+            'webhook_fulfill',
+        );
+    }
+
+    private function assertPostConditions(Uuid $inboxEventId): void
+    {
+        $inbox = $this->requireInbox($inboxEventId);
+        $attempt = $this->requireFreshAttempt($this->requireAttempt($inbox)->getId());
+        $order = $this->freshCommerce->findFreshOrder($attempt->getOrder()->getId(), LockMode::NONE);
+        if (!$order instanceof CommerceOrder) {
+            throw CommerceException::notFound();
+        }
+
+        match ($inbox->getEventType()) {
+            PaymentEventType::Authorized => $this->assertAuthorizedDone($attempt, $inbox),
+            PaymentEventType::Captured => $this->assertCapturedDone($attempt, $order, $inbox),
+            PaymentEventType::Failed => $this->assertFailedDone($attempt, $inbox),
+            PaymentEventType::Cancelled => $this->assertCancelledDone($attempt, $inbox),
+            PaymentEventType::RefundSucceeded => $this->assertRefundSucceededDone($attempt),
+            PaymentEventType::RefundFailed => $this->assertRefundFailedDone($attempt),
+            PaymentEventType::RefundRequested => throw CommerceException::invalidInput(
+                'refund_requested is not accepted from webhook; use refund manager.',
+            ),
+        };
+    }
+
+    private function assertAuthorizedDone(PaymentAttempt $attempt, PaymentWebhookInboxEvent $inbox): void
+    {
+        if (!\in_array($attempt->getStatus(), [
+            PaymentAttemptStatus::Authorized,
+            PaymentAttemptStatus::Captured,
+        ], true)) {
+            throw CommerceException::invalidTransition();
+        }
+        $event = $this->findMatchingEvent($attempt, $inbox);
+        if (!$event instanceof PaymentEvent && PaymentAttemptStatus::Authorized === $attempt->getStatus()) {
+            throw CommerceException::notFound();
+        }
+        if ($event instanceof PaymentEvent && PaymentEventType::Authorized !== $event->getEventType()
+            && PaymentAttemptStatus::Captured !== $attempt->getStatus()
+        ) {
+            throw CommerceException::webhookIntegrityConflict();
+        }
+    }
+
+    private function assertCapturedDone(
+        PaymentAttempt $attempt,
+        CommerceOrder $order,
+        PaymentWebhookInboxEvent $inbox,
+    ): void {
+        if (PaymentAttemptStatus::Captured !== $attempt->getStatus()) {
+            throw CommerceException::paymentNotCaptured();
+        }
+        $event = $this->findMatchingEvent($attempt, $inbox);
+        if (!$event instanceof PaymentEvent || PaymentEventType::Captured !== $event->getEventType()) {
+            throw CommerceException::webhookIntegrityConflict();
+        }
+        if ($this->autoFulfillOnCapture) {
+            if ($this->fulfillments->countCompletedForPaymentAttempt($attempt->getId()) < 1) {
+                throw CommerceException::notFound();
+            }
+            if (CommerceOrderStatus::Paid !== $order->getStatus()) {
+                throw CommerceException::invalidTransition();
+            }
+        }
+    }
+
+    private function assertFailedDone(PaymentAttempt $attempt, PaymentWebhookInboxEvent $inbox): void
+    {
+        if (PaymentAttemptStatus::Failed !== $attempt->getStatus()
+            && PaymentAttemptStatus::Cancelled !== $attempt->getStatus()
+            && PaymentAttemptStatus::Captured !== $attempt->getStatus()
+        ) {
+            throw CommerceException::invalidTransition();
+        }
+        if (PaymentAttemptStatus::Captured === $attempt->getStatus()) {
+            return;
+        }
+        $event = $this->findMatchingEvent($attempt, $inbox);
+        if (!$event instanceof PaymentEvent && PaymentAttemptStatus::Failed === $attempt->getStatus()) {
+            // Terminal failure without this event is acceptable no-op convergence.
+            return;
+        }
+    }
+
+    private function assertCancelledDone(PaymentAttempt $attempt, PaymentWebhookInboxEvent $inbox): void
+    {
+        if (PaymentAttemptStatus::Cancelled !== $attempt->getStatus()
+            && PaymentAttemptStatus::Failed !== $attempt->getStatus()
+            && PaymentAttemptStatus::Captured !== $attempt->getStatus()
+        ) {
+            throw CommerceException::invalidTransition();
+        }
+        unset($inbox);
+    }
+
+    private function assertRefundSucceededDone(PaymentAttempt $attempt): void
+    {
+        $reserved = $this->refunds->reservedAmountMinor($attempt->getId());
+        if ($reserved < 1) {
+            throw CommerceException::notFound();
+        }
+        if ($reserved > $attempt->getAmountMinor()) {
+            throw CommerceException::refundExceedsCapture();
+        }
+    }
+
+    private function assertRefundFailedDone(PaymentAttempt $attempt): void
+    {
+        $openOrFailed = $this->refunds->findOpenForAttempt($attempt->getId());
+        if ($openOrFailed instanceof PaymentRefund && PaymentRefundStatus::Requested === $openOrFailed->getStatus()) {
+            throw CommerceException::invalidTransition();
+        }
+    }
+
+    private function finalizeProcessed(Uuid $inboxEventId, Uuid $claimToken): PaymentWebhookInboxEvent
+    {
+        return $this->em()->wrapInTransaction(function () use ($inboxEventId, $claimToken): PaymentWebhookInboxEvent {
+            $inboxEvent = $this->inbox->findFreshForUpdate($inboxEventId);
+            if (!$inboxEvent instanceof PaymentWebhookInboxEvent) {
+                throw CommerceException::notFound();
+            }
+            if (PaymentWebhookInboxStatus::Processed === $inboxEvent->getProcessingStatus()) {
+                return $inboxEvent;
+            }
+
+            $now = UtcInstant::ensure($this->clock->now());
+            $this->checkpoint->before('before_processed_audit');
+            $inboxEvent->markProcessed($claimToken, $now);
+            $this->auditRecorder->record(new SecurityAuditContext(
+                action: SecurityAuditAction::PaymentWebhookProcessed,
+                actorType: SecurityAuditActorType::System,
+                outcome: SecurityAuditOutcome::Success,
+                metadata: [
+                    'source' => 'payment_webhook_processor',
+                    'reason_code' => 'processed',
+                    'provider_code' => $inboxEvent->getProviderCode(),
+                    'provider_environment' => $inboxEvent->getEnvironment()->value,
+                    'event_type' => $inboxEvent->getEventType()->value,
+                    'inbox_event_id' => $inboxEvent->getId()->toRfc4122(),
+                    'payment_attempt_id' => $inboxEvent->getPaymentAttempt()?->getId()->toRfc4122(),
+                    'processing_status' => PaymentWebhookInboxStatus::Processed->value,
+                    'attempt_count' => $inboxEvent->getAttemptCount(),
+                ],
+                captureRequestHashes: false,
+            ), false);
+            $this->em()->flush();
+
+            return $inboxEvent;
+        });
+    }
+
+    private function handleProcessingFailure(Uuid $inboxEventId, Uuid $claimToken, CommerceException $e): void
+    {
+        // Domain managers use wrapInTransaction, which closes the EM on failure.
+        $this->em();
+
+        if ($this->isIntegrityFailure($e) && !$this->hasRecoverableCaptureProgress($inboxEventId)) {
+            $this->rejectSafe($inboxEventId, $claimToken, $e->getReason()->value, true);
+
+            return;
+        }
+        if ($this->isPermanentBusinessReject($e) && !$this->hasRecoverableCaptureProgress($inboxEventId)) {
+            $this->rejectSafe($inboxEventId, $claimToken, $e->getReason()->value, false);
+
+            return;
+        }
+
+        $this->scheduleRetrySafe($inboxEventId, $claimToken, $e->getReason()->value);
+    }
+
+    private function hasRecoverableCaptureProgress(Uuid $inboxEventId): bool
+    {
+        $inbox = $this->inbox->findOneById($inboxEventId);
+        if (!$inbox instanceof PaymentWebhookInboxEvent
+            || PaymentEventType::Captured !== $inbox->getEventType()
+            || !$inbox->getPaymentAttempt() instanceof PaymentAttempt
+        ) {
+            return false;
+        }
+
+        $attemptId = $inbox->getPaymentAttempt()->getId();
+        if ($this->events->findOneForAttemptByProviderEventReference(
+            $attemptId,
+            $inbox->getProviderEventReference(),
+        ) instanceof PaymentEvent) {
+            return true;
+        }
+
+        $status = $this->em()->getConnection()->fetchOne(
+            'SELECT status FROM payment_attempts WHERE id = ?',
+            [$attemptId->toBinary()],
+        );
+
+        return PaymentAttemptStatus::Captured->value === $status;
+    }
+
+    private function rejectSafe(Uuid $inboxEventId, Uuid $claimToken, string $reasonCode, bool $integrity): void
+    {
+        try {
+            $this->em()->wrapInTransaction(function () use ($inboxEventId, $claimToken, $reasonCode, $integrity): void {
+                $inboxEvent = $this->inbox->findFreshForUpdate($inboxEventId);
+                if (!$inboxEvent instanceof PaymentWebhookInboxEvent
+                    || $inboxEvent->getProcessingStatus()->isTerminal()
+                ) {
+                    return;
+                }
+                $now = UtcInstant::ensure($this->clock->now());
+                $inboxEvent->markRejected($reasonCode, $now, $claimToken);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: $integrity
+                        ? SecurityAuditAction::PaymentWebhookIntegrityFailed
+                        : SecurityAuditAction::PaymentWebhookRejected,
+                    actorType: SecurityAuditActorType::System,
+                    outcome: SecurityAuditOutcome::Failure,
+                    metadata: [
+                        'source' => 'payment_webhook_processor',
+                        'reason_code' => $reasonCode,
+                        'provider_code' => $inboxEvent->getProviderCode(),
+                        'provider_environment' => $inboxEvent->getEnvironment()->value,
+                        'event_type' => $inboxEvent->getEventType()->value,
+                        'inbox_event_id' => $inboxEvent->getId()->toRfc4122(),
+                        'payment_attempt_id' => $inboxEvent->getPaymentAttempt()?->getId()->toRfc4122(),
+                        'processing_status' => PaymentWebhookInboxStatus::Rejected->value,
+                        'attempt_count' => $inboxEvent->getAttemptCount(),
+                    ],
+                    captureRequestHashes: false,
+                ), false);
+                $this->em()->flush();
+            });
+        } catch (\Throwable) {
+            // Failure handling must not mask the original exception.
+        }
+    }
+
+    private function scheduleRetrySafe(Uuid $inboxEventId, Uuid $claimToken, string $reasonCode): void
+    {
+        try {
+            $this->em()->wrapInTransaction(function () use ($inboxEventId, $claimToken, $reasonCode): void {
+                $inboxEvent = $this->inbox->findFreshForUpdate($inboxEventId);
+                if (!$inboxEvent instanceof PaymentWebhookInboxEvent
+                    || $inboxEvent->getProcessingStatus()->isTerminal()
+                ) {
+                    return;
+                }
+                $now = UtcInstant::ensure($this->clock->now());
+                $inboxEvent->scheduleRetry($reasonCode, $now, $claimToken);
+                $action = PaymentWebhookInboxStatus::DeadLetter === $inboxEvent->getProcessingStatus()
+                    ? SecurityAuditAction::PaymentWebhookRejected
+                    : SecurityAuditAction::PaymentWebhookReceived;
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: $action,
+                    actorType: SecurityAuditActorType::System,
+                    outcome: SecurityAuditOutcome::Failure,
+                    metadata: [
+                        'source' => 'payment_webhook_processor',
+                        'reason_code' => PaymentWebhookInboxStatus::DeadLetter === $inboxEvent->getProcessingStatus()
+                            ? CommerceFailureReason::WebhookRetryExhausted->value
+                            : $reasonCode,
+                        'provider_code' => $inboxEvent->getProviderCode(),
+                        'provider_environment' => $inboxEvent->getEnvironment()->value,
+                        'event_type' => $inboxEvent->getEventType()->value,
+                        'inbox_event_id' => $inboxEvent->getId()->toRfc4122(),
+                        'payment_attempt_id' => $inboxEvent->getPaymentAttempt()?->getId()->toRfc4122(),
+                        'processing_status' => $inboxEvent->getProcessingStatus()->value,
+                        'attempt_count' => $inboxEvent->getAttemptCount(),
+                    ],
+                    captureRequestHashes: false,
+                ), false);
+                $this->em()->flush();
+            });
+        } catch (\Throwable) {
+            // Failure handling must not mask the original exception.
+        }
     }
 
     private function findOrRequestRefund(
@@ -606,21 +666,107 @@ final class PaymentWebhookProcessor
         );
     }
 
-    private function assertProviderScope(PaymentWebhookInboxEvent $inbox, PaymentAttempt $attempt): void
+    private function assertProviderAndOrderScope(PaymentWebhookInboxEvent $inbox, PaymentAttempt $attempt): void
     {
-        if ($inbox->getProviderCode() !== $attempt->getProviderCode()
-            || $inbox->getEnvironment() !== $attempt->getEnvironment()
+        // No wrapInTransaction here: Doctrine closes the EM on transactional failure, but we still
+        // need the EM to mark inbox rejected/retry_pending. Domain managers own locking TXs.
+        $orderId = $attempt->getOrder()->getId();
+        $lockedOrder = $this->freshCommerce->findFreshOrder($orderId, LockMode::NONE);
+        if (!$lockedOrder instanceof CommerceOrder) {
+            throw CommerceException::notFound();
+        }
+        if ($lockedOrder->getInstitution() instanceof Institution) {
+            $institution = $this->freshEntities->findFreshLockedInstitution(
+                $lockedOrder->getInstitution()->getId(),
+                LockMode::NONE,
+            );
+            if (!$institution instanceof Institution || InstitutionStatus::Active !== $institution->getStatus()) {
+                throw CommerceException::notFound();
+            }
+        }
+        $lockedAttempt = $this->requireFreshAttempt($attempt->getId(), LockMode::NONE);
+        if (!$lockedAttempt->getOrder()->getId()->equals($lockedOrder->getId())) {
+            throw CommerceException::scopeMismatch();
+        }
+        if ($inbox->getProviderCode() !== $lockedAttempt->getProviderCode()
+            || $inbox->getEnvironment() !== $lockedAttempt->getEnvironment()
         ) {
             throw CommerceException::providerMismatch();
         }
-    }
-
-    private function assertOrderReference(PaymentWebhookInboxEvent $inbox, \App\Entity\CommerceOrder $order): void
-    {
         $ref = $inbox->getSanitizedMetadata()['order_public_reference'] ?? null;
-        if (\is_string($ref) && '' !== $ref && $ref !== $order->getPublicReference()) {
+        if (\is_string($ref) && '' !== $ref && $ref !== $lockedOrder->getPublicReference()) {
             throw CommerceException::webhookIntegrityConflict();
         }
+        if ($inbox->getEventType()->requiresAmount()) {
+            if (\in_array($inbox->getEventType(), [
+                PaymentEventType::RefundSucceeded,
+                PaymentEventType::RefundRequested,
+                PaymentEventType::RefundFailed,
+            ], true)) {
+                $this->requireRefundMoney($inbox, $lockedAttempt);
+            } else {
+                $this->requireMoney($inbox, $lockedAttempt);
+            }
+        }
+    }
+
+    private function findMatchingEvent(PaymentAttempt $attempt, PaymentWebhookInboxEvent $inbox): ?PaymentEvent
+    {
+        return $this->events->findOneForAttemptByProviderEventReference(
+            $attempt->getId(),
+            $inbox->getProviderEventReference(),
+        );
+    }
+
+    private function requireInbox(Uuid $id): PaymentWebhookInboxEvent
+    {
+        $inbox = $this->inbox->findOneById($id);
+        if (!$inbox instanceof PaymentWebhookInboxEvent) {
+            throw CommerceException::notFound();
+        }
+
+        return $inbox;
+    }
+
+    private function requireAttempt(PaymentWebhookInboxEvent $inbox): PaymentAttempt
+    {
+        $attempt = $inbox->getPaymentAttempt();
+        if (!$attempt instanceof PaymentAttempt) {
+            throw CommerceException::notFound();
+        }
+
+        return $attempt;
+    }
+
+    private function requireFreshAttempt(Uuid $id, LockMode $lockMode = LockMode::NONE): PaymentAttempt
+    {
+        $attempt = $this->freshCommerce->findFreshPaymentAttempt($id, $lockMode);
+        if (!$attempt instanceof PaymentAttempt) {
+            throw CommerceException::notFound();
+        }
+
+        return $attempt;
+    }
+
+    private function requireMoney(PaymentWebhookInboxEvent $inbox, PaymentAttempt $attempt): Money
+    {
+        $meta = $inbox->getSanitizedMetadata();
+        if (isset($meta['amount_minor'], $meta['currency'])
+            && \is_int($meta['amount_minor'])
+            && \is_string($meta['currency'])
+        ) {
+            $money = Money::fromMinor($meta['amount_minor'], strtoupper($meta['currency']));
+            if ($money->getCurrency() !== $attempt->getCurrency()) {
+                throw CommerceException::currencyMismatch();
+            }
+            if (!$money->equals($attempt->getAmount())) {
+                throw CommerceException::totalMismatch();
+            }
+
+            return $money;
+        }
+
+        return $attempt->getAmount();
     }
 
     private function requireRefundMoney(PaymentWebhookInboxEvent $inbox, PaymentAttempt $attempt): Money
@@ -641,31 +787,6 @@ final class PaymentWebhookProcessor
         }
 
         return $money;
-    }
-
-    private function requireMoney(PaymentWebhookInboxEvent $inbox, PaymentAttempt $attempt): Money
-    {
-        // Prefer server-side attempt amount; webhook amount must match when provided via
-        // a parallel lookup of the verified parse is not re-stored — use attempt money and
-        // rely on settlement manager equality checks. Integrity for mismatched webhook amounts
-        // is enforced by storing amount in sanitized metadata only when parser put scalars.
-        $meta = $inbox->getSanitizedMetadata();
-        if (isset($meta['amount_minor'], $meta['currency'])
-            && \is_int($meta['amount_minor'])
-            && \is_string($meta['currency'])
-        ) {
-            $money = Money::fromMinor($meta['amount_minor'], strtoupper($meta['currency']));
-            if ($money->getCurrency() !== $attempt->getCurrency()) {
-                throw CommerceException::currencyMismatch();
-            }
-            if (!$money->equals($attempt->getAmount())) {
-                throw CommerceException::totalMismatch();
-            }
-
-            return $money;
-        }
-
-        return $attempt->getAmount();
     }
 
     private function readVerifiedProviderPaymentReference(PaymentWebhookInboxEvent $inbox): ?string
@@ -741,102 +862,26 @@ final class PaymentWebhookProcessor
         return 'wh:'.$inbox->getProviderCode().':'.$inbox->getEnvironment()->value.':'.$inbox->getProviderEventReference();
     }
 
-    private function findFreshInbox(Uuid $id, LockMode $lockMode): ?PaymentWebhookInboxEvent
-    {
-        $query = $this->entityManager->createQueryBuilder()
-            ->select('e')
-            ->from(PaymentWebhookInboxEvent::class, 'e')
-            ->where('e.id = :id')
-            ->setParameter('id', $id, 'uuid')
-            ->getQuery()
-            ->setHint(Query::HINT_REFRESH, true)
-            ->setLockMode($lockMode);
-
-        $result = $query->getOneOrNullResult();
-
-        return $result instanceof PaymentWebhookInboxEvent ? $result : null;
-    }
-
     private function isIntegrityFailure(CommerceException $e): bool
     {
         return \in_array($e->getReason(), [
-            \App\Enum\CommerceFailureReason::WebhookIntegrityConflict,
-            \App\Enum\CommerceFailureReason::HashMismatch,
-            \App\Enum\CommerceFailureReason::TotalMismatch,
-            \App\Enum\CommerceFailureReason::CurrencyMismatch,
-            \App\Enum\CommerceFailureReason::ProviderMismatch,
-            \App\Enum\CommerceFailureReason::ScopeMismatch,
+            CommerceFailureReason::WebhookIntegrityConflict,
+            CommerceFailureReason::HashMismatch,
+            CommerceFailureReason::TotalMismatch,
+            CommerceFailureReason::CurrencyMismatch,
+            CommerceFailureReason::ProviderMismatch,
+            CommerceFailureReason::ScopeMismatch,
         ], true);
     }
 
-    private function isRejectableBusinessFailure(CommerceException $e): bool
+    private function isPermanentBusinessReject(CommerceException $e): bool
     {
         return \in_array($e->getReason(), [
-            \App\Enum\CommerceFailureReason::NotFound,
-            \App\Enum\CommerceFailureReason::InvalidTransition,
-            \App\Enum\CommerceFailureReason::InvalidInput,
-            \App\Enum\CommerceFailureReason::PaymentNotCaptured,
-            \App\Enum\CommerceFailureReason::RefundExceedsCapture,
+            CommerceFailureReason::InvalidTransition,
+            CommerceFailureReason::InvalidInput,
+            CommerceFailureReason::NotFound,
+            CommerceFailureReason::PaymentNotCaptured,
+            CommerceFailureReason::RefundExceedsCapture,
         ], true);
-    }
-
-    private function auditProcessed(PaymentWebhookInboxEvent $event, string $reasonCode): void
-    {
-        $this->auditRecorder->record(new SecurityAuditContext(
-            action: SecurityAuditAction::PaymentWebhookProcessed,
-            actorType: SecurityAuditActorType::System,
-            outcome: SecurityAuditOutcome::Success,
-            metadata: [
-                'source' => 'payment_webhook_processor',
-                'reason_code' => $reasonCode,
-                'provider_code' => $event->getProviderCode(),
-                'provider_environment' => $event->getEnvironment()->value,
-                'event_type' => $event->getEventType()->value,
-                'inbox_event_id' => $event->getId()->toRfc4122(),
-                'payment_attempt_id' => $event->getPaymentAttempt()?->getId()->toRfc4122(),
-                'processing_status' => PaymentWebhookInboxStatus::Processed->value,
-            ],
-            captureRequestHashes: false,
-        ), false);
-    }
-
-    private function auditRejected(PaymentWebhookInboxEvent $event, string $reasonCode): void
-    {
-        $this->auditRecorder->record(new SecurityAuditContext(
-            action: SecurityAuditAction::PaymentWebhookRejected,
-            actorType: SecurityAuditActorType::System,
-            outcome: SecurityAuditOutcome::Failure,
-            metadata: [
-                'source' => 'payment_webhook_processor',
-                'reason_code' => $reasonCode,
-                'provider_code' => $event->getProviderCode(),
-                'provider_environment' => $event->getEnvironment()->value,
-                'event_type' => $event->getEventType()->value,
-                'inbox_event_id' => $event->getId()->toRfc4122(),
-                'payment_attempt_id' => $event->getPaymentAttempt()?->getId()->toRfc4122(),
-                'processing_status' => PaymentWebhookInboxStatus::Rejected->value,
-            ],
-            captureRequestHashes: false,
-        ), false);
-    }
-
-    private function auditIntegrity(PaymentWebhookInboxEvent $event, string $reasonCode): void
-    {
-        $this->auditRecorder->record(new SecurityAuditContext(
-            action: SecurityAuditAction::PaymentWebhookIntegrityFailed,
-            actorType: SecurityAuditActorType::System,
-            outcome: SecurityAuditOutcome::Failure,
-            metadata: [
-                'source' => 'payment_webhook_processor',
-                'reason_code' => $reasonCode,
-                'provider_code' => $event->getProviderCode(),
-                'provider_environment' => $event->getEnvironment()->value,
-                'event_type' => $event->getEventType()->value,
-                'inbox_event_id' => $event->getId()->toRfc4122(),
-                'payment_attempt_id' => $event->getPaymentAttempt()?->getId()->toRfc4122(),
-                'processing_status' => PaymentWebhookInboxStatus::Rejected->value,
-            ],
-            captureRequestHashes: false,
-        ), false);
     }
 }

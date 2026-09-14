@@ -119,6 +119,8 @@ services:
             $registrations:
                 - '@app.payment_provider.sandbox_registration'
 
+    App\Commerce\PaymentWebhookProcessingCheckpointInterface: '@App\Commerce\NullPaymentWebhookProcessingCheckpoint'
+
     App\Service\PaymentPlatformSettlementActorResolver:
         arguments:
             $settlementActorId: '%env(default:payment_platform_settlement_actor_id_default:PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID)%'
@@ -351,6 +353,11 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Tests\Support\ConfigurablePaymentWebhookProcessingCheckpoint:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\PaymentWebhookProcessingCheckpointInterface: '@App\Tests\Support\ConfigurablePaymentWebhookProcessingCheckpoint'
         App\Service\CommerceSubscriptionManager:
             public: true
             autowire: true

@@ -167,6 +167,8 @@ final class SecurityAuditMetadataSanitizer
         // Stage 2.18 webhook inbox / checkout orchestration (identifiers only).
         'inbox_event_id',
         'processing_status',
+        'attempt_count',
+        'last_failure_reason_code',
     ];
 
     /**
