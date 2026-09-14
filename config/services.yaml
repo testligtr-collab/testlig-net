@@ -12,6 +12,10 @@ parameters:
     env(QUESTION_ANSWER_INTEGRITY_KEY): 'change-me-question-answer-integrity-key-not-for-production'
     env(ATTEMPT_ANSWER_ENCRYPTION_KEY): '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
     env(COMMERCE_IDEMPOTENCY_HASH_KEY): 'change-me-commerce-idempotency-hash-key-not-for-production'
+    env(PAYMENT_SANDBOX_WEBHOOK_SIGNING_KEY): 'change-me-sandbox-webhook-signing-key-32b!!'
+    env(PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID): ''
+    env(PAYMENT_SANDBOX_PROVIDER_ENABLED): '1'
+    payment_platform_settlement_actor_id_default: ''
 
 services:
     # default configuration for services in *this* file
@@ -95,6 +99,30 @@ services:
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
+
+    App\Commerce\Sandbox\SandboxWebhookSignatureVerifier:
+        arguments:
+            $signingKey: '%env(PAYMENT_SANDBOX_WEBHOOK_SIGNING_KEY)%'
+
+    App\Commerce\Sandbox\SandboxPaymentProviderAdapter: ~
+
+    app.payment_provider.sandbox_registration:
+        class: App\Commerce\PaymentProviderRegistration
+        arguments:
+            $adapter: '@App\Commerce\Sandbox\SandboxPaymentProviderAdapter'
+            $verifier: '@App\Commerce\Sandbox\SandboxWebhookSignatureVerifier'
+            $parser: '@App\Commerce\Sandbox\SandboxWebhookParser'
+            $enabled: '%env(bool:PAYMENT_SANDBOX_PROVIDER_ENABLED)%'
+
+    App\Commerce\PaymentProviderRegistry:
+        arguments:
+            $registrations:
+                - '@app.payment_provider.sandbox_registration'
+
+    App\Service\PaymentPlatformSettlementActorResolver:
+        arguments:
+            $settlementActorId: '%env(default:payment_platform_settlement_actor_id_default:PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID)%'
+            $override: null
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
@@ -276,6 +304,50 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\PaymentRefundManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentCheckoutOrchestrator:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentWebhookIngress:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentWebhookProcessor:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentPlatformSettlementActorOverride:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentPlatformSettlementActorResolver:
+            public: true
+            autowire: true
+            autoconfigure: true
+            arguments:
+                $settlementActorId: '%env(default:payment_platform_settlement_actor_id_default:PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID)%'
+                $override: '@App\Service\PaymentPlatformSettlementActorOverride'
+        App\Commerce\PaymentProviderRegistry:
+            public: true
+            autowire: true
+            autoconfigure: true
+            arguments:
+                $registrations:
+                    - '@app.payment_provider.sandbox_registration'
+        App\Commerce\Sandbox\SandboxPaymentProviderAdapter:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\Sandbox\SandboxWebhookSignatureVerifier:
+            public: true
+            autowire: true
+            autoconfigure: true
+            arguments:
+                $signingKey: '%env(PAYMENT_SANDBOX_WEBHOOK_SIGNING_KEY)%'
+        App\Commerce\Sandbox\SandboxWebhookParser:
             public: true
             autowire: true
             autoconfigure: true

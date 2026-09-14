@@ -21,6 +21,10 @@ security:
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        payment_webhook:
+            pattern: ^/webhook/odeme
+            stateless: true
+            security: false
         main:
             lazy: true
             provider: app_user_provider
@@ -37,6 +41,7 @@ security:
 
     access_control:
         - { path: ^/health, roles: PUBLIC_ACCESS }
+        - { path: '^/webhook/odeme/[a-z][a-z0-9_]{1,31}$', roles: PUBLIC_ACCESS, methods: [POST] }
         - { path: ^/kayit, roles: PUBLIC_ACCESS }
         - { path: ^/dogrula/eposta, roles: PUBLIC_ACCESS }
         - { path: ^/sifremi-unuttum, roles: PUBLIC_ACCESS }
