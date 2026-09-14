@@ -84,4 +84,18 @@ class CommerceFulfillmentRepository extends ServiceEntityRepository
 
         return $entity instanceof CommerceFulfillment ? $entity : null;
     }
+
+    public function countCompletedForPaymentAttempt(Uuid $attemptId): int
+    {
+        $count = $this->createQueryBuilder('f')
+            ->select('COUNT(f.id)')
+            ->andWhere('IDENTITY(f.paymentAttempt) = :attemptId')
+            ->andWhere('f.status = :status')
+            ->setParameter('attemptId', $attemptId, 'uuid')
+            ->setParameter('status', CommerceFulfillmentStatus::Completed)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return \is_int($count) || \is_string($count) ? (int) $count : 0;
+    }
 }

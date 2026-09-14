@@ -20,6 +20,9 @@ use Symfony\Component\Uid\UuidV7;
 
 /**
  * Append-only verified webhook inbox. Raw body/signature/secrets are never stored.
+ *
+ * Recovery fields support at-least-once provider delivery with idempotent convergence:
+ * claim lease, retry_pending, and dead_letter after retry exhaustion.
  */
 #[ORM\Entity(repositoryClass: PaymentWebhookInboxEventRepository::class)]
 #[ORM\Table(name: 'payment_webhook_inbox_events')]
@@ -28,10 +31,18 @@ use Symfony\Component\Uid\UuidV7;
     columns: ['provider_code', 'environment', 'provider_event_reference'],
 )]
 #[ORM\Index(name: 'idx_pwie_status_received', columns: ['processing_status', 'received_at'])]
+#[ORM\Index(name: 'idx_pwie_status_retry', columns: ['processing_status', 'next_retry_at'])]
+#[ORM\Index(name: 'idx_pwie_status_lease', columns: ['processing_status', 'lease_expires_at'])]
 #[ORM\Index(name: 'idx_pwie_attempt', columns: ['payment_attempt_id'])]
 class PaymentWebhookInboxEvent
 {
-    public const SCHEMA_VERSION = 1;
+    public const SCHEMA_VERSION = 2;
+
+    public const MAX_ATTEMPTS = 5;
+
+    public const LEASE_SECONDS = 60;
+
+    public const RETRY_BACKOFF_SECONDS = 5;
 
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
@@ -66,6 +77,27 @@ class PaymentWebhookInboxEvent
 
     #[ORM\Column(name: 'processed_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $processedAt = null;
+
+    #[ORM\Column(name: 'closed_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $closedAt = null;
+
+    #[ORM\Column(name: 'processing_started_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $processingStartedAt = null;
+
+    #[ORM\Column(name: 'next_retry_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $nextRetryAt = null;
+
+    #[ORM\Column(name: 'attempt_count', options: ['default' => 0])]
+    private int $attemptCount = 0;
+
+    #[ORM\Column(name: 'last_failure_reason_code', length: 64, nullable: true)]
+    private ?string $lastFailureReasonCode = null;
+
+    #[ORM\Column(name: 'claim_token', type: UuidType::NAME, nullable: true)]
+    private ?Uuid $claimToken = null;
+
+    #[ORM\Column(name: 'lease_expires_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $leaseExpiresAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'payment_attempt_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
@@ -142,53 +174,128 @@ class PaymentWebhookInboxEvent
         );
     }
 
-    public function markProcessing(\DateTimeImmutable $now): void
+    public function applyClaim(Uuid $claimToken, \DateTimeImmutable $now, int $leaseSeconds = self::LEASE_SECONDS): void
     {
-        if (!$this->processingStatus->canStartProcessing()) {
+        if (!$this->processingStatus->isClaimable()) {
             throw CommerceException::invalidTransition();
         }
+        if (PaymentWebhookInboxStatus::RetryPending === $this->processingStatus
+            && $this->nextRetryAt instanceof \DateTimeImmutable
+            && $now < $this->nextRetryAt
+        ) {
+            throw CommerceException::conflict();
+        }
+        if (PaymentWebhookInboxStatus::Processing === $this->processingStatus
+            && $this->leaseExpiresAt instanceof \DateTimeImmutable
+            && $now < $this->leaseExpiresAt
+        ) {
+            throw CommerceException::conflict();
+        }
+
+        ++$this->attemptCount;
         $this->processingStatus = PaymentWebhookInboxStatus::Processing;
-        unset($now);
+        $this->claimToken = $claimToken;
+        $this->leaseExpiresAt = $now->modify('+'.$leaseSeconds.' seconds');
+        $this->processingStartedAt ??= $now;
+        $this->nextRetryAt = null;
     }
 
-    public function markProcessed(\DateTimeImmutable $now): void
+    public function markProcessed(Uuid $claimToken, \DateTimeImmutable $now): void
     {
-        if (PaymentWebhookInboxStatus::Processing !== $this->processingStatus) {
-            throw CommerceException::invalidTransition();
-        }
+        $this->assertActiveClaim($claimToken);
         $this->processingStatus = PaymentWebhookInboxStatus::Processed;
         $this->processedAt = $now;
+        $this->closedAt = null;
+        $this->failureReasonCode = null;
+        $this->lastFailureReasonCode = null;
+        $this->claimToken = null;
+        $this->leaseExpiresAt = null;
+        $this->nextRetryAt = null;
+    }
+
+    public function markRejected(string $reasonCode, \DateTimeImmutable $now, ?Uuid $claimToken = null): void
+    {
+        if (null !== $claimToken) {
+            $this->assertActiveClaim($claimToken);
+        } elseif (!\in_array($this->processingStatus, [
+            PaymentWebhookInboxStatus::Received,
+            PaymentWebhookInboxStatus::Processing,
+            PaymentWebhookInboxStatus::RetryPending,
+        ], true)) {
+            throw CommerceException::invalidTransition();
+        }
+
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $this->processingStatus = PaymentWebhookInboxStatus::Rejected;
+        $this->failureReasonCode = $reasonCode;
+        $this->lastFailureReasonCode = $reasonCode;
+        $this->closedAt = $now;
+        $this->processedAt = null;
+        $this->claimToken = null;
+        $this->leaseExpiresAt = null;
+        $this->nextRetryAt = null;
+    }
+
+    public function scheduleRetry(string $reasonCode, \DateTimeImmutable $now, Uuid $claimToken): void
+    {
+        $this->assertActiveClaim($claimToken);
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        if ($this->attemptCount >= self::MAX_ATTEMPTS) {
+            $this->markDeadLetter($reasonCode, $now, $claimToken);
+
+            return;
+        }
+
+        $delay = self::RETRY_BACKOFF_SECONDS * max(1, $this->attemptCount);
+        $this->processingStatus = PaymentWebhookInboxStatus::RetryPending;
+        $this->lastFailureReasonCode = $reasonCode;
+        $this->nextRetryAt = $now->modify('+'.$delay.' seconds');
+        $this->claimToken = null;
+        $this->leaseExpiresAt = null;
+        $this->processedAt = null;
+        $this->closedAt = null;
         $this->failureReasonCode = null;
     }
 
-    public function markRejected(string $reasonCode, \DateTimeImmutable $now): void
+    public function markDeadLetter(string $reasonCode, \DateTimeImmutable $now, ?Uuid $claimToken = null): void
     {
-        if (PaymentWebhookInboxStatus::Processing !== $this->processingStatus
-            && PaymentWebhookInboxStatus::Received !== $this->processingStatus
+        if (null !== $claimToken) {
+            $this->assertActiveClaim($claimToken);
+        } elseif (PaymentWebhookInboxStatus::Processing !== $this->processingStatus
+            && PaymentWebhookInboxStatus::RetryPending !== $this->processingStatus
         ) {
             throw CommerceException::invalidTransition();
         }
-        $reasonCode = trim($reasonCode);
-        if ('' === $reasonCode || \strlen($reasonCode) > 64) {
-            throw CommerceException::invalidInput('failureReasonCode invalid.');
-        }
-        $this->processingStatus = PaymentWebhookInboxStatus::Rejected;
+
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $this->processingStatus = PaymentWebhookInboxStatus::DeadLetter;
         $this->failureReasonCode = $reasonCode;
-        $this->processedAt = $now;
+        $this->lastFailureReasonCode = $reasonCode;
+        $this->closedAt = $now;
+        $this->processedAt = null;
+        $this->claimToken = null;
+        $this->leaseExpiresAt = null;
+        $this->nextRetryAt = null;
     }
 
-    public function markFailed(string $reasonCode, \DateTimeImmutable $now): void
+    private function assertActiveClaim(Uuid $claimToken): void
     {
-        if (PaymentWebhookInboxStatus::Processing !== $this->processingStatus) {
-            throw CommerceException::invalidTransition();
+        if (PaymentWebhookInboxStatus::Processing !== $this->processingStatus
+            || !$this->claimToken instanceof Uuid
+            || !$this->claimToken->equals($claimToken)
+        ) {
+            throw CommerceException::conflict();
         }
-        $reasonCode = trim($reasonCode);
-        if ('' === $reasonCode || \strlen($reasonCode) > 64) {
+    }
+
+    private function normalizeReasonCode(string $reasonCode): string
+    {
+        $reasonCode = strtolower(trim($reasonCode));
+        if (1 !== preg_match('/^[a-z][a-z0-9_]{1,63}$/', $reasonCode)) {
             throw CommerceException::invalidInput('failureReasonCode invalid.');
         }
-        $this->processingStatus = PaymentWebhookInboxStatus::Failed;
-        $this->failureReasonCode = $reasonCode;
-        $this->processedAt = $now;
+
+        return $reasonCode;
     }
 
     public function getId(): Uuid
@@ -244,6 +351,41 @@ class PaymentWebhookInboxEvent
     public function getProcessedAt(): ?\DateTimeImmutable
     {
         return $this->processedAt;
+    }
+
+    public function getClosedAt(): ?\DateTimeImmutable
+    {
+        return $this->closedAt;
+    }
+
+    public function getProcessingStartedAt(): ?\DateTimeImmutable
+    {
+        return $this->processingStartedAt;
+    }
+
+    public function getNextRetryAt(): ?\DateTimeImmutable
+    {
+        return $this->nextRetryAt;
+    }
+
+    public function getAttemptCount(): int
+    {
+        return $this->attemptCount;
+    }
+
+    public function getLastFailureReasonCode(): ?string
+    {
+        return $this->lastFailureReasonCode;
+    }
+
+    public function getClaimToken(): ?Uuid
+    {
+        return $this->claimToken;
+    }
+
+    public function getLeaseExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->leaseExpiresAt;
     }
 
     #[Ignore]
