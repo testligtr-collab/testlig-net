@@ -52,7 +52,9 @@ final class PaymentOperationsCommandsTest extends KernelTestCase
         $attempt = $this->initiatedAttempt('cmd_due');
         $this->persistInbox($attempt, 'cmd_due-auth-00000001', PaymentEventType::Authorized);
 
-        $app = new Application(self::$kernel);
+        $kernel = self::$kernel;
+        self::assertNotNull($kernel);
+        $app = new Application($kernel);
         $tester = new CommandTester($app->find('app:payment:webhook:process-due'));
         $exit = $tester->execute(['--limit' => '25', '--dry-run' => true]);
         self::assertSame(0, $exit);
@@ -71,7 +73,9 @@ final class PaymentOperationsCommandsTest extends KernelTestCase
         $event = $this->persistInbox($attempt, 'cmd_dl-auth-000000001', PaymentEventType::Authorized);
         $this->forceDeadLetter($event->getId());
 
-        $app = new Application(self::$kernel);
+        $kernel = self::$kernel;
+        self::assertNotNull($kernel);
+        $app = new Application($kernel);
         $tester = new CommandTester($app->find('app:payment:webhook:retry-dead-letter'));
         $exit = $tester->execute([
             '--event-id' => $event->getId()->toRfc4122(),
@@ -95,7 +99,9 @@ final class PaymentOperationsCommandsTest extends KernelTestCase
     {
         $attempt = $this->initiatedAttempt('cmd_rec');
 
-        $app = new Application(self::$kernel);
+        $kernel = self::$kernel;
+        self::assertNotNull($kernel);
+        $app = new Application($kernel);
         $tester = new CommandTester($app->find('app:payment:reconcile'));
         $exit = $tester->execute([
             '--actor-id' => $this->sa->getId()->toRfc4122(),

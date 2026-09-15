@@ -126,6 +126,7 @@ final class Version20260915120000 extends AbstractMigration
             SQL);
         $this->addSql('CREATE INDEX idx_prr_provider_env_started ON payment_reconciliation_runs (provider_code, environment, started_at)');
         $this->addSql('CREATE INDEX idx_prr_status_started ON payment_reconciliation_runs (status, started_at)');
+        $this->addSql('ALTER TABLE payment_reconciliation_runs RENAME INDEX fk_prr_created_by TO IDX_82A7F39B03A8386');
 
         $this->addSql(<<<'SQL'
             CREATE TABLE payment_reconciliation_items (
@@ -136,7 +137,7 @@ final class Version20260915120000 extends AbstractMigration
                 provider_state VARCHAR(32) DEFAULT NULL,
                 outcome VARCHAR(32) NOT NULL,
                 action VARCHAR(32) NOT NULL,
-                safe_snapshot_hash CHAR(64) DEFAULT NULL,
+                safe_snapshot_hash VARCHAR(64) DEFAULT NULL,
                 checked_at DATETIME NOT NULL,
                 reason_code VARCHAR(64) DEFAULT NULL,
                 schema_version INT NOT NULL,

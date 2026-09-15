@@ -252,12 +252,10 @@ final class PaymentWebhookInboxEventRepository extends ServiceEntityRepository
         }
 
         $oldest = $qb->getQuery()->getSingleScalarResult();
-        if (!\is_string($oldest) && !$oldest instanceof \DateTimeInterface) {
+        if (!\is_string($oldest) || '' === $oldest) {
             return null;
         }
-        $oldestAt = $oldest instanceof \DateTimeInterface
-            ? \DateTimeImmutable::createFromInterface($oldest)
-            : new \DateTimeImmutable((string) $oldest);
+        $oldestAt = new \DateTimeImmutable($oldest);
 
         return max(0, $now->getTimestamp() - $oldestAt->getTimestamp());
     }
