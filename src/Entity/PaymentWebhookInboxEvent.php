@@ -278,6 +278,29 @@ class PaymentWebhookInboxEvent
         $this->nextRetryAt = null;
     }
 
+    /**
+     * Operator-controlled requeue: dead_letter → retry_pending without resetting attemptCount.
+     */
+    public function requeueFromDeadLetter(string $reasonCode, \DateTimeImmutable $now): void
+    {
+        if (PaymentWebhookInboxStatus::DeadLetter !== $this->processingStatus) {
+            throw CommerceException::invalidTransition();
+        }
+        if ($this->attemptCount < 1) {
+            throw CommerceException::invalidTransition();
+        }
+
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $this->processingStatus = PaymentWebhookInboxStatus::RetryPending;
+        $this->lastFailureReasonCode = $reasonCode;
+        $this->failureReasonCode = null;
+        $this->nextRetryAt = $now;
+        $this->closedAt = null;
+        $this->processedAt = null;
+        $this->claimToken = null;
+        $this->leaseExpiresAt = null;
+    }
+
     private function assertActiveClaim(Uuid $claimToken): void
     {
         if (PaymentWebhookInboxStatus::Processing !== $this->processingStatus

@@ -71,6 +71,20 @@ class PaymentRefundRepository extends ServiceEntityRepository
         return \is_int($sum) || \is_string($sum) ? (int) $sum : 0;
     }
 
+    public function sumSucceededAmountMinorForAttempt(Uuid $attemptId): int
+    {
+        $sum = $this->createQueryBuilder('r')
+            ->select('SUM(r.amountMinor)')
+            ->andWhere('IDENTITY(r.paymentAttempt) = :attemptId')
+            ->andWhere('r.status = :succeeded')
+            ->setParameter('attemptId', $attemptId, 'uuid')
+            ->setParameter('succeeded', PaymentRefundStatus::Succeeded)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return \is_int($sum) || \is_string($sum) ? (int) $sum : 0;
+    }
+
     public function findOpenForAttempt(Uuid $attemptId): ?PaymentRefund
     {
         $entity = $this->createQueryBuilder('r')

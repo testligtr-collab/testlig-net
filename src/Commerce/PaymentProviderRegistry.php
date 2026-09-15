@@ -69,6 +69,26 @@ final class PaymentProviderRegistry
         return $this->get($providerCode)->parser;
     }
 
+    /**
+     * Returns a registered reconciliation adapter, or null when unsupported/missing.
+     */
+    public function findReconciliationAdapter(string $providerCode): ?PaymentProviderReconciliationAdapterInterface
+    {
+        $registration = $this->get($providerCode);
+        $adapter = $registration->getReconciliationAdapter();
+
+        return $adapter instanceof PaymentProviderReconciliationAdapterInterface ? $adapter : null;
+    }
+
+    /**
+     * Returns the reconciliation adapter when registered; otherwise a typed unsupported seam.
+     */
+    public function getReconciliationAdapter(string $providerCode): PaymentProviderReconciliationAdapterInterface
+    {
+        return $this->findReconciliationAdapter($providerCode)
+            ?? new UnsupportedPaymentProviderReconciliationAdapter($providerCode);
+    }
+
     public function assertEnvironment(string $providerCode, PaymentProviderEnvironment $environment): void
     {
         if ($this->get($providerCode)->getEnvironment() !== $environment) {

@@ -163,6 +163,12 @@ enum SecurityAuditAction: string
     case PaymentWebhookProcessed = 'payment_webhook_processed';
     case PaymentWebhookRejected = 'payment_webhook_rejected';
     case PaymentWebhookIntegrityFailed = 'payment_webhook_integrity_failed';
+    case PaymentWebhookBatchProcessed = 'payment_webhook_batch_processed';
+    case PaymentWebhookDeadLetterRequeued = 'payment_webhook_dead_letter_requeued';
+    case PaymentReconciliationStarted = 'payment_reconciliation_started';
+    case PaymentReconciliationCompleted = 'payment_reconciliation_completed';
+    case PaymentReconciliationDiscrepancyFound = 'payment_reconciliation_discrepancy_found';
+    case PaymentReconciliationActionApplied = 'payment_reconciliation_action_applied';
     case CommerceSubscriptionCreated = 'commerce_subscription_created';
     case CommerceSubscriptionActivated = 'commerce_subscription_activated';
     case CommerceSubscriptionRenewed = 'commerce_subscription_renewed';

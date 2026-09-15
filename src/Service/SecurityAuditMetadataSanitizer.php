@@ -169,6 +169,20 @@ final class SecurityAuditMetadataSanitizer
         'processing_status',
         'attempt_count',
         'last_failure_reason_code',
+        // Stage 2.19 payment operations / reconciliation (safe aggregates only).
+        'environment',
+        'reconciliation_run_id',
+        'reconciliation_outcome',
+        'checked_count',
+        'matched_count',
+        'discrepancy_count',
+        'failed_count',
+        'selected_count',
+        'processed_count',
+        'rejected_count',
+        'retry_pending_count',
+        'dead_letter_count',
+        'skipped_count',
     ];
 
     /**

@@ -7,7 +7,7 @@ namespace App\Commerce;
 use App\Enum\PaymentProviderEnvironment;
 
 /**
- * One registered payment provider: adapter + webhook verifier + parser.
+ * One registered payment provider: adapter + webhook verifier + parser (+ optional reconciliation).
  */
 final class PaymentProviderRegistration
 {
@@ -16,10 +16,16 @@ final class PaymentProviderRegistration
         public readonly PaymentWebhookSignatureVerifierInterface $verifier,
         public readonly PaymentWebhookParserInterface $parser,
         public readonly bool $enabled = true,
+        public readonly ?PaymentProviderReconciliationAdapterInterface $reconciliationAdapter = null,
     ) {
         $code = $adapter->getProviderCode();
         if ($verifier->getProviderCode() !== $code || $parser->getProviderCode() !== $code) {
             throw new \InvalidArgumentException('Provider registration codes must match.');
+        }
+        if ($reconciliationAdapter instanceof PaymentProviderReconciliationAdapterInterface
+            && $reconciliationAdapter->getProviderCode() !== $code
+        ) {
+            throw new \InvalidArgumentException('Reconciliation adapter provider code must match.');
         }
     }
 
@@ -31,5 +37,10 @@ final class PaymentProviderRegistration
     public function getEnvironment(): PaymentProviderEnvironment
     {
         return $this->adapter->getEnvironment();
+    }
+
+    public function getReconciliationAdapter(): ?PaymentProviderReconciliationAdapterInterface
+    {
+        return $this->reconciliationAdapter;
     }
 }
