@@ -106,6 +106,8 @@ services:
 
     App\Commerce\Sandbox\SandboxPaymentProviderAdapter: ~
 
+    App\Commerce\Sandbox\SandboxPaymentProviderReconciliationAdapter: ~
+
     app.payment_provider.sandbox_registration:
         class: App\Commerce\PaymentProviderRegistration
         arguments:
@@ -113,6 +115,7 @@ services:
             $verifier: '@App\Commerce\Sandbox\SandboxWebhookSignatureVerifier'
             $parser: '@App\Commerce\Sandbox\SandboxWebhookParser'
             $enabled: '%env(bool:PAYMENT_SANDBOX_PROVIDER_ENABLED)%'
+            $reconciliationAdapter: '@App\Commerce\Sandbox\SandboxPaymentProviderReconciliationAdapter'
 
     App\Commerce\PaymentProviderRegistry:
         arguments:
@@ -321,6 +324,22 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\PaymentWebhookDueProcessor:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentWebhookDeadLetterRequeueService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentReconciliationService:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\PaymentOperationsReadModel:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\PaymentPlatformSettlementActorOverride:
             public: true
             autowire: true
@@ -340,6 +359,10 @@ when@test:
                 $registrations:
                     - '@app.payment_provider.sandbox_registration'
         App\Commerce\Sandbox\SandboxPaymentProviderAdapter:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Commerce\Sandbox\SandboxPaymentProviderReconciliationAdapter:
             public: true
             autowire: true
             autoconfigure: true

@@ -56,6 +56,14 @@ final class CommerceAuthorization
     }
 
     /**
+     * Payment operations / reconciliation / dead-letter requeue: same bar as settlement.
+     */
+    public function assertCanOperatePayments(User $actor): void
+    {
+        $this->assertCanSettlePayments($actor);
+    }
+
+    /**
      * Individual purchases: actor must be the purchaser. No privileged proxy purchase.
      */
     public function assertCanPurchaseForSelf(User $actor, User $purchaser): void
