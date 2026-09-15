@@ -143,6 +143,9 @@ PaymentWebhookIngress + Processor         verified webhook → inbox → settlem
   (`PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID` / test override), never the buyer.
 - Provider metadata passes through `PaymentEventMetadataSanitizer` before storage: an
   allowlist of scalar keys, bounded sizes, no nested payloads, no PII.
+- **Ops / reconciliation (Stage 2.19):** see
+  [`architecture-payment-operations-reconciliation.md`](architecture-payment-operations-reconciliation.md)
+  for due-batch workers, dead-letter requeue, reconciliation decision matrix, and runbooks.
 
 ### Lock order (Stage 2.18)
 
