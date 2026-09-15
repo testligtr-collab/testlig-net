@@ -36,6 +36,9 @@ final class SandboxPaymentProviderReconciliationAdapter implements PaymentProvid
 
     private ?PaymentReconciliationLookupResult $defaultResult = null;
 
+    /** @var (callable(PaymentReconciliationQuery): void)|null */
+    private $beforeQuery;
+
     public function __construct(
         private readonly ClockInterface $clock,
         private readonly ?PaymentAttemptRepository $attempts = null,
@@ -67,10 +70,25 @@ final class SandboxPaymentProviderReconciliationAdapter implements PaymentProvid
         $this->snapshotsByReference = [];
         $this->resultsByAttemptId = [];
         $this->defaultResult = null;
+        $this->beforeQuery = null;
+    }
+
+    /**
+     * Test hook invoked at the start of {@see queryTransaction()} (provider I/O boundary).
+     *
+     * @param (callable(PaymentReconciliationQuery): void)|null $callback
+     */
+    public function setBeforeQuery(?callable $callback): void
+    {
+        $this->beforeQuery = $callback;
     }
 
     public function queryTransaction(PaymentReconciliationQuery $query): PaymentReconciliationLookupResult
     {
+        if (null !== $this->beforeQuery) {
+            ($this->beforeQuery)($query);
+        }
+
         if ($query->providerCode !== $this->getProviderCode()) {
             return PaymentReconciliationLookupResult::unsupported('provider_code_mismatch');
         }

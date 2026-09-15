@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Commerce\PaymentProviderReconciliationAdapterInterface;
 use App\Commerce\PaymentProviderRegistry;
 use App\Commerce\PaymentProviderTransactionSnapshot;
 use App\Commerce\PaymentReconciliationLookupResult;
@@ -12,6 +13,8 @@ use App\Commerce\PaymentReconciliationSnapshotHasher;
 use App\Commerce\VerifiedPaymentWebhook;
 use App\Dto\PaymentReconciliationSummary;
 use App\Dto\SecurityAuditContext;
+use App\Entity\CommerceOrder;
+use App\Entity\Institution;
 use App\Entity\PaymentAttempt;
 use App\Entity\PaymentReconciliationItem;
 use App\Entity\PaymentReconciliationRun;
@@ -47,8 +50,9 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Observes provider vs local payment state and converges only via the webhook inbox pipeline.
  *
- * Provider network calls run outside open DB transactions. Automatic mutation is limited to
- * enqueueing reconciliation-sourced verified capture events for local-behind cases.
+ * Provider network calls run outside open DB transactions. After each provider response the
+ * operator is re-authorized from a fresh lock and attempt/order(/institution) are reloaded
+ * before any decision or mutation. Run/item/action/completion writes stay atomic with audit.
  */
 final class PaymentReconciliationService
 {
@@ -66,6 +70,8 @@ final class PaymentReconciliationService
         private readonly PaymentWebhookProcessor $webhookProcessor,
         private readonly PaymentRefundRepository $refunds,
         private readonly FreshUserLoader $freshUsers,
+        private readonly CommerceFreshEntityLoader $freshCommerce,
+        private readonly InstitutionalFreshEntityLoader $freshInstitutions,
         private readonly CommerceAuthorization $commerceAuthorization,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ClockInterface $clock,
@@ -90,14 +96,9 @@ final class PaymentReconciliationService
             throw CommerceException::invalidInput('confirm is required when not dry-run.');
         }
 
-        $actor = $this->em->wrapInTransaction(function () use ($actorId): User {
-            $locked = $this->freshUsers->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
-            if (!$locked instanceof User) {
-                throw CommerceException::unauthorized();
-            }
-            $this->commerceAuthorization->assertCanOperatePayments($locked);
-
-            return $locked;
+        // Initial gate before any provider I/O.
+        $this->em->wrapInTransaction(function () use ($actorId): void {
+            $this->requireFreshOperator($actorId);
         });
 
         $this->providers->assertEnvironment($providerCode, $environment);
@@ -107,31 +108,43 @@ final class PaymentReconciliationService
         $targets = $this->resolveAttempts($providerCode, $environment, $attemptId, $limit);
         $activeRunId = null;
         if (!$dryRun) {
-            $run = PaymentReconciliationRun::start(
+            $activeRunId = $this->em->wrapInTransaction(function () use (
+                $actorId,
                 $providerCode,
                 $environment,
                 $mode,
                 $reasonCode,
                 $now,
-                $actor,
-            );
-            $this->runs->save($run, true);
-            $activeRunId = $run->getId();
-            $this->auditRecorder->record(new SecurityAuditContext(
-                action: SecurityAuditAction::PaymentReconciliationStarted,
-                actorType: SecurityAuditActorType::User,
-                outcome: SecurityAuditOutcome::Success,
-                actorUser: $actor,
-                metadata: [
-                    'source' => 'payment_reconciliation',
-                    'reason_code' => $reasonCode,
-                    'provider_code' => $providerCode,
-                    'environment' => $environment->value,
-                    'reconciliation_run_id' => $activeRunId->toRfc4122(),
-                    'checked_count' => 0,
-                ],
-                captureRequestHashes: false,
-            ));
+            ): Uuid {
+                $actor = $this->requireFreshOperator($actorId);
+                $run = PaymentReconciliationRun::start(
+                    $providerCode,
+                    $environment,
+                    $mode,
+                    $reasonCode,
+                    $now,
+                    $actor,
+                );
+                $this->runs->save($run, false);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::PaymentReconciliationStarted,
+                    actorType: SecurityAuditActorType::User,
+                    outcome: SecurityAuditOutcome::Success,
+                    actorUser: $actor,
+                    metadata: [
+                        'source' => 'payment_reconciliation',
+                        'reason_code' => $reasonCode,
+                        'provider_code' => $providerCode,
+                        'environment' => $environment->value,
+                        'reconciliation_run_id' => $run->getId()->toRfc4122(),
+                        'checked_count' => 0,
+                    ],
+                    captureRequestHashes: false,
+                ), flush: false);
+                $this->em->flush();
+
+                return $run->getId();
+            });
         }
 
         $matched = 0;
@@ -139,116 +152,42 @@ final class PaymentReconciliationService
         $failed = 0;
         $hardFailure = false;
 
-        foreach ($targets as $attempt) {
-            $lookup = $this->queryProviderOutsideTx($providerCode, $environment, $attempt);
-            [$outcome, $action, $providerState, $snapshotHash, $itemReason] = $this->decide(
-                $attempt,
-                $lookup,
-            );
-
-            if (null !== $activeRunId && PaymentReconciliationItemAction::WebhookRequeued === $action
-                && $lookup->snapshot instanceof PaymentProviderTransactionSnapshot
-            ) {
-                $persistedRunId = $activeRunId;
-                try {
-                    $this->enqueueVerifiedCapture($attempt, $lookup->snapshot);
-                    $actor = $this->requireManagedActor($actorId);
-                    $this->auditRecorder->record(new SecurityAuditContext(
-                        action: SecurityAuditAction::PaymentReconciliationActionApplied,
-                        actorType: SecurityAuditActorType::User,
-                        outcome: SecurityAuditOutcome::Success,
-                        actorUser: $actor,
-                        metadata: [
-                            'source' => 'payment_reconciliation',
-                            'reason_code' => 'webhook_requeued',
-                            'provider_code' => $providerCode,
-                            'environment' => $environment->value,
-                            'reconciliation_run_id' => $persistedRunId->toRfc4122(),
-                            'reconciliation_outcome' => $outcome->value,
-                            'payment_attempt_id' => $attempt->getId()->toRfc4122(),
-                        ],
-                        captureRequestHashes: false,
-                    ));
-                } catch (CommerceException $e) {
-                    $outcome = PaymentReconciliationItemOutcome::Failed;
-                    $action = PaymentReconciliationItemAction::ManualReviewRequired;
-                    $itemReason = $e->getReason()->value;
-                    $hardFailure = true;
-                } catch (\Throwable) {
-                    $outcome = PaymentReconciliationItemOutcome::Failed;
-                    $action = PaymentReconciliationItemAction::ManualReviewRequired;
-                    $itemReason = 'webhook_requeue_failed';
-                    $hardFailure = true;
-                }
-            }
-
-            if ($outcome->isHardFailure()) {
-                ++$failed;
-                $hardFailure = true;
-            } elseif ($outcome->isDiscrepancy()) {
-                ++$discrepancy;
-            } else {
-                ++$matched;
-            }
-
-            if (null !== $activeRunId) {
-                $targetAttemptId = $attempt->getId();
-                $currentRunId = $activeRunId;
-                $expectedState = $attempt->getStatus();
-                $this->em->wrapInTransaction(function () use (
-                    $currentRunId,
-                    $targetAttemptId,
+        try {
+            foreach ($targets as $seedAttempt) {
+                $lookup = $this->queryProviderOutsideTx($providerCode, $environment, $seedAttempt);
+                $itemResult = $this->reconcileOneAttempt(
                     $actorId,
-                    $expectedState,
-                    $providerState,
-                    $outcome,
-                    $action,
-                    $snapshotHash,
-                    $itemReason,
+                    $seedAttempt->getId(),
+                    $lookup,
+                    $activeRunId,
                     $providerCode,
                     $environment,
-                ): void {
-                    $persistedRun = $this->runs->findOneById($currentRunId);
-                    $freshAttempt = $this->attempts->findOneById($targetAttemptId);
-                    $freshActor = $this->requireManagedActor($actorId);
-                    if (!$persistedRun instanceof PaymentReconciliationRun
-                        || !$freshAttempt instanceof PaymentAttempt
-                    ) {
-                        throw CommerceException::conflict();
-                    }
-                    $item = PaymentReconciliationItem::record(
-                        $persistedRun,
-                        $freshAttempt,
-                        $expectedState,
-                        $providerState,
-                        $outcome,
-                        $action,
-                        $snapshotHash,
-                        UtcInstant::ensure($this->clock->now()),
-                        $itemReason,
-                    );
-                    $this->items->save($item, true);
+                    $dryRun,
+                );
 
-                    if ($outcome->isDiscrepancy()) {
-                        $this->auditRecorder->record(new SecurityAuditContext(
-                            action: SecurityAuditAction::PaymentReconciliationDiscrepancyFound,
-                            actorType: SecurityAuditActorType::User,
-                            outcome: SecurityAuditOutcome::Failure,
-                            actorUser: $freshActor,
-                            metadata: [
-                                'source' => 'payment_reconciliation',
-                                'reason_code' => $itemReason ?? $outcome->value,
-                                'provider_code' => $providerCode,
-                                'environment' => $environment->value,
-                                'reconciliation_run_id' => $persistedRun->getId()->toRfc4122(),
-                                'reconciliation_outcome' => $outcome->value,
-                                'payment_attempt_id' => $targetAttemptId->toRfc4122(),
-                            ],
-                            captureRequestHashes: false,
-                        ));
-                    }
-                });
+                if ($itemResult['hardFailure']) {
+                    $hardFailure = true;
+                }
+                match ($itemResult['bucket']) {
+                    'failed' => ++$failed,
+                    'discrepancy' => ++$discrepancy,
+                    default => ++$matched,
+                };
             }
+        } catch (\Throwable $exception) {
+            if ($activeRunId instanceof Uuid) {
+                $this->abandonRunBestEffort(
+                    $activeRunId,
+                    $actorId,
+                    $matched,
+                    $discrepancy,
+                    $failed,
+                    $reasonCode,
+                    $providerCode,
+                    $environment,
+                );
+            }
+            throw $exception;
         }
 
         $checked = $matched + $discrepancy + $failed;
@@ -259,41 +198,55 @@ final class PaymentReconciliationService
         };
 
         if (null !== $activeRunId) {
-            $finalRun = $this->runs->findOneById($activeRunId);
-            $managedActor = $this->requireManagedActor($actorId);
-            if (!$finalRun instanceof PaymentReconciliationRun) {
-                throw CommerceException::conflict();
-            }
-            $finalRun->complete(
+            $this->em->wrapInTransaction(function () use (
+                $activeRunId,
+                $actorId,
                 $runStatus,
                 $checked,
                 $matched,
                 $discrepancy,
                 $failed,
-                UtcInstant::ensure($this->clock->now()),
-            );
-            $this->runs->save($finalRun, true);
-            $this->auditRecorder->record(new SecurityAuditContext(
-                action: SecurityAuditAction::PaymentReconciliationCompleted,
-                actorType: SecurityAuditActorType::User,
-                outcome: PaymentReconciliationRunStatus::Failed === $runStatus
-                    ? SecurityAuditOutcome::Failure
-                    : SecurityAuditOutcome::Success,
-                actorUser: $managedActor,
-                metadata: [
-                    'source' => 'payment_reconciliation',
-                    'reason_code' => $reasonCode,
-                    'provider_code' => $providerCode,
-                    'environment' => $environment->value,
-                    'reconciliation_run_id' => $finalRun->getId()->toRfc4122(),
-                    'checked_count' => $checked,
-                    'matched_count' => $matched,
-                    'discrepancy_count' => $discrepancy,
-                    'failed_count' => $failed,
-                    'processing_status' => $runStatus->value,
-                ],
-                captureRequestHashes: false,
-            ));
+                $reasonCode,
+                $providerCode,
+                $environment,
+            ): void {
+                $actor = $this->requireFreshOperator($actorId);
+                $finalRun = $this->runs->findOneById($activeRunId);
+                if (!$finalRun instanceof PaymentReconciliationRun) {
+                    throw CommerceException::conflict();
+                }
+                $finalRun->complete(
+                    $runStatus,
+                    $checked,
+                    $matched,
+                    $discrepancy,
+                    $failed,
+                    UtcInstant::ensure($this->clock->now()),
+                );
+                $this->runs->save($finalRun, false);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::PaymentReconciliationCompleted,
+                    actorType: SecurityAuditActorType::User,
+                    outcome: PaymentReconciliationRunStatus::Failed === $runStatus
+                        ? SecurityAuditOutcome::Failure
+                        : SecurityAuditOutcome::Success,
+                    actorUser: $actor,
+                    metadata: [
+                        'source' => 'payment_reconciliation',
+                        'reason_code' => $reasonCode,
+                        'provider_code' => $providerCode,
+                        'environment' => $environment->value,
+                        'reconciliation_run_id' => $finalRun->getId()->toRfc4122(),
+                        'checked_count' => $checked,
+                        'matched_count' => $matched,
+                        'discrepancy_count' => $discrepancy,
+                        'failed_count' => $failed,
+                        'processing_status' => $runStatus->value,
+                    ],
+                    captureRequestHashes: false,
+                ), flush: false);
+                $this->em->flush();
+            });
         }
 
         return new PaymentReconciliationSummary(
@@ -306,14 +259,279 @@ final class PaymentReconciliationService
         );
     }
 
-    private function requireManagedActor(Uuid $actorId): User
+    /**
+     * @return array{bucket: 'matched'|'discrepancy'|'failed', hardFailure: bool}
+     */
+    private function reconcileOneAttempt(
+        Uuid $actorId,
+        Uuid $attemptId,
+        PaymentReconciliationLookupResult $lookup,
+        ?Uuid $activeRunId,
+        string $providerCode,
+        PaymentProviderEnvironment $environment,
+        bool $dryRun,
+    ): array {
+        // Post-provider authorization + fresh local graph before any decision/mutation.
+        $decision = $this->em->wrapInTransaction(function () use ($actorId, $attemptId, $lookup): array {
+            [, $attempt] = $this->loadFreshAuthorizedAttempt($actorId, $attemptId);
+
+            return $this->decide($attempt, $lookup);
+        });
+
+        [$outcome, $action, $providerState, $snapshotHash, $itemReason] = $decision;
+        $actionApplied = false;
+
+        if (!$dryRun
+            && PaymentReconciliationItemAction::WebhookRequeued === $action
+            && $lookup->snapshot instanceof PaymentProviderTransactionSnapshot
+        ) {
+            try {
+                // Domain convergence uses the Stage 2.18 processor (own TX boundaries).
+                $seed = $this->attempts->findOneById($attemptId);
+                if (!$seed instanceof PaymentAttempt) {
+                    throw CommerceException::notFound();
+                }
+                $this->enqueueVerifiedCapture($seed, $lookup->snapshot);
+                $actionApplied = true;
+            } catch (CommerceException $e) {
+                $outcome = PaymentReconciliationItemOutcome::Failed;
+                $action = PaymentReconciliationItemAction::ManualReviewRequired;
+                $itemReason = $e->getReason()->value;
+            } catch (\Throwable) {
+                $outcome = PaymentReconciliationItemOutcome::Failed;
+                $action = PaymentReconciliationItemAction::ManualReviewRequired;
+                $itemReason = 'webhook_requeue_failed';
+            }
+        }
+
+        if (!$dryRun && $activeRunId instanceof Uuid) {
+            $this->em->wrapInTransaction(function () use (
+                $activeRunId,
+                $attemptId,
+                $actorId,
+                $lookup,
+                &$outcome,
+                &$action,
+                &$providerState,
+                &$snapshotHash,
+                &$itemReason,
+                $actionApplied,
+                $providerCode,
+                $environment,
+            ): void {
+                [$actor, $freshAttempt] = $this->loadFreshAuthorizedAttempt($actorId, $attemptId);
+                // Re-compare against the post-mutation fresh local state (except when enqueue failed).
+                if ($actionApplied || PaymentReconciliationItemOutcome::Failed !== $outcome) {
+                    [$outcome, $action, $providerState, $snapshotHash, $itemReason] = $this->decide(
+                        $freshAttempt,
+                        $lookup,
+                    );
+                    if ($actionApplied
+                        && \in_array($outcome, [
+                            PaymentReconciliationItemOutcome::LocalBehind,
+                            PaymentReconciliationItemOutcome::Matched,
+                        ], true)
+                    ) {
+                        // Convergence ran; keep the applied action on the historical item.
+                        $action = PaymentReconciliationItemAction::WebhookRequeued;
+                        $itemReason = 'local_behind_capture';
+                        $outcome = PaymentReconciliationItemOutcome::LocalBehind;
+                    }
+                }
+
+                $persistedRun = $this->runs->findOneById($activeRunId);
+                if (!$persistedRun instanceof PaymentReconciliationRun) {
+                    throw CommerceException::conflict();
+                }
+                $item = PaymentReconciliationItem::record(
+                    $persistedRun,
+                    $freshAttempt,
+                    $freshAttempt->getStatus(),
+                    $providerState,
+                    $outcome,
+                    $action,
+                    $snapshotHash,
+                    UtcInstant::ensure($this->clock->now()),
+                    $itemReason,
+                );
+                $this->items->save($item, false);
+
+                if ($actionApplied) {
+                    $this->auditRecorder->record(new SecurityAuditContext(
+                        action: SecurityAuditAction::PaymentReconciliationActionApplied,
+                        actorType: SecurityAuditActorType::User,
+                        outcome: SecurityAuditOutcome::Success,
+                        actorUser: $actor,
+                        metadata: [
+                            'source' => 'payment_reconciliation',
+                            'reason_code' => 'webhook_requeued',
+                            'provider_code' => $providerCode,
+                            'environment' => $environment->value,
+                            'reconciliation_run_id' => $persistedRun->getId()->toRfc4122(),
+                            'reconciliation_outcome' => $outcome->value,
+                            'payment_attempt_id' => $attemptId->toRfc4122(),
+                        ],
+                        captureRequestHashes: false,
+                    ), flush: false);
+                }
+
+                if ($outcome->isDiscrepancy()) {
+                    $this->auditRecorder->record(new SecurityAuditContext(
+                        action: SecurityAuditAction::PaymentReconciliationDiscrepancyFound,
+                        actorType: SecurityAuditActorType::User,
+                        outcome: SecurityAuditOutcome::Failure,
+                        actorUser: $actor,
+                        metadata: [
+                            'source' => 'payment_reconciliation',
+                            'reason_code' => $itemReason ?? $outcome->value,
+                            'provider_code' => $providerCode,
+                            'environment' => $environment->value,
+                            'reconciliation_run_id' => $persistedRun->getId()->toRfc4122(),
+                            'reconciliation_outcome' => $outcome->value,
+                            'payment_attempt_id' => $attemptId->toRfc4122(),
+                        ],
+                        captureRequestHashes: false,
+                    ), flush: false);
+                }
+                $this->em->flush();
+            });
+        }
+
+        $hardFailure = $outcome->isHardFailure();
+        $bucket = match (true) {
+            $hardFailure => 'failed',
+            $outcome->isDiscrepancy() => 'discrepancy',
+            default => 'matched',
+        };
+
+        return ['bucket' => $bucket, 'hardFailure' => $hardFailure];
+    }
+
+    private function requireFreshOperator(Uuid $actorId): User
     {
-        $actor = $this->em->find(User::class, $actorId);
+        $actor = $this->freshUsers->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$actor instanceof User) {
             throw CommerceException::unauthorized();
         }
+        $this->commerceAuthorization->assertCanOperatePayments($actor);
 
         return $actor;
+    }
+
+    /**
+     * Lock order: Institution → Actor → Order → Attempt.
+     *
+     * @return array{0: User, 1: PaymentAttempt}
+     */
+    private function loadFreshAuthorizedAttempt(Uuid $actorId, Uuid $attemptId): array
+    {
+        $seed = $this->attempts->findOneById($attemptId);
+        if (!$seed instanceof PaymentAttempt) {
+            throw CommerceException::notFound();
+        }
+        $orderId = $seed->getOrder()->getId();
+        $institutionId = $seed->getOrder()->getInstitution()?->getId();
+
+        if ($institutionId instanceof Uuid) {
+            $freshInstitution = $this->freshInstitutions->findFreshLockedInstitution(
+                $institutionId,
+                LockMode::PESSIMISTIC_READ,
+            );
+            if (!$freshInstitution instanceof Institution) {
+                throw CommerceException::conflict();
+            }
+        }
+
+        $actor = $this->requireFreshOperator($actorId);
+
+        $order = $this->freshCommerce->findFreshOrder($orderId, LockMode::PESSIMISTIC_READ);
+        if (!$order instanceof CommerceOrder) {
+            throw CommerceException::conflict();
+        }
+
+        $attempt = $this->freshCommerce->findFreshPaymentAttempt($attemptId, LockMode::PESSIMISTIC_WRITE);
+        if (!$attempt instanceof PaymentAttempt) {
+            throw CommerceException::notFound();
+        }
+
+        return [$actor, $attempt];
+    }
+
+    private function abandonRunBestEffort(
+        Uuid $runId,
+        Uuid $actorId,
+        int $matched,
+        int $discrepancy,
+        int $failed,
+        string $reasonCode,
+        string $providerCode,
+        PaymentProviderEnvironment $environment,
+    ): void {
+        try {
+            if (!$this->em->isOpen()) {
+                return;
+            }
+            $this->em->wrapInTransaction(function () use (
+                $runId,
+                $actorId,
+                $matched,
+                $discrepancy,
+                $failed,
+                $reasonCode,
+                $providerCode,
+                $environment,
+            ): void {
+                $run = $this->runs->findOneById($runId);
+                if (!$run instanceof PaymentReconciliationRun
+                    || PaymentReconciliationRunStatus::Running !== $run->getStatus()
+                ) {
+                    return;
+                }
+                $checked = $matched + $discrepancy + $failed;
+                $run->complete(
+                    PaymentReconciliationRunStatus::Failed,
+                    $checked,
+                    $matched,
+                    $discrepancy,
+                    $failed,
+                    UtcInstant::ensure($this->clock->now()),
+                );
+                $this->runs->save($run, false);
+
+                $actor = null;
+                try {
+                    $actor = $this->requireFreshOperator($actorId);
+                } catch (CommerceException) {
+                    $actor = $this->em->find(User::class, $actorId);
+                    $actor = $actor instanceof User ? $actor : null;
+                }
+
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::PaymentReconciliationCompleted,
+                    actorType: $actor instanceof User
+                        ? SecurityAuditActorType::User
+                        : SecurityAuditActorType::System,
+                    outcome: SecurityAuditOutcome::Failure,
+                    actorUser: $actor,
+                    metadata: [
+                        'source' => 'payment_reconciliation',
+                        'reason_code' => $reasonCode,
+                        'provider_code' => $providerCode,
+                        'environment' => $environment->value,
+                        'reconciliation_run_id' => $run->getId()->toRfc4122(),
+                        'checked_count' => $checked,
+                        'matched_count' => $matched,
+                        'discrepancy_count' => $discrepancy,
+                        'failed_count' => $failed,
+                        'processing_status' => PaymentReconciliationRunStatus::Failed->value,
+                    ],
+                    captureRequestHashes: false,
+                ), flush: false);
+                $this->em->flush();
+            });
+        } catch (\Throwable) {
+            // Best-effort only: never mask the original failure.
+        }
     }
 
     /**
@@ -352,7 +570,7 @@ final class PaymentReconciliationService
         }
 
         $adapter = $this->providers->findReconciliationAdapter($providerCode);
-        if (!$adapter instanceof \App\Commerce\PaymentProviderReconciliationAdapterInterface) {
+        if (!$adapter instanceof PaymentProviderReconciliationAdapterInterface) {
             return PaymentReconciliationLookupResult::unsupported('reconciliation_adapter_not_registered');
         }
 

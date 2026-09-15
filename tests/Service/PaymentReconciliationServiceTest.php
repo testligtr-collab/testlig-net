@@ -183,6 +183,161 @@ final class PaymentReconciliationServiceTest extends KernelTestCase
         }
     }
 
+    public function testOperatorRevokedDuringProviderCallIsDenied(): void
+    {
+        $attempt = $this->authorizedAttempt('prs_toctou');
+        $ref = $attempt->getProviderPaymentReference();
+        self::assertNotNull($ref);
+        $this->adapter->setSnapshot($ref, $this->snapshot($attempt, PaymentProviderTransactionStatus::Authorized));
+        $actorId = $this->sa->getId();
+        $this->adapter->setBeforeQuery(function () use ($actorId): void {
+            $this->em->getConnection()->executeStatement(
+                'UPDATE users SET global_roles = ? WHERE id = ?',
+                [json_encode(['ROLE_USER'], \JSON_THROW_ON_ERROR), $actorId->toBinary()],
+            );
+        });
+
+        try {
+            $this->reconcile($attempt);
+            self::fail('Expected operator revoked during provider call');
+        } catch (CommerceException $e) {
+            self::assertSame(CommerceFailureReason::Unauthorized, $e->getReason());
+        } finally {
+            $this->adapter->setBeforeQuery(null);
+            $this->recoverDoctrine();
+        }
+
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM payment_reconciliation_items',
+        ));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM payment_webhook_inbox_events WHERE provider_event_reference LIKE 'recon_%'",
+        ));
+    }
+
+    public function testAttemptChangedDuringProviderCallUsesFreshState(): void
+    {
+        $attempt = $this->authorizedAttempt('prs_race');
+        $ref = $attempt->getProviderPaymentReference();
+        self::assertNotNull($ref);
+        // Provider reports capture, but a concurrent local capture lands during the network call.
+        $this->adapter->setSnapshot($ref, $this->snapshot(
+            $attempt,
+            PaymentProviderTransactionStatus::Captured,
+            capturedAt: new \DateTimeImmutable('2026-09-13 12:00:00', new \DateTimeZone('UTC')),
+        ));
+        $attemptId = $attempt->getId();
+        $sa = $this->sa;
+        $this->adapter->setBeforeQuery(function () use ($attemptId, $sa): void {
+            $fresh = $this->scenario->refresh(PaymentAttempt::class, $attemptId);
+            self::assertInstanceOf(PaymentAttempt::class, $fresh);
+            $this->scenario->service(PaymentSettlementManager::class)->recordCaptured(
+                $fresh,
+                $sa,
+                $fresh->getAmount(),
+                $this->clock->now(),
+                'prs_race-cap-000000000',
+                'capture',
+                $fresh->getProviderPaymentReference(),
+                'prov_prs_race_evt_c',
+                ['provider_code' => 'sandbox_provider', 'event_source' => 'test'],
+            );
+        });
+
+        try {
+            $summary = $this->reconcile($attempt);
+        } finally {
+            $this->adapter->setBeforeQuery(null);
+        }
+
+        self::assertSame(1, $summary->matched);
+        self::assertSame(0, $summary->discrepancy);
+        self::assertSame(PaymentAttemptStatus::Captured, $this->reload($attempt)->getStatus());
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM payment_webhook_inbox_events WHERE provider_event_reference LIKE 'recon_%'",
+        ));
+        $outcome = $this->em->getConnection()->fetchOne(
+            'SELECT outcome FROM payment_reconciliation_items ORDER BY checked_at DESC LIMIT 1',
+        );
+        self::assertSame(PaymentReconciliationItemOutcome::Matched->value, $outcome);
+    }
+
+    public function testStartAuditFailureRollsBackRun(): void
+    {
+        $attempt = $this->authorizedAttempt('prs_aud_start');
+        $ref = $attempt->getProviderPaymentReference();
+        self::assertNotNull($ref);
+        $this->adapter->setSnapshot($ref, $this->snapshot($attempt, PaymentProviderTransactionStatus::Authorized));
+
+        $connection = $this->em->getConnection();
+        $connection->executeStatement('RENAME TABLE security_audit_events TO security_audit_events_bak');
+        try {
+            try {
+                $this->reconcile($attempt);
+                self::fail('Expected audit failure');
+            } catch (\Throwable) {
+            }
+        } finally {
+            $connection->executeStatement('RENAME TABLE security_audit_events_bak TO security_audit_events');
+            $this->recoverDoctrine();
+        }
+
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM payment_reconciliation_runs',
+        ));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM payment_reconciliation_items',
+        ));
+    }
+
+    public function testItemAuditFailureRollsBackItem(): void
+    {
+        $attempt = $this->authorizedAttempt('prs_aud_item');
+        $ref = $attempt->getProviderPaymentReference();
+        self::assertNotNull($ref);
+        $snap = $this->snapshot($attempt, PaymentProviderTransactionStatus::Authorized);
+        $this->adapter->setSnapshot($ref, new PaymentProviderTransactionSnapshot(
+            providerCode: $snap->providerCode,
+            environment: $snap->environment,
+            providerPaymentReference: $snap->providerPaymentReference,
+            providerStatus: $snap->providerStatus,
+            amountMinor: $snap->amountMinor + 1,
+            currency: $snap->currency,
+            providerUpdatedAt: $snap->providerUpdatedAt,
+            authorizedAt: $snap->authorizedAt,
+            providerAuthorizationReference: $snap->providerAuthorizationReference,
+        ));
+        $this->adapter->setBeforeQuery(function (): void {
+            $this->em->getConnection()->executeStatement(
+                'RENAME TABLE security_audit_events TO security_audit_events_bak',
+            );
+        });
+
+        try {
+            try {
+                $this->reconcile($attempt);
+                self::fail('Expected item audit failure');
+            } catch (\Throwable) {
+            }
+        } finally {
+            $this->adapter->setBeforeQuery(null);
+            try {
+                $this->em->getConnection()->executeStatement(
+                    'RENAME TABLE security_audit_events_bak TO security_audit_events',
+                );
+            } catch (\Throwable) {
+            }
+            $this->recoverDoctrine();
+        }
+
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM payment_reconciliation_items',
+        ));
+        self::assertSame(0, (int) $this->em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM payment_webhook_inbox_events WHERE provider_event_reference LIKE 'recon_%'",
+        ));
+    }
+
     private function reconcile(PaymentAttempt $attempt): \App\Dto\PaymentReconciliationSummary
     {
         return $this->scenario->service(PaymentReconciliationService::class)->reconcile(
