@@ -49,6 +49,7 @@ security:
         - { path: ^/giris, roles: PUBLIC_ACCESS }
         - { path: ^/cikis, roles: PUBLIC_ACCESS }
         - { path: ^/hesabim, roles: ROLE_USER }
+        - { path: ^/yonetim, roles: ROLE_USER }
         - { path: ^/$, roles: PUBLIC_ACCESS }
 
 when@test:

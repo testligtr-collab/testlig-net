@@ -132,6 +132,10 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    App\Service\Admin\AdminSystemHealthReadModel:
+        arguments:
+            $migrations: '@doctrine.migrations.dependency_factory'
+
 when@test:
     services:
         App\Service\UserFactory:
@@ -825,3 +829,41 @@ when@test:
             autowire: true
             autoconfigure: true
             tags: ['doctrine.repository_service']
+        App\Security\AdminAuthorization:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminActorGuard:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminDashboardReadModel:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminSystemHealthReadModel:
+            public: true
+            autowire: true
+            autoconfigure: true
+            arguments:
+                $migrations: '@doctrine.migrations.dependency_factory'
+        App\Service\Admin\AdminPaymentOperationsQuery:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminWebhookQueueQuery:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminReconciliationQuery:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminAuditReadModel:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Admin\AdminNavBuilder:
+            public: true
+            autowire: true
+            autoconfigure: true
