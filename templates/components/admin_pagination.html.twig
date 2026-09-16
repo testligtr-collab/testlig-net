@@ -7,7 +7,7 @@
 {% set total_pages = result.totalPages() %}
 <nav class="admin-pagination" aria-label="Sayfalama">
     <p class="muted admin-pagination__meta">
-        Sayfa {{ result.page }} / {{ total_pages }} · {{ result.totalCount }} kayıt
+        Sayfa {{ result.page }} / {{ total_pages }} · {{ result.totalCount }} kayıt · {{ result.pageSize }}/sayfa
     </p>
     <div class="admin-pagination__links">
         {% if result.page > 1 %}

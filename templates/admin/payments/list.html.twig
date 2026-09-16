@@ -71,18 +71,18 @@
                 </tbody>
             </table>
         </div>
-        {% include 'components/admin_pagination.html.twig' with {
-            result: result,
-            route: 'app_admin_payments',
-            query: {
-                status: filters.status|default(''),
-                provider: filters.provider|default(''),
-                environment: filters.environment|default(''),
-                created_from: filters.created_from|default(''),
-                created_to: filters.created_to|default(''),
-                order_public_reference: filters.order_public_reference|default(''),
-                needs_reconciliation: filters.needs_reconciliation is same as(true) ? '1' : (filters.needs_reconciliation is same as(false) ? '0' : '')
-            }
-        } %}
     {% endif %}
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_payments',
+        query: {
+            status: filters.status|default(''),
+            provider: filters.provider|default(''),
+            environment: filters.environment|default(''),
+            created_from: filters.created_from|default(''),
+            created_to: filters.created_to|default(''),
+            order_public_reference: filters.order_public_reference|default(''),
+            needs_reconciliation: filters.needs_reconciliation is same as(true) ? '1' : (filters.needs_reconciliation is same as(false) ? '0' : '')
+        }
+    } %}
 {% endblock %}

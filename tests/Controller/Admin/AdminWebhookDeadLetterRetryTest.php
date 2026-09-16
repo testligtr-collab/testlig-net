@@ -130,7 +130,9 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $client->submit($form);
         self::assertResponseRedirects('/yonetim/webhook/'.$event->getId()->toRfc4122());
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'yeniden kuyruğa alındı');
+        self::assertSelectorExists('.admin-flash');
+        self::assertSelectorTextContains('.admin-flash', 'yeniden kuyruğa alındı');
+        self::assertSelectorNotExists('.page.flash');
 
         $client->request('POST', '/yonetim/webhook/'.$event->getId()->toRfc4122().'/yeniden-dene', [
             'admin_webhook_dead_letter_requeue' => [
@@ -145,6 +147,27 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             str_contains($body, 'dead-letter durumunda değil') || str_contains($body, 'geçersiz'),
             'Expected duplicate-safe flash',
         );
+        self::assertSelectorExists('.admin-flash');
+    }
+
+    public function testPlainAdminCannotPostDeadLetterRetry(): void
+    {
+        $client = static::getClient();
+        self::assertInstanceOf(KernelBrowser::class, $client);
+        $sa = $this->loginAs($client, 'admin_dl_gate_sa@example.com', UserRole::SuperAdmin);
+        $this->bindSettlementActor($sa);
+        $event = $this->persistDeadLetter('gate');
+        $eventId = $event->getId()->toRfc4122();
+
+        $client->restart();
+        $this->loginAs($client, 'admin_dl_gate_admin@example.com', UserRole::Admin);
+        $client->request('POST', '/yonetim/webhook/'.$eventId.'/yeniden-dene', [
+            'admin_webhook_dead_letter_requeue' => [
+                'reasonCode' => AdminWebhookDeadLetterRequeueRequest::REASON_MANUAL_REQUEUE_REVIEW,
+                'confirm' => '1',
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testAdminHtmlOmitsSecretsAndHashes(): void
@@ -154,12 +177,17 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $sa = $this->loginAs($client, 'admin_dl_leak_sa@example.com', UserRole::SuperAdmin);
         $this->bindSettlementActor($sa);
         $event = $this->persistDeadLetter('leak');
+        $attempt = $event->getPaymentAttempt();
 
-        $client->request('GET', '/yonetim/webhook/'.$event->getId()->toRfc4122());
-        self::assertResponseIsSuccessful();
-        $html = (string) $client->getResponse()->getContent();
+        $paths = [
+            '/yonetim/webhook/'.$event->getId()->toRfc4122(),
+            '/yonetim/denetim',
+        ];
+        if ($attempt instanceof PaymentAttempt) {
+            $paths[] = '/yonetim/odemeler/'.$attempt->getId()->toRfc4122();
+        }
 
-        foreach ([
+        $needles = [
             'payloadHash',
             'payload_hash',
             'signatureFingerprint',
@@ -167,8 +195,19 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             'sk_live',
             'ciphertext',
             '@gmail.com',
-        ] as $needle) {
-            self::assertStringNotContainsStringIgnoringCase($needle, $html);
+        ];
+
+        foreach ($paths as $path) {
+            $client->request('GET', $path);
+            self::assertResponseIsSuccessful(\sprintf('%s should render', $path));
+            $html = (string) $client->getResponse()->getContent();
+            foreach ($needles as $needle) {
+                self::assertStringNotContainsStringIgnoringCase(
+                    $needle,
+                    $html,
+                    \sprintf('%s must not leak %s', $path, $needle),
+                );
+            }
         }
     }
 

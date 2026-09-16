@@ -109,6 +109,16 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testUnknownWebhookAndReconciliationReturnNotFound(): void
+    {
+        $client = static::createClient();
+        $this->loginAs($client, 'admin_matrix_nf2_sa@example.com', UserRole::SuperAdmin);
+        $client->request('GET', '/yonetim/webhook/'.Uuid::v7()->toRfc4122());
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', '/yonetim/uzlastirma/'.Uuid::v7()->toRfc4122());
+        self::assertResponseStatusCodeSame(404);
+    }
+
     public function testInvalidPaymentFilterReturnsNotFound(): void
     {
         $client = static::createClient();
@@ -123,6 +133,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $this->loginAs($client, 'admin_matrix_page_sa@example.com', UserRole::SuperAdmin);
         $client->request('GET', '/yonetim/odemeler', ['page_size' => 1000]);
         self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.admin-pagination', '100/sayfa');
+        self::assertSelectorNotExists('a[href*="page_size=1000"]');
     }
 
     private function loginAs(KernelBrowser $client, string $email, UserRole $role): User
