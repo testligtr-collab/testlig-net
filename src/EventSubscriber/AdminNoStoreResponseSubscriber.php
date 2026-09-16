@@ -25,7 +25,7 @@ final class AdminNoStoreResponseSubscriber implements EventSubscriberInterface
         }
 
         $path = $event->getRequest()->getPathInfo();
-        if (!str_starts_with($path, '/yonetim')) {
+        if ('/yonetim' !== $path && !str_starts_with($path, '/yonetim/')) {
             return;
         }
 

@@ -89,8 +89,19 @@ final class AdminWebhookController extends AdminBaseController
     {
         $actorId = $this->requireActorId();
         $limiter = $this->deadLetterRequeueLimiter->create($actorId->toRfc4122().':'.$eventId->toRfc4122());
-        if (!$limiter->consume(1)->isAccepted()) {
-            throw new TooManyRequestsHttpException(null, 'Çok fazla yeniden deneme isteği. Lütfen daha sonra tekrar deneyin.');
+        $rateLimit = $limiter->consume(1);
+        if (!$rateLimit->isAccepted()) {
+            $seconds = max(1, $rateLimit->getRetryAfter()->getTimestamp() - time());
+            throw new TooManyRequestsHttpException(
+                $seconds,
+                'Çok fazla yeniden deneme isteği. Lütfen daha sonra tekrar deneyin.',
+            );
+        }
+
+        $payload = $request->request->all()['admin_webhook_dead_letter_requeue'] ?? null;
+        $token = \is_array($payload) ? ($payload['_token'] ?? null) : null;
+        if (!\is_string($token) || '' === $token) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
         }
 
         $dto = new AdminWebhookDeadLetterRequeueRequest();
@@ -100,6 +111,9 @@ final class AdminWebhookController extends AdminBaseController
         $form->handleRequest($request);
 
         if (!$form->isSubmitted() || !$form->isValid()) {
+            if ($this->formHasCsrfFailure($form)) {
+                throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+            }
             $this->addFlash('error', 'Yeniden deneme formu geçersiz. Onay ve geçerli gerekçe gereklidir.');
 
             return $this->redirectToRoute('app_admin_webhook_detail', ['eventId' => $eventId]);
@@ -135,5 +149,20 @@ final class AdminWebhookController extends AdminBaseController
         $this->applyNoStore($response);
 
         return $response;
+    }
+
+    /**
+     * @param \Symfony\Component\Form\FormInterface<mixed> $form
+     */
+    private function formHasCsrfFailure(\Symfony\Component\Form\FormInterface $form): bool
+    {
+        foreach ($form->getErrors(true) as $error) {
+            $haystack = strtolower($error->getMessage().' '.$error->getMessageTemplate());
+            if (str_contains($haystack, 'csrf')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

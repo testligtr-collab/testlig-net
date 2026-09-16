@@ -24,6 +24,15 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/yonetim');
         self::assertResponseRedirects('/giris');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testYonetimPrefixDoesNotMatchYonetimFoo(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/yonetimfoo');
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testStudentGetsForbidden(): void
@@ -82,6 +91,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
             $client->request('GET', $path);
             self::assertResponseIsSuccessful(\sprintf('%s should be allowed for SA', $path));
             self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+            self::assertResponseHeaderSame('Pragma', 'no-cache');
         }
     }
 

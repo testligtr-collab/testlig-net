@@ -56,6 +56,20 @@ final class PaymentWebhookInboxEventRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findFreshById(Uuid $id): ?PaymentWebhookInboxEvent
+    {
+        $result = $this->getEntityManager()->createQueryBuilder()
+            ->select('e')
+            ->from(PaymentWebhookInboxEvent::class, 'e')
+            ->where('e.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery()
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
+
+        return $result instanceof PaymentWebhookInboxEvent ? $result : null;
+    }
+
     public function findFreshForUpdate(Uuid $id): ?PaymentWebhookInboxEvent
     {
         $result = $this->getEntityManager()->createQueryBuilder()

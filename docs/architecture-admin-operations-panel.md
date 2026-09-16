@@ -56,9 +56,10 @@ DTO projections only — no entity graphs to Twig.
 ## Dead-letter requeue
 
 - Form DTO `AdminWebhookDeadLetterRequeueRequest` + `AdminWebhookDeadLetterRequeueFormType`
-- CSRF intention `admin_webhook_dead_letter_requeue_{eventId}`; `allow_extra_fields: false`; confirm required
-- Rate limiter `admin_dead_letter_requeue` (5 / 10 minutes, key `userId:eventId`)
+- CSRF intention `admin_webhook_dead_letter_requeue_{eventId}`; missing/wrong/cross-event token → **HTTP 403** (no flash hide); `allow_extra_fields: false`; confirm required
+- Rate limiter `admin_dead_letter_requeue` (5 / 10 minutes, key `userId:eventId`); over-limit → **429** + `Retry-After`
 - Calls `PaymentWebhookDeadLetterRequeueService::requeue`; PRG + flash; GET → 405
+- Detail read uses `PaymentWebhookInboxEventRepository::findFreshById()` (`HINT_REFRESH`, no WRITE lock)
 
 ## Presentation
 

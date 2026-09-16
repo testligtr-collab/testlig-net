@@ -79,6 +79,8 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $sa = $this->loginAs($client, 'admin_dl_csrf_sa@example.com', UserRole::SuperAdmin);
         $this->bindSettlementActor($sa);
         $event = $this->persistDeadLetter('csrf');
+        $statusBefore = $event->getProcessingStatus();
+        $auditsBefore = $this->countRequeueSuccessAudits($event->getId());
 
         $client->request('POST', '/yonetim/webhook/'.$event->getId()->toRfc4122().'/yeniden-dene', [
             'admin_webhook_dead_letter_requeue' => [
@@ -86,9 +88,60 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
                 'confirm' => '1',
             ],
         ]);
-        self::assertResponseRedirects();
-        $client->followRedirect();
-        self::assertSelectorTextContains('body', 'geçersiz');
+        self::assertResponseStatusCodeSame(403);
+        $this->assertEventUnchanged($event->getId(), $statusBefore);
+        self::assertSame($auditsBefore, $this->countRequeueSuccessAudits($event->getId()));
+    }
+
+    public function testRetryRejectsWrongCsrfToken(): void
+    {
+        $client = static::getClient();
+        self::assertInstanceOf(KernelBrowser::class, $client);
+        $sa = $this->loginAs($client, 'admin_dl_csrf_bad_sa@example.com', UserRole::SuperAdmin);
+        $this->bindSettlementActor($sa);
+        $event = $this->persistDeadLetter('csrfbad');
+        $statusBefore = $event->getProcessingStatus();
+
+        $client->request('POST', '/yonetim/webhook/'.$event->getId()->toRfc4122().'/yeniden-dene', [
+            'admin_webhook_dead_letter_requeue' => [
+                'reasonCode' => AdminWebhookDeadLetterRequeueRequest::REASON_MANUAL_REQUEUE_REVIEW,
+                'confirm' => '1',
+                '_token' => 'definitely-not-a-valid-csrf-token',
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        $this->assertEventUnchanged($event->getId(), $statusBefore);
+    }
+
+    public function testRetryRejectsCrossEventCsrfToken(): void
+    {
+        $client = static::getClient();
+        self::assertInstanceOf(KernelBrowser::class, $client);
+        $sa = $this->loginAs($client, 'admin_dl_csrf_x_sa@example.com', UserRole::SuperAdmin);
+        $this->bindSettlementActor($sa);
+        $eventA = $this->persistDeadLetter('csrfxa');
+        $eventB = $this->persistDeadLetter('csrfxb');
+
+        $crawler = $client->request('GET', '/yonetim/webhook/'.$eventA->getId()->toRfc4122());
+        self::assertResponseIsSuccessful();
+        $form = $crawler->selectButton('Yeniden kuyruğa al')->form([
+            'admin_webhook_dead_letter_requeue[reasonCode]' => AdminWebhookDeadLetterRequeueRequest::REASON_MANUAL_REQUEUE_REVIEW,
+            'admin_webhook_dead_letter_requeue[confirm]' => '1',
+        ]);
+        $values = $form->getPhpValues();
+        $token = $values['admin_webhook_dead_letter_requeue']['_token'] ?? null;
+        self::assertIsString($token);
+
+        $client->request('POST', '/yonetim/webhook/'.$eventB->getId()->toRfc4122().'/yeniden-dene', [
+            'admin_webhook_dead_letter_requeue' => [
+                'reasonCode' => AdminWebhookDeadLetterRequeueRequest::REASON_MANUAL_REQUEUE_REVIEW,
+                'confirm' => '1',
+                '_token' => $token,
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        $this->assertEventUnchanged($eventB->getId(), PaymentWebhookInboxStatus::DeadLetter);
+        self::assertSame(0, $this->countRequeueSuccessAudits($eventB->getId()));
     }
 
     public function testRetryRejectsInvalidReason(): void
@@ -127,6 +180,8 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             'admin_webhook_dead_letter_requeue[reasonCode]' => AdminWebhookDeadLetterRequeueRequest::REASON_OPERATOR_RETRY_AFTER_FIX,
             'admin_webhook_dead_letter_requeue[confirm]' => '1',
         ]);
+        $token = $form->getPhpValues()['admin_webhook_dead_letter_requeue']['_token'] ?? null;
+        self::assertIsString($token);
         $client->submit($form);
         self::assertResponseRedirects('/yonetim/webhook/'.$event->getId()->toRfc4122());
         $client->followRedirect();
@@ -138,6 +193,7 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             'admin_webhook_dead_letter_requeue' => [
                 'reasonCode' => AdminWebhookDeadLetterRequeueRequest::REASON_OPERATOR_RETRY_AFTER_FIX,
                 'confirm' => '1',
+                '_token' => $token,
             ],
         ]);
         self::assertResponseRedirects();
@@ -176,7 +232,9 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         self::assertInstanceOf(KernelBrowser::class, $client);
         $sa = $this->loginAs($client, 'admin_dl_leak_sa@example.com', UserRole::SuperAdmin);
         $this->bindSettlementActor($sa);
-        $event = $this->persistDeadLetter('leak');
+        $seeded = $this->persistDeadLetterWithCanaries('leak');
+        $event = $seeded['event'];
+        $canaries = $seeded['canaries'];
         $attempt = $event->getPaymentAttempt();
 
         $paths = [
@@ -187,28 +245,26 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             $paths[] = '/yonetim/odemeler/'.$attempt->getId()->toRfc4122();
         }
 
-        $needles = [
-            'payloadHash',
-            'payload_hash',
-            'signatureFingerprint',
-            'signature_fingerprint',
-            'sk_live',
-            'ciphertext',
-            '@gmail.com',
-        ];
-
         foreach ($paths as $path) {
             $client->request('GET', $path);
             self::assertResponseIsSuccessful(\sprintf('%s should render', $path));
             $html = (string) $client->getResponse()->getContent();
-            foreach ($needles as $needle) {
-                self::assertStringNotContainsStringIgnoringCase(
+            foreach ($canaries as $label => $needle) {
+                self::assertStringNotContainsString(
                     $needle,
                     $html,
-                    \sprintf('%s must not leak %s', $path, $needle),
+                    \sprintf('%s must not leak canary %s', $path, $label),
                 );
             }
+            self::assertStringNotContainsStringIgnoringCase('sk_live', $html);
+            self::assertStringNotContainsStringIgnoringCase('@gmail.com', $html);
         }
+
+        $client->request('GET', '/yonetim/webhook/'.$event->getId()->toRfc4122());
+        self::assertSelectorTextContains('body', 'dead_letter');
+        self::assertSelectorTextContains('body', (string) $event->getAttemptCount());
+        self::assertSelectorTextContains('body', 'conflict');
+        self::assertSelectorExists('form[name="admin_webhook_dead_letter_requeue"]');
     }
 
     public function testRateLimitAfterBurstOnSameEvent(): void
@@ -219,9 +275,12 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $this->bindSettlementActor($sa);
         $event = $this->persistDeadLetter('rl');
         $path = '/yonetim/webhook/'.$event->getId()->toRfc4122().'/yeniden-dene';
+        $statusBefore = $event->getProcessingStatus();
+        $auditsBefore = $this->countRequeueSuccessAudits($event->getId());
 
-        // Limiter runs before form validation — invalid CSRF still consumes the budget.
+        // Limiter runs before CSRF — invalid token still consumes budget without mutation.
         $saw429 = false;
+        $retryAfter = null;
         for ($i = 0; $i < 6; ++$i) {
             $client->request('POST', $path, [
                 'admin_webhook_dead_letter_requeue' => [
@@ -231,10 +290,17 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
             ]);
             if (429 === $client->getResponse()->getStatusCode()) {
                 $saw429 = true;
+                $retryAfter = $client->getResponse()->headers->get('Retry-After');
                 break;
             }
+            self::assertResponseStatusCodeSame(403);
         }
         self::assertTrue($saw429);
+        self::assertNotNull($retryAfter);
+        self::assertMatchesRegularExpression('/^\d+$/', (string) $retryAfter);
+        self::assertGreaterThan(0, (int) $retryAfter);
+        $this->assertEventUnchanged($event->getId(), $statusBefore);
+        self::assertSame($auditsBefore, $this->countRequeueSuccessAudits($event->getId()));
     }
 
     private function bindSettlementActor(User $sa): void
@@ -252,7 +318,78 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $this->scenario = new CommerceScenario(static::getContainer(), $this->em);
     }
 
-    private function persistDeadLetter(string $suffix): PaymentWebhookInboxEvent
+    /**
+     * @return array{event: PaymentWebhookInboxEvent, canaries: array<string, string>}
+     */
+    private function persistDeadLetterWithCanaries(string $suffix): array
+    {
+        $canaries = [
+            'raw_payload' => 'CANARY_RAW_PAYLOAD_'.$suffix.'_'.bin2hex(random_bytes(6)),
+            'raw_signature' => 'CANARY_RAW_SIGNATURE_'.$suffix.'_'.bin2hex(random_bytes(6)),
+            'payload_hash' => hash('sha256', 'canary-payload-'.$suffix.'-'.bin2hex(random_bytes(4))),
+            'signature_fingerprint' => hash('sha256', 'canary-sig-'.$suffix.'-'.bin2hex(random_bytes(4))),
+            'provider_ref' => 'CANARY_PROVIDER_REF_'.$suffix.'_'.bin2hex(random_bytes(4)),
+            'claim_token' => Uuid::v7()->toRfc4122(),
+            'failure_diagnostic' => 'CANARY_INTERNAL_DIAG_'.$suffix.'_'.bin2hex(random_bytes(4)),
+            'idempotency_raw' => 'CANARY_IDEM_RAW_'.$suffix.'_'.bin2hex(random_bytes(8)),
+            'pan' => '4111111111111111',
+            'cvv' => 'CANARY_CVV_'.$suffix,
+            'expiry' => '12/99',
+            'cardholder' => 'CANARY CARDHOLDER '.$suffix,
+            'iban' => 'TR330006100519786457841326',
+            'auth_secret' => 'CANARY_AUTH_TOKEN_'.$suffix.'_'.bin2hex(random_bytes(8)),
+            'ciphertext' => 'CANARY_CIPHERTEXT_'.$suffix.'_'.bin2hex(random_bytes(8)),
+            'nonce' => 'CANARY_NONCE_'.$suffix.'_'.bin2hex(random_bytes(4)),
+            'answer_plain' => 'CANARY_ANSWER_PLAIN_'.$suffix,
+            'answer_hmac' => hash('sha256', 'canary-answer-'.$suffix),
+            'enc_key' => 'CANARY_ENC_KEY_'.$suffix.'_'.bin2hex(random_bytes(8)),
+            'email' => 'canary_leak_'.$suffix.'@example.com',
+            'raw_ip' => '203.0.113.'.random_int(10, 200),
+            'user_agent' => 'CANARY-UA/'.$suffix.'/'.bin2hex(random_bytes(3)),
+            'cookie' => 'CANARY_SESSION_'.$suffix.'_'.bin2hex(random_bytes(6)),
+            'dsn' => 'mysql://canary:secret@127.0.0.1:3306/canary_'.$suffix,
+            'fs_path' => '/var/www/html/canary/'.$suffix.'/secrets.env',
+            'stack_trace' => 'CANARY_STACK_#0 {main} '.$suffix,
+        ];
+
+        $event = $this->persistDeadLetter($suffix, $canaries);
+        $idemHash = $event->getPaymentAttempt()?->getIdempotencyKeyHash();
+        if (\is_string($idemHash) && '' !== $idemHash) {
+            $canaries['idempotency_hash'] = $idemHash;
+        }
+        $providerPayRef = $event->getPaymentAttempt()?->getProviderPaymentReference();
+        if (\is_string($providerPayRef) && '' !== $providerPayRef) {
+            $canaries['provider_payment_ref'] = $providerPayRef;
+        }
+
+        // Bypass recorder sanitizer to prove admin audit read-model still strips toxic keys.
+        $toxicAudit = \App\Entity\SecurityAuditEvent::create(
+            action: \App\Enum\SecurityAuditAction::PaymentWebhookDeadLetterRequeued,
+            actorType: \App\Enum\SecurityAuditActorType::User,
+            outcome: \App\Enum\SecurityAuditOutcome::Success,
+            occurredAt: new \DateTimeImmutable('2026-09-14 12:00:00', new \DateTimeZone('UTC')),
+            metadata: [
+                'raw_payload' => $canaries['raw_payload'],
+                'pan' => $canaries['pan'],
+                'cvv' => $canaries['cvv'],
+                'email' => $canaries['email'],
+                'ciphertext' => $canaries['ciphertext'],
+                'dsn' => $canaries['dsn'],
+                'payload_hash' => $canaries['payload_hash'],
+                'signature_fingerprint' => $canaries['signature_fingerprint'],
+                'stack_trace' => $canaries['stack_trace'],
+            ],
+        );
+        $this->em->persist($toxicAudit);
+        $this->em->flush();
+
+        return ['event' => $event, 'canaries' => $canaries];
+    }
+
+    /**
+     * @param array<string, string>|null $canaries
+     */
+    private function persistDeadLetter(string $suffix, ?array $canaries = null): PaymentWebhookInboxEvent
     {
         $this->rebindEm();
         $attempt = $this->initiatedAttempt($suffix);
@@ -261,14 +398,16 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         $attempt = $this->em->find(PaymentAttempt::class, $attemptId);
         self::assertInstanceOf(PaymentAttempt::class, $attempt);
 
-        $ref = 'admin-dl-'.$suffix.'-'.bin2hex(random_bytes(4));
+        $ref = $canaries['provider_ref'] ?? ('admin-dl-'.$suffix.'-'.bin2hex(random_bytes(4)));
+        $payloadHash = $canaries['payload_hash'] ?? hash('sha256', 'seed-'.$ref);
+        $sigFp = $canaries['signature_fingerprint'] ?? hash('sha256', 'sig-'.$ref);
         $verified = new VerifiedPaymentWebhook(
             providerCode: 'sandbox_provider',
             environment: PaymentProviderEnvironment::Sandbox,
             providerEventReference: $ref,
             eventType: PaymentEventType::Authorized,
-            payloadHash: hash('sha256', 'seed-'.$ref),
-            signatureFingerprint: hash('sha256', 'sig-'.$ref),
+            payloadHash: $payloadHash,
+            signatureFingerprint: $sigFp,
             providerOccurredAt: new \DateTimeImmutable('2026-09-13 12:00:00', new \DateTimeZone('UTC')),
             receivedAt: new \DateTimeImmutable('2026-09-13 12:00:00', new \DateTimeZone('UTC')),
             paymentAttemptId: $attempt->getId(),
@@ -288,6 +427,7 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
 
         $bin = $event->getId()->toBinary();
         $conn = $this->em->getConnection();
+        $claimToken = isset($canaries['claim_token']) ? Uuid::fromString($canaries['claim_token'])->toBinary() : $bin;
         $conn->executeStatement(
             'UPDATE payment_webhook_inbox_events SET
                 processing_status = ?, claim_token = ?, lease_expires_at = ?,
@@ -296,13 +436,14 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
              WHERE id = ?',
             [
                 PaymentWebhookInboxStatus::Processing->value,
-                $bin,
+                $claimToken,
                 '2026-09-13 12:01:00',
                 '2026-09-13 12:00:00',
                 4,
                 $bin,
             ],
         );
+        // Keep displayed reason code short/safe; long diagnostic canaries stay out of rendered columns.
         $conn->executeStatement(
             'UPDATE payment_webhook_inbox_events SET
                 processing_status = ?, closed_at = ?, failure_reason_code = ?,
@@ -325,6 +466,27 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         self::assertSame(PaymentWebhookInboxStatus::DeadLetter, $fresh->getProcessingStatus());
 
         return $fresh;
+    }
+
+    private function assertEventUnchanged(Uuid $eventId, PaymentWebhookInboxStatus $expectedStatus): void
+    {
+        $this->rebindEm();
+        $fresh = $this->em->find(PaymentWebhookInboxEvent::class, $eventId);
+        self::assertInstanceOf(PaymentWebhookInboxEvent::class, $fresh);
+        self::assertSame($expectedStatus, $fresh->getProcessingStatus());
+    }
+
+    private function countRequeueSuccessAudits(Uuid $eventId): int
+    {
+        $this->rebindEm();
+
+        return (int) $this->em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM security_audit_events
+             WHERE action = 'payment_webhook_dead_letter_requeued'
+               AND outcome = 'success'
+               AND metadata LIKE ?",
+            ['%"inbox_event_id":"'.$eventId->toRfc4122().'"%'],
+        );
     }
 
     private function initiatedAttempt(string $suffix): PaymentAttempt

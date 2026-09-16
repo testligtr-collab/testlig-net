@@ -9,6 +9,7 @@ use App\Dto\AdminWebhookInboxListItem;
 use App\Entity\PaymentWebhookInboxEvent;
 use App\Enum\PaymentWebhookInboxStatus;
 use App\Exception\CommerceException;
+use App\Repository\PaymentWebhookInboxEventRepository;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -47,6 +48,7 @@ final class AdminWebhookQueueQuery
         private readonly AdminActorGuard $actorGuard,
         private readonly EntityManagerInterface $em,
         private readonly ClockInterface $clock,
+        private readonly PaymentWebhookInboxEventRepository $events,
     ) {
     }
 
@@ -123,7 +125,7 @@ final class AdminWebhookQueueQuery
     public function getDetail(Uuid $actorId, Uuid $eventId): AdminWebhookInboxListItem
     {
         $this->actorGuard->requirePaymentOps($actorId);
-        $event = $this->em->find(PaymentWebhookInboxEvent::class, $eventId);
+        $event = $this->events->findFreshById($eventId);
         if (!$event instanceof PaymentWebhookInboxEvent) {
             throw CommerceException::notFound();
         }
