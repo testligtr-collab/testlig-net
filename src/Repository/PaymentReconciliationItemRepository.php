@@ -47,21 +47,43 @@ final class PaymentReconciliationItemRepository extends ServiceEntityRepository
         return $items;
     }
 
+    public function countDiscrepanciesByRun(PaymentReconciliationRun $run): int
+    {
+        return (int) $this->createQueryBuilder('i')
+            ->select('COUNT(i.id)')
+            ->andWhere('i.run = :run')
+            ->andWhere('i.outcome <> :matched')
+            ->setParameter('run', $run->getId(), 'uuid')
+            ->setParameter('matched', PaymentReconciliationItemOutcome::Matched)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * @return list<PaymentReconciliationItem>
      */
-    public function findDiscrepanciesByRun(PaymentReconciliationRun $run): array
-    {
-        /** @var list<PaymentReconciliationItem> $items */
-        $items = $this->createQueryBuilder('i')
+    public function findDiscrepanciesByRun(
+        PaymentReconciliationRun $run,
+        ?int $limit = null,
+        ?int $offset = null,
+    ): array {
+        $qb = $this->createQueryBuilder('i')
             ->andWhere('i.run = :run')
             ->andWhere('i.outcome <> :matched')
             ->setParameter('run', $run->getId(), 'uuid')
             ->setParameter('matched', PaymentReconciliationItemOutcome::Matched)
             ->orderBy('i.checkedAt', 'ASC')
-            ->addOrderBy('i.id', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('i.id', 'ASC');
+
+        if (null !== $limit) {
+            $qb->setMaxResults($limit);
+        }
+        if (null !== $offset) {
+            $qb->setFirstResult($offset);
+        }
+
+        /** @var list<PaymentReconciliationItem> $items */
+        $items = $qb->getQuery()->getResult();
 
         return $items;
     }

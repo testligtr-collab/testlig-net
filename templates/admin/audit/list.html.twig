@@ -1,0 +1,54 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Güvenlik denetimi — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Denetim</span>
+    </nav>
+    <h1 class="panel-greeting">Güvenlik denetim olayları</h1>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Olay yok',
+            body: 'Gösterilecek denetim kaydı bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Zaman</th>
+                        <th>Aksiyon</th>
+                        <th>Aktör</th>
+                        <th>Sonuç</th>
+                        <th>Metadata</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.occurredAt|utc_present }}</td>
+                            <td>{{ row.action.value }}</td>
+                            <td>{{ row.actorType.value }}</td>
+                            <td>{{ row.outcome.value }}</td>
+                            <td>
+                                <ul class="list-plain admin-meta-list">
+                                    {% for key, value in row.metadata %}
+                                        <li><code>{{ key }}</code>: {{ value }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_audit'
+        } %}
+    {% endif %}
+{% endblock %}

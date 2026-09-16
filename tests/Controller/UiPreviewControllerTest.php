@@ -43,10 +43,20 @@ final class UiPreviewControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Destekleyici öneri');
     }
 
+    public function testAdminPreviewIsAvailableInTestEnv(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/onizleme/admin');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Yönetim operasyon paneli önizlemesi.');
+        self::assertSelectorTextContains('body', 'Demo bildirim');
+    }
+
     public function testPreviewRoutesRejectMutatingMethods(): void
     {
         $client = static::createClient();
-        foreach (['/onizleme/ogrenci', '/onizleme/ogretmen', '/onizleme/veli'] as $path) {
+        foreach (['/onizleme/ogrenci', '/onizleme/ogretmen', '/onizleme/veli', '/onizleme/admin'] as $path) {
             foreach (['POST', 'PUT', 'PATCH', 'DELETE'] as $method) {
                 $client->request($method, $path);
                 self::assertResponseStatusCodeSame(405, \sprintf('%s %s', $method, $path));
@@ -93,6 +103,7 @@ final class UiPreviewControllerTest extends WebTestCase
             self::assertArrayNotHasKey('ui_preview_student', $collection);
             self::assertArrayNotHasKey('ui_preview_teacher', $collection);
             self::assertArrayNotHasKey('ui_preview_parent', $collection);
+            self::assertArrayNotHasKey('ui_preview_admin', $collection);
             foreach ($collection as $route) {
                 self::assertStringNotContainsString('/onizleme', (string) $route->getPath());
             }

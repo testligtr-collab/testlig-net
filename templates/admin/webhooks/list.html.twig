@@ -1,0 +1,61 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Webhook kuyruğu — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Webhook</span>
+    </nav>
+    <h1 class="panel-greeting">Webhook kuyruğu</h1>
+
+    <div class="admin-tabs" role="tablist">
+        {% for t in tabs %}
+            <a
+                class="admin-tab{% if t == tab %} is-active{% endif %}"
+                href="{{ path('app_admin_webhooks', { tab: t }) }}"
+                {% if t == tab %}aria-current="page"{% endif %}
+            >{{ t }}</a>
+        {% endfor %}
+    </div>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Kuyruk boş',
+            body: 'Bu sekmede gösterilecek webhook olayı yok.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Alınma</th>
+                        <th>Durum</th>
+                        <th>Sağlayıcı</th>
+                        <th>Tür</th>
+                        <th>Deneme</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.receivedAt|utc_present }}</td>
+                            <td>{{ row.status.value }}{% if row.isStaleLease %} (stale){% endif %}</td>
+                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
+                            <td>{{ row.eventType.value }}</td>
+                            <td>{{ row.attemptCount }}</td>
+                            <td><a href="{{ path('app_admin_webhook_detail', { eventId: row.eventId }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_webhooks',
+            query: { tab: tab }
+        } %}
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Ödeme detayı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_payments') }}">Ödemeler</a>
+        <span aria-hidden="true">/</span>
+        <span>Detay</span>
+    </nav>
+    <h1 class="panel-greeting">Ödeme denemesi</h1>
+
+    <dl class="admin-health-list">
+        <div><dt>Durum</dt><dd>{{ attempt.status.value }}</dd></div>
+        <div><dt>Sağlayıcı</dt><dd>{{ attempt.providerCode }} / {{ attempt.environment.value }}</dd></div>
+        <div><dt>Tutar</dt><dd>{{ attempt.amountMinor|money_try(attempt.currency) }}</dd></div>
+        <div><dt>Sipariş</dt><dd><code>{{ attempt.orderPublicReference }}</code></dd></div>
+        <div><dt>Oluşturulma</dt><dd>{{ attempt.createdAt|utc_present }}</dd></div>
+        <div><dt>Yetkilendirme</dt><dd>{{ attempt.authorizedAt|utc_present }}</dd></div>
+        <div><dt>Tahsil</dt><dd>{{ attempt.capturedAt|utc_present }}</dd></div>
+        <div><dt>Hata kodu</dt><dd>{{ attempt.failureCode|default('—') }}</dd></div>
+    </dl>
+{% endblock %}

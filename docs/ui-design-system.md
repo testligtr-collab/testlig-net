@@ -39,7 +39,8 @@
 
 ## Responsive breakpoints
 
-- Mobile shell &lt; 1024px: bottom navigation (max 4 items)
+- Mobile shell &lt; 1024px: bottom navigation (max 4 items for student/teacher/parent panels)
+- Admin `/yonetim` exception: bottom nav uses `auto-fit` so SUPER_ADMIN can reach all SA surfaces (Özet / Sistem / Ödemeler / Webhook / Uzlaştırma / Denetim)
 - Tablet ≥ 768px: two-column panel content
 - Desktop ≥ 1024px: sticky sidebar (collapsible)
 
@@ -48,6 +49,9 @@
 Under `templates/components/`: brand, button, card, public header/footer, section heading, progress, stat card, status chip, avatar, empty state, notification indicator, panel sidebar, panel topbar, mobile bottom navigation.
 
 Panel chrome: `templates/layouts/panel_preview.html.twig` (composes the panel partials above).
+Admin operations chrome: `templates/admin/layout.html.twig` (same panel partials, real logout CSRF, no preview banner). Admin tables/filters/breadcrumbs use `--tl-*` tokens in `assets/styles/app.css`.
+
+Money presentation: Twig filter `money_try` (integer minor units). Time presentation: `utc_present` (`UtcInstant` + user timezone).
 
 ## Auth `.page` contract
 

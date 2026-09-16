@@ -1,0 +1,50 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Uzlaştırma — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Uzlaştırma</span>
+    </nav>
+    <h1 class="panel-greeting">Uzlaştırma koşuları</h1>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Koşu yok',
+            body: 'Henüz uzlaştırma koşusu kaydı bulunmuyor.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Başlangıç</th>
+                        <th>Durum</th>
+                        <th>Sağlayıcı</th>
+                        <th>Kontrol</th>
+                        <th>Fark</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.startedAt|utc_present }}</td>
+                            <td>{{ row.status.value }}</td>
+                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
+                            <td>{{ row.checkedCount }}</td>
+                            <td>{{ row.discrepancyCount }}</td>
+                            <td><a href="{{ path('app_admin_reconciliation_detail', { runId: row.runId }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_reconciliations'
+        } %}
+    {% endif %}
+{% endblock %}

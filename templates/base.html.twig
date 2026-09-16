@@ -17,11 +17,13 @@
         {% endblock %}
 
         <main id="main-content">
-            {% for label, messages in app.flashes %}
-                {% for message in messages %}
-                    <div class="page flash flash-{{ label }}" role="status">{{ message }}</div>
+            {% block flashes %}
+                {% for label, messages in app.flashes %}
+                    {% for message in messages %}
+                        <div class="page flash flash-{{ label }}" role="status">{{ message }}</div>
+                    {% endfor %}
                 {% endfor %}
-            {% endfor %}
+            {% endblock %}
 
             {% block body %}{% endblock %}
         </main>

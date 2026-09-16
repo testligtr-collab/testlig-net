@@ -1,0 +1,39 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yönetim özeti — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <span>Yönetim</span>
+        <span aria-hidden="true">/</span>
+        <span>Özet</span>
+    </nav>
+    <h1 class="panel-greeting">Yönetim özeti</h1>
+
+    {% if dashboard.canViewPaymentMetrics %}
+        <section class="admin-metric-grid" aria-label="Operasyon metrikleri">
+            {% for item in dashboard.highlights %}
+                <div class="admin-metric">
+                    <p class="admin-metric__label">{{ item.label }}</p>
+                    <p class="admin-metric__value">{{ item.value }}</p>
+                </div>
+            {% endfor %}
+        </section>
+        {% if dashboard.operationsSummary %}
+            <section class="surface stack-md" style="margin-top:1rem;" aria-labelledby="recon-heading">
+                <h2 id="recon-heading" style="margin:0;font-size:1.1rem;">Uzlaştırma özeti</h2>
+                <p class="muted" style="margin:0;">
+                    Eşleşen {{ dashboard.operationsSummary.reconciliationMatchedCount }}
+                    · Fark {{ dashboard.operationsSummary.reconciliationDiscrepancyCount }}
+                    · Hata {{ dashboard.operationsSummary.reconciliationFailedCount }}
+                </p>
+            </section>
+        {% endif %}
+    {% else %}
+        <section class="surface stack-md" aria-labelledby="limited-heading">
+            <h2 id="limited-heading" style="margin:0;font-size:1.1rem;">Sınırlı görünüm</h2>
+            <p class="muted" style="margin:0;">Ödeme ve webhook operasyonları Süper Yönetici kapsamındadır. Sistem sağlığına göz atabilirsiniz.</p>
+            <p style="margin:0;"><a href="{{ path('app_admin_system') }}">Sistem durumuna git</a></p>
+        </section>
+    {% endif %}
+{% endblock %}

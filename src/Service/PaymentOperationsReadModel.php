@@ -173,8 +173,12 @@ final class PaymentOperationsReadModel
     /**
      * @return list<PaymentDiscrepancyView>
      */
-    public function getDiscrepanciesForRun(Uuid $actorId, Uuid $runId): array
-    {
+    public function getDiscrepanciesForRun(
+        Uuid $actorId,
+        Uuid $runId,
+        ?int $limit = null,
+        ?int $offset = null,
+    ): array {
         $this->assertOperator($actorId);
         $run = $this->runs->findOneById($runId);
         if (!$run instanceof PaymentReconciliationRun) {
@@ -182,11 +186,22 @@ final class PaymentOperationsReadModel
         }
 
         $views = [];
-        foreach ($this->items->findDiscrepanciesByRun($run) as $item) {
+        foreach ($this->items->findDiscrepanciesByRun($run, $limit, $offset) as $item) {
             $views[] = $this->toDiscrepancyView($item);
         }
 
         return $views;
+    }
+
+    public function countDiscrepanciesForRun(Uuid $actorId, Uuid $runId): int
+    {
+        $this->assertOperator($actorId);
+        $run = $this->runs->findOneById($runId);
+        if (!$run instanceof PaymentReconciliationRun) {
+            throw CommerceException::notFound();
+        }
+
+        return $this->items->countDiscrepanciesByRun($run);
     }
 
     private function toDiscrepancyView(PaymentReconciliationItem $item): PaymentDiscrepancyView

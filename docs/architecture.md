@@ -189,8 +189,10 @@
   - **Kilit sırası:** Institution → Purchaser/Membership → Offer → Package → Version → Order → OrderItem → Subscription → PaymentAttempt → PaymentEvent/Refund → Fulfillment → AccessLicense → Audit.
   - **DB:** `Version20260913120000` (preflight abort, `down()` irreversible) 8 tablo + CHECK/unique guard + 19 trigger (lifecycle, append-only ledger, identity immutability, fulfillment tekilliği, refund cap) + `CommerceCompositeForeignKeyListener` / `CommerceSchemaListener`.
   - **Bilinen sınırlama:** provider adapter implementasyonu yok (yalnızca interface); otomatik yenileme/dunning/proration/kupon yok; fatura/PDF yok; multi-process harness yok.
+- **Ödeme operasyonları / uzlaştırma (Aşama 2.19):** webhook inbox recovery, dead-letter requeue, reconciliation runs — CLI + domain; detay `docs/architecture-payment-operations-reconciliation.md`.
+- **Yönetim operasyon paneli (Aşama 2.20):** authenticated `/yonetim` shell (ADMIN shell + SA payment/audit). Controllers thin; read-models + dead-letter form → existing requeue service. Preview: `/onizleme/admin` (dev/test). Detay: `docs/architecture-admin-operations-panel.md`.
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
-- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, admin/öğretmen/öğrenci panelleri, public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, checkout UI / ödeme sağlayıcı SDK'sı / webhook controller, veli bağlantısı, audit UI, müfredat/ders/soru bankası/sınav/öğrenme içeriği/access package/commerce HTTP API.
+- **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, öğretmen/öğrenci panelleri (prod), public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, checkout UI / ödeme sağlayıcı SDK'sı, kullanıcı/kurum/içerik CRUD admin UI, EasyAdmin, REST admin API, Stage 2.21.
 
 ## Sonraki aşamalar
 

@@ -2,8 +2,9 @@
 
 Domain, application, CLI ops, and persistence only.
 
-**Not in this stage:** commercial payment SDKs, real credentials, card data, admin UI/API,
-cron installers, provider-side reverse settlement, license revocation, Stage 2.20 work.
+**Not in this stage:** commercial payment SDKs, real credentials, card data,
+cron installers, provider-side reverse settlement, license revocation.
+HTTP admin surface for these ops is Stage 2.20 (`docs/architecture-admin-operations-panel.md`).
 
 **In this stage:** due-webhook batch processing, controlled dead-letter requeue, provider
 reconciliation adapters, append-only reconciliation runs/items, safe read models, and
@@ -165,7 +166,7 @@ No raw body/hash/signature/email/card fields.
 ## 10. Known limitations
 
 - No cron / messenger scheduler install in this stage.
-- No admin HTTP surface.
+- HTTP admin surface for these ops is Stage 2.20 (`docs/architecture-admin-operations-panel.md`).
 - No production provider SDK — sandbox adapter only.
 - Composite `(id, provider_code, environment)` FK from items is optional; Stage 2.19 uses
   simple FKs plus PHP provider/environment validation.

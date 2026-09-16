@@ -11,8 +11,11 @@ Stage 2.14.1 delivers **design-approval previews** for student, teacher, and par
 | Student | `/onizleme/ogrenci` |
 | Teacher | `/onizleme/ogretmen` |
 | Parent | `/onizleme/veli` |
+| Admin (ops shell demo) | `/onizleme/admin` |
 
 Routing is registered only under `when@dev` and `when@test` in `config/routes/ui_preview.yaml`. Controllers live in `src/UiPreview/Controller/` (outside `src/Controller/`) so production’s `config/routes.yaml` auto-import never sees them.
+
+The **real** admin operations panel is authenticated under `/yonetim` (Stage 2.20) — see `docs/architecture-admin-operations-panel.md`. Preview routes must not be confused with production admin.
 
 Production route tables must not contain `/onizleme/*`.
 
@@ -23,6 +26,7 @@ Immutable ViewModels in `App\UiPreview`:
 - `StudentPreviewView::demo()` — Ece Yılmaz
 - `TeacherPreviewView::demo()` — Deniz Öğretmen
 - `ParentPreviewView::demo()` — Ece’nin Velisi
+- `AdminPreviewView::demo()` — Ayşe Yönetici (ops shell layout demo)
 
 No database queries, no mutations, GET-only endpoints.
 
