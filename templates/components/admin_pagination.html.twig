@@ -1,0 +1,26 @@
+{# @var result \App\Dto\AdminPagedResult #}
+{# @var route string #}
+{# @var route_params array #}
+{# @var query array #}
+{% set route_params = route_params|default({}) %}
+{% set query = query|default({}) %}
+{% set total_pages = result.totalPages() %}
+<nav class="admin-pagination" aria-label="Sayfalama">
+    <p class="muted admin-pagination__meta">
+        Sayfa {{ result.page }} / {{ total_pages }} · {{ result.totalCount }} kayıt
+    </p>
+    <div class="admin-pagination__links">
+        {% if result.page > 1 %}
+            <a
+                class="btn btn--ghost"
+                href="{{ path(route, route_params|merge(query)|merge({ page: result.page - 1, page_size: result.pageSize })) }}"
+            >Önceki</a>
+        {% endif %}
+        {% if result.page < total_pages %}
+            <a
+                class="btn btn--ghost"
+                href="{{ path(route, route_params|merge(query)|merge({ page: result.page + 1, page_size: result.pageSize })) }}"
+            >Sonraki</a>
+        {% endif %}
+    </div>
+</nav>

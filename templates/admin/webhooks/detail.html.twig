@@ -1,0 +1,45 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Webhook detayı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_webhooks') }}">Webhook</a>
+        <span aria-hidden="true">/</span>
+        <span>Detay</span>
+    </nav>
+    <h1 class="panel-greeting">Webhook olayı</h1>
+
+    <dl class="admin-health-list">
+        <div><dt>Durum</dt><dd>{{ event.status.value }}</dd></div>
+        <div><dt>Sağlayıcı</dt><dd>{{ event.providerCode }} / {{ event.environment.value }}</dd></div>
+        <div><dt>Olay türü</dt><dd>{{ event.eventType.value }}</dd></div>
+        <div><dt>Alınma</dt><dd>{{ event.receivedAt|utc_present }}</dd></div>
+        <div><dt>Sonraki deneme</dt><dd>{{ event.nextRetryAt|utc_present }}</dd></div>
+        <div><dt>Lease bitiş</dt><dd>{{ event.leaseExpiresAt|utc_present }}</dd></div>
+        <div><dt>Deneme sayısı</dt><dd>{{ event.attemptCount }}</dd></div>
+        <div><dt>Son hata</dt><dd>{{ event.lastFailureReasonCode|default('—') }}</dd></div>
+        <div><dt>Ödeme denemesi</dt>
+            <dd>
+                {% if event.paymentAttemptId %}
+                    <a href="{{ path('app_admin_payment_detail', { attemptId: event.paymentAttemptId }) }}">Detay</a>
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+        </div>
+    </dl>
+
+    {% if requeue_form %}
+        <section class="surface stack-md" aria-labelledby="requeue-heading">
+            <h2 id="requeue-heading" style="margin:0;font-size:1.1rem;">Dead-letter yeniden dene</h2>
+            {{ form_start(requeue_form) }}
+                {{ form_row(requeue_form.reasonCode) }}
+                {{ form_row(requeue_form.confirm) }}
+                <button type="submit" class="btn btn--primary">Yeniden kuyruğa al</button>
+            {{ form_end(requeue_form) }}
+        </section>
+    {% endif %}
+{% endblock %}

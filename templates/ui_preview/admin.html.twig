@@ -1,0 +1,21 @@
+{% extends 'layouts/panel_preview.html.twig' %}
+
+{% block title %}Yönetim paneli önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <h1 class="panel-greeting" id="dashboard">{{ view.greeting }}</h1>
+
+    <section class="admin-metric-grid" aria-label="Demo metrikler">
+        {% for item in view.metrics %}
+            <div class="admin-metric">
+                <p class="admin-metric__label">{{ item.label }}</p>
+                <p class="admin-metric__value">{{ item.value }}</p>
+            </div>
+        {% endfor %}
+    </section>
+
+    <section class="surface stack-md" style="margin-top:1rem;" aria-labelledby="note-heading">
+        <h2 id="note-heading" style="margin:0;font-size:1.1rem;">Önizleme notu</h2>
+        <p class="muted" style="margin:0;">Bu sayfa demo veridir. Gerçek yönetim paneli <code>/yonetim</code> altındadır ve kimlik doğrulama gerektirir.</p>
+    </section>
+{% endblock %}

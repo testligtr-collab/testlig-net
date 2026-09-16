@@ -1,0 +1,61 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Uzlaştırma detayı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_reconciliations') }}">Uzlaştırma</a>
+        <span aria-hidden="true">/</span>
+        <span>Detay</span>
+    </nav>
+    <h1 class="panel-greeting">Uzlaştırma koşusu</h1>
+
+    <dl class="admin-health-list">
+        <div><dt>Durum</dt><dd>{{ run.status.value }}</dd></div>
+        <div><dt>Mod</dt><dd>{{ run.mode.value }}</dd></div>
+        <div><dt>Sağlayıcı</dt><dd>{{ run.providerCode }} / {{ run.environment.value }}</dd></div>
+        <div><dt>Gerekçe</dt><dd>{{ run.reasonCode }}</dd></div>
+        <div><dt>Başlangıç</dt><dd>{{ run.startedAt|utc_present }}</dd></div>
+        <div><dt>Bitiş</dt><dd>{{ run.completedAt|utc_present }}</dd></div>
+        <div><dt>Kontrol / Eşleşen / Fark / Hata</dt>
+            <dd>{{ run.checkedCount }} / {{ run.matchedCount }} / {{ run.discrepancyCount }} / {{ run.failedCount }}</dd>
+        </div>
+    </dl>
+
+    <h2 style="font-size:1.1rem;">Farklar</h2>
+    {% if discrepancies.items is empty %}
+        <p class="muted">Bu koşuda fark kaydı yok.</p>
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Kontrol</th>
+                        <th>Beklenen</th>
+                        <th>Sağlayıcı</th>
+                        <th>Sonuç</th>
+                        <th>Aksiyon</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in discrepancies.items %}
+                        <tr>
+                            <td>{{ d.checkedAt|utc_present }}</td>
+                            <td>{{ d.expectedState.value }}</td>
+                            <td>{{ d.providerState ? d.providerState.value : '—' }}</td>
+                            <td>{{ d.outcome.value }}</td>
+                            <td>{{ d.action.value }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'components/admin_pagination.html.twig' with {
+            result: discrepancies,
+            route: 'app_admin_reconciliation_detail',
+            route_params: { runId: run.runId }
+        } %}
+    {% endif %}
+{% endblock %}

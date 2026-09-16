@@ -1,0 +1,88 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Ödeme denemeleri — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Ödemeler</span>
+    </nav>
+    <h1 class="panel-greeting">Ödeme denemeleri</h1>
+
+    <form method="get" class="admin-filters" action="{{ path('app_admin_payments') }}">
+        <label>Durum
+            <input type="text" name="status" value="{{ filters.status|default('') }}" placeholder="initiated">
+        </label>
+        <label>Sağlayıcı
+            <input type="text" name="provider" value="{{ filters.provider|default('') }}">
+        </label>
+        <label>Ortam
+            <input type="text" name="environment" value="{{ filters.environment|default('') }}" placeholder="sandbox">
+        </label>
+        <label>Başlangıç
+            <input type="date" name="created_from" value="{{ filters.created_from|default('') }}">
+        </label>
+        <label>Bitiş
+            <input type="date" name="created_to" value="{{ filters.created_to|default('') }}">
+        </label>
+        <label>Sipariş referansı
+            <input type="text" name="order_public_reference" value="{{ filters.order_public_reference|default('') }}">
+        </label>
+        <label>Uzlaştırma gerekir
+            <select name="needs_reconciliation">
+                <option value="">—</option>
+                <option value="1" {% if filters.needs_reconciliation is same as(true) %}selected{% endif %}>Evet</option>
+                <option value="0" {% if filters.needs_reconciliation is same as(false) %}selected{% endif %}>Hayır</option>
+            </select>
+        </label>
+        <button type="submit" class="btn btn--primary">Filtrele</button>
+    </form>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Kayıt yok',
+            body: 'Filtrelere uygun ödeme denemesi bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Oluşturulma</th>
+                        <th>Durum</th>
+                        <th>Sağlayıcı</th>
+                        <th>Tutar</th>
+                        <th>Sipariş</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.createdAt|utc_present }}</td>
+                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
+                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
+                            <td>{{ row.amountMinor|money_try(row.currency) }}</td>
+                            <td><code>{{ row.orderPublicReference }}</code></td>
+                            <td><a href="{{ path('app_admin_payment_detail', { attemptId: row.attemptId }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_payments',
+            query: {
+                status: filters.status|default(''),
+                provider: filters.provider|default(''),
+                environment: filters.environment|default(''),
+                created_from: filters.created_from|default(''),
+                created_to: filters.created_to|default(''),
+                order_public_reference: filters.order_public_reference|default(''),
+                needs_reconciliation: filters.needs_reconciliation is same as(true) ? '1' : (filters.needs_reconciliation is same as(false) ? '0' : '')
+            }
+        } %}
+    {% endif %}
+{% endblock %}

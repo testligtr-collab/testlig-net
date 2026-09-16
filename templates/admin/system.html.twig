@@ -1,0 +1,34 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sistem durumu — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Sistem</span>
+    </nav>
+    <h1 class="panel-greeting">Sistem durumu</h1>
+
+    <dl class="admin-health-list">
+        <div><dt>Uygulama</dt><dd>{{ system.applicationStatus }}</dd></div>
+        <div><dt>Veritabanı</dt><dd>{{ system.databaseStatus }}</dd></div>
+        <div><dt>Redis</dt><dd>{{ system.redisStatus }}</dd></div>
+        <div><dt>Migrasyon</dt><dd>{{ system.migrationStatus }}</dd></div>
+    </dl>
+
+    <p class="muted">{{ system.utcNote }}</p>
+
+    {% if system.webhookQueueSummary %}
+        <section class="surface stack-md" aria-labelledby="whq-heading">
+            <h2 id="whq-heading" style="margin:0;font-size:1.1rem;">Webhook kuyruğu</h2>
+            <ul class="list-plain">
+                <li>Due: {{ system.webhookQueueSummary.due }}</li>
+                <li>Retry pending: {{ system.webhookQueueSummary.retry_pending }}</li>
+                <li>Processing: {{ system.webhookQueueSummary.processing }}</li>
+                <li>Stale lease: {{ system.webhookQueueSummary.stale_lease }}</li>
+                <li>Dead letter: {{ system.webhookQueueSummary.dead_letter }}</li>
+            </ul>
+        </section>
+    {% endif %}
+{% endblock %}
