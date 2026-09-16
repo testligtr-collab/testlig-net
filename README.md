@@ -196,14 +196,20 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Capture → `AccessLicenseManager` ile **bir kez** `purchase` kaynaklı AccessLicense (idempotent). Tek seferlik: `validityDays` zorunlu; abonelik: dönem kapsamlı (period-scoped) lisans.
 - Kısmi iade lisansı düşürmez; tam iade otomatik iptal etmez — geri alma yalnızca açık `CommerceFulfillmentManager::reverse()`.
 - Yetki: katalog + settlement yalnızca aktif/doğrulanmış SUPER_ADMIN; bireysel satın alma yalnızca kişinin kendisi (proxy yok); kurumsal ödeme yalnızca Owner (Manager seat-only kalır).
-- Gerçek ödeme SDK'sı, checkout UI, REST/webhook controller ve kart verisi **yok** — sadece `PaymentProviderAdapterInterface` seam'i. Migration: `Version20260913120000`. Detay: `docs/architecture-commerce-payment.md`.
+- Gerçek ödeme SDK'sı, checkout UI, REST admin API ve kart verisi **yok** — Stage 2.18 webhook ingress + Stage 2.19 ops/reconciliation domain; Stage 2.20 authenticated `/yonetim` panel. Detay: `docs/architecture-commerce-payment.md`, `docs/architecture-payment-operations-reconciliation.md`, `docs/architecture-admin-operations-panel.md`.
 - Ek ortam değişkeni: `COMMERCE_IDEMPOTENCY_HASH_KEY` (min 32 byte, APP_SECRET fallback yok).
+
+### Yönetim operasyon paneli (Aşama 2.20)
+
+- Authenticated panel: `/yonetim` (ADMIN shell; SUPER_ADMIN payment/webhook/recon/audit).
+- Dead-letter yeniden deneme: `POST /yonetim/webhook/{eventId}/yeniden-dene` (CSRF + confirm + rate limit).
+- UI önizleme (dev/test): `/onizleme/admin` — gerçek panel değildir.
 
 ### Tasarım sistemi ve UI önizlemeleri (Aşama 2.14.1)
 
 - Merkezi CSS token’ları: `assets/styles/app.css` (`docs/ui-design-system.md`).
 - Yenilenen kamu ana sayfa: `/`
-- Rol paneli önizlemeleri (**yalnızca `dev` / `test`**): `/onizleme/ogrenci`, `/onizleme/ogretmen`, `/onizleme/veli`
+- Rol paneli önizlemeleri (**yalnızca `dev` / `test`**): `/onizleme/ogrenci`, `/onizleme/ogretmen`, `/onizleme/veli`, `/onizleme/admin`
 - Demo ViewModel’ler: `App\UiPreview\*` — veritabanı yok, mutasyon yok (`docs/ui-preview.md`).
 - Production route tablosunda `/onizleme` yok.
 
