@@ -72,4 +72,30 @@ abstract class AdminBaseController extends AbstractController
             default => throw $e,
         };
     }
+
+    /**
+     * @param \Symfony\Component\Form\FormInterface<mixed> $form
+     */
+    protected function formHasCsrfFailure(\Symfony\Component\Form\FormInterface $form): bool
+    {
+        foreach ($form->getErrors(true) as $error) {
+            $haystack = strtolower($error->getMessage().' '.$error->getMessageTemplate());
+            if (str_contains($haystack, 'csrf')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    protected function requireCsrfTokenPresent(?array $payload): void
+    {
+        $token = \is_array($payload) ? ($payload['_token'] ?? null) : null;
+        if (!\is_string($token) || '' === $token) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+    }
 }

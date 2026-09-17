@@ -150,19 +150,4 @@ final class AdminWebhookController extends AdminBaseController
 
         return $response;
     }
-
-    /**
-     * @param \Symfony\Component\Form\FormInterface<mixed> $form
-     */
-    private function formHasCsrfFailure(\Symfony\Component\Form\FormInterface $form): bool
-    {
-        foreach ($form->getErrors(true) as $error) {
-            $haystack = strtolower($error->getMessage().' '.$error->getMessageTemplate());
-            if (str_contains($haystack, 'csrf')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
 }

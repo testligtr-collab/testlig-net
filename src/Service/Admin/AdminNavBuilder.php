@@ -36,10 +36,20 @@ final class AdminNavBuilder
         $isSa = $this->adminAuthorization->canOperatePayments($actor);
         $canAudit = $this->adminAuthorization->canViewSecurityAudit($actor);
 
+        $canUsers = $this->adminAuthorization->canViewUsers($actor);
+        $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
+
         $items = [
             $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath),
             $this->item('system', 'Sistem', 'app_admin_system', $currentPath),
         ];
+
+        if ($canUsers) {
+            $items[] = $this->item('users', 'Kullanıcılar', 'app_admin_users', $currentPath, '/yonetim/kullanicilar');
+        }
+        if ($canInstitutions) {
+            $items[] = $this->item('institutions', 'Kurumlar', 'app_admin_institutions', $currentPath, '/yonetim/kurumlar');
+        }
 
         if ($isSa) {
             $items[] = $this->item('payments', 'Ödemeler', 'app_admin_payments', $currentPath, '/yonetim/odemeler');

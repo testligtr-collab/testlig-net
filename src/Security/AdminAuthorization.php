@@ -69,6 +69,60 @@ final class AdminAuthorization
         $this->assertCanOperatePayments($actor);
     }
 
+    /**
+     * User list/detail: active+verified ADMIN or SUPER_ADMIN.
+     */
+    public function assertCanViewUsers(User $actor): void
+    {
+        $this->assertCanAccessAdminShell($actor);
+    }
+
+    /**
+     * User role/status mutations: same shell gate; domain managers re-assert.
+     */
+    public function assertCanManageUsers(User $actor): void
+    {
+        $this->assertCanAccessAdminShell($actor);
+    }
+
+    /**
+     * Institution list/detail: active+verified ADMIN or SUPER_ADMIN.
+     */
+    public function assertCanViewInstitutions(User $actor): void
+    {
+        $this->assertCanAccessAdminShell($actor);
+    }
+
+    /**
+     * Institution create / status: SUPER_ADMIN only (matches InstitutionCreator/StatusManager).
+     */
+    public function assertCanCreateInstitutions(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
+    public function assertCanManageInstitutions(User $actor): void
+    {
+        $this->assertCanCreateInstitutions($actor);
+    }
+
+    /**
+     * Membership list/manage: SUPER_ADMIN only (domain allows SA or institution owner/manager;
+     * admin panel does not expose institution-scoped owner tools here).
+     */
+    public function assertCanViewMemberships(User $actor): void
+    {
+        $this->assertCanCreateInstitutions($actor);
+    }
+
+    public function assertCanManageMemberships(User $actor): void
+    {
+        $this->assertCanCreateInstitutions($actor);
+    }
+
     public function canAccessAdminShell(User $actor): bool
     {
         return $this->isActiveVerifiedAdminOrSuperAdmin($actor);
@@ -92,6 +146,41 @@ final class AdminAuthorization
     public function canRequeueDeadLetter(User $actor): bool
     {
         return $this->canOperatePayments($actor);
+    }
+
+    public function canViewUsers(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
+    }
+
+    public function canManageUsers(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
+    }
+
+    public function canViewInstitutions(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
+    }
+
+    public function canCreateInstitutions(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canManageInstitutions(User $actor): bool
+    {
+        return $this->canCreateInstitutions($actor);
+    }
+
+    public function canViewMemberships(User $actor): bool
+    {
+        return $this->canCreateInstitutions($actor);
+    }
+
+    public function canManageMemberships(User $actor): bool
+    {
+        return $this->canCreateInstitutions($actor);
     }
 
     private function assertActiveVerifiedAdminOrSuperAdmin(User $actor): void

@@ -36,6 +36,31 @@ framework:
             limit: 5
             interval: '10 minutes'
 
+        admin_user_roles:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_user_status:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_institution_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_institution_status:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_membership_mutate:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
 when@test:
     framework:
         rate_limiter:
@@ -62,6 +87,26 @@ when@test:
                 limit: 5
                 interval: '15 minutes'
             admin_dead_letter_requeue:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_user_roles:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_user_status:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_institution_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_institution_status:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_membership_mutate:
                 policy: 'fixed_window'
                 limit: 5
                 interval: '10 minutes'
