@@ -103,6 +103,8 @@ final class AdminIdentityInstitutionSecurityMatrixTest extends WebTestCase
         $client->request('GET', $membersPath);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', $institution->getName());
+        self::assertSelectorTextContains('body', 'admin_id_matrix_owner_full@example.com');
+        self::assertStringNotContainsString('Üye yok', (string) $client->getResponse()->getContent());
     }
 
     public function testUnknownUserAndInstitutionDetailReturnNotFound(): void
@@ -223,12 +225,56 @@ final class AdminIdentityInstitutionSecurityMatrixTest extends WebTestCase
     {
         $client = static::createClient();
         $target = $this->createTeacherUser('admin_id_matrix_rl_target@example.com');
-        $statusBefore = $target->getStatus();
         $this->loginAs($client, 'admin_id_matrix_rl_sa@example.com', UserRole::SuperAdmin);
-        $path = '/yonetim/kullanicilar/'.$target->getId()->toRfc4122().'/durum';
+        $targetId = $target->getId()->toRfc4122();
+        $path = '/yonetim/kullanicilar/'.$targetId.'/durum';
+        $actions = [
+            AdminUserStatusRequest::ACTION_SUSPEND,
+            AdminUserStatusRequest::ACTION_REACTIVATE,
+            AdminUserStatusRequest::ACTION_SUSPEND,
+            AdminUserStatusRequest::ACTION_REACTIVATE,
+            AdminUserStatusRequest::ACTION_SUSPEND,
+            AdminUserStatusRequest::ACTION_REACTIVATE,
+        ];
 
         $saw429 = false;
         $retryAfter = null;
+        for ($i = 0; $i < 6; ++$i) {
+            $token = $this->csrfTokenValue($client, 'admin_user_status_'.$targetId);
+            $client->request('POST', $path, [
+                'admin_user_status' => [
+                    'action' => $actions[$i],
+                    'reasonCode' => AdminUserStatusRequest::REASON_POLICY_VIOLATION,
+                    'confirm' => '1',
+                    '_token' => $token,
+                ],
+            ]);
+            if (429 === $client->getResponse()->getStatusCode()) {
+                $saw429 = true;
+                $retryAfter = $client->getResponse()->headers->get('Retry-After');
+                $body = (string) $client->getResponse()->getContent();
+                self::assertStringNotContainsString('$2y$', $body);
+                self::assertStringNotContainsString('admin_id_matrix_rl_target@example.com', $body);
+                break;
+            }
+            self::assertResponseStatusCodeSame(302);
+        }
+
+        self::assertTrue($saw429);
+        self::assertNotNull($retryAfter);
+        self::assertMatchesRegularExpression('/^\d+$/', (string) $retryAfter);
+        self::assertGreaterThan(0, (int) $retryAfter);
+        self::assertSame(UserStatus::Suspended, $this->reloadUser($target->getId())->getStatus());
+    }
+
+    public function testCsrfRejectDoesNotConsumeUserStatusLimiter(): void
+    {
+        $client = static::createClient();
+        $target = $this->createTeacherUser('admin_id_matrix_csrf_rl_target@example.com');
+        $this->loginAs($client, 'admin_id_matrix_csrf_rl_sa@example.com', UserRole::SuperAdmin);
+        $targetId = $target->getId()->toRfc4122();
+        $path = '/yonetim/kullanicilar/'.$targetId.'/durum';
+
         for ($i = 0; $i < 6; ++$i) {
             $client->request('POST', $path, [
                 'admin_user_status' => [
@@ -237,19 +283,20 @@ final class AdminIdentityInstitutionSecurityMatrixTest extends WebTestCase
                     'confirm' => '1',
                 ],
             ]);
-            if (429 === $client->getResponse()->getStatusCode()) {
-                $saw429 = true;
-                $retryAfter = $client->getResponse()->headers->get('Retry-After');
-                break;
-            }
             self::assertResponseStatusCodeSame(403);
         }
 
-        self::assertTrue($saw429);
-        self::assertNotNull($retryAfter);
-        self::assertMatchesRegularExpression('/^\d+$/', (string) $retryAfter);
-        self::assertGreaterThan(0, (int) $retryAfter);
-        self::assertSame($statusBefore, $this->reloadUser($target->getId())->getStatus());
+        $token = $this->csrfTokenValue($client, 'admin_user_status_'.$targetId);
+        $client->request('POST', $path, [
+            'admin_user_status' => [
+                'action' => AdminUserStatusRequest::ACTION_SUSPEND,
+                'reasonCode' => AdminUserStatusRequest::REASON_POLICY_VIOLATION,
+                'confirm' => '1',
+                '_token' => $token,
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(302);
+        self::assertSame(UserStatus::Suspended, $this->reloadUser($target->getId())->getStatus());
     }
 
     public function testStaleAdminDeniedOnUsersList(): void
@@ -392,6 +439,33 @@ final class AdminIdentityInstitutionSecurityMatrixTest extends WebTestCase
         self::assertInstanceOf(User::class, $user);
 
         return $user;
+    }
+
+    private function csrfTokenValue(KernelBrowser $client, string $tokenId): string
+    {
+        if (str_starts_with($tokenId, 'admin_user_status_')) {
+            $userId = substr($tokenId, \strlen('admin_user_status_'));
+            $crawler = $client->request('GET', '/yonetim/kullanicilar/'.$userId);
+            self::assertResponseIsSuccessful();
+            $token = $crawler->filter('input[name="admin_user_status[_token]"]')->attr('value');
+            self::assertIsString($token);
+            self::assertNotSame('', $token);
+
+            return $token;
+        }
+
+        if (str_starts_with($tokenId, 'admin_user_roles_')) {
+            $userId = substr($tokenId, \strlen('admin_user_roles_'));
+            $crawler = $client->request('GET', '/yonetim/kullanicilar/'.$userId);
+            self::assertResponseIsSuccessful();
+            $token = $crawler->filter('input[name="admin_user_roles[_token]"]')->attr('value');
+            self::assertIsString($token);
+            self::assertNotSame('', $token);
+
+            return $token;
+        }
+
+        self::fail('Unsupported CSRF token id: '.$tokenId);
     }
 
     private function reloadUserByEmail(string $email): User
