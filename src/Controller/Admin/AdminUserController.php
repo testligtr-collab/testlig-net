@@ -124,7 +124,6 @@ final class AdminUserController extends AdminBaseController
     public function updateRoles(Request $request, Uuid $id): Response
     {
         $actorId = $this->requireActorId();
-        $this->consumeLimiter($this->rolesLimiter, $actorId, $id, 'roles');
 
         $payload = $request->request->all()['admin_user_roles'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -134,7 +133,6 @@ final class AdminUserController extends AdminBaseController
             throw $this->createNotFoundException('Kayıt bulunamadı.');
         }
 
-        $detail = null;
         try {
             $detail = $this->userQuery->getDetail($actorId, $id);
         } catch (CommerceException $e) {
@@ -156,6 +154,8 @@ final class AdminUserController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_user_detail', ['id' => $id]);
         }
+
+        $this->consumeLimiter($this->rolesLimiter, $actorId, $id, 'roles');
 
         $roleEnums = [];
         foreach ($dto->roles as $roleValue) {
@@ -190,7 +190,6 @@ final class AdminUserController extends AdminBaseController
     public function updateStatus(Request $request, Uuid $id): Response
     {
         $actorId = $this->requireActorId();
-        $this->consumeLimiter($this->statusLimiter, $actorId, $id, 'status');
 
         $payload = $request->request->all()['admin_user_status'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -221,6 +220,8 @@ final class AdminUserController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_user_detail', ['id' => $id]);
         }
+
+        $this->consumeLimiter($this->statusLimiter, $actorId, $id, 'status');
 
         $actor = $this->requireActorUser();
         try {

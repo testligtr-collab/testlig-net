@@ -205,7 +205,7 @@ final class AdminInstitutionQuery
             ->from(InstitutionMembership::class, 'm')
             ->andWhere('IDENTITY(m.institution) = :id')
             ->andWhere('m.status = :active')
-            ->setParameter('id', $institutionId)
+            ->setParameter('id', $institutionId, 'uuid')
             ->setParameter('active', InstitutionMembershipStatus::Active)
             ->getQuery()
             ->getSingleScalarResult();
@@ -219,7 +219,7 @@ final class AdminInstitutionQuery
             ->andWhere('IDENTITY(m.institution) = :id')
             ->andWhere('m.role = :role')
             ->andWhere('m.status = :active')
-            ->setParameter('id', $institutionId)
+            ->setParameter('id', $institutionId, 'uuid')
             ->setParameter('role', InstitutionMembershipRole::Owner)
             ->setParameter('active', InstitutionMembershipStatus::Active)
             ->getQuery()

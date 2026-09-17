@@ -70,7 +70,7 @@ final class AdminMembershipQuery
             ->from(InstitutionMembership::class, 'm')
             ->innerJoin('m.user', 'u')
             ->andWhere('IDENTITY(m.institution) = :institutionId')
-            ->setParameter('institutionId', $institutionId);
+            ->setParameter('institutionId', $institutionId, 'uuid');
 
         if (isset($filters['q']) && \is_string($filters['q']) && '' !== $filters['q']) {
             try {

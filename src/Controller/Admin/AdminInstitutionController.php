@@ -111,12 +111,6 @@ final class AdminInstitutionController extends AdminBaseController
     public function create(Request $request): Response
     {
         $actorId = $this->requireActorId();
-        $limiter = $this->createLimiter->create($actorId->toRfc4122().':create');
-        $rateLimit = $limiter->consume(1);
-        if (!$rateLimit->isAccepted()) {
-            $seconds = max(1, $rateLimit->getRetryAfter()->getTimestamp() - time());
-            throw new TooManyRequestsHttpException($seconds, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
-        }
 
         $payload = $request->request->all()['admin_institution_create'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -133,6 +127,13 @@ final class AdminInstitutionController extends AdminBaseController
             return $this->renderAdmin('admin/institutions/new.html.twig', [
                 'form' => $form->createView(),
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
+        }
+
+        $limiter = $this->createLimiter->create($actorId->toRfc4122().':create');
+        $rateLimit = $limiter->consume(1);
+        if (!$rateLimit->isAccepted()) {
+            $seconds = max(1, $rateLimit->getRetryAfter()->getTimestamp() - time());
+            throw new TooManyRequestsHttpException($seconds, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
         }
 
         if (!Uuid::isValid($dto->ownerUserId)) {
@@ -203,12 +204,6 @@ final class AdminInstitutionController extends AdminBaseController
     public function updateStatus(Request $request, Uuid $id): Response
     {
         $actorId = $this->requireActorId();
-        $limiter = $this->institutionStatusLimiter->create($actorId->toRfc4122().':'.$id->toRfc4122().':status');
-        $rateLimit = $limiter->consume(1);
-        if (!$rateLimit->isAccepted()) {
-            $seconds = max(1, $rateLimit->getRetryAfter()->getTimestamp() - time());
-            throw new TooManyRequestsHttpException($seconds, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
-        }
 
         $payload = $request->request->all()['admin_institution_status'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -238,6 +233,13 @@ final class AdminInstitutionController extends AdminBaseController
             $this->addFlash('error', 'Durum formu geçersiz. Onay ve geçerli gerekçe gereklidir.');
 
             return $this->redirectToRoute('app_admin_institution_detail', ['id' => $id]);
+        }
+
+        $limiter = $this->institutionStatusLimiter->create($actorId->toRfc4122().':'.$id->toRfc4122().':status');
+        $rateLimit = $limiter->consume(1);
+        if (!$rateLimit->isAccepted()) {
+            $seconds = max(1, $rateLimit->getRetryAfter()->getTimestamp() - time());
+            throw new TooManyRequestsHttpException($seconds, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
         }
 
         try {
@@ -304,7 +306,6 @@ final class AdminInstitutionController extends AdminBaseController
     public function updateMembershipRole(Request $request, Uuid $institutionId, Uuid $membershipId): Response
     {
         $actorId = $this->requireActorId();
-        $this->consumeMembershipLimiter($actorId, $membershipId, 'role');
 
         $payload = $request->request->all()['admin_membership_role'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -325,6 +326,8 @@ final class AdminInstitutionController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_institution_members', ['id' => $institutionId]);
         }
+
+        $this->consumeMembershipLimiter($actorId, $membershipId, 'role');
 
         try {
             $this->membershipManager->changeRole(
@@ -354,7 +357,6 @@ final class AdminInstitutionController extends AdminBaseController
     public function updateMembershipStatus(Request $request, Uuid $institutionId, Uuid $membershipId): Response
     {
         $actorId = $this->requireActorId();
-        $this->consumeMembershipLimiter($actorId, $membershipId, 'status');
 
         $payload = $request->request->all()['admin_membership_status'] ?? null;
         $this->requireCsrfTokenPresent(\is_array($payload) ? $payload : null);
@@ -395,6 +397,8 @@ final class AdminInstitutionController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_institution_members', ['id' => $institutionId]);
         }
+
+        $this->consumeMembershipLimiter($actorId, $membershipId, 'status');
 
         try {
             $actor = $this->requireActorUser();
