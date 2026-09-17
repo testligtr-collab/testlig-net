@@ -1,0 +1,24 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni kurum — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_institutions') }}">Kurumlar</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni</span>
+    </nav>
+    <h1 class="panel-greeting">Yeni kurum</h1>
+
+    {{ form_start(form, { attr: { class: 'admin-mutation-form' } }) }}
+        {{ form_row(form.name) }}
+        {{ form_row(form.type) }}
+        {{ form_row(form.ownerUserId) }}
+        {{ form_row(form.reasonCode) }}
+        {{ form_row(form.confirm) }}
+        <button type="submit" class="btn btn--primary">Kurumu oluştur</button>
+        <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">İptal</a>
+    {{ form_end(form) }}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kurumlar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Kurumlar</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Kurumlar</h1>
+        {% if can_create %}
+            <a class="btn btn--primary" href="{{ path('app_admin_institution_new') }}">Yeni kurum</a>
+        {% endif %}
+    </div>
+
+    <form method="get" class="admin-filters" action="{{ path('app_admin_institutions') }}">
+        <label>Ara
+            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
+        </label>
+        <label>Tür
+            <select name="type">
+                <option value="">—</option>
+                {% for t in ['school','course_center','tutoring_center','other'] %}
+                    <option value="{{ t }}" {% if filters.type|default('') == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Durum
+            <select name="status">
+                <option value="">—</option>
+                {% for s in ['pending','active','suspended','archived'] %}
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="btn btn--primary">Filtrele</button>
+    </form>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Kayıt yok',
+            body: 'Filtrelere uygun kurum bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Ad</th>
+                        <th>Slug</th>
+                        <th>Tür</th>
+                        <th>Durum</th>
+                        <th>Aktif üye</th>
+                        <th>Oluşturulma</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td><code>{{ row.shortRef }}</code></td>
+                            <td>{{ row.name }}</td>
+                            <td><code>{{ row.slug }}</code></td>
+                            <td>{{ row.type.value }}</td>
+                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
+                            <td>{{ row.activeMemberCount }}</td>
+                            <td>{{ row.createdAt|utc_present }}</td>
+                            <td><a href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_institutions',
+        query: {
+            q: filters.q|default(''),
+            type: filters.type|default(''),
+            status: filters.status|default('')
+        }
+    } %}
+{% endblock %}

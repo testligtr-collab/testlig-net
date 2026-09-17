@@ -1,0 +1,143 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Üyeler — {{ institution_name }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_institutions') }}">Kurumlar</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_institution_detail', { id: institution_id }) }}">{{ institution_short_ref }}</a>
+        <span aria-hidden="true">/</span>
+        <span>Üyeler</span>
+    </nav>
+    <h1 class="panel-greeting">Üyeler — {{ institution_name }}</h1>
+
+    <form method="get" class="admin-filters" action="{{ path('app_admin_institution_members', { id: institution_id }) }}">
+        <label>Ara
+            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
+        </label>
+        <label>Rol
+            <select name="role">
+                <option value="">—</option>
+                {% for role in role_choices %}
+                    <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role.value }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Durum
+            <select name="status">
+                <option value="">—</option>
+                {% for s in ['pending','active','suspended','ended'] %}
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="btn btn--primary">Filtrele</button>
+    </form>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Üye yok',
+            body: 'Filtrelere uygun üyelik bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Ad</th>
+                        <th>E-posta</th>
+                        <th>Rol</th>
+                        <th>Durum</th>
+                        <th>Katılım</th>
+                        <th>Askı</th>
+                        <th>Bitiş</th>
+                        {% if can_manage %}<th>İşlemler</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.displayName() }}</td>
+                            <td>{{ row.email }}</td>
+                            <td>{% include 'components/status_chip.html.twig' with { label: row.role.value, variant: 'neutral' } %}</td>
+                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
+                            <td>{{ row.joinedAt ? row.joinedAt|utc_present : '—' }}</td>
+                            <td>{{ row.suspendedAt ? row.suspendedAt|utc_present : '—' }}</td>
+                            <td>{{ row.endedAt ? row.endedAt|utc_present : '—' }}</td>
+                            {% if can_manage %}
+                                <td class="admin-member-actions">
+                                    {% if row.canChangeRole %}
+                                        <details class="admin-inline-form">
+                                            <summary class="btn btn--ghost">Rol</summary>
+                                            <form method="post" action="{{ path('app_admin_membership_role', { institutionId: institution_id, membershipId: row.membershipId }) }}" class="admin-mutation-form">
+                                                <input type="hidden" name="admin_membership_role[_token]" value="{{ csrf_token('admin_membership_role_' ~ row.membershipId) }}">
+                                                <label>Rol
+                                                    <select name="admin_membership_role[role]" required>
+                                                        <option value="">—</option>
+                                                        {% for role in role_choices %}
+                                                            {% if role.value != 'owner' %}
+                                                                <option value="{{ role.value }}" {% if row.role.value == role.value %}selected{% endif %}>{{ role.value }}</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </label>
+                                                <label>Gerekçe
+                                                    <select name="admin_membership_role[reasonCode]" required>
+                                                        <option value="role_adjustment">Rol ayarı</option>
+                                                        <option value="policy_enforcement">Politika</option>
+                                                        <option value="operator_correction">Operatör</option>
+                                                    </select>
+                                                </label>
+                                                <label><input type="checkbox" name="admin_membership_role[confirm]" value="1" required> Onaylıyorum</label>
+                                                <button type="submit" class="btn btn--primary">Kaydet</button>
+                                            </form>
+                                        </details>
+                                    {% endif %}
+                                    {% if row.canSuspend or row.canReactivate or row.canEnd %}
+                                        <details class="admin-inline-form">
+                                            <summary class="btn btn--ghost">Durum</summary>
+                                            <form method="post" action="{{ path('app_admin_membership_status', { institutionId: institution_id, membershipId: row.membershipId }) }}" class="admin-mutation-form">
+                                                <input type="hidden" name="admin_membership_status[_token]" value="{{ csrf_token('admin_membership_status_' ~ row.membershipId) }}">
+                                                <label>İşlem
+                                                    <select name="admin_membership_status[action]" required>
+                                                        <option value="">—</option>
+                                                        {% if row.canSuspend %}<option value="suspend">Askıya al</option>{% endif %}
+                                                        {% if row.canReactivate %}<option value="reactivate">Yeniden etkinleştir</option>{% endif %}
+                                                        {% if row.canEnd %}<option value="end">Sonlandır</option>{% endif %}
+                                                    </select>
+                                                </label>
+                                                <label>Gerekçe
+                                                    <select name="admin_membership_status[reasonCode]" required>
+                                                        <option value="membership_lifecycle">Yaşam döngüsü</option>
+                                                        <option value="policy_enforcement">Politika</option>
+                                                        <option value="operator_correction">Operatör</option>
+                                                    </select>
+                                                </label>
+                                                <label><input type="checkbox" name="admin_membership_status[confirm]" value="1" required> Onaylıyorum</label>
+                                                <button type="submit" class="btn btn--primary">Kaydet</button>
+                                            </form>
+                                        </details>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_institution_members',
+        route_params: { id: institution_id },
+        query: {
+            q: filters.q|default(''),
+            role: filters.role|default(''),
+            status: filters.status|default('')
+        }
+    } %}
+{% endblock %}

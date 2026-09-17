@@ -1,0 +1,63 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kullanıcı {{ user.shortRef }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_users') }}">Kullanıcılar</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ user.shortRef }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ user.displayName() }}</h1>
+    <p class="muted">Ref <code>{{ user.shortRef }}</code>
+        {% if audit_href %}
+            · <a href="{{ audit_href }}">İşlem geçmişi</a>
+        {% endif %}
+    </p>
+
+    <dl class="admin-detail-grid">
+        <div><dt>E-posta</dt><dd>{{ user.email }}</dd></div>
+        <div><dt>Durum</dt><dd>{% include 'components/status_chip.html.twig' with { label: user.status.value, variant: 'accent' } %}</dd></div>
+        <div><dt>Doğrulama</dt><dd>{{ user.emailVerified ? 'Doğrulanmış' : 'Doğrulanmamış' }}</dd></div>
+        <div><dt>Oluşturulma</dt><dd>{{ user.createdAt|utc_present }}</dd></div>
+        <div><dt>Global roller</dt>
+            <dd>
+                {% for role in user.globalRoles %}
+                    {% include 'components/status_chip.html.twig' with { label: role, variant: 'neutral' } %}
+                {% endfor %}
+            </dd>
+        </div>
+    </dl>
+
+    {% if user.isProtectedSuperAdmin %}
+        <p class="admin-flash admin-flash--warning" role="status">Süper yönetici hesabı uygulama üzerinden yönetilemez.</p>
+    {% elseif user.isSelf %}
+        <p class="admin-flash admin-flash--warning" role="status">Kendi hesabınız üzerinde rol/durum değişikliği yapılamaz.</p>
+    {% endif %}
+
+    {% if roles_form %}
+        <section class="admin-mutation-block" aria-labelledby="roles-heading">
+            <h2 id="roles-heading">Rolleri güncelle</h2>
+            {{ form_start(roles_form, { attr: { class: 'admin-mutation-form' } }) }}
+                {{ form_row(roles_form.roles) }}
+                {{ form_row(roles_form.reasonCode) }}
+                {{ form_row(roles_form.confirm) }}
+                <button type="submit" class="btn btn--primary">Rolleri kaydet</button>
+            {{ form_end(roles_form) }}
+        </section>
+    {% endif %}
+
+    {% if status_form %}
+        <section class="admin-mutation-block" aria-labelledby="status-heading">
+            <h2 id="status-heading">Durumu güncelle</h2>
+            {{ form_start(status_form, { attr: { class: 'admin-mutation-form' } }) }}
+                {{ form_row(status_form.action) }}
+                {{ form_row(status_form.reasonCode) }}
+                {{ form_row(status_form.confirm) }}
+                <button type="submit" class="btn btn--primary">Durumu kaydet</button>
+            {{ form_end(status_form) }}
+        </section>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kullanıcılar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Kullanıcılar</span>
+    </nav>
+    <h1 class="panel-greeting">Kullanıcılar</h1>
+
+    <form method="get" class="admin-filters" action="{{ path('app_admin_users') }}">
+        <label>Ara
+            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
+        </label>
+        <label>Durum
+            <select name="status">
+                <option value="">—</option>
+                {% for s in ['pending_verification','active','suspended','archived'] %}
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Global rol
+            <select name="role">
+                <option value="">—</option>
+                {% for role in role_choices %}
+                    <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role.value }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Doğrulama
+            <select name="verified">
+                <option value="">—</option>
+                <option value="1" {% if filters.verified|default('') == '1' %}selected{% endif %}>Doğrulanmış</option>
+                <option value="0" {% if filters.verified|default('') == '0' %}selected{% endif %}>Doğrulanmamış</option>
+            </select>
+        </label>
+        <button type="submit" class="btn btn--primary">Filtrele</button>
+    </form>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Kayıt yok',
+            body: 'Filtrelere uygun kullanıcı bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Ref</th>
+                        <th>Ad</th>
+                        <th>E-posta</th>
+                        <th>Durum</th>
+                        <th>Roller</th>
+                        <th>Doğrulama</th>
+                        <th>Oluşturulma</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td><code>{{ row.shortRef }}</code></td>
+                            <td>{{ row.displayName() }}</td>
+                            <td>{{ row.email }}</td>
+                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
+                            <td>
+                                {% for role in row.globalRoles %}
+                                    {% include 'components/status_chip.html.twig' with { label: role, variant: 'neutral' } %}
+                                {% endfor %}
+                            </td>
+                            <td>{{ row.emailVerified ? 'Evet' : 'Hayır' }}</td>
+                            <td>{{ row.createdAt|utc_present }}</td>
+                            <td><a href="{{ path('app_admin_user_detail', { id: row.id }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_users',
+        query: {
+            q: filters.q|default(''),
+            status: filters.status|default(''),
+            role: filters.role|default(''),
+            verified: filters.verified|default('')
+        }
+    } %}
+{% endblock %}

@@ -41,6 +41,8 @@ final class AdminPreviewView
             navItems: [
                 ['id' => 'dashboard', 'label' => 'Özet', 'current' => true],
                 ['id' => 'system', 'label' => 'Sistem', 'current' => false],
+                ['id' => 'users', 'label' => 'Kullanıcılar', 'current' => false],
+                ['id' => 'institutions', 'label' => 'Kurumlar', 'current' => false],
                 ['id' => 'payments', 'label' => 'Ödemeler', 'current' => false],
                 ['id' => 'webhooks', 'label' => 'Webhook', 'current' => false],
                 ['id' => 'reconciliations', 'label' => 'Uzlaştırma', 'current' => false],
@@ -49,6 +51,8 @@ final class AdminPreviewView
             mobileNav: [
                 ['id' => 'dashboard', 'label' => 'Özet', 'current' => true],
                 ['id' => 'system', 'label' => 'Sistem', 'current' => false],
+                ['id' => 'users', 'label' => 'Kullanıcılar', 'current' => false],
+                ['id' => 'institutions', 'label' => 'Kurumlar', 'current' => false],
                 ['id' => 'payments', 'label' => 'Ödemeler', 'current' => false],
                 ['id' => 'webhooks', 'label' => 'Webhook', 'current' => false],
                 ['id' => 'reconciliations', 'label' => 'Uzlaştırma', 'current' => false],

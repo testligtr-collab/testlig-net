@@ -1,0 +1,47 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kurum {{ institution.shortRef }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_institutions') }}">Kurumlar</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ institution.shortRef }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ institution.name }}</h1>
+    <p class="muted">Ref <code>{{ institution.shortRef }}</code>
+        {% if institution.canViewMemberships %}
+            · <a href="{{ path('app_admin_institution_members', { id: institution.id }) }}">Üyeler</a>
+        {% endif %}
+        {% if audit_href %}
+            · <a href="{{ audit_href }}">İşlem geçmişi</a>
+        {% endif %}
+    </p>
+
+    <dl class="admin-detail-grid">
+        <div><dt>Slug</dt><dd><code>{{ institution.slug }}</code></dd></div>
+        <div><dt>Tür</dt><dd>{{ institution.type.value }}</dd></div>
+        <div><dt>Durum</dt><dd>{% include 'components/status_chip.html.twig' with { label: institution.status.value, variant: 'accent' } %}</dd></div>
+        <div><dt>Locale / TZ</dt><dd>{{ institution.locale }} / {{ institution.timezone }}</dd></div>
+        <div><dt>Aktif üye</dt><dd>{{ institution.activeMemberCount }}</dd></div>
+        <div><dt>Aktif sahip</dt><dd>{{ institution.activeOwnerCount }}</dd></div>
+        <div><dt>Oluşturulma</dt><dd>{{ institution.createdAt|utc_present }}</dd></div>
+        <div><dt>Güncelleme</dt><dd>{{ institution.updatedAt|utc_present }}</dd></div>
+    </dl>
+
+    {% if status_form %}
+        <section class="admin-mutation-block" aria-labelledby="inst-status-heading">
+            <h2 id="inst-status-heading">Durumu güncelle</h2>
+            {{ form_start(status_form, { attr: { class: 'admin-mutation-form' } }) }}
+                {{ form_row(status_form.action) }}
+                {{ form_row(status_form.reasonCode) }}
+                {{ form_row(status_form.confirm) }}
+                <button type="submit" class="btn btn--primary">Durumu kaydet</button>
+            {{ form_end(status_form) }}
+        </section>
+    {% elseif institution.status.value == 'archived' %}
+        <p class="admin-flash admin-flash--warning" role="status">Arşivlenmiş kurum yeniden açılamaz.</p>
+    {% endif %}
+{% endblock %}
