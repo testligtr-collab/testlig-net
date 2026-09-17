@@ -78,4 +78,6 @@ DTO projections only — no entity graphs to Twig.
 
 EasyAdmin / commercial SDKs / card UI / checkout / user CRUD / institution CRUD /
 content CRUD / bulk delete / hard-delete / role UI / direct DB mutation / REST admin API /
+Stage 2.21+ (see `architecture-admin-identity-institution-management.md` once shipped).
+
 Stage 2.21. Prefer no new migrations (existing schema sufficient).

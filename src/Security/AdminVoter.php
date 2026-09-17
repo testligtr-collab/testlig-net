@@ -53,6 +53,13 @@ final class AdminVoter extends Voter
                     AdminPermission::ADMIN_PAYMENT_OPS => $this->adminAuthorization->canOperatePayments($actor),
                     AdminPermission::ADMIN_AUDIT_VIEW => $this->adminAuthorization->canViewSecurityAudit($actor),
                     AdminPermission::ADMIN_DEAD_LETTER_REQUEUE => $this->adminAuthorization->canRequeueDeadLetter($actor),
+                    AdminPermission::ADMIN_USERS_VIEW => $this->adminAuthorization->canViewUsers($actor),
+                    AdminPermission::ADMIN_USERS_MANAGE => $this->adminAuthorization->canManageUsers($actor),
+                    AdminPermission::ADMIN_INSTITUTIONS_VIEW => $this->adminAuthorization->canViewInstitutions($actor),
+                    AdminPermission::ADMIN_INSTITUTIONS_CREATE => $this->adminAuthorization->canCreateInstitutions($actor),
+                    AdminPermission::ADMIN_INSTITUTIONS_MANAGE => $this->adminAuthorization->canManageInstitutions($actor),
+                    AdminPermission::ADMIN_MEMBERSHIPS_VIEW => $this->adminAuthorization->canViewMemberships($actor),
+                    AdminPermission::ADMIN_MEMBERSHIPS_MANAGE => $this->adminAuthorization->canManageMemberships($actor),
                     default => false,
                 };
             });

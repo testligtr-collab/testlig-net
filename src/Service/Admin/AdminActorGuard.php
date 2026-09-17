@@ -59,4 +59,39 @@ final class AdminActorGuard
     {
         return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanViewSecurityAudit(...));
     }
+
+    public function requireUsersView(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanViewUsers(...));
+    }
+
+    public function requireUsersManage(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanManageUsers(...));
+    }
+
+    public function requireInstitutionsView(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanViewInstitutions(...));
+    }
+
+    public function requireInstitutionsCreate(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanCreateInstitutions(...));
+    }
+
+    public function requireInstitutionsManage(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanManageInstitutions(...));
+    }
+
+    public function requireMembershipsView(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanViewMemberships(...));
+    }
+
+    public function requireMembershipsManage(Uuid $actorId): User
+    {
+        return $this->withFreshActor($actorId, $this->adminAuthorization->assertCanManageMemberships(...));
+    }
 }
