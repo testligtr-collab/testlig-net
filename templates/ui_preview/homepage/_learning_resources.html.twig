@@ -1,0 +1,25 @@
+<section id="vitrin" class="hp-showcase" aria-labelledby="showcase-title">
+    <div class="container">
+        <header class="hp-showcase__head">
+            <span class="hp-eyebrow">TESTLİG DÜNYASI</span>
+            <h2 id="showcase-title" class="hp-section__title">Öğrenmenin pek çok yolu var.</h2>
+            <p class="hp-section__lead hp-section__lead--center">İzle, uygula, sor ve oyna. Sana uygun öğrenme yolunu keşfet.</p>
+        </header>
+        <div class="hp-resource-grid">
+            {% for card in view.showcaseCards %}
+                <article id="{{ card.id }}" class="hp-vcard" style="--hp-accent: {{ card.accent }}; --hp-tint: {{ card.tint }}">
+                    <div class="hp-vcard__art">
+                        <img src="{{ card.image }}" alt="" width="418" height="418" loading="lazy" decoding="async">
+                        <span class="hp-vcard__label">{{ card.label }}</span>
+                    </div>
+                    <div class="hp-vcard__body">
+                        <h3>{{ card.title }}</h3>
+                        <p>{{ card.body }}</p>
+                        <p class="hp-status" role="status">Hazırlanıyor</p>
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+        <p class="hp-note hp-note--center" role="status">{{ view.showcaseStatus }}</p>
+    </div>
+</section>

@@ -1,0 +1,26 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ana sayfa önizlemesi — Testlig{% endblock %}
+
+{% block body_class %}homepage-preview-v2{% endblock %}
+
+{% block site_chrome %}
+    {% include 'ui_preview/homepage/_header.html.twig' %}
+{% endblock %}
+
+{% block body %}
+{% include 'ui_preview/homepage/_hero.html.twig' %}
+{% include 'ui_preview/homepage/_grade_levels.html.twig' %}
+{% include 'ui_preview/homepage/_education_levels.html.twig' %}
+{% include 'ui_preview/homepage/_learning_resources.html.twig' %}
+{% include 'ui_preview/homepage/_question_answer_promo.html.twig' %}
+{% include 'ui_preview/homepage/_audiences.html.twig' %}
+{% include 'ui_preview/homepage/_institution_promo.html.twig' %}
+{% include 'ui_preview/homepage/_mobile_promo.html.twig' %}
+{% include 'ui_preview/homepage/_closing.html.twig' %}
+{% include 'ui_preview/homepage/_news.html.twig' %}
+{% endblock %}
+
+{% block site_footer %}
+    {% include 'ui_preview/homepage/_footer.html.twig' %}
+{% endblock %}

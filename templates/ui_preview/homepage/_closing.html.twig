@@ -1,0 +1,10 @@
+<section class="hp-closing" aria-labelledby="closing-title">
+    <div class="container hp-closing__inner">
+        <h2 id="closing-title" class="hp-section__title">{{ view.closingTitle }}</h2>
+        <p class="hp-section__lead hp-section__lead--center">{{ view.closingLead }}</p>
+        <div class="btn-group hp-closing__actions">
+            {% include 'components/button.html.twig' with { label: 'Ücretsiz Kayıt Ol', href: path('app_register'), variant: 'cta' } %}
+            {% include 'components/button.html.twig' with { label: 'Kurumlar için', href: '#kurumlar', variant: 'ghost' } %}
+        </div>
+    </div>
+</section>

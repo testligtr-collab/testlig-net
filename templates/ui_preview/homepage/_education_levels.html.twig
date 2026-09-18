@@ -1,0 +1,28 @@
+<section id="seviyeler" class="hp-showcase" aria-labelledby="levels-title">
+    <div class="container">
+        <header class="hp-showcase__head">
+            <span class="hp-eyebrow">SANA UYGUN BAŞLANGIÇ</span>
+            <h2 id="levels-title" class="hp-section__title">Her seviyede yeni bir keşif.</h2>
+            <p class="hp-section__lead hp-section__lead--center">İlk adımlardan büyük hedeflere, öğrenme yolculuğunu seç.</p>
+        </header>
+        <div class="hp-level-grid">
+            {% for card in view.levelCards %}
+                <article id="{{ card.id }}" class="hp-vcard" style="--hp-accent: {{ card.accent }}; --hp-tint: {{ card.tint }}">
+                    <div class="hp-vcard__art">
+                        <img src="{{ card.image }}" alt="" width="418" height="418" loading="lazy" decoding="async">
+                        <span class="hp-vcard__label">EĞİTİM SEVİYESİ</span>
+                    </div>
+                    <div class="hp-vcard__body">
+                        <h3>{{ card.title }}</h3>
+                        <p>{{ card.body }}</p>
+                        {% if card.actionHref %}
+                            <a class="hp-vcard__action" href="{{ card.actionHref }}">{{ card.actionLabel }} <span aria-hidden="true">→</span></a>
+                        {% else %}
+                            <p class="hp-status" role="status">{{ card.status|default('Hazırlanıyor') }}</p>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>

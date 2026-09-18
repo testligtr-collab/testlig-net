@@ -1,0 +1,47 @@
+<section class="hero">
+    <div class="container hero__grid">
+        <div>
+            <div class="hero__brand">
+                {% include 'components/brand.html.twig' with { variant: 'hero' } %}
+            </div>
+            <h1 class="hero__title">Öğren, çöz, gelişimini gör.</h1>
+            <p class="hero__lead">
+                Testlig; dersleri, soruları, sınavları ve gelişim raporlarını tek ve anlaşılır bir öğrenme deneyiminde buluşturur.
+            </p>
+            <div class="btn-group">
+                {% include 'components/button.html.twig' with { label: 'Ücretsiz Başla', href: path('app_register'), variant: 'cta' } %}
+                {% include 'components/button.html.twig' with { label: 'Testlig’i Keşfet', href: '#nasil', variant: 'ghost' } %}
+            </div>
+        </div>
+
+        <aside class="hero-preview" aria-label="Öğrenci ilerleme ön izlemesi">
+            <p class="hero-preview__title">Bugünkü öğrenme özeti</p>
+            <ul class="hero-preview__list">
+                <li>
+                    <span class="hero-preview__label">Bugünkü hedef</span>
+                    <span class="hero-preview__value">Matematik · 20 soru</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Tamamlanma</span>
+                    <span class="hero-preview__value">%65</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Son deneme</span>
+                    <span class="hero-preview__value">82 / 100</span>
+                </li>
+                <li>
+                    <span class="hero-preview__label">Sıradaki çalışma</span>
+                    <span class="hero-preview__value">Kesirler tekrarı</span>
+                </li>
+            </ul>
+            <svg class="hero-art" style="margin-top:1.25rem;width:100%;height:auto;" viewBox="0 0 420 160" role="img" aria-label="Sade öğrenme ilerleme illüstrasyonu">
+                <rect x="0" y="0" width="420" height="160" rx="16" fill="#eef5fb"/>
+                <rect x="28" y="36" width="160" height="14" rx="7" fill="#2b7bb9" opacity="0.85"/>
+                <rect x="28" y="64" width="220" height="10" rx="5" fill="#b8c6d6"/>
+                <rect x="28" y="88" width="180" height="10" rx="5" fill="#d4dde8"/>
+                <circle cx="320" cy="80" r="42" fill="#d9ebf7"/>
+                <path d="M300 82l12 12 28-28" fill="none" stroke="#2f9e7a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </aside>
+    </div>
+</section>

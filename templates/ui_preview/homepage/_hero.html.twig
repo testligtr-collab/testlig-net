@@ -1,0 +1,27 @@
+<section class="hp-hero" aria-labelledby="hp-hero-title">
+    <div class="container hp-hero__grid">
+        <div class="hp-hero__copy">
+            <h1 id="hp-hero-title" class="hp-hero__title">{{ view.heroTitleHtml|raw }}</h1>
+            <p class="hp-hero__lead">{{ view.heroLead }}</p>
+            <div class="btn-group hp-hero__actions">
+                {% include 'components/button.html.twig' with { label: 'Ücretsiz Başla', href: path('app_register'), variant: 'cta' } %}
+                {% include 'components/button.html.twig' with { label: 'İçerikleri Keşfet', href: '#icerikler', variant: 'ghost' } %}
+            </div>
+            <ul class="hp-hero__benefits">
+                {% for benefit in view.heroBenefits %}
+                    <li>{{ benefit }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="hp-hero__media">
+            <img
+                src="{{ view.heroImage }}"
+                alt="{{ view.heroImageAlt }}"
+                width="530"
+                height="370"
+                decoding="async"
+                fetchpriority="high"
+            >
+        </div>
+    </div>
+</section>

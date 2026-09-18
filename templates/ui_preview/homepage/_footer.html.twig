@@ -1,0 +1,47 @@
+<footer class="site-footer hp-footer">
+    <div class="container hp-footer__trust" role="note">
+        <ul class="hp-trust">
+            {% for item in view.trustItems %}
+                <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="container hp-footer__grid">
+        <div>
+            <h2>Testlig</h2>
+            <p class="hp-footer__tagline">Her öğrencinin daha iyi bir yarını mümkün.</p>
+            <ul>
+                <li><a href="{{ path('app_home') }}">Ana Sayfa</a></li>
+                <li><a href="{{ path('app_register') }}">Ücretsiz Başla</a></li>
+                <li><a href="{{ path('app_login') }}">Giriş Yap</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Keşfet</h2>
+            <ul>
+                <li><a href="#siniflar">Sınıflar</a></li>
+                <li><a href="#vitrin">İçerik dünyası</a></li>
+                <li><a href="#haberler">Haberler</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Rehberlik</h2>
+            <ul>
+                <li><a href="#ogretmenler">Öğretmenler</a></li>
+                <li><a href="#kurumlar">Kurumlar</a></li>
+                <li><a href="#her-ekran">Her ekranda</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Yakında</h2>
+            <ul>
+                <li><span class="hp-status hp-status--inline" role="status">Hakkımızda · Hazırlanıyor</span></li>
+                <li><span class="hp-status hp-status--inline" role="status">İletişim · Hazırlanıyor</span></li>
+                <li><span class="hp-status hp-status--inline" role="status">Yardım · Hazırlanıyor</span></li>
+            </ul>
+        </div>
+    </div>
+    <div class="container site-footer__meta">
+        <p class="hp-footer__copy">© 2026 Testlig</p>
+    </div>
+</footer>

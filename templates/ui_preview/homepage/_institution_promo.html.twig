@@ -1,0 +1,20 @@
+<section id="kurumlar" class="hp-section hp-section--institution" aria-labelledby="kurumlar-title">
+    <div class="container hp-split">
+        <div>
+            <h2 id="kurumlar-title" class="hp-section__title">{{ view.institutionTitle }}</h2>
+            <p class="hp-section__lead">{{ view.institutionBody }}</p>
+            <p class="hp-status" role="status">Hazırlanıyor</p>
+        </div>
+        <div>
+            <img
+                src="{{ view.institutionImage }}"
+                alt="{{ view.institutionImageAlt }}"
+                width="520"
+                height="320"
+                loading="lazy"
+                decoding="async"
+            >
+            <p class="hp-note" role="note">Örnek arayüz — ekran verileri temsilidir.</p>
+        </div>
+    </div>
+</section>

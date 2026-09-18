@@ -1,0 +1,60 @@
+<header class="site-header hp-topbar" data-controller="mobile-nav">
+    <div class="site-header__inner hp-topbar__inner">
+        {% include 'components/brand.html.twig' %}
+
+        <nav class="site-nav hp-topbar__nav" aria-label="Ana menü">
+            {% for item in view.navItems %}
+                <a href="{{ item.href }}">{{ item.label }}</a>
+            {% endfor %}
+        </nav>
+
+        <div class="site-header__actions hp-topbar__actions">
+            {% if app.user %}
+                <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
+                <form method="post" action="{{ path('app_logout') }}" class="logout-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                    <button type="submit" class="btn btn--primary">Çıkış</button>
+                </form>
+            {% else %}
+                <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş Yap</a>
+                <a class="btn btn--cta" href="{{ path('app_register') }}">Kayıt Ol</a>
+            {% endif %}
+        </div>
+
+        <button
+            type="button"
+            class="nav-toggle"
+            data-mobile-nav-target="button"
+            data-action="mobile-nav#toggle"
+            aria-expanded="false"
+            aria-controls="mobile-site-nav"
+        >
+            <span class="sr-only">Menüyü aç veya kapat</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M4 7h16v2H4V7zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/>
+            </svg>
+        </button>
+    </div>
+
+    <div
+        id="mobile-site-nav"
+        class="mobile-drawer"
+        data-mobile-nav-target="drawer"
+        data-action="click->mobile-nav#closeOnNavigate"
+        hidden
+    >
+        <nav aria-label="Mobil ana menü">
+            {% for item in view.navItems %}
+                <a href="{{ item.href }}">{{ item.label }}</a>
+            {% endfor %}
+        </nav>
+        <div class="mobile-drawer__actions">
+            {% if app.user %}
+                <a class="btn btn--ghost btn--block" href="{{ path('app_account') }}">Hesabım</a>
+            {% else %}
+                <a class="btn btn--ghost btn--block" href="{{ path('app_login') }}">Giriş Yap</a>
+                <a class="btn btn--cta btn--block" href="{{ path('app_register') }}">Kayıt Ol</a>
+            {% endif %}
+        </div>
+    </div>
+</header>
