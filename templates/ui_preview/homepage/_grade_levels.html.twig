@@ -2,47 +2,48 @@
     <div class="container">
         <h2 id="siniflar-title" class="hp-section__title hp-section__title--center">Sınıfını seç, içerikleri keşfet.</h2>
 
-        <div
-            class="hp-books"
-            role="tablist"
-            aria-label="Sınıf seçimi (örnek gösterim)"
-            data-controller="grade-books"
-        >
-            {% for book in view.gradeBooks %}
-                <button
-                    type="button"
-                    class="hp-book"
-                    id="{{ book.id }}"
-                    role="tab"
-                    aria-selected="{{ book.selected|default(false) ? 'true' : 'false' }}"
-                    aria-controls="grade-panel"
-                    tabindex="{{ book.selected|default(false) ? '0' : '-1' }}"
-                    data-grade-books-target="tab"
-                    data-grade="{{ loop.index }}"
-                    data-action="click->grade-books#select keydown->grade-books#onKeydown"
-                    style="--hp-book-color: {{ book.color }}"
-                >{{ book.label }}</button>
-            {% endfor %}
-        </div>
-
-        <div
-            class="hp-grade-panel"
-            id="grade-panel"
-            role="tabpanel"
-            data-grade-books-target="panel"
-            tabindex="0"
-        >
-            <div class="hp-grade-panel__intro">
-                <h3 data-grade-books-target="title">{{ view.gradePanelTitle }}</h3>
-                <p>{{ view.gradePanelLead }}</p>
+        <div data-controller="grade-books">
+            <div
+                class="hp-books"
+                role="tablist"
+                aria-label="Sınıf seçimi (örnek gösterim)"
+            >
+                {% for book in view.gradeBooks %}
+                    <button
+                        type="button"
+                        class="hp-book"
+                        id="{{ book.id }}"
+                        role="tab"
+                        aria-selected="{{ book.selected|default(false) ? 'true' : 'false' }}"
+                        aria-controls="grade-panel"
+                        tabindex="{{ book.selected|default(false) ? '0' : '-1' }}"
+                        data-grade-books-target="tab"
+                        data-grade="{{ loop.index }}"
+                        data-action="click->grade-books#select keydown->grade-books#onKeydown"
+                        style="--hp-book-color: {{ book.color }}"
+                    >{{ book.label }}</button>
+                {% endfor %}
             </div>
-            {% for type in view.gradeLearningTypes %}
-                <article class="hp-grade-type">
-                    <span class="hp-grade-type__symbol" aria-hidden="true"{% if type.accent is defined %} style="color: {{ type.accent }}"{% endif %}>{{ type.symbol }}</span>
-                    <h3>{{ type.title }}</h3>
-                    <p>{{ type.body }}</p>
-                </article>
-            {% endfor %}
+
+            <div
+                class="hp-grade-panel"
+                id="grade-panel"
+                role="tabpanel"
+                data-grade-books-target="panel"
+                tabindex="0"
+            >
+                <div class="hp-grade-panel__intro">
+                    <h3 data-grade-books-target="title">{{ view.gradePanelTitle }}</h3>
+                    <p>{{ view.gradePanelLead }}</p>
+                </div>
+                {% for type in view.gradeLearningTypes %}
+                    <article class="hp-grade-type">
+                        <span class="hp-grade-type__symbol" aria-hidden="true"{% if type.accent is defined %} style="color: {{ type.accent }}"{% endif %}>{{ type.symbol }}</span>
+                        <h3>{{ type.title }}</h3>
+                        <p>{{ type.body }}</p>
+                    </article>
+                {% endfor %}
+            </div>
         </div>
 
         <p class="hp-note hp-note--center" role="note">{{ view.sectionDemoNote }}</p>
