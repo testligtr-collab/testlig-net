@@ -1,0 +1,21 @@
+<section id="ogretmenler" class="hp-section hp-section--audiences" aria-labelledby="audiences-title">
+    <div class="container">
+        <h2 id="audiences-title" class="hp-section__title hp-section__title--center">Birlikte daha güçlü.</h2>
+        <div class="hp-duo">
+            {% for audience in view.audiences %}
+                <article class="hp-audience hp-audience--{{ audience.variant }}">
+                    <div>
+                        <h3>{{ audience.title }}</h3>
+                        <ul class="hp-checks">
+                            {% for item in audience.items %}
+                                <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        <p class="hp-status" role="status">Hazırlanıyor</p>
+                    </div>
+                    <img src="{{ audience.image }}" alt="{{ audience.imageAlt }}" width="280" height="200" loading="lazy" decoding="async">
+                </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>

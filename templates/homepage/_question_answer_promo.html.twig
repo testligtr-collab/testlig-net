@@ -1,0 +1,20 @@
+<section id="icerikler" class="hp-section" aria-labelledby="path-title">
+    <div class="container">
+        <h2 id="path-title" class="hp-section__title hp-section__title--center">İzlemekle kalma, öğrenmenin içine gir.</h2>
+        <div class="hp-path-grid">
+            {% for item in view.learningPath %}
+                <article class="hp-path-card">
+                    <figure class="hp-path-card__figure">
+                        <img src="{{ item.image }}" alt="{{ item.imageAlt }}" width="360" height="220" loading="lazy" decoding="async">
+                        {% if item.imageCaption is defined and item.imageCaption %}
+                            <figcaption class="hp-sample-caption">{{ item.imageCaption }}</figcaption>
+                        {% endif %}
+                    </figure>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.body }}</p>
+                    <a class="hp-text-link" href="{{ item.linkHref }}">{{ item.linkLabel }} <span aria-hidden="true">→</span></a>
+                </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
