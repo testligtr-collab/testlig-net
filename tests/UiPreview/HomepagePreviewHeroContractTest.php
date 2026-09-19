@@ -9,7 +9,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 final class HomepagePreviewHeroContractTest extends WebTestCase
 {
-    public function testLiveHomeRemainsUnchangedWhilePreviewUsesDedicatedHero(): void
+    public function testLiveHomeAndPreviewUseApprovedHeroWithoutLegacySummary(): void
     {
         $client = static::createClient();
 
@@ -17,17 +17,15 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $homeHtml = (string) $client->getResponse()->getContent();
 
-        self::assertStringContainsString('Öğren, çöz, gelişimini gör.', $homeHtml);
-        self::assertStringContainsString('Bugünkü öğrenme özeti', $homeHtml);
-        self::assertStringContainsString('Testlig nasıl yardımcı olur?', $homeHtml);
-        self::assertStringNotContainsString('Öğrenmek için', $homeHtml);
-        self::assertStringNotContainsString('hero-world.png', $homeHtml);
-        self::assertStringNotContainsString('Sınıfını seç, içerikleri keşfet.', $homeHtml);
-        self::assertStringNotContainsString('Öğrenmenin pek çok yolu var.', $homeHtml);
-
-        $homeHero = $this->extractSection($homeHtml, 'hero');
-        self::assertStringContainsString('hero-preview', $homeHero);
-        self::assertStringNotContainsString('hp-hero', $homeHero);
+        self::assertStringContainsString('Öğrenmek için', $homeHtml);
+        self::assertStringContainsString('hero-world-clean.png', $homeHtml);
+        self::assertStringContainsString('hp-hero', $homeHtml);
+        self::assertStringContainsString('Sınıfını seç, içerikleri keşfet.', $homeHtml);
+        self::assertStringContainsString('Öğrenmenin pek çok yolu var.', $homeHtml);
+        self::assertStringNotContainsString('Öğren, çöz, gelişimini gör.', $homeHtml);
+        self::assertStringNotContainsString('Bugünkü öğrenme özeti', $homeHtml);
+        self::assertStringNotContainsString('hero-preview', $homeHtml);
+        self::assertStringNotContainsString('class="hero"', $homeHtml);
 
         $client->request('GET', '/onizleme/anasayfa-yeni');
         self::assertResponseIsSuccessful();
@@ -127,7 +125,6 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
             strpos($html, 'id="haberler"') ?: \PHP_INT_MAX,
         );
 
-        // Screenshot stitching can repeat bands visually; DOM sections must appear once.
         $sectionIds = $crawler->filter('section[id]')->each(
             static fn (Crawler $node): string => (string) $node->attr('id'),
         );
@@ -147,6 +144,10 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
         self::assertDirectoryExists($root.'/public/images/homepage-preview');
         self::assertDirectoryDoesNotExist($root.'/assets/images/homepage-preview');
         self::assertDirectoryDoesNotExist($root.'/assets/images');
+        self::assertFileExists($root.'/src/Homepage/HomepageView.php');
+        self::assertFileDoesNotExist($root.'/src/UiPreview/HomepagePreviewView.php');
+        self::assertDirectoryExists($root.'/templates/homepage');
+        self::assertDirectoryDoesNotExist($root.'/templates/ui_preview/homepage');
 
         foreach ([
             'hero-world.png',
@@ -178,24 +179,16 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
         self::assertFileDoesNotExist($root.'/public/images/homepage-preview/google-ads.png');
 
         $css = (string) file_get_contents($root.'/assets/styles/app.css');
-        self::assertStringContainsString('.homepage-preview-v2', $css);
+        self::assertStringContainsString('.homepage-v2', $css);
+        self::assertStringNotContainsString('.homepage-preview-v2', $css);
         self::assertStringNotContainsString('overflow-x: hidden', $css);
         self::assertStringNotContainsString('overflow-x:hidden', $css);
-        self::assertDoesNotMatchRegularExpression('/^\\s*(body|header|footer|\\.btn|\\.card|\\.section|img)\\s*\\{/m', $this->previewCssBlock($css));
+        self::assertDoesNotMatchRegularExpression('/^\\s*(body|header|footer|\\.btn|\\.card|\\.section|img)\\s*\\{/m', $this->homepageCssBlock($css));
     }
 
-    private function extractSection(string $html, string $class): string
+    private function homepageCssBlock(string $css): string
     {
-        if (!preg_match('/<section class="'.preg_quote($class, '/').'"[^>]*>.*?<\\/section>/s', $html, $matches)) {
-            self::fail(\sprintf('Section .%s not found.', $class));
-        }
-
-        return $matches[0];
-    }
-
-    private function previewCssBlock(string $css): string
-    {
-        $pos = strpos($css, 'Homepage approved design preview');
+        $pos = strpos($css, 'Homepage approved design');
         self::assertNotFalse($pos);
 
         return substr($css, $pos);

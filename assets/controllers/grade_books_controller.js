@@ -1,7 +1,7 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
- * Demo-only grade book tabs for homepage preview (does not filter real content).
+ * Grade book tabs for the public homepage (demo selection; does not filter real content).
  */
 export default class extends Controller {
     static targets = ['tab', 'panel', 'title'];

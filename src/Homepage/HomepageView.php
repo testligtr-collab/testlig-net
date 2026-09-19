@@ -2,12 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\UiPreview;
+namespace App\Homepage;
 
 /**
- * Immutable demo payload for the approved homepage design preview (no DB).
+ * Immutable presentation payload for the approved public homepage (no DB).
+ * Shared by live `/` and the dev/test preview route.
  */
-final class HomepagePreviewView
+final class HomepageView
 {
     /**
      * @param list<array{label: string, href: string, current?: bool}>                                                                                                         $navItems
@@ -267,8 +268,8 @@ final class HomepagePreviewView
             closingLead: 'Daha parlak bir gelecek, seninle mümkün.',
             newsTitle: 'Haberler ve öğrenme rehberleri',
             newsBody: 'Platform duyuruları ve eğitim rehberleri burada yer alacak.',
-            sectionDemoNote: 'Tasarım önizlemesi — sınıf seçimi örnek gösterimdir; içerik filtrelemez.',
-            showcaseStatus: 'Bu alanlar tasarım önizlemesidir; içerik servisleri henüz bağlı değildir.',
+            sectionDemoNote: 'Sınıf seçimi örnek gösterimdir; içerik filtrelemez.',
+            showcaseStatus: 'Bu alanlar vitrin gösterimidir; içerik servisleri henüz bağlı değildir.',
             newsStatus: 'Hazırlanıyor',
             devicesRoadmapNote: 'iOS ve Android uygulamaları yol haritamızda.',
         );
