@@ -1,0 +1,22 @@
+<section id="her-ekran" class="hp-section hp-section--devices" aria-labelledby="devices-title">
+    <div class="container hp-split">
+        <div>
+            <h2 id="devices-title" class="hp-section__title">{{ view.devicesTitle }}</h2>
+            <p class="hp-section__lead">{{ view.devicesBody }}</p>
+            <ul class="hp-device-tags">
+                {% for tag in view.deviceTags %}
+                    <li>{{ tag }}</li>
+                {% endfor %}
+            </ul>
+            <p class="hp-note" role="note">{{ view.devicesRoadmapNote }}</p>
+        </div>
+        <img
+            src="{{ view.devicesImage }}"
+            alt="{{ view.devicesImageAlt }}"
+            width="560"
+            height="340"
+            loading="lazy"
+            decoding="async"
+        >
+    </div>
+</section>
