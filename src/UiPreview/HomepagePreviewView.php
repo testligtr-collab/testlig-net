@@ -15,7 +15,7 @@ final class HomepagePreviewView
      * @param list<array{title: string, body: string, symbol: string, accent?: string}>                                                                                        $gradeLearningTypes
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string}> $levelCards
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                 $showcaseCards
-     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string}>                                                   $learningPath
+     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                            $learningPath
      * @param list<array{title: string, items: list<string>, image: string, imageAlt: string, variant: string}>                                                                $audiences
      * @param list<string>                                                                                                                                                     $heroBenefits
      * @param list<string>                                                                                                                                                     $deviceTags
@@ -72,7 +72,7 @@ final class HomepagePreviewView
             ],
             heroTitleHtml: 'Öğrenmek için<br>ihtiyacın olan<br>her şey burada.',
             heroLead: 'Dersler, etkinlikler, testler ve sana özel öneriler tek bir öğrenme alanında.',
-            heroImage: '/images/homepage-preview/hero-world.png',
+            heroImage: '/images/homepage-preview/hero-world-clean.png',
             heroImageAlt: 'Fen, matematik, Türkçe ve atölye alanlarından oluşan renkli öğrenme dünyası',
             heroBenefits: [
                 'Zengin içerik',
@@ -128,7 +128,18 @@ final class HomepagePreviewView
                     'tint' => '#efe8ff',
                     'actionLabel' => 'Alanı incele',
                     'actionHref' => null,
-                    'status' => 'Hazırlanıyor',
+                    'status' => 'İçerikler hazırlanıyor',
+                ],
+                [
+                    'id' => 'universite-hazirlik',
+                    'title' => 'Üniversite Hazırlık',
+                    'body' => 'TYT · AYT · YDT · Hedefine güvenle ilerlemek için hazırlık alanı.',
+                    'image' => '/images/homepage-preview/level-universite.png',
+                    'accent' => '#3f3d9e',
+                    'tint' => '#e8e7ff',
+                    'actionLabel' => 'Alanı incele',
+                    'actionHref' => null,
+                    'status' => 'İçerikler hazırlanıyor',
                 ],
             ],
             showcaseCards: [
@@ -208,7 +219,8 @@ final class HomepagePreviewView
                     'title' => 'Güçlen',
                     'body' => 'Gelişimini takip et, ihtiyaç duyduğun konulara odaklan.',
                     'image' => '/images/homepage-preview/path-progress.png',
-                    'imageAlt' => 'Örnek öğrenci ilerleme raporu illüstrasyonu; sayılar temsilidir',
+                    'imageAlt' => 'Örnek öğrenci ilerleme raporu illüstrasyonu; yüzde ve ders değerleri temsilidir',
+                    'imageCaption' => 'Örnek arayüz — veriler temsilidir.',
                     'linkLabel' => 'Rehberliği keşfet',
                     'linkHref' => '#ogretmenler',
                 ],
@@ -240,7 +252,7 @@ final class HomepagePreviewView
             institutionTitle: 'Okullar için güçlü ve kolay yönetim.',
             institutionBody: 'Sınıflar, öğrenciler ve raporlar tek bir ekranda. Eğitim sürecini birlikte yönetin.',
             institutionImage: '/images/homepage-preview/institution-panel.png',
-            institutionImageAlt: 'Temsili kurum yönetim paneli; istatistikler gerçek veri değildir',
+            institutionImageAlt: 'Temsili kurum yönetim paneli; paneldeki sayılar gerçek veri değildir',
             devicesTitle: 'Evde, okulda, her ekranda.',
             devicesBody: 'Testlig deneyimini bilgisayar, tablet ve telefon ekranlarında keşfet.',
             devicesImage: '/images/homepage-preview/devices-trio.png',
@@ -254,10 +266,10 @@ final class HomepagePreviewView
             closingTitle: 'Testlig’le öğrenmeye bugün başla.',
             closingLead: 'Daha parlak bir gelecek, seninle mümkün.',
             newsTitle: 'Haberler ve öğrenme rehberleri',
-            newsBody: 'Platform duyuruları ve eğitim rehberleri için ayrılmış vitrin alanı.',
+            newsBody: 'Platform duyuruları ve eğitim rehberleri burada yer alacak.',
             sectionDemoNote: 'Tasarım önizlemesi — sınıf seçimi örnek gösterimdir; içerik filtrelemez.',
             showcaseStatus: 'Bu alanlar tasarım önizlemesidir; içerik servisleri henüz bağlı değildir.',
-            newsStatus: 'İçerikler hazırlanıyor — gerçek haber akışı bağlı değildir.',
+            newsStatus: 'Hazırlanıyor',
             devicesRoadmapNote: 'iOS ve Android uygulamaları yol haritamızda.',
         );
     }

@@ -15,11 +15,11 @@
                     <div class="hp-vcard__body">
                         <h3>{{ card.title }}</h3>
                         <p>{{ card.body }}</p>
-                        <p class="hp-status" role="status">Hazırlanıyor</p>
+                        <span class="hp-chip" role="status">İçerikler hazırlanıyor</span>
                     </div>
                 </article>
             {% endfor %}
         </div>
-        <p class="hp-note hp-note--center" role="status">{{ view.showcaseStatus }}</p>
+        <p class="hp-note hp-note--center" role="note">{{ view.showcaseStatus }}</p>
     </div>
 </section>

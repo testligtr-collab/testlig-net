@@ -40,7 +40,7 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
             'Dersler, etkinlikler, testler ve sana özel öneriler tek bir öğrenme alanında.',
             $previewHtml,
         );
-        self::assertStringContainsString('hero-world.png', $previewHtml);
+        self::assertStringContainsString('hero-world-clean.png', $previewHtml);
         self::assertStringContainsString('hp-hero', $previewHtml);
         self::assertStringNotContainsString('Bugünkü öğrenme özeti', $previewHtml);
         self::assertStringNotContainsString('class="hero"', $previewHtml);
@@ -107,14 +107,38 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
         self::assertStringNotContainsString('app-store-badge', $html);
         self::assertStringNotContainsString('google-play-badge', $html);
 
-        self::assertGreaterThanOrEqual(1, substr_count($html, 'İçerikler hazırlanıyor'));
-        self::assertGreaterThanOrEqual(6, substr_count($html, 'Hazırlanıyor'));
+        self::assertSelectorTextContains('#seviyeler', 'Üniversite Hazırlık');
+        self::assertSelectorExists('#universite-hazirlik');
+        self::assertSelectorTextContains('#haberler', 'Platform duyuruları ve eğitim rehberleri burada yer alacak.');
+        self::assertGreaterThanOrEqual(8, substr_count($html, 'İçerikler hazırlanıyor'));
+        self::assertLessThan(6, substr_count($html, '>Hazırlanıyor<'));
         self::assertLessThan(8, substr_count(mb_strtolower($html), 'yakında'));
+        self::assertGreaterThanOrEqual(2, substr_count($html, 'Örnek arayüz — veriler temsilidir.'));
+        self::assertStringContainsString('level-universite.png', $html);
         self::assertStringContainsString('© 2026 Testlig', $html);
         self::assertStringContainsString('role="status"', $html);
+        self::assertSelectorExists('.hp-chip');
+        self::assertSelectorExists('.hp-news-band');
         self::assertSelectorExists('.hp-section--devices');
         self::assertSelectorExists('a.skip-link');
         self::assertSelectorExists('[data-controller="grade-books"]');
+        self::assertLessThan(
+            strpos($html, 'id="closing-title"') ?: \PHP_INT_MAX,
+            strpos($html, 'id="haberler"') ?: \PHP_INT_MAX,
+        );
+
+        // Screenshot stitching can repeat bands visually; DOM sections must appear once.
+        $sectionIds = $crawler->filter('section[id]')->each(
+            static fn (Crawler $node): string => (string) $node->attr('id'),
+        );
+        self::assertSame($sectionIds, array_values(array_unique($sectionIds)));
+        self::assertSame(
+            ['siniflar', 'seviyeler', 'vitrin', 'icerikler', 'ogretmenler', 'kurumlar', 'her-ekran', 'haberler'],
+            $sectionIds,
+        );
+        foreach (['siniflar', 'seviyeler', 'vitrin', 'icerikler', 'ogretmenler', 'kurumlar', 'her-ekran', 'haberler'] as $id) {
+            self::assertSame(1, $crawler->filter('#'.$id)->count());
+        }
     }
 
     public function testCanonicalPublicPreviewAssetsAndNoDuplicateTree(): void
@@ -126,9 +150,11 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
 
         foreach ([
             'hero-world.png',
+            'hero-world-clean.png',
             'level-ilkokul.png',
             'level-ortaokul.png',
             'level-lise.png',
+            'level-universite.png',
             'content-dokumanlar.png',
             'content-videolar.png',
             'content-simulasyonlar.png',

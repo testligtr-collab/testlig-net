@@ -60,9 +60,10 @@ final class UiPreviewControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Öğrenmek için');
-        self::assertSelectorTextContains('body', 'Sınıfını seç, içerikleri keşfet.');
-        self::assertSelectorTextContains('body', 'Öğrenmenin pek çok yolu var.');
+        self::assertSelectorTextContains('body', 'Üniversite Hazırlık');
+        self::assertSelectorTextContains('body', 'İçerikler hazırlanıyor');
         self::assertSelectorExists('section.hp-hero');
+        self::assertSelectorExists('#universite-hazirlik');
         self::assertSelectorExists('#soru-cevap');
         self::assertSelectorExists('#oyunlar');
     }

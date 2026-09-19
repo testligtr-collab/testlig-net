@@ -18,7 +18,7 @@
                         {% if card.actionHref %}
                             <a class="hp-vcard__action" href="{{ card.actionHref }}">{{ card.actionLabel }} <span aria-hidden="true">→</span></a>
                         {% else %}
-                            <p class="hp-status" role="status">{{ card.status|default('Hazırlanıyor') }}</p>
+                            <span class="hp-chip" role="status">{{ card.status|default('İçerikler hazırlanıyor') }}</span>
                         {% endif %}
                     </div>
                 </article>

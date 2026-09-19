@@ -3,9 +3,9 @@
         <div>
             <h2 id="kurumlar-title" class="hp-section__title">{{ view.institutionTitle }}</h2>
             <p class="hp-section__lead">{{ view.institutionBody }}</p>
-            <p class="hp-status" role="status">Hazırlanıyor</p>
+            <span class="hp-chip" role="status">İçerikler hazırlanıyor</span>
         </div>
-        <div>
+        <figure class="hp-sample-figure">
             <img
                 src="{{ view.institutionImage }}"
                 alt="{{ view.institutionImageAlt }}"
@@ -14,7 +14,7 @@
                 loading="lazy"
                 decoding="async"
             >
-            <p class="hp-note" role="note">Örnek arayüz — ekran verileri temsilidir.</p>
-        </div>
+            <figcaption class="hp-sample-caption">Örnek arayüz — veriler temsilidir.</figcaption>
+        </figure>
     </div>
 </section>
