@@ -181,6 +181,10 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\PhoneVerificationClaimManager:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\PasswordResetMailer:
             public: true
             autowire: true

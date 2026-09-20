@@ -183,6 +183,11 @@ final class SecurityAuditMetadataSanitizer
         'retry_pending_count',
         'dead_letter_count',
         'skipped_count',
+        // Stage 2.22.2b phone verification claim manager (identifiers / counts only).
+        'claim_id',
+        'purpose',
+        'failed_attempt_count',
+        'revoked_claim_count',
     ];
 
     /**
@@ -245,6 +250,19 @@ final class SecurityAuditMetadataSanitizer
         'answer_ciphertext',
         'answernonce',
         'answer_nonce',
+        'otp',
+        'plainotp',
+        'plain_otp',
+        'codedigest',
+        'code_digest',
+        'pepper',
+        'phone',
+        'normalizedphone',
+        'normalized_phone',
+        'targetphone',
+        'target_phone',
+        'targetnormalizedphone',
+        'target_normalized_phone',
     ];
 
     /**

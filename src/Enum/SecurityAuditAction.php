@@ -178,4 +178,8 @@ enum SecurityAuditAction: string
     case CommerceFulfillmentCompleted = 'commerce_fulfillment_completed';
     case CommerceFulfillmentFailed = 'commerce_fulfillment_failed';
     case CommerceFulfillmentReversed = 'commerce_fulfillment_reversed';
+    case PhoneVerificationClaimCreated = 'phone_verification_claim_created';
+    case PhoneVerificationFailed = 'phone_verification_failed';
+    case PhoneVerificationRevoked = 'phone_verification_revoked';
+    case PhoneBound = 'phone_bound';
 }

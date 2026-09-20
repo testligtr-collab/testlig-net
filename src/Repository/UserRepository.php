@@ -7,6 +7,8 @@ namespace App\Repository;
 use App\Entity\User;
 use App\Enum\UserRole;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
@@ -41,6 +43,23 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
     public function findOneById(Uuid $id): ?User
     {
         return $this->find($id);
+    }
+
+    /**
+     * Re-load a user under pessimistic write lock. Requires an open transaction.
+     */
+    public function findOneByIdForUpdate(Uuid $id): ?User
+    {
+        $query = $this->createQueryBuilder('u')
+            ->andWhere('u.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery();
+        $query->setLockMode(LockMode::PESSIMISTIC_WRITE);
+        $query->setHint(Query::HINT_REFRESH, true);
+
+        $result = $query->getOneOrNullResult();
+
+        return $result instanceof User ? $result : null;
     }
 
     /**
