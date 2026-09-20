@@ -17,6 +17,8 @@ use App\Service\PaymentPlatformSettlementActorOverride;
 use App\Tests\Support\CommerceTestFixtures;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class PaymentOperationsCommandsTest extends KernelTestCase
@@ -36,6 +38,7 @@ final class PaymentOperationsCommandsTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        Clock::set(new NativeClock());
         try {
             $override = static::getContainer()->get(PaymentPlatformSettlementActorOverride::class);
             self::assertInstanceOf(PaymentPlatformSettlementActorOverride::class, $override);
