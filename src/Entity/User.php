@@ -7,7 +7,9 @@ namespace App\Entity;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Exception\InvalidUserTransitionException;
+use App\Exception\PhoneVerificationException;
 use App\Repository\UserRepository;
+use App\Service\PhoneNormalizer;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
@@ -34,6 +36,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
 #[ORM\UniqueConstraint(name: 'uniq_users_normalized_email', columns: ['normalized_email'])]
+#[ORM\UniqueConstraint(name: 'uniq_users_normalized_phone', columns: ['normalized_phone'])]
 #[ORM\Index(name: 'idx_users_email', columns: ['email'])]
 #[ORM\HasLifecycleCallbacks]
 #[UniqueEntity(fields: ['normalizedEmail'], message: 'This email is already registered.')]
@@ -83,6 +86,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $emailVerifiedAt = null;
+
+    /**
+     * Display phone. Only set together with normalizedPhone + phoneVerifiedAt after OTP bind.
+     */
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $phone = null;
+
+    /**
+     * Canonical E.164 Turkey mobile (+905XXXXXXXXX). Unique when not null.
+     */
+    #[ORM\Column(name: 'normalized_phone', length: 20, nullable: true)]
+    private ?string $normalizedPhone = null;
+
+    #[ORM\Column(name: 'phone_verified_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $phoneVerifiedAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $lastLoginAt = null;
@@ -283,6 +301,50 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, Equatab
     public function markEmailVerified(?\DateTimeImmutable $at = null): void
     {
         $this->emailVerifiedAt = $at ?? new \DateTimeImmutable('now');
+        $this->touch();
+    }
+
+    public function getPhone(): ?string
+    {
+        return $this->phone;
+    }
+
+    public function getNormalizedPhone(): ?string
+    {
+        return $this->normalizedPhone;
+    }
+
+    public function getPhoneVerifiedAt(): ?\DateTimeImmutable
+    {
+        return $this->phoneVerifiedAt;
+    }
+
+    public function hasVerifiedPhone(): bool
+    {
+        return null !== $this->normalizedPhone
+            && null !== $this->phone
+            && null !== $this->phoneVerifiedAt;
+    }
+
+    /**
+     * Binds a verified phone after successful OTP. Controllers must not call this —
+     * prefer a future PhoneVerificationClaimManager (2.22.2b).
+     *
+     * @internal
+     */
+    #[Ignore]
+    public function bindVerifiedPhone(string $phone, string $normalizedPhone, \DateTimeImmutable $verifiedAt): void
+    {
+        $display = trim($phone);
+        if (1 !== preg_match(PhoneNormalizer::CANONICAL_PATTERN, $normalizedPhone)
+            || 1 !== preg_match(PhoneNormalizer::CANONICAL_PATTERN, $display)
+            || $display !== $normalizedPhone) {
+            throw PhoneVerificationException::phoneInvariant();
+        }
+
+        $this->phone = $display;
+        $this->normalizedPhone = $normalizedPhone;
+        $this->phoneVerifiedAt = $verifiedAt;
         $this->touch();
     }
 

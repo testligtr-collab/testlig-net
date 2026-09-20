@@ -15,6 +15,8 @@ parameters:
     env(PAYMENT_SANDBOX_WEBHOOK_SIGNING_KEY): 'change-me-sandbox-webhook-signing-key-32b!!'
     env(PAYMENT_PLATFORM_SETTLEMENT_ACTOR_ID): ''
     env(PAYMENT_SANDBOX_PROVIDER_ENABLED): '1'
+    env(PHONE_OTP_PEPPER): 'change-me-phone-otp-pepper-not-for-production-32b'
+    env(PHONE_OTP_PEPPER_KEY_ID): 'v1'
     payment_platform_settlement_actor_id_default: ''
 
 services:

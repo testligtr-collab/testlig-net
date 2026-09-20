@@ -28,6 +28,11 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         return $this->findOneBy(['normalizedEmail' => $normalizedEmail]);
     }
 
+    public function findOneByNormalizedPhone(string $normalizedPhone): ?User
+    {
+        return $this->findOneBy(['normalizedPhone' => $normalizedPhone]);
+    }
+
     public function existsWithNormalizedEmail(string $normalizedEmail): bool
     {
         return null !== $this->findOneByNormalizedEmail($normalizedEmail);
