@@ -23,6 +23,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -39,6 +41,13 @@ final class PasswordResetFlowTest extends WebTestCase
     private const GENERIC = 'Eğer bu e-posta ile kullanılabilir bir hesap varsa, parola yenileme bağlantısı gönderildi.';
 
     private static int $ipCounter = 10;
+
+    protected function setUp(): void
+    {
+        // SymfonyCasts ResetPasswordHelper uses Clock::get(); ignore leftover MockClock from other suites.
+        Clock::set(new NativeClock());
+        parent::setUp();
+    }
 
     public function testForgotPasswordPageOpens(): void
     {

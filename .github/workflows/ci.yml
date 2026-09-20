@@ -64,6 +64,8 @@ jobs:
       QUESTION_ANSWER_INTEGRITY_KEY: "ci_question_answer_integrity_key_not_for_production"
       ATTEMPT_ANSWER_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
       COMMERCE_IDEMPOTENCY_HASH_KEY: "ci_commerce_idempotency_hash_key_not_for_production"
+      PHONE_OTP_PEPPER: "ci_phone_otp_pepper_not_for_production_min_32_chars"
+      PHONE_OTP_PEPPER_KEY_ID: "v1"
       ALLOW_SUPER_ADMIN_BOOTSTRAP: "0"
 
     steps:
