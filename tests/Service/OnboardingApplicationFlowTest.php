@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service;
 
 use App\Dto\RegistrationRequest;
+use App\Entity\User;
 use App\Enum\AccountType;
 use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
@@ -15,7 +16,6 @@ use App\Exception\OnboardingApplicationException;
 use App\Onboarding\OnboardingPendingOwnerScope;
 use App\Repository\InstitutionApplicationRepository;
 use App\Repository\InstitutionRepository;
-use App\Repository\SecurityAuditEventRepository;
 use App\Repository\TeacherApplicationRepository;
 use App\Repository\UserRepository;
 use App\Service\InstitutionApplicationManager;
@@ -47,8 +47,6 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
     private TeacherApplicationRepository $teacherRepo;
 
     private InstitutionApplicationRepository $institutionRepo;
-
-    private SecurityAuditEventRepository $events;
 
     protected function setUp(): void
     {
@@ -90,10 +88,6 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
         $institutionRepo = $c->get(InstitutionApplicationRepository::class);
         self::assertInstanceOf(InstitutionApplicationRepository::class, $institutionRepo);
         $this->institutionRepo = $institutionRepo;
-
-        $events = $c->get(SecurityAuditEventRepository::class);
-        self::assertInstanceOf(SecurityAuditEventRepository::class, $events);
-        $this->events = $events;
 
         $this->cleanup();
     }
@@ -321,7 +315,7 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
         return $dto;
     }
 
-    private function activeUser(string $email, UserRole $role)
+    private function activeUser(string $email, UserRole $role): User
     {
         $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'Onb', 'User', $role);
         $this->lifecycle->markEmailVerifiedAndActivate($user);
@@ -329,7 +323,7 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
         return $user;
     }
 
-    private function superAdmin(string $email)
+    private function superAdmin(string $email): User
     {
         $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'Super', 'Admin', UserRole::Moderator);
         $user->addGlobalRole(UserRole::SuperAdmin);
