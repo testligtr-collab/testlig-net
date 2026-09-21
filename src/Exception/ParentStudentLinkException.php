@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Exception;
+
+/**
+ * Parent–student link domain failures.
+ * Messages must not enumerate accounts or leak invitation codes.
+ */
+final class ParentStudentLinkException extends \RuntimeException
+{
+    private function __construct(string $message)
+    {
+        parent::__construct($message);
+    }
+
+    public static function invalidInput(string $message = 'Veli–öğrenci ilişki verisi geçersiz.'): self
+    {
+        return new self($message);
+    }
+
+    public static function invalidTransition(): self
+    {
+        return new self('Veli–öğrenci ilişki durumu bu işlem için uygun değil.');
+    }
+}
