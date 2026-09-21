@@ -98,6 +98,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\OnboardingApplicationSchemaListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\MariaDbUtcSessionTimezoneMiddleware:
         tags:
             - { name: doctrine.dbal.middleware }
@@ -182,6 +186,14 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\PhoneVerificationClaimManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\TeacherApplicationManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\InstitutionApplicationManager:
             public: true
             autowire: true
             autoconfigure: true

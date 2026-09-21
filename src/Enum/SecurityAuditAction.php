@@ -182,4 +182,12 @@ enum SecurityAuditAction: string
     case PhoneVerificationFailed = 'phone_verification_failed';
     case PhoneVerificationRevoked = 'phone_verification_revoked';
     case PhoneBound = 'phone_bound';
+    case TeacherApplicationSubmitted = 'teacher_application_submitted';
+    case TeacherApplicationWithdrawn = 'teacher_application_withdrawn';
+    case TeacherApplicationApproved = 'teacher_application_approved';
+    case TeacherApplicationRejected = 'teacher_application_rejected';
+    case InstitutionApplicationSubmitted = 'institution_application_submitted';
+    case InstitutionApplicationWithdrawn = 'institution_application_withdrawn';
+    case InstitutionApplicationApproved = 'institution_application_approved';
+    case InstitutionApplicationRejected = 'institution_application_rejected';
 }

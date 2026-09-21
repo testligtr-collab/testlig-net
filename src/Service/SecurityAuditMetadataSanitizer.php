@@ -188,6 +188,10 @@ final class SecurityAuditMetadataSanitizer
         'purpose',
         'failed_attempt_count',
         'revoked_claim_count',
+        // Stage 2.22.3 onboarding applications (identifiers / status only).
+        'application_id',
+        'application_kind',
+        'account_type',
     ];
 
     /**
