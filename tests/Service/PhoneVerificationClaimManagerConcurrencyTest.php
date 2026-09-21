@@ -11,6 +11,7 @@ use App\Repository\PhoneVerificationClaimRepository;
 use App\Repository\UserRepository;
 use App\Service\PhoneVerificationClaimManager;
 use App\Service\UserFactory;
+use App\Tests\Support\ParentStudentLinkDbCleanup;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
@@ -188,6 +189,7 @@ final class PhoneVerificationClaimManagerConcurrencyTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        ParentStudentLinkDbCleanup::deleteAll($connection);
         foreach (['security_audit_events', 'phone_verification_claims', 'reset_password_requests', 'users'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

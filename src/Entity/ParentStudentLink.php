@@ -18,18 +18,19 @@ use Symfony\Component\Uid\UuidV7;
  * Parent–student relationship row (Stage 2.22.5a foundation).
  *
  * Does not grant child-data access, UserRole, InstitutionMembership, or enrollment.
- * {@see ParentStudentLinkStatus::Verified} is representational only in this slice —
- * no accept/API/voter is wired. Active (pending|verified) uniqueness is enforced by
- * {@see ParentStudentLinkActiveGuard}, not a partial unique index.
+ * {@see ParentStudentLinkStatus::Verified} remains representational for authorization —
+ * Stage 2.22.5b consent verifies the pair but does not open child-data voters/APIs.
+ * Active (pending|verified) uniqueness is enforced by {@see ParentStudentLinkActiveGuard}.
  *
  * Ended rows are retained for history; a later pending row for the same pair is allowed
  * after the active guard is released.
  *
- * @internal prefer a future ParentStudentLinkManager — no public create/accept routes here
+ * Prefer {@see \App\Service\ParentStudentLinkConsentManager} for student→parent consent.
  */
 #[ORM\Entity(repositoryClass: ParentStudentLinkRepository::class)]
 #[ORM\Table(name: 'parent_student_links')]
 #[ORM\UniqueConstraint(name: 'uniq_psl_id_parent_student', columns: ['id', 'parent_user_id', 'student_user_id'])]
+#[ORM\UniqueConstraint(name: 'uniq_psl_personal_invitation', columns: ['personal_invitation_id'])]
 #[ORM\Index(name: 'idx_psl_parent_status', columns: ['parent_user_id', 'status'])]
 #[ORM\Index(name: 'idx_psl_student_status', columns: ['student_user_id', 'status'])]
 #[ORM\Index(name: 'idx_psl_requested_at', columns: ['requested_at'])]
@@ -58,6 +59,10 @@ class ParentStudentLink
     #[ORM\JoinColumn(name: 'verified_by_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
     private ?User $verifiedBy = null;
 
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'personal_invitation_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    private ?PersonalInvitation $personalInvitation = null;
+
     #[ORM\Column(name: 'requested_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $requestedAt;
 
@@ -77,6 +82,7 @@ class ParentStudentLink
         User $parent,
         User $student,
         User $requestedBy,
+        ?PersonalInvitation $personalInvitation,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
     ) {
@@ -84,6 +90,7 @@ class ParentStudentLink
         $this->parent = $parent;
         $this->student = $student;
         $this->requestedBy = $requestedBy;
+        $this->personalInvitation = $personalInvitation;
         $this->status = ParentStudentLinkStatus::Pending;
         $this->requestedAt = $now;
         $this->createdAt = $now;
@@ -93,20 +100,21 @@ class ParentStudentLink
     /**
      * Pending request only. Does not open child-data access or imply an approval policy.
      *
-     * @internal prefer a future ParentStudentLinkManager
+     * @internal prefer {@see \App\Service\ParentStudentLinkConsentManager}
      */
     public static function createPending(
         User $parent,
         User $student,
         User $requestedBy,
         \DateTimeImmutable $now,
+        ?PersonalInvitation $personalInvitation = null,
         ?Uuid $id = null,
     ): self {
         if ($parent->getId()->equals($student->getId())) {
             throw ParentStudentLinkException::invalidInput();
         }
 
-        return new self($parent, $student, $requestedBy, $now, $id);
+        return new self($parent, $student, $requestedBy, $personalInvitation, $now, $id);
     }
 
     public function getId(): Uuid
@@ -141,6 +149,12 @@ class ParentStudentLink
     public function getVerifiedBy(): ?User
     {
         return $this->verifiedBy;
+    }
+
+    #[Ignore]
+    public function getPersonalInvitation(): ?PersonalInvitation
+    {
+        return $this->personalInvitation;
     }
 
     public function getRequestedAt(): \DateTimeImmutable

@@ -8,6 +8,7 @@ use App\Entity\ParentStudentLink;
 use App\Entity\ParentStudentLinkActiveGuard;
 use App\Entity\User;
 use App\Enum\UserRole;
+use App\Tests\Support\ParentStudentLinkDbCleanup;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -20,11 +21,26 @@ use Symfony\Component\Uid\UuidV7;
  */
 final class ParentStudentLinkSchemaIntegrityTest extends KernelTestCase
 {
+    private ?EntityManagerInterface $em = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->em instanceof EntityManagerInterface && $this->em->isOpen()) {
+            $connection = $this->em->getConnection();
+            ParentStudentLinkDbCleanup::deleteAll($connection);
+            if ($connection->createSchemaManager()->tablesExist(['users'])) {
+                $connection->executeStatement('DELETE FROM users');
+            }
+        }
+        parent::tearDown();
+    }
+
     public function testParentStudentLinkTablesHaveActiveGuardAndLifecycleChecks(): void
     {
         self::bootKernel();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $this->em = $em;
         $connection = $em->getConnection();
 
         $tables = $connection->fetchFirstColumn(
@@ -95,6 +111,7 @@ final class ParentStudentLinkSchemaIntegrityTest extends KernelTestCase
         self::bootKernel();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $this->em = $em;
 
         $suffix = bin2hex(random_bytes(4));
         $now = new \DateTimeImmutable('2026-09-21T16:00:00+00:00');

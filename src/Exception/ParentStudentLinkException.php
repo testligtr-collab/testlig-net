@@ -24,4 +24,24 @@ final class ParentStudentLinkException extends \RuntimeException
     {
         return new self('Veli–öğrenci ilişki durumu bu işlem için uygun değil.');
     }
+
+    public static function unauthorized(): self
+    {
+        return new self('Bu veli–öğrenci işlemi için yetkiniz yok.');
+    }
+
+    public static function unavailable(): self
+    {
+        return new self('Davet veya bağlantı kullanılamıyor.');
+    }
+
+    public static function conflict(): self
+    {
+        return new self('Veli–öğrenci ilişkisi için çakışma oluştu.');
+    }
+
+    public static function rateLimited(): self
+    {
+        return new self('Çok fazla deneme. Lütfen daha sonra tekrar deneyin.');
+    }
 }

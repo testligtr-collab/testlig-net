@@ -191,6 +191,10 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\ParentStudentLinkConsentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\TeacherApplicationManager:
             public: true
             autowire: true

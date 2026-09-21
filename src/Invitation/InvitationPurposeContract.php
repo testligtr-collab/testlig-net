@@ -10,23 +10,21 @@ use App\Service\InvitationCodeDigestHasher;
 /**
  * Opaque purpose_code contract for PersonalInvitation (ADR §7.A).
  *
- * ADR lists only example purposes (parent link, teacher–institution, membership) — not a
- * closed product enum. Therefore:
- * - Issuance may persist a format-valid opaque purpose_code as routing metadata only.
- * - purpose_code never grants UserRole, InstitutionMembership, or classroom access.
- * - Redeem managers MUST call assertKnownForRedeem and fail closed on unknown values.
- * - Do not map unknown purposes to a default membership type.
- *
- * @phpstan-type PurposeCode string
+ * Stage 2.22.5b enables only {@see PURPOSE_PARENT_LINK} for student→parent consent.
+ * Other purposes remain fail-closed at redeem/issuance gates used by consent managers.
  */
 final class InvitationPurposeContract
 {
+    public const PURPOSE_PARENT_LINK = 'parent_link';
+
     /**
-     * Approved redeem allow-list. Empty until product locks ADR §7.A examples into policy.
+     * Approved purpose allow-list for invitation redeem / parent-link issuance.
      *
      * @var list<string>
      */
-    public const REDEEM_ALLOW_LIST = [];
+    public const REDEEM_ALLOW_LIST = [
+        self::PURPOSE_PARENT_LINK,
+    ];
 
     private function __construct()
     {
@@ -38,14 +36,16 @@ final class InvitationPurposeContract
     }
 
     /**
-     * Fail-closed gate for future redeem / membership wiring.
-     *
-     * Until product locks ADR §7.A examples into {@see REDEEM_ALLOW_LIST}, every purpose
-     * is unknown at redeem time. Do not map unknowns to a default membership type.
+     * Fail-closed gate: unknown purposes never map to a default membership type.
      */
-    public static function assertKnownForRedeem(string $purposeCode): never
+    public static function assertKnownForRedeem(string $purposeCode): string
     {
-        self::normalizeForStorage($purposeCode);
+        $purposeCode = self::normalizeForStorage($purposeCode);
+        foreach (self::REDEEM_ALLOW_LIST as $approved) {
+            if (hash_equals($approved, $purposeCode)) {
+                return $purposeCode;
+            }
+        }
 
         throw InvitationCodeException::unknownPurpose();
     }
