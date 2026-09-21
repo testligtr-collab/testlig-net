@@ -66,6 +66,8 @@ jobs:
       COMMERCE_IDEMPOTENCY_HASH_KEY: "ci_commerce_idempotency_hash_key_not_for_production"
       PHONE_OTP_PEPPER: "ci_phone_otp_pepper_not_for_production_min_32_chars"
       PHONE_OTP_PEPPER_KEY_ID: "v1"
+      INVITATION_CODE_PEPPER: "ci_invitation_code_pepper_not_for_production_32ch"
+      INVITATION_CODE_PEPPER_KEY_ID: "v1"
       ALLOW_SUPER_ADMIN_BOOTSTRAP: "0"
 
     steps:
