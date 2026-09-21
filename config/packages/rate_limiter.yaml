@@ -61,6 +61,11 @@ framework:
             limit: 10
             interval: '10 minutes'
 
+        onboarding_application_submit:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '15 minutes'
+
 when@test:
     framework:
         rate_limiter:
@@ -110,3 +115,7 @@ when@test:
                 policy: 'fixed_window'
                 limit: 5
                 interval: '10 minutes'
+            onboarding_application_submit:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '15 minutes'

@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kurum başvurusu — Testlig{% endblock %}
+
+{% block body %}
+<section class="page">
+    <h1>Kurum başvurusu</h1>
+    <p class="muted">Bu form yalnızca inceleme başvurusu oluşturur. Gönderim, kurum kaydı, üyelik veya yönetici rolü oluşturmaz.</p>
+
+    {% if openApplication %}
+        <div class="callout callout--pending" role="status">
+            <p><strong>Başvurunuz incelemede.</strong></p>
+            <p>Durum: Beklemede. Sonuçlanana kadar yeni başvuru gönderilemez ve kurum erişiminiz açılmaz.</p>
+        </div>
+    {% else %}
+        {{ form_start(form, {attr: {novalidate: 'novalidate'}}) }}
+            {{ form_errors(form) }}
+            <div class="form-row">
+                {{ form_label(form.proposedName) }}
+                {{ form_widget(form.proposedName) }}
+                {{ form_errors(form.proposedName) }}
+            </div>
+            <div class="form-row">
+                {{ form_label(form.proposedType) }}
+                {{ form_widget(form.proposedType) }}
+                {{ form_errors(form.proposedType) }}
+            </div>
+            <div class="form-row checkbox-row">
+                {{ form_widget(form.acknowledgePendingReview) }}
+                {{ form_label(form.acknowledgePendingReview) }}
+            </div>
+            {{ form_errors(form.acknowledgePendingReview) }}
+            {{ form_rest(form) }}
+            <button class="btn btn--primary" type="submit">Başvuruyu gönder</button>
+        {{ form_end(form) }}
+    {% endif %}
+
+    <p class="muted"><a href="{{ path('app_account') }}">Hesabıma dön</a></p>
+</section>
+{% endblock %}

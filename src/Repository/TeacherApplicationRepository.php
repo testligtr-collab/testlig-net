@@ -28,6 +28,19 @@ class TeacherApplicationRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findOpenForUser(User $user): ?TeacherApplication
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('IDENTITY(a.user) = :userId')
+            ->andWhere('a.status = :status')
+            ->setParameter('userId', $user->getId(), 'uuid')
+            ->setParameter('status', OnboardingApplicationStatus::Pending)
+            ->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findOpenForUserForUpdate(User $user): ?TeacherApplication
     {
         $query = $this->createQueryBuilder('a')

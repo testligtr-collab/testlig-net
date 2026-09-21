@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Dto;
 
 use App\Enum\AccountType;
+use App\Enum\RegistrationFlow;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Public registration input. Never bind forms to the User entity.
+ *
+ * accountType / flow are set by the controller from the URL path — not form fields.
  */
 final class RegistrationRequest
 {
@@ -39,7 +42,12 @@ final class RegistrationRequest
     public string $plainPassword = '';
 
     /**
-     * Public self-service types only. Forms may omit this; default remains student.
+     * Server-set from /kayit/{flow}. Forms must not expose this.
+     */
+    public RegistrationFlow $flow = RegistrationFlow::Student;
+
+    /**
+     * Derived for student/parent only. Forms must not expose this.
      */
     public AccountType $accountType = AccountType::Student;
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Dto\RegistrationRequest;
+use App\Enum\RegistrationFlow;
 use App\Exception\RegistrationFailedException;
 use App\Form\RegistrationFormType;
 use App\Form\ResendVerificationFormType;
@@ -20,21 +21,62 @@ use Symfony\Component\Routing\Attribute\Route;
 
 final class RegistrationController extends AbstractController
 {
-    #[Route('/kayit', name: 'app_register', methods: ['GET', 'POST'])]
-    public function register(Request $request, RegistrationService $registrationService): Response
+    private const SESSION_FLOW_KEY = 'registration_flow';
+
+    #[Route('/kayit', name: 'app_register', methods: ['GET'])]
+    public function choose(): Response
     {
         if ($this->getUser()) {
             return $this->redirectToRoute('app_account');
         }
 
+        return $this->render('security/register_choose.html.twig', [
+            'flows' => RegistrationFlow::publicChoices(),
+        ]);
+    }
+
+    #[Route(
+        '/kayit/{flow}',
+        name: 'app_register_flow',
+        requirements: ['flow' => 'ogrenci|veli|ogretmen|kurum'],
+        methods: ['GET', 'POST'],
+    )]
+    public function register(Request $request, string $flow, RegistrationService $registrationService): Response
+    {
+        $registrationFlow = RegistrationFlow::from($flow);
+
+        if ($this->getUser()) {
+            if (RegistrationFlow::TeacherApplication === $registrationFlow) {
+                return $this->redirectToRoute('app_teacher_application');
+            }
+            if (RegistrationFlow::InstitutionApplication === $registrationFlow) {
+                return $this->redirectToRoute('app_institution_application');
+            }
+
+            return $this->redirectToRoute('app_account');
+        }
+
         $dto = new RegistrationRequest();
+        $dto->flow = $registrationFlow;
+        $accountType = $registrationFlow->accountType();
+        if (null !== $accountType) {
+            $dto->accountType = $accountType;
+        }
+
         $form = $this->createForm(RegistrationFormType::class, $dto);
         $form->handleRequest($request);
+
+        // Path is authoritative; never trust client-supplied flow/accountType.
+        $dto->flow = $registrationFlow;
+        if (null !== $accountType) {
+            $dto->accountType = $accountType;
+        }
 
         if ($form->isSubmitted() && $form->isValid()) {
             try {
                 $registrationService->register($dto);
                 $request->getSession()->set('registration_email_hint', $dto->email);
+                $request->getSession()->set(self::SESSION_FLOW_KEY, $registrationFlow->value);
 
                 return $this->redirectToRoute('app_register_check_email');
             } catch (RegistrationFailedException) {
@@ -47,17 +89,23 @@ final class RegistrationController extends AbstractController
 
         return $this->render('security/register.html.twig', [
             'registrationForm' => $form,
+            'flow' => $registrationFlow,
         ]);
     }
 
     #[Route('/kayit/eposta-kontrol', name: 'app_register_check_email', methods: ['GET'])]
-    public function checkEmail(): Response
+    public function checkEmail(Request $request): Response
     {
         if ($this->getUser()) {
             return $this->redirectToRoute('app_account');
         }
 
-        return $this->render('security/check_email.html.twig');
+        $flowValue = $request->getSession()->get(self::SESSION_FLOW_KEY);
+        $flow = \is_string($flowValue) ? RegistrationFlow::tryFrom($flowValue) : null;
+
+        return $this->render('security/check_email.html.twig', [
+            'flow' => $flow,
+        ]);
     }
 
     #[Route('/kayit/dogrulama-yeniden', name: 'app_resend_verification', methods: ['GET', 'POST'])]

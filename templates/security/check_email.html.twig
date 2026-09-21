@@ -6,7 +6,20 @@
 <section class="page">
     <h1>E-postanı kontrol et</h1>
     <p>Hesabını etkinleştirmek için e-posta kutuna gönderdiğimiz doğrulama bağlantısına tıkla.</p>
+
+    {% if flow and flow.requiresApplicationFollowUp %}
+        <p class="callout">E-postanı doğrulayıp giriş yaptıktan sonra başvurunu tamamlayabilirsin. Başvuru incelenmeden {{ flow.value == 'ogretmen' ? 'öğretmen' : 'kurum' }} erişimin açılmaz.</p>
+        <p>
+            {% if flow.value == 'ogretmen' %}
+                <a class="btn btn--primary" href="{{ path('app_teacher_application') }}">Giriş yapıp öğretmen başvurusunu tamamla</a>
+            {% else %}
+                <a class="btn btn--primary" href="{{ path('app_institution_application') }}">Giriş yapıp kurum başvurusunu tamamla</a>
+            {% endif %}
+        </p>
+    {% else %}
+        <p><a class="btn btn--primary" href="{{ path('app_login') }}">Giriş sayfasına git</a></p>
+    {% endif %}
+
     <p class="muted">Posta gelmediyse spam klasörünü kontrol et veya <a href="{{ path('app_resend_verification') }}">doğrulama e-postasını yeniden iste</a>.</p>
-    <p><a class="btn" href="{{ path('app_login') }}">Giriş sayfasına git</a></p>
 </section>
 {% endblock %}

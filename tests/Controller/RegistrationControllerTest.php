@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\User;
+use App\Enum\InstitutionType;
+use App\Enum\OnboardingApplicationStatus;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Repository\InstitutionApplicationRepository;
+use App\Repository\TeacherApplicationRepository;
 use App\Repository\UserRepository;
+use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Mime\Email;
@@ -18,19 +24,23 @@ final class RegistrationControllerTest extends WebTestCase
 {
     use MailerAssertionsTrait;
 
-    public function testRegisterPageIsReachable(): void
-    {
-        $client = static::createClient();
-        $client->request('GET', '/kayit');
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'Hesap oluştur');
-    }
-
-    public function testSuccessfulRegistrationCreatesPendingStudentAndSendsEmail(): void
+    public function testRegisterChooserShowsFourOptions(): void
     {
         $client = static::createClient();
         $crawler = $client->request('GET', '/kayit');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Nasıl devam etmek istersiniz');
+        self::assertGreaterThanOrEqual(1, $crawler->filter('a[href="/kayit/ogrenci"]')->count());
+        self::assertGreaterThanOrEqual(1, $crawler->filter('a[href="/kayit/veli"]')->count());
+        self::assertGreaterThanOrEqual(1, $crawler->filter('a[href="/kayit/ogretmen"]')->count());
+        self::assertGreaterThanOrEqual(1, $crawler->filter('a[href="/kayit/kurum"]')->count());
+    }
+
+    public function testSuccessfulStudentRegistrationCreatesPendingStudentAndSendsEmail(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'Ayşe',
             'registration_form[lastName]' => 'Yılmaz',
@@ -57,7 +67,93 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertInstanceOf(User::class, $user);
         self::assertSame(UserStatus::PendingVerification, $user->getStatus());
         self::assertContains(UserRole::Student->value, $user->getRoles());
+        self::assertNotContains(UserRole::Teacher->value, $user->getRoles());
         self::assertNotSame('Guclu-Parola-123!', $user->getPassword());
+        self::assertNull($user->getNormalizedPhone());
+    }
+
+    public function testParentRegistrationAssignsParentRoleOnly(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/veli');
+        $form = $crawler->selectButton('Kayıt ol')->form([
+            'registration_form[firstName]' => 'Veli',
+            'registration_form[lastName]' => 'Yılmaz',
+            'registration_form[email]' => 'veli@example.com',
+            'registration_form[plainPassword][first]' => 'Guclu-Parola-123!',
+            'registration_form[plainPassword][second]' => 'Guclu-Parola-123!',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/kayit/eposta-kontrol');
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user = $users->findOneByNormalizedEmail('veli@example.com');
+        self::assertInstanceOf(User::class, $user);
+        self::assertContains(UserRole::Parent->value, $user->getRoles());
+        self::assertNotContains(UserRole::Student->value, $user->getRoles());
+        self::assertNotContains(UserRole::Teacher->value, $user->getRoles());
+        self::assertNull($user->getPhone());
+    }
+
+    public function testTeacherPathCreatesBaseUserWithoutTeacherRole(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/ogretmen');
+        $form = $crawler->selectButton('Hesap oluştur')->form([
+            'registration_form[firstName]' => 'Öğret',
+            'registration_form[lastName]' => 'Men',
+            'registration_form[email]' => 'ogretmen-kayit@example.com',
+            'registration_form[plainPassword][first]' => 'Guclu-Parola-123!',
+            'registration_form[plainPassword][second]' => 'Guclu-Parola-123!',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/kayit/eposta-kontrol');
+
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'öğretmen erişimin açılmaz');
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user = $users->findOneByNormalizedEmail('ogretmen-kayit@example.com');
+        self::assertInstanceOf(User::class, $user);
+        self::assertSame([UserRole::User->value], $user->getRoles());
+        self::assertNotContains(UserRole::Teacher->value, $user->getRoles());
+
+        /** @var TeacherApplicationRepository $apps */
+        $apps = static::getContainer()->get(TeacherApplicationRepository::class);
+        self::assertNull($apps->findOpenForUser($user));
+    }
+
+    public function testClientCannotInjectAccountTypeOrPrivilegedFieldsOnStudentPath(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/ogrenci');
+        $form = $crawler->selectButton('Kayıt ol')->form([
+            'registration_form[firstName]' => 'Hack',
+            'registration_form[lastName]' => 'Attempt',
+            'registration_form[email]' => 'inject@example.com',
+            'registration_form[plainPassword][first]' => 'Guclu-Parola-123!',
+            'registration_form[plainPassword][second]' => 'Guclu-Parola-123!',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $values = $form->getPhpValues();
+        $values['registration_form']['roles'] = ['ROLE_ADMIN'];
+        $values['registration_form']['accountType'] = 'parent';
+        $values['registration_form']['flow'] = 'ogretmen';
+        $values['registration_form']['status'] = 'active';
+        $values['registration_form']['globalRoles'] = ['ROLE_SUPER_ADMIN'];
+        $client->request('POST', '/kayit/ogrenci', $values);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'ekstra alan');
+
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertNull($users->findOneByNormalizedEmail('inject@example.com'));
+        self::assertEmailCount(0);
     }
 
     public function testDuplicateEmailIsRejectedWithGenericMessage(): void
@@ -65,7 +161,7 @@ final class RegistrationControllerTest extends WebTestCase
         $client = static::createClient();
         $this->registerViaService('dup@example.com', 'Guclu-Parola-123!');
 
-        $crawler = $client->request('GET', '/kayit');
+        $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'İkinci',
             'registration_form[lastName]' => 'Kullanıcı',
@@ -84,7 +180,7 @@ final class RegistrationControllerTest extends WebTestCase
     public function testWeakPasswordAndMissingTermsAreRejected(): void
     {
         $client = static::createClient();
-        $crawler = $client->request('GET', '/kayit');
+        $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'Zayıf',
             'registration_form[lastName]' => 'Parola',
@@ -103,7 +199,7 @@ final class RegistrationControllerTest extends WebTestCase
     public function testMismatchedPasswordsRejected(): void
     {
         $client = static::createClient();
-        $crawler = $client->request('GET', '/kayit');
+        $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'Ali',
             'registration_form[lastName]' => 'Veli',
@@ -120,7 +216,7 @@ final class RegistrationControllerTest extends WebTestCase
     public function testInvalidCsrfIsRejected(): void
     {
         $client = static::createClient();
-        $client->request('POST', '/kayit', [
+        $client->request('POST', '/kayit/ogrenci', [
             'registration_form' => [
                 'firstName' => 'Csrf',
                 'lastName' => 'Test',
@@ -131,34 +227,6 @@ final class RegistrationControllerTest extends WebTestCase
             ],
         ]);
         self::assertResponseStatusCodeSame(422);
-    }
-
-    public function testClientCannotInjectRoleOrStatusFields(): void
-    {
-        $client = static::createClient();
-        $crawler = $client->request('GET', '/kayit');
-        $form = $crawler->selectButton('Kayıt ol')->form([
-            'registration_form[firstName]' => 'Hack',
-            'registration_form[lastName]' => 'Attempt',
-            'registration_form[email]' => 'inject@example.com',
-            'registration_form[plainPassword][first]' => 'Guclu-Parola-123!',
-            'registration_form[plainPassword][second]' => 'Guclu-Parola-123!',
-            'registration_form[agreeTerms]' => true,
-        ]);
-        $values = $form->getPhpValues();
-        $values['registration_form']['roles'] = ['ROLE_ADMIN'];
-        $values['registration_form']['status'] = 'active';
-        $values['registration_form']['globalRoles'] = ['ROLE_SUPER_ADMIN'];
-        $values['registration_form']['emailVerifiedAt'] = '2020-01-01T00:00:00+00:00';
-        $client->request('POST', '/kayit', $values);
-
-        self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('body', 'ekstra alan');
-
-        /** @var UserRepository $users */
-        $users = static::getContainer()->get(UserRepository::class);
-        self::assertNull($users->findOneByNormalizedEmail('inject@example.com'));
-        self::assertEmailCount(0);
     }
 
     public function testMailerTransportFailureStillRedirectsWithoutHttp500(): void
@@ -177,7 +245,7 @@ final class RegistrationControllerTest extends WebTestCase
         };
         static::getContainer()->set(\App\Service\EmailVerificationSenderInterface::class, $failingSender);
 
-        $crawler = $client->request('GET', '/kayit');
+        $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'Mail',
             'registration_form[lastName]' => 'Fail',
@@ -205,21 +273,136 @@ final class RegistrationControllerTest extends WebTestCase
         self::assertSelectorNotExists('body:contains("unavailable")');
     }
 
+    public function testVerifiedUserCanSubmitTeacherApplicationWithoutPrivilege(): void
+    {
+        $client = static::createClient();
+        $user = $this->activeBaseUser('teacher-ui@example.com');
+        $this->login($client, $user);
+
+        $crawler = $client->request('GET', '/basvuru/ogretmen');
+        self::assertResponseIsSuccessful();
+        $form = $crawler->selectButton('Başvuruyu gönder')->form([
+            'teacher_application_form[acknowledgePendingReview]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/basvuru/ogretmen');
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'incelemede');
+
+        /** @var TeacherApplicationRepository $apps */
+        $apps = static::getContainer()->get(TeacherApplicationRepository::class);
+        $open = $apps->findOpenForUser($user);
+        self::assertNotNull($open);
+        self::assertSame(OnboardingApplicationStatus::Pending, $open->getStatus());
+
+        $reloadedUsers = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $reloadedUsers);
+        $reloaded = $reloadedUsers->findOneById($user->getId());
+        self::assertInstanceOf(User::class, $reloaded);
+        self::assertNotContains(UserRole::Teacher->value, $reloaded->getRoles());
+    }
+
+    public function testInstitutionApplicationDoesNotCreateInstitution(): void
+    {
+        $client = static::createClient();
+        $user = $this->activeBaseUser('inst-ui@example.com');
+        $this->login($client, $user);
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $before = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM institutions');
+
+        $crawler = $client->request('GET', '/basvuru/kurum');
+        $form = $crawler->selectButton('Başvuruyu gönder')->form([
+            'institution_application_form[proposedName]' => 'Demo Okul',
+            'institution_application_form[proposedType]' => InstitutionType::School->value,
+            'institution_application_form[acknowledgePendingReview]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/basvuru/kurum');
+
+        $after = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM institutions');
+        self::assertSame($before, $after);
+
+        /** @var InstitutionApplicationRepository $apps */
+        $apps = static::getContainer()->get(InstitutionApplicationRepository::class);
+        $open = $apps->findOpenForUser($user);
+        self::assertNotNull($open);
+        self::assertSame(OnboardingApplicationStatus::Pending, $open->getStatus());
+
+        $reloadedUsers = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $reloadedUsers);
+        $reloaded = $reloadedUsers->findOneById($user->getId());
+        self::assertInstanceOf(User::class, $reloaded);
+        self::assertNotContains(UserRole::InstitutionManager->value, $reloaded->getRoles());
+    }
+
+    public function testUnverifiedUserCannotSubmitTeacherApplication(): void
+    {
+        $client = static::createClient();
+        $factory = static::getContainer()->get(UserFactory::class);
+        self::assertInstanceOf(UserFactory::class, $factory);
+        $pending = $factory->createAndPersist('pending-ui@example.com', 'Guclu-Parola-123!', 'Pen', 'Ding', UserRole::User);
+
+        // Pending accounts cannot establish an authenticated session (UserChecker).
+        $client->request('GET', '/basvuru/ogretmen');
+        self::assertResponseRedirects('/giris');
+
+        /** @var TeacherApplicationRepository $apps */
+        $apps = static::getContainer()->get(TeacherApplicationRepository::class);
+        self::assertNull($apps->findOpenForUser($pending));
+    }
+
+    public function testApplicationRoutesRequireAuthentication(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/basvuru/ogretmen');
+        self::assertResponseRedirects('/giris');
+        $client->request('GET', '/basvuru/kurum');
+        self::assertResponseRedirects('/giris');
+    }
+
     private function registerViaService(string $email, string $password): User
     {
-        self::bootKernel();
         /** @var UserFactory $factory */
         $factory = static::getContainer()->get(UserFactory::class);
 
         return $factory->createAndPersist($email, $password, 'Var', 'Olan', UserRole::Student);
     }
 
+    private function activeBaseUser(string $email): User
+    {
+        $factory = static::getContainer()->get(UserFactory::class);
+        self::assertInstanceOf(UserFactory::class, $factory);
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        self::assertInstanceOf(UserAccountLifecycle::class, $lifecycle);
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Bas', 'User', UserRole::User);
+        $lifecycle->markEmailVerifiedAndActivate($user);
+
+        return $user;
+    }
+
+    private function login(KernelBrowser $client, User $user): void
+    {
+        $client->loginUser($user);
+    }
+
     protected function tearDown(): void
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
-        if ($em->getConnection()->createSchemaManager()->tablesExist(['users'])) {
-            $em->getConnection()->executeStatement('DELETE FROM users');
+        $connection = $em->getConnection();
+        foreach ([
+            'security_audit_events',
+            'teacher_applications',
+            'institution_applications',
+            'institution_memberships',
+            'institutions',
+            'users',
+        ] as $table) {
+            if ($connection->createSchemaManager()->tablesExist([$table])) {
+                $connection->executeStatement('DELETE FROM '.$table);
+            }
         }
         parent::tearDown();
     }
