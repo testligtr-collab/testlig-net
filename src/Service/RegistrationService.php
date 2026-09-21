@@ -10,7 +10,6 @@ use App\Entity\User;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
-use App\Enum\UserRole;
 use App\Exception\DuplicateEmailException;
 use App\Exception\RegistrationFailedException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -19,7 +18,9 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**
- * Public student self-registration. Always assigns ROLE_STUDENT server-side.
+ * Public self-registration for student and parent account types only.
+ *
+ * Never assigns privileged, teacher, or institution-manager roles.
  */
 final class RegistrationService
 {
@@ -34,14 +35,17 @@ final class RegistrationService
 
     public function register(RegistrationRequest $request): User
     {
+        $accountType = $request->accountType;
+        $initialRole = $accountType->initialGlobalRole();
+
         try {
-            $user = $this->entityManager->wrapInTransaction(function () use ($request): User {
+            $user = $this->entityManager->wrapInTransaction(function () use ($request, $accountType, $initialRole): User {
                 $user = $this->userFactory->create(
                     email: $request->email,
                     plainPassword: $request->plainPassword,
                     firstName: $request->firstName,
                     lastName: $request->lastName,
-                    initialRole: UserRole::Student,
+                    initialRole: $initialRole,
                 );
                 $this->entityManager->persist($user);
                 $this->auditRecorder->record(new SecurityAuditContext(
@@ -51,6 +55,7 @@ final class RegistrationService
                     subjectUser: $user,
                     metadata: [
                         'source' => 'registration',
+                        'account_type' => $accountType->value,
                         'new_roles' => $user->getRoles(),
                         'new_status' => $user->getStatus()->value,
                     ],

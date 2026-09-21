@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto;
 
+use App\Enum\AccountType;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -36,6 +37,11 @@ final class RegistrationRequest
         message: 'Parola yeterince güçlü değil. Büyük/küçük harf, rakam ve özel karakter karışımı kullanın.',
     )]
     public string $plainPassword = '';
+
+    /**
+     * Public self-service types only. Forms may omit this; default remains student.
+     */
+    public AccountType $accountType = AccountType::Student;
 
     #[Assert\IsTrue(message: 'Devam etmek için kullanım koşullarını ve gizlilik metnini kabul etmelisiniz.')]
     public bool $agreeTerms = false;
