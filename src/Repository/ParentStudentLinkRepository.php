@@ -24,6 +24,42 @@ class ParentStudentLinkRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findOneByPersonalInvitationId(Uuid $invitationId): ?ParentStudentLink
+    {
+        return $this->findOneBy(['personalInvitation' => $invitationId]);
+    }
+
+    /**
+     * Pessimistic write reload. Requires an open transaction.
+     */
+    public function findOneByIdForUpdate(Uuid $id): ?ParentStudentLink
+    {
+        $query = $this->createQueryBuilder('l')
+            ->andWhere('l.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery();
+        $query->setLockMode(\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+        $query->setHint(\Doctrine\ORM\Query::HINT_REFRESH, true);
+
+        $result = $query->getOneOrNullResult();
+
+        return $result instanceof ParentStudentLink ? $result : null;
+    }
+
+    public function findOneByPersonalInvitationIdForUpdate(Uuid $invitationId): ?ParentStudentLink
+    {
+        $query = $this->createQueryBuilder('l')
+            ->andWhere('l.personalInvitation = :invitationId')
+            ->setParameter('invitationId', $invitationId, 'uuid')
+            ->getQuery();
+        $query->setLockMode(\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+        $query->setHint(\Doctrine\ORM\Query::HINT_REFRESH, true);
+
+        $result = $query->getOneOrNullResult();
+
+        return $result instanceof ParentStudentLink ? $result : null;
+    }
+
     public function save(ParentStudentLink $link, bool $flush = true): void
     {
         $this->getEntityManager()->persist($link);

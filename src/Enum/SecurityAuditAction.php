@@ -190,4 +190,8 @@ enum SecurityAuditAction: string
     case InstitutionApplicationWithdrawn = 'institution_application_withdrawn';
     case InstitutionApplicationApproved = 'institution_application_approved';
     case InstitutionApplicationRejected = 'institution_application_rejected';
+    case ParentStudentLinkRequested = 'parent_student_link_requested';
+    case ParentStudentLinkVerified = 'parent_student_link_verified';
+    case ParentStudentLinkEnded = 'parent_student_link_ended';
+    case ParentStudentLinkAcceptFailed = 'parent_student_link_accept_failed';
 }

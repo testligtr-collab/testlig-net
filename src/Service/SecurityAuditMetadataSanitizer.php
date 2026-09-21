@@ -193,6 +193,10 @@ final class SecurityAuditMetadataSanitizer
         'application_kind',
         'account_type',
         'registration_flow',
+        // Stage 2.22.5b parent–student link consent (identifiers / flags only).
+        'link_id',
+        'invitation_id',
+        'grants_child_data_access',
     ];
 
     /**
@@ -258,6 +262,10 @@ final class SecurityAuditMetadataSanitizer
         'otp',
         'plainotp',
         'plain_otp',
+        'plaincode',
+        'plain_code',
+        'invitationcode',
+        'invitation_code',
         'codedigest',
         'code_digest',
         'pepper',

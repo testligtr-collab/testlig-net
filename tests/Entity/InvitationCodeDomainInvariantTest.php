@@ -86,7 +86,8 @@ final class InvitationCodeDomainInvariantTest extends TestCase
 
     public function testUnknownPurposeIsRejectedForRedeemFailClosed(): void
     {
-        self::assertSame([], InvitationPurposeContract::REDEEM_ALLOW_LIST);
+        self::assertSame(['parent_link'], InvitationPurposeContract::REDEEM_ALLOW_LIST);
+        self::assertSame('parent_link', InvitationPurposeContract::assertKnownForRedeem('parent_link'));
         self::assertSame('membership_invite', InvitationPurposeContract::normalizeForStorage('membership_invite'));
 
         $this->expectException(InvitationCodeException::class);

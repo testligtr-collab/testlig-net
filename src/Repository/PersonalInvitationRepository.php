@@ -24,6 +24,23 @@ class PersonalInvitationRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    /**
+     * Pessimistic write reload. Requires an open transaction.
+     */
+    public function findOneByIdForUpdate(Uuid $id): ?PersonalInvitation
+    {
+        $query = $this->createQueryBuilder('i')
+            ->andWhere('i.id = :id')
+            ->setParameter('id', $id, 'uuid')
+            ->getQuery();
+        $query->setLockMode(\Doctrine\DBAL\LockMode::PESSIMISTIC_WRITE);
+        $query->setHint(\Doctrine\ORM\Query::HINT_REFRESH, true);
+
+        $result = $query->getOneOrNullResult();
+
+        return $result instanceof PersonalInvitation ? $result : null;
+    }
+
     public function findOneByCodeDigest(string $codeDigest): ?PersonalInvitation
     {
         return $this->findOneBy(['codeDigest' => $codeDigest]);
