@@ -18,6 +18,7 @@ use App\Service\PhoneVerificationClaimManager;
 use App\Service\SecurityAuditMetadataSanitizer;
 use App\Service\SecurityAuditRecorder;
 use App\Service\UserFactory;
+use App\Tests\Support\ParentStudentLinkDbCleanup;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
@@ -447,6 +448,7 @@ final class PhoneVerificationClaimManagerTest extends KernelTestCase
     private function cleanup(): void
     {
         $connection = $this->em->getConnection();
+        ParentStudentLinkDbCleanup::deleteAll($connection);
         foreach (['security_audit_events', 'phone_verification_claims', 'reset_password_requests', 'users'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

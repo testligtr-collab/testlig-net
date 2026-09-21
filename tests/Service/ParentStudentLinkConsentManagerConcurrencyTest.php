@@ -10,6 +10,7 @@ use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Service\ParentStudentLinkConsentManager;
 use App\Service\UserFactory;
+use App\Tests\Support\ParentStudentLinkDbCleanup;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,6 +45,26 @@ final class ParentStudentLinkConsentManagerConcurrencyTest extends KernelTestCas
         self::assertInstanceOf(UserFactory::class, $factory);
         $this->manager = $manager;
         $this->userFactory = $factory;
+        $this->cleanup();
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->em) && $this->em->isOpen()) {
+            $this->cleanup();
+        }
+        parent::tearDown();
+    }
+
+    private function cleanup(): void
+    {
+        $connection = $this->em->getConnection();
+        ParentStudentLinkDbCleanup::deleteAll($connection);
+        foreach (['security_audit_events', 'users'] as $table) {
+            if ($connection->createSchemaManager()->tablesExist([$table])) {
+                $connection->executeStatement('DELETE FROM '.$table);
+            }
+        }
     }
 
     public function testConcurrentAcceptOnlyOneSucceeds(): void

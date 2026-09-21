@@ -23,6 +23,9 @@ final class QuestionBankDbCleanup
     {
         $schema = $connection->createSchemaManager();
 
+        // Stage 2.22.5 parent–student / invitation rows RESTRICT users — purge first.
+        ParentStudentLinkDbCleanup::deleteAll($connection);
+
         // Access packages/licenses reference users, memberships, LC, and assessments.
         AccessEntitlementDbCleanup::deleteAll($connection);
 
