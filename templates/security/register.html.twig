@@ -1,11 +1,19 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}Kayıt ol — Testlig{% endblock %}
+{% block title %}{{ flow.title }} — Kayıt — Testlig{% endblock %}
 
 {% block body %}
 <section class="page">
-    <h1>Hesap oluştur</h1>
-    <p class="muted">Bu aşamada yalnızca bireysel öğrenci kaydı açıktır. Kayıt sonrası e-posta doğrulaması gerekir.</p>
+    <p class="eyebrow"><a href="{{ path('app_register') }}">← Kayıt seçenekleri</a></p>
+    <h1>{{ flow.title }}</h1>
+
+    {% if flow.requiresApplicationFollowUp %}
+        <p class="muted">Önce e-posta doğrulamalı bir hesap oluşturursunuz. Doğrulayıp giriş yaptıktan sonra başvurunuzu gönderirsiniz. Başvuru inceleme tamamlanana kadar özel erişim açılmaz.</p>
+    {% elseif flow.value == 'veli' %}
+        <p class="muted">Veli hesabı e-posta ile oluşur. Çocuk bağlantısı bu adımda kurulmaz; veli telefonu öğrenci hesabına yazılmaz.</p>
+    {% else %}
+        <p class="muted">Öğrenci hesabı e-posta ile oluşur. Kayıt sonrası e-posta doğrulaması gerekir.</p>
+    {% endif %}
 
     {{ form_start(registrationForm, {attr: {novalidate: 'novalidate'}}) }}
         {{ form_errors(registrationForm) }}
@@ -42,9 +50,21 @@
         </div>
         {{ form_errors(registrationForm.agreeTerms) }}
         {{ form_rest(registrationForm) }}
-        <button class="btn" type="submit">Kayıt ol</button>
+        <button class="btn btn--primary" type="submit">
+            {% if flow.requiresApplicationFollowUp %}Hesap oluştur{% else %}Kayıt ol{% endif %}
+        </button>
     {{ form_end(registrationForm) }}
 
-    <p class="muted">Zaten hesabınız var mı? <a href="{{ path('app_login') }}">Giriş yapın</a></p>
+    <p class="muted">Zaten hesabınız var mı? <a href="{{ path('app_login') }}">Giriş yapın</a>
+        {% if flow.requiresApplicationFollowUp %}
+            · Doğrulanmış hesabınızla
+            {% if flow.value == 'ogretmen' %}
+                <a href="{{ path('app_teacher_application') }}">öğretmen başvurusuna</a>
+            {% else %}
+                <a href="{{ path('app_institution_application') }}">kurum başvurusuna</a>
+            {% endif %}
+            gidin
+        {% endif %}
+    </p>
 </section>
 {% endblock %}

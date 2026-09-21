@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Dto\RegistrationRequest;
 use App\Dto\SecurityAuditContext;
 use App\Entity\User;
+use App\Enum\AccountType;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
@@ -18,9 +19,10 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 /**
- * Public self-registration for student and parent account types only.
+ * Public self-registration.
  *
- * Never assigns privileged, teacher, or institution-manager roles.
+ * Student/parent get those roles only. Teacher/institution paths create a base
+ * ROLE_USER account — never ROLE_TEACHER / ROLE_INSTITUTION_MANAGER / admin roles.
  */
 final class RegistrationService
 {
@@ -35,11 +37,15 @@ final class RegistrationService
 
     public function register(RegistrationRequest $request): User
     {
-        $accountType = $request->accountType;
-        $initialRole = $accountType->initialGlobalRole();
+        $flow = $request->flow;
+        $initialRole = $flow->initialGlobalRole();
+        $accountType = $flow->accountType();
+        if (null !== $accountType) {
+            $request->accountType = $accountType;
+        }
 
         try {
-            $user = $this->entityManager->wrapInTransaction(function () use ($request, $accountType, $initialRole): User {
+            $user = $this->entityManager->wrapInTransaction(function () use ($request, $flow, $accountType, $initialRole): User {
                 $user = $this->userFactory->create(
                     email: $request->email,
                     plainPassword: $request->plainPassword,
@@ -48,17 +54,21 @@ final class RegistrationService
                     initialRole: $initialRole,
                 );
                 $this->entityManager->persist($user);
+                $metadata = [
+                    'source' => 'registration',
+                    'registration_flow' => $flow->value,
+                    'new_roles' => $user->getRoles(),
+                    'new_status' => $user->getStatus()->value,
+                ];
+                if ($accountType instanceof AccountType) {
+                    $metadata['account_type'] = $accountType->value;
+                }
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::UserRegistered,
                     actorType: SecurityAuditActorType::System,
                     outcome: SecurityAuditOutcome::Success,
                     subjectUser: $user,
-                    metadata: [
-                        'source' => 'registration',
-                        'account_type' => $accountType->value,
-                        'new_roles' => $user->getRoles(),
-                        'new_status' => $user->getStatus()->value,
-                    ],
+                    metadata: $metadata,
                 ), false);
                 $this->entityManager->flush();
 

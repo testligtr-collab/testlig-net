@@ -1,0 +1,21 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kayıt ol — Testlig{% endblock %}
+
+{% block body %}
+<section class="page page--wide">
+    <h1>Nasıl devam etmek istersiniz?</h1>
+    <p class="muted">Testlig hesabı e-posta ile oluşturulur. Öğretmen ve kurum yollarında erişim, başvurunuz incelenmeden açılmaz.</p>
+
+    <div class="register-choices" role="list">
+        {% for choice in flows %}
+            <a class="register-choice" role="listitem" href="{{ path('app_register_flow', {flow: choice.value}) }}">
+                <span class="register-choice__title">{{ choice.title }}</span>
+                <span class="register-choice__summary">{{ choice.summary }}</span>
+            </a>
+        {% endfor %}
+    </div>
+
+    <p class="muted">Zaten hesabınız var mı? <a href="{{ path('app_login') }}">Giriş yapın</a></p>
+</section>
+{% endblock %}

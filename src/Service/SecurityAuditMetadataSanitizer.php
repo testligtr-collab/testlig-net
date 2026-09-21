@@ -192,6 +192,7 @@ final class SecurityAuditMetadataSanitizer
         'application_id',
         'application_kind',
         'account_type',
+        'registration_flow',
     ];
 
     /**

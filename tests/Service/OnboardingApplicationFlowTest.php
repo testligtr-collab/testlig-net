@@ -9,6 +9,7 @@ use App\Entity\User;
 use App\Enum\AccountType;
 use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
+use App\Enum\RegistrationFlow;
 use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
@@ -116,6 +117,7 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
     public function testParentRegistrationAssignsParentNotTeacherOrInstitutionManager(): void
     {
         $dto = $this->registrationDto('parent-onb@example.com');
+        $dto->flow = RegistrationFlow::Parent;
         $dto->accountType = AccountType::Parent;
         $user = $this->registration->register($dto);
 

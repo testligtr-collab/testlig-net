@@ -186,11 +186,95 @@ a:hover {
     box-shadow: var(--tl-shadow-md);
 }
 
+.page--wide {
+    width: min(40rem, calc(100% - 2rem));
+}
+
 .page h1 {
     margin-top: 0;
     font-family: var(--tl-font-display);
     font-size: var(--tl-fs-2xl);
     line-height: var(--tl-lh-tight);
+}
+
+.eyebrow {
+    margin: 0 0 var(--tl-space-3);
+    font-size: var(--tl-fs-sm);
+}
+
+.eyebrow a {
+    color: var(--tl-brand-strong);
+    text-decoration: none;
+}
+
+.eyebrow a:hover,
+.eyebrow a:focus-visible {
+    text-decoration: underline;
+}
+
+.register-choices {
+    display: grid;
+    gap: var(--tl-space-3);
+    margin: var(--tl-space-5) 0;
+}
+
+@media (min-width: 40rem) {
+    .register-choices {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.register-choice {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    min-height: 6.5rem;
+    padding: var(--tl-space-4);
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-elevated);
+    color: var(--tl-ink);
+    text-decoration: none;
+    transition: border-color var(--tl-ease), background-color var(--tl-ease);
+}
+
+.register-choice:hover,
+.register-choice:focus-visible {
+    border-color: var(--tl-brand);
+    background: var(--tl-brand-soft);
+    outline: none;
+}
+
+.register-choice__title {
+    font-family: var(--tl-font-display);
+    font-size: var(--tl-fs-lg);
+    font-weight: 700;
+}
+
+.register-choice__summary {
+    color: var(--tl-ink-muted);
+    font-size: var(--tl-fs-sm);
+    line-height: var(--tl-lh);
+}
+
+.callout {
+    margin: var(--tl-space-4) 0;
+    padding: var(--tl-space-4);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-brand-soft);
+    border: var(--tl-border-width) solid var(--tl-border);
+}
+
+.callout--pending {
+    background: var(--tl-accent-soft);
+}
+
+.callout p {
+    margin: 0 0 var(--tl-space-2);
+}
+
+.callout p:last-child {
+    margin-bottom: 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1175,7 +1259,8 @@ a:hover {
 
 .form-row input[type="text"],
 .form-row input[type="email"],
-.form-row input[type="password"] {
+.form-row input[type="password"],
+.form-row select {
     width: 100%;
     box-sizing: border-box;
     padding: 0.65rem 0.75rem;
@@ -1184,7 +1269,8 @@ a:hover {
     font: inherit;
 }
 
-.form-row input:focus-visible {
+.form-row input:focus-visible,
+.form-row select:focus-visible {
     outline: 2px solid var(--tl-focus);
     outline-offset: 1px;
 }
