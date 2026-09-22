@@ -5,7 +5,11 @@
 {% block body %}
 <section class="page">
     <h1>Doğrulama e-postasını yeniden gönder</h1>
-    <p class="muted">E-posta adresinizi girin. Hesap bulunursa ve doğrulama bekliyorsa yeni bir bağlantı gönderilir.</p>
+    {% if mailAvailable is defined and not mailAvailable %}
+        <p class="flash flash-error" role="alert">E-posta gönderimi şu an yapılandırılmamış. Doğrulama bağlantısı gönderilemez.</p>
+    {% else %}
+        <p class="muted">E-posta adresinizi girin. Hesap bulunursa ve doğrulama bekliyorsa yeni bir bağlantı gönderilir.</p>
+    {% endif %}
 
     {{ form_start(resendForm, {attr: {novalidate: 'novalidate'}}) }}
         <div class="form-row">
@@ -14,7 +18,7 @@
             {{ form_errors(resendForm.email) }}
         </div>
         {{ form_rest(resendForm) }}
-        <button class="btn" type="submit">Gönder</button>
+        <button class="btn" type="submit" {% if mailAvailable is defined and not mailAvailable %}disabled{% endif %}>Gönder</button>
     {{ form_end(resendForm) }}
 </section>
 {% endblock %}

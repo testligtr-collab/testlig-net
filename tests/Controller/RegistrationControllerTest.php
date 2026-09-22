@@ -60,6 +60,7 @@ final class RegistrationControllerTest extends WebTestCase
 
         $client->followRedirect();
         self::assertSelectorTextContains('h1', 'E-postanı kontrol et');
+        self::assertSelectorNotExists('.flash-error');
 
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
@@ -232,6 +233,7 @@ final class RegistrationControllerTest extends WebTestCase
     public function testMailerTransportFailureStillRedirectsWithoutHttp500(): void
     {
         $client = static::createClient();
+        $client->disableReboot();
 
         $failingSender = new class implements \App\Service\EmailVerificationSenderInterface {
             public function sendVerificationEmail(User $user): void
@@ -268,7 +270,8 @@ final class RegistrationControllerTest extends WebTestCase
 
         $client->followRedirect();
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'E-postanı kontrol et');
+        self::assertSelectorTextContains('h1', 'Hesap oluşturuldu');
+        self::assertSelectorTextContains('body', 'Doğrulama e-postası gönderilemedi');
         self::assertSelectorNotExists('body:contains("SMTP")');
         self::assertSelectorNotExists('body:contains("unavailable")');
     }

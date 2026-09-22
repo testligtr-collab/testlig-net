@@ -10,6 +10,7 @@ use App\Exception\RegistrationFailedException;
 use App\Form\RegistrationFormType;
 use App\Form\ResendVerificationFormType;
 use App\Service\EmailVerificationSenderInterface;
+use App\Service\OutboundMailCapability;
 use App\Service\RegistrationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -22,6 +23,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class RegistrationController extends AbstractController
 {
     private const SESSION_FLOW_KEY = 'registration_flow';
+    private const SESSION_EMAIL_DISPATCHED_KEY = 'registration_email_dispatched';
 
     #[Route('/kayit', name: 'app_register', methods: ['GET'])]
     public function choose(): Response
@@ -74,9 +76,10 @@ final class RegistrationController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             try {
-                $registrationService->register($dto);
+                $result = $registrationService->register($dto);
                 $request->getSession()->set('registration_email_hint', $dto->email);
                 $request->getSession()->set(self::SESSION_FLOW_KEY, $registrationFlow->value);
+                $request->getSession()->set(self::SESSION_EMAIL_DISPATCHED_KEY, $result->verificationEmailDispatched);
 
                 return $this->redirectToRoute('app_register_check_email');
             } catch (RegistrationFailedException) {
@@ -102,9 +105,11 @@ final class RegistrationController extends AbstractController
 
         $flowValue = $request->getSession()->get(self::SESSION_FLOW_KEY);
         $flow = \is_string($flowValue) ? RegistrationFlow::tryFrom($flowValue) : null;
+        $emailDispatched = true === $request->getSession()->get(self::SESSION_EMAIL_DISPATCHED_KEY);
 
         return $this->render('security/check_email.html.twig', [
             'flow' => $flow,
+            'emailDispatched' => $emailDispatched,
         ]);
     }
 
@@ -112,6 +117,7 @@ final class RegistrationController extends AbstractController
     public function resendVerification(
         Request $request,
         EmailVerificationSenderInterface $mailer,
+        OutboundMailCapability $outboundMail,
         #[Autowire(service: 'limiter.email_verification_resend')]
         RateLimiterFactory $emailVerificationResendLimiter,
     ): Response {
@@ -128,6 +134,15 @@ final class RegistrationController extends AbstractController
                 throw new TooManyRequestsHttpException(null, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
             }
 
+            if (!$outboundMail->canDeliver()) {
+                $this->addFlash(
+                    'error',
+                    'E-posta gönderimi şu an yapılandırılmamış. Lütfen daha sonra tekrar deneyin.'
+                );
+
+                return $this->redirectToRoute('app_resend_verification');
+            }
+
             /** @var array{email?: string} $data */
             $data = $form->getData() ?? [];
             $mailer->requestResend((string) ($data['email'] ?? ''));
@@ -142,6 +157,7 @@ final class RegistrationController extends AbstractController
 
         return $this->render('security/resend_verification.html.twig', [
             'resendForm' => $form,
+            'mailAvailable' => $outboundMail->canDeliver(),
         ]);
     }
 }

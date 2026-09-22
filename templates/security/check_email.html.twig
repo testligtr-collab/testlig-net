@@ -1,11 +1,16 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}E-postanı kontrol et — Testlig{% endblock %}
+{% block title %}{% if emailDispatched %}E-postanı kontrol et{% else %}Hesap oluşturuldu{% endif %} — Testlig{% endblock %}
 
 {% block body %}
 <section class="page">
-    <h1>E-postanı kontrol et</h1>
-    <p>Hesabını etkinleştirmek için e-posta kutuna gönderdiğimiz doğrulama bağlantısına tıkla.</p>
+    {% if emailDispatched %}
+        <h1>E-postanı kontrol et</h1>
+        <p>Hesabını etkinleştirmek için e-posta kutuna gönderdiğimiz doğrulama bağlantısına tıkla.</p>
+    {% else %}
+        <h1>Hesap oluşturuldu</h1>
+        <p class="flash flash-error" role="alert">Doğrulama e-postası gönderilemedi. E-posta gönderimi şu an yapılandırılmamış; giriş için doğrulama gerekir. Lütfen daha sonra <a href="{{ path('app_resend_verification') }}">doğrulama e-postasını yeniden iste</a>.</p>
+    {% endif %}
 
     {% if flow and flow.requiresApplicationFollowUp %}
         <p class="callout">E-postanı doğrulayıp giriş yaptıktan sonra başvurunu tamamlayabilirsin. Başvuru incelenmeden {{ flow.value == 'ogretmen' ? 'öğretmen' : 'kurum' }} erişimin açılmaz.</p>
@@ -20,6 +25,8 @@
         <p><a class="btn btn--primary" href="{{ path('app_login') }}">Giriş sayfasına git</a></p>
     {% endif %}
 
-    <p class="muted">Posta gelmediyse spam klasörünü kontrol et veya <a href="{{ path('app_resend_verification') }}">doğrulama e-postasını yeniden iste</a>.</p>
+    {% if emailDispatched %}
+        <p class="muted">Posta gelmediyse spam klasörünü kontrol et veya <a href="{{ path('app_resend_verification') }}">doğrulama e-postasını yeniden iste</a>.</p>
+    {% endif %}
 </section>
 {% endblock %}
