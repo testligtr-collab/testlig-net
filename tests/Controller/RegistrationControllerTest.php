@@ -182,19 +182,52 @@ final class RegistrationControllerTest extends WebTestCase
     {
         $client = static::createClient();
         $crawler = $client->request('GET', '/kayit/ogrenci');
+        self::assertSelectorTextContains('body', 'En az 8 karakter kullanın.');
         $form = $crawler->selectButton('Kayıt ol')->form([
             'registration_form[firstName]' => 'Zayıf',
             'registration_form[lastName]' => 'Parola',
             'registration_form[email]' => 'zayif@example.com',
-            'registration_form[plainPassword][first]' => '123',
-            'registration_form[plainPassword][second]' => '123',
+            'registration_form[plainPassword][first]' => '1234567',
+            'registration_form[plainPassword][second]' => '1234567',
             'registration_form[agreeTerms]' => false,
         ]);
         $client->submit($form);
 
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('body', 'Parola');
+        self::assertSelectorTextContains('body', 'Parolanız en az 8 karakter olmalıdır.');
         self::assertSelectorTextContains('body', 'kabul');
+    }
+
+    public function testLettersOnlyEightCharPasswordIsAccepted(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/ogrenci');
+        $form = $crawler->selectButton('Kayıt ol')->form([
+            'registration_form[firstName]' => 'Sade',
+            'registration_form[lastName]' => 'Parola',
+            'registration_form[email]' => 'sade-parola@example.com',
+            'registration_form[plainPassword][first]' => 'abcdefgh',
+            'registration_form[plainPassword][second]' => 'abcdefgh',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/kayit/eposta-kontrol');
+    }
+
+    public function testTurkishAndSpacedPassphraseAcceptedOnRegistration(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/kayit/ogrenci');
+        $form = $crawler->selectButton('Kayıt ol')->form([
+            'registration_form[firstName]' => 'Türk',
+            'registration_form[lastName]' => 'Çe',
+            'registration_form[email]' => 'turkce-parola@example.com',
+            'registration_form[plainPassword][first]' => 'güzel bir cümle',
+            'registration_form[plainPassword][second]' => 'güzel bir cümle',
+            'registration_form[agreeTerms]' => true,
+        ]);
+        $client->submit($form);
+        self::assertResponseRedirects('/kayit/eposta-kontrol');
     }
 
     public function testMismatchedPasswordsRejected(): void
