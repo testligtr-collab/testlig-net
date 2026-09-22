@@ -1,0 +1,142 @@
+name: Deploy VDS
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (branch, tag, or SHA). Empty = this workflow revision."
+        required: false
+        type: string
+        default: ""
+  # Auto-deploy only after CI succeeds on main (enabled via repo variable VDS_AUTO_DEPLOY=true).
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-vds
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to VDS
+    runs-on: ubuntu-latest
+    # Manual always; auto only when CI succeeded and VDS_AUTO_DEPLOY=true.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       vars.VDS_AUTO_DEPLOY == 'true')
+    steps:
+      - name: Resolve deploy SHA
+        id: meta
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            REF="$SHA"
+          elif [ -n "${{ github.event.inputs.ref }}" ]; then
+            REF="${{ github.event.inputs.ref }}"
+            SHA=""
+          else
+            REF="${{ github.sha }}"
+            SHA="${{ github.sha }}"
+          fi
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+          echo "sha_hint=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.meta.outputs.ref }}
+          fetch-depth: 1
+
+      - name: Record SHA
+        id: rev
+        run: |
+          set -euo pipefail
+          SHA="$(git rev-parse HEAD)"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Deploying ${SHA}"
+
+      - name: Build release tarball
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/testlig-release
+          tar -czf /tmp/testlig-release/release.tgz \
+            --exclude='./.git' \
+            --exclude='./vendor' \
+            --exclude='./var' \
+            --exclude='./node_modules' \
+            --exclude='./.env.local' \
+            --exclude='./.env.*.local' \
+            --exclude='./compose.override.yaml' \
+            --exclude='./docker/php/php.local.ini' \
+            --exclude='./public/uploads' \
+            --exclude='./public/assets' \
+            --exclude='./.phpunit.cache' \
+            --exclude='./.php-cs-fixer.cache' \
+            -C "$GITHUB_WORKSPACE" .
+          ls -lh /tmp/testlig-release/release.tgz
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Trust host key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.VDS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload tarball + deploy scripts
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          set -euo pipefail
+          REMOTE="${VDS_USER}@${VDS_HOST}"
+          scp /tmp/testlig-release/release.tgz "$REMOTE:/tmp/testlig-release.tgz"
+          scp deploy/vds/release-deploy.sh deploy/vds/rollback.sh "$REMOTE:/tmp/"
+          ssh "$REMOTE" \
+            'install -m 750 /tmp/release-deploy.sh /usr/local/sbin/testlig-release-deploy.sh &&
+             install -m 750 /tmp/rollback.sh /usr/local/sbin/testlig-rollback.sh &&
+             rm -f /tmp/release-deploy.sh /tmp/rollback.sh'
+
+      - name: Activate release on VDS
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -euo pipefail
+          ssh "${VDS_USER}@${VDS_HOST}" \
+            "/usr/local/sbin/testlig-release-deploy.sh '${DEPLOY_SHA}' /tmp/testlig-release.tgz"
+
+      - name: External smoke (apex + auth pages)
+        run: |
+          set -euo pipefail
+          for path in / /giris /kayit; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://testlig.net${path}")
+            echo "https://testlig.net${path} -> ${code}"
+            test "$code" = "200"
+          done
+          www=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://www.testlig.net/")
+          echo "https://www.testlig.net/ -> ${www}"
+          test "$www" = "200"
+
+      - name: Cleanup remote tarball
+        if: always()
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+        run: |
+          ssh "${VDS_USER}@${VDS_HOST}" 'rm -f /tmp/testlig-release.tgz' || true
