@@ -48,7 +48,7 @@ final class OutboundMailCapability
             return '';
         }
 
-        $scheme = parse_url($trimmed, PHP_URL_SCHEME);
+        $scheme = parse_url($trimmed, \PHP_URL_SCHEME);
 
         return \is_string($scheme) ? strtolower($scheme) : '';
     }
