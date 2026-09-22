@@ -331,11 +331,13 @@ final class PasswordResetFlowTest extends WebTestCase
 
         $client->request('GET', '/sifre-yenile/'.$token);
         $client->followRedirect();
+        self::assertSelectorTextContains('body', 'En az 8 karakter kullanın.');
         $client->submit($client->getCrawler()->selectButton('Parolayı güncelle')->form([
-            'reset_password_form[plainPassword][first]' => '123',
-            'reset_password_form[plainPassword][second]' => '123',
+            'reset_password_form[plainPassword][first]' => '1234567',
+            'reset_password_form[plainPassword][second]' => '1234567',
         ]));
         self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'Parolanız en az 8 karakter olmalıdır.');
 
         $client->submit($client->getCrawler()->selectButton('Parolayı güncelle')->form([
             'reset_password_form[plainPassword][first]' => 'Yeni-Guclu-Parola-789!',

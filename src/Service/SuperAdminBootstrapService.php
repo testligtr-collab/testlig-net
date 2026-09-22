@@ -15,12 +15,12 @@ use App\Enum\UserStatus;
 use App\Exception\SuperAdminBootstrapException;
 use App\Repository\SecurityBootstrapGuardRepository;
 use App\Repository\UserRepository;
+use App\Security\PasswordPolicy;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
-use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
@@ -128,19 +128,7 @@ final class SuperAdminBootstrapService
 
     private function assertStrongPassword(string $plainPassword): void
     {
-        $violations = $this->validator->validate($plainPassword, [
-            new Assert\NotBlank(message: 'Password is required.'),
-            new Assert\Length(
-                min: 12,
-                max: 4096,
-                minMessage: 'Password must be at least {{ limit }} characters.',
-                maxMessage: 'Password is too long.',
-            ),
-            new Assert\PasswordStrength(
-                minScore: Assert\PasswordStrength::STRENGTH_MEDIUM,
-                message: 'Password is not strong enough.',
-            ),
-        ]);
+        $violations = $this->validator->validate($plainPassword, PasswordPolicy::constraints('Password is required.'));
 
         if (\count($violations) > 0) {
             throw SuperAdminBootstrapException::weakPassword((string) $violations->get(0)->getMessage());

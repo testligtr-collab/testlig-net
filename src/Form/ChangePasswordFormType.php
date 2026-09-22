@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Dto\ChangePasswordRequest;
+use App\Security\PasswordPolicy;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\PasswordType;
 use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Validator\Constraints\NotCompromisedPassword;
 
 /**
  * @extends AbstractType<ChangePasswordRequest>
@@ -28,15 +28,14 @@ final class ChangePasswordFormType extends AbstractType
     {
         $passwordConstraints = [];
         if ('test' !== $this->environment) {
-            $passwordConstraints[] = new NotCompromisedPassword(
-                message: 'Bu parola bilinen bir veri ihlalinde görülmüş. Lütfen başka bir parola seçin.',
-            );
+            $passwordConstraints[] = PasswordPolicy::notCompromisedConstraint();
         }
 
         $builder
             ->add('currentPassword', PasswordType::class, [
                 'label' => 'Mevcut parola',
                 'attr' => ['autocomplete' => 'current-password'],
+                'trim' => false,
             ])
             ->add('newPassword', RepeatedType::class, [
                 'type' => PasswordType::class,
@@ -44,12 +43,14 @@ final class ChangePasswordFormType extends AbstractType
                 'first_options' => [
                     'label' => 'Yeni parola',
                     'attr' => ['autocomplete' => 'new-password'],
-                    'help' => 'En az 12 karakter; büyük/küçük harf, rakam ve özel karakter karışımı önerilir.',
+                    'help' => PasswordPolicy::HELP_TEXT,
                     'constraints' => $passwordConstraints,
+                    'trim' => false,
                 ],
                 'second_options' => [
                     'label' => 'Yeni parola tekrarı',
                     'attr' => ['autocomplete' => 'new-password'],
+                    'trim' => false,
                 ],
             ]);
     }

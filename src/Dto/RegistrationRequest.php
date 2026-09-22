@@ -6,6 +6,7 @@ namespace App\Dto;
 
 use App\Enum\AccountType;
 use App\Enum\RegistrationFlow;
+use App\Validator\Constraints\UserPassword;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -28,17 +29,7 @@ final class RegistrationRequest
     #[Assert\Length(max: 180, maxMessage: 'E-posta en fazla {{ limit }} karakter olabilir.')]
     public string $email = '';
 
-    #[Assert\NotBlank(message: 'Parola zorunludur.')]
-    #[Assert\Length(
-        min: 12,
-        max: 4096,
-        minMessage: 'Parola en az {{ limit }} karakter olmalıdır.',
-        maxMessage: 'Parola çok uzun.',
-    )]
-    #[Assert\PasswordStrength(
-        minScore: Assert\PasswordStrength::STRENGTH_MEDIUM,
-        message: 'Parola yeterince güçlü değil. Büyük/küçük harf, rakam ve özel karakter karışımı kullanın.',
-    )]
+    #[UserPassword]
     public string $plainPassword = '';
 
     /**

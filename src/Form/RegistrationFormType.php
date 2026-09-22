@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Dto\RegistrationRequest;
+use App\Security\PasswordPolicy;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -14,7 +15,6 @@ use Symfony\Component\Form\Extension\Core\Type\RepeatedType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Validator\Constraints\NotCompromisedPassword;
 
 /**
  * @extends AbstractType<RegistrationRequest>
@@ -31,9 +31,7 @@ final class RegistrationFormType extends AbstractType
     {
         $passwordConstraints = [];
         if ('test' !== $this->environment) {
-            $passwordConstraints[] = new NotCompromisedPassword(
-                message: 'Bu parola bilinen bir veri ihlalinde görülmüş. Lütfen başka bir parola seçin.',
-            );
+            $passwordConstraints[] = PasswordPolicy::notCompromisedConstraint();
         }
 
         $builder
@@ -55,12 +53,14 @@ final class RegistrationFormType extends AbstractType
                 'first_options' => [
                     'label' => 'Parola',
                     'attr' => ['autocomplete' => 'new-password'],
-                    'help' => 'En az 12 karakter; büyük/küçük harf, rakam ve özel karakter karışımı önerilir. Bilinen sızıntılardaki parolalar kabul edilmez.',
+                    'help' => PasswordPolicy::HELP_TEXT,
                     'constraints' => $passwordConstraints,
+                    'trim' => false,
                 ],
                 'second_options' => [
                     'label' => 'Parola tekrarı',
                     'attr' => ['autocomplete' => 'new-password'],
+                    'trim' => false,
                 ],
             ])
             ->add('agreeTerms', CheckboxType::class, [
