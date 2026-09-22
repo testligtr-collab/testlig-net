@@ -233,6 +233,7 @@ final class RegistrationControllerTest extends WebTestCase
     public function testMailerTransportFailureStillRedirectsWithoutHttp500(): void
     {
         $client = static::createClient();
+        $client->disableReboot();
 
         $failingSender = new class implements \App\Service\EmailVerificationSenderInterface {
             public function sendVerificationEmail(User $user): void
@@ -245,6 +246,7 @@ final class RegistrationControllerTest extends WebTestCase
             }
         };
         static::getContainer()->set(\App\Service\EmailVerificationSenderInterface::class, $failingSender);
+        static::getContainer()->set(\App\Service\EmailVerificationMailer::class, $failingSender);
 
         $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
