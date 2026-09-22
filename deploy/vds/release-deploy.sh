@@ -147,10 +147,13 @@ rollback() {
 
 log "atomic symlink switch"
 ln -sfn "releases/${RELEASE_NAME}" "$APP_LINK"
-# Ensure OLS re-reads .htaccess after docroot symlink change
+# Ensure OLS re-reads .htaccess and recycles lsphp opcache after docroot symlink change
 touch "$APP_LINK/public/.htaccess" 2>/dev/null || true
 if [[ -x /usr/local/lsws/bin/lswsctrl ]]; then
-  /usr/local/lsws/bin/lswsctrl restart >/dev/null 2>&1 || true
+  # Soft restart can leave stale PHP opcodes; stop/start recycles lsphp workers.
+  /usr/local/lsws/bin/lswsctrl stop >/dev/null 2>&1 || true
+  sleep 1
+  /usr/local/lsws/bin/lswsctrl start >/dev/null 2>&1 || /usr/local/lsws/bin/lswsctrl restart >/dev/null 2>&1 || true
   sleep 1
 fi
 
