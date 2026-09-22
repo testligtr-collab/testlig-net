@@ -246,7 +246,6 @@ final class RegistrationControllerTest extends WebTestCase
             }
         };
         static::getContainer()->set(\App\Service\EmailVerificationSenderInterface::class, $failingSender);
-        static::getContainer()->set(\App\Service\EmailVerificationMailer::class, $failingSender);
 
         $crawler = $client->request('GET', '/kayit/ogrenci');
         $form = $crawler->selectButton('Kayıt ol')->form([
