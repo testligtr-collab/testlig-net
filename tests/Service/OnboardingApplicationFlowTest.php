@@ -104,7 +104,7 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
     public function testStudentRegistrationStillAssignsOnlyStudentRole(): void
     {
         $dto = $this->registrationDto('student-onb@example.com');
-        $user = $this->registration->register($dto);
+        $user = $this->registration->register($dto)->user;
 
         self::assertSame(UserStatus::PendingVerification, $user->getStatus());
         self::assertContains(UserRole::Student->value, $user->getRoles());
@@ -119,7 +119,7 @@ final class OnboardingApplicationFlowTest extends KernelTestCase
         $dto = $this->registrationDto('parent-onb@example.com');
         $dto->flow = RegistrationFlow::Parent;
         $dto->accountType = AccountType::Parent;
-        $user = $this->registration->register($dto);
+        $user = $this->registration->register($dto)->user;
 
         self::assertContains(UserRole::Parent->value, $user->getRoles());
         self::assertNotContains(UserRole::Student->value, $user->getRoles());

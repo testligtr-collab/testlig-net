@@ -37,6 +37,7 @@ final class PasswordManager
         private readonly UserRepository $users,
         private readonly EmailNormalizer $emailNormalizer,
         private readonly PasswordResetNotifierInterface $passwordResetMailer,
+        private readonly OutboundMailCapability $outboundMail,
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
@@ -99,6 +100,14 @@ final class PasswordManager
         }
 
         try {
+            if (!$this->outboundMail->canDeliver()) {
+                $this->logger->critical('Password reset email not sent: outbound mail is not configured.', [
+                    'user_id' => $user->getId()->toRfc4122(),
+                    'config_key' => $this->outboundMail->missingConfigurationKey(),
+                ]);
+
+                return;
+            }
             $this->passwordResetMailer->sendResetEmail($user, $resetToken);
         } catch (TransportExceptionInterface $exception) {
             $this->logger->error('Password reset email transport failed.', [

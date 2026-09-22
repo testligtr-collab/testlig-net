@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\RegistrationRequest;
+use App\Dto\RegistrationResult;
 use App\Dto\SecurityAuditContext;
 use App\Entity\User;
 use App\Enum\AccountType;
@@ -29,13 +30,14 @@ final class RegistrationService
     public function __construct(
         private readonly UserFactory $userFactory,
         private readonly EmailVerificationSenderInterface $verificationMailer,
+        private readonly OutboundMailCapability $outboundMail,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
     ) {
     }
 
-    public function register(RegistrationRequest $request): User
+    public function register(RegistrationRequest $request): RegistrationResult
     {
         $flow = $request->flow;
         $initialRole = $flow->initialGlobalRole();
@@ -83,16 +85,25 @@ final class RegistrationService
             throw RegistrationFailedException::duplicateEmail();
         }
 
-        try {
-            $this->verificationMailer->sendVerificationEmail($user);
-        } catch (TransportExceptionInterface $exception) {
-            // Account remains pending_verification; user can use the resend flow.
-            $this->logger->error('Verification email transport failed after registration.', [
+        $dispatched = false;
+        if (!$this->outboundMail->canDeliver()) {
+            $this->logger->critical('Verification email not sent: outbound mail is not configured.', [
                 'user_id' => $user->getId()->toRfc4122(),
-                'exception_class' => $exception::class,
+                'config_key' => $this->outboundMail->missingConfigurationKey(),
             ]);
+        } else {
+            try {
+                $this->verificationMailer->sendVerificationEmail($user);
+                $dispatched = true;
+            } catch (TransportExceptionInterface $exception) {
+                // Account remains pending_verification; user can use the resend flow when mail works.
+                $this->logger->error('Verification email transport failed after registration.', [
+                    'user_id' => $user->getId()->toRfc4122(),
+                    'exception_class' => $exception::class,
+                ]);
+            }
         }
 
-        return $user;
+        return new RegistrationResult($user, $dispatched);
     }
 }

@@ -172,6 +172,7 @@ final class PasswordResetFlowTest extends WebTestCase
             $users,
             $normalizer,
             $failing,
+            new \App\Service\OutboundMailCapability('smtp://localhost', 'test'),
             $hasher,
             $em,
             $logger,

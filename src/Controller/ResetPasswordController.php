@@ -11,6 +11,7 @@ use App\Exception\PasswordResetFailedException;
 use App\Form\ForgotPasswordFormType;
 use App\Form\ResetPasswordFormType;
 use App\Service\EmailNormalizer;
+use App\Service\OutboundMailCapability;
 use App\Service\PasswordManager;
 use App\Service\RateLimitKeyHasher;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -27,6 +28,7 @@ final class ResetPasswordController extends AbstractController
     use ResetPasswordControllerTrait;
 
     private const GENERIC_CHECK_EMAIL_MESSAGE = 'Eğer bu e-posta ile kullanılabilir bir hesap varsa, parola yenileme bağlantısı gönderildi.';
+    private const MAIL_UNAVAILABLE_MESSAGE = 'Parola sıfırlama e-postası şu an gönderilemiyor. E-posta gönderimi yapılandırılmamış; lütfen daha sonra tekrar deneyin.';
     private const INVALID_TOKEN_MESSAGE = 'Doğrulama bağlantısı geçersiz veya süresi dolmuş.';
     private const SAME_AS_CURRENT_MESSAGE = 'Yeni parola mevcut parolanızdan farklı olmalıdır.';
     private const CONFLICT_MESSAGE = 'İşlem şu anda tamamlanamadı. Lütfen daha sonra tekrar deneyin.';
@@ -35,6 +37,7 @@ final class ResetPasswordController extends AbstractController
         private readonly PasswordManager $passwordManager,
         private readonly EmailNormalizer $emailNormalizer,
         private readonly RateLimitKeyHasher $rateLimitKeyHasher,
+        private readonly OutboundMailCapability $outboundMail,
         #[Autowire(service: 'limiter.password_reset_ip')]
         private readonly RateLimiterFactory $passwordResetIpLimiter,
         #[Autowire(service: 'limiter.password_reset_email')]
@@ -58,6 +61,12 @@ final class ResetPasswordController extends AbstractController
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
+            if (!$this->outboundMail->canDeliver()) {
+                $this->addFlash('error', self::MAIL_UNAVAILABLE_MESSAGE);
+
+                return $this->redirectToRoute('app_forgot_password_request');
+            }
+
             $this->enforceRequestRateLimits($request, $dto->email);
             $this->passwordManager->requestReset($dto->email);
 
@@ -66,6 +75,7 @@ final class ResetPasswordController extends AbstractController
 
         $response = $this->render('security/forgot_password.html.twig', [
             'requestForm' => $form,
+            'mailAvailable' => $this->outboundMail->canDeliver(),
         ]);
         $this->applyNoReferrer($response);
 
@@ -79,6 +89,10 @@ final class ResetPasswordController extends AbstractController
             $this->cleanSessionAfterReset();
 
             return $this->redirectToRoute('app_account');
+        }
+
+        if (!$this->outboundMail->canDeliver()) {
+            return $this->redirectToRoute('app_forgot_password_request');
         }
 
         $response = $this->render('security/forgot_password_check_email.html.twig', [
