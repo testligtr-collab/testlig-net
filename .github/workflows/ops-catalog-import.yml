@@ -1,0 +1,111 @@
+name: Ops catalog import (VDS)
+
+# Runs app:catalog:import on production (dry-run default). Never publishes.
+# Does not print secrets. apply = explicit write of draft rows only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run | apply | verify"
+        type: choice
+        options:
+          - dry-run
+          - apply
+          - verify
+        default: dry-run
+      update_existing:
+        description: "Pass --update-existing (only with apply)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-catalog-import
+  cancel-in-progress: false
+
+jobs:
+  vds:
+    name: VDS catalog import
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Trust host key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.VDS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run remote catalog ops
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          MODE: ${{ inputs.mode }}
+          UPDATE_EXISTING: ${{ inputs.update_existing }}
+        run: |
+          set -euo pipefail
+          REMOTE="${VDS_USER}@${VDS_HOST}"
+          ssh "$REMOTE" "export MODE=$(printf %q "$MODE"); export UPDATE_EXISTING=$(printf %q "$UPDATE_EXISTING"); bash -s" <<'EOS'
+          set -euo pipefail
+          APP_ROOT=/home/testlig.net/app
+          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
+          APP_USER=testl3865
+          FIXTURE=data/catalog/meb/tymm-2026/grade-1-matematik.yaml
+          cd "$APP_ROOT"
+          run_app() {
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod "$@"
+          }
+          sql_count() {
+            local sql="$1"
+            local out rc
+            set +e
+            out="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/tmp/testlig-cat-sql.err)"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              echo "err"
+              return 0
+            fi
+            printf '%s\n' "$out" | tr -d '\r' | awk '
+              /^[[:space:]]*[0-9]+[[:space:]]*$/ { v=$1 }
+              END { if (v != "") print v; else print "err" }
+            '
+          }
+
+          echo "mode=${MODE}"
+          echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
+          echo "fixture_present=$([ -f "$FIXTURE" ] && echo 1 || echo 0)"
+          echo "command_present=$([ -f bin/console ] && run_app "$PHP_BIN" bin/console list --raw 2>/dev/null | grep -c '^app:catalog:import' || echo 0)"
+
+          if [ "$MODE" = "verify" ]; then
+            echo "subjects_tymm=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND source_code = 'MAT'")"
+            echo "units_tymm=$(sql_count "SELECT COUNT(*) AS c FROM catalog_units WHERE source_version = 'TYMM-2026'")"
+            echo "topics_tymm=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics WHERE source_version = 'TYMM-2026'")"
+            echo "draft_subjects=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND status = 'draft'")"
+            echo "draft_units=$(sql_count "SELECT COUNT(*) AS c FROM catalog_units WHERE source_version = 'TYMM-2026' AND status = 'draft'")"
+            echo "draft_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics WHERE source_version = 'TYMM-2026' AND status = 'draft'")"
+            echo "published_subjects=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND status = 'published'")"
+            echo "published_grade1=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE grade_level = 1 AND status = 'published'")"
+            exit 0
+          fi
+
+          [ -f "$FIXTURE" ] || { echo "ERROR: fixture missing"; exit 1; }
+
+          ARGS=(bin/console app:catalog:import --no-interaction --file="$FIXTURE")
+          if [ "$MODE" = "apply" ]; then
+            ARGS+=(--apply)
+            if [ "$UPDATE_EXISTING" = "true" ]; then
+              ARGS+=(--update-existing)
+            fi
+          fi
+
+          run_app "$PHP_BIN" "${ARGS[@]}"
+          EOS
