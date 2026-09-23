@@ -31,12 +31,16 @@ final class AuthenticationFlowTest extends WebTestCase
             '_password' => 'Guclu-Parola-123!',
         ]);
         $client->submit($form);
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/ogrenci/kurulum');
         $client->followRedirect();
-        self::assertSelectorTextContains('h1', 'Hesabım');
-        self::assertSelectorTextContains('body', 'active@example.com');
+        self::assertSelectorTextContains('h1', 'Seni biraz tanıyalım');
         self::assertSelectorNotExists('body:contains("$2")');
         self::assertSelectorNotExists('body:contains("ROLE_")');
+
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Hesabım');
+        self::assertSelectorTextContains('body', 'active@example.com');
 
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
@@ -170,7 +174,7 @@ final class AuthenticationFlowTest extends WebTestCase
             '_username' => 'redirect@example.com',
             '_password' => 'Guclu-Parola-123!',
         ]));
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/ogrenci/kurulum');
     }
 
     public function testLoginThrottlingApplies(): void
@@ -251,6 +255,9 @@ final class AuthenticationFlowTest extends WebTestCase
         try {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
+            if ($em->getConnection()->createSchemaManager()->tablesExist(['student_profiles'])) {
+                $em->getConnection()->executeStatement('DELETE FROM student_profiles');
+            }
             if ($em->getConnection()->createSchemaManager()->tablesExist(['users'])) {
                 $em->getConnection()->executeStatement('DELETE FROM users');
             }

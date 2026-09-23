@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Security;
 
+use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Service\EmailNormalizer;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -33,6 +34,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly EmailNormalizer $emailNormalizer,
         private readonly UserRepository $users,
+        private readonly StudentLoginRedirector $studentLoginRedirector,
     ) {
     }
 
@@ -69,6 +71,11 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
             $this->removeTargetPath($request->getSession(), $firewallName);
 
             return new RedirectResponse($target);
+        }
+
+        $user = $token->getUser();
+        if ($user instanceof User) {
+            return new RedirectResponse($this->studentLoginRedirector->defaultPathFor($user));
         }
 
         return new RedirectResponse($this->urlGenerator->generate('app_account'));

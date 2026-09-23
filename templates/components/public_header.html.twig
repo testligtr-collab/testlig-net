@@ -12,6 +12,10 @@
 
         <div class="site-header__actions">
             {% if app.user %}
+                {% if is_granted('ROLE_STUDENT') %}
+                    <a class="btn btn--ghost" href="{{ path('app_student_dashboard') }}">Öğrenci Paneli</a>
+                    <a class="btn btn--ghost" href="{{ path('app_student_profile') }}">Profilim</a>
+                {% endif %}
                 <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
                 <form method="post" action="{{ path('app_logout') }}" class="logout-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
@@ -54,6 +58,10 @@
         </nav>
         <div class="mobile-drawer__actions">
             {% if app.user %}
+                {% if is_granted('ROLE_STUDENT') %}
+                    <a class="btn btn--ghost btn--block" href="{{ path('app_student_dashboard') }}">Öğrenci Paneli</a>
+                    <a class="btn btn--ghost btn--block" href="{{ path('app_student_profile') }}">Profilim</a>
+                {% endif %}
                 <a class="btn btn--ghost btn--block" href="{{ path('app_account') }}">Hesabım</a>
             {% else %}
                 <a class="btn btn--ghost btn--block" href="{{ path('app_login') }}">Giriş Yap</a>

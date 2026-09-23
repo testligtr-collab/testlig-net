@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Öğrenci Paneli — Testlig{% endblock %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-dashboard">
+    <header class="student-dashboard__header">
+        <h1 class="panel-greeting">Merhaba, {{ user.firstName }}</h1>
+        <p class="muted">{{ profile.gradeLevel.value }}. sınıf</p>
+    </header>
+
+    <section class="student-section" aria-labelledby="continue-heading">
+        <h2 id="continue-heading">Öğrenmeye devam et</h2>
+        <div class="empty-state" role="status">
+            <p>Henüz başladığın bir çalışma yok.</p>
+        </div>
+    </section>
+
+    <section class="student-section" aria-labelledby="quick-heading">
+        <h2 id="quick-heading">Hızlı erişim</h2>
+        <ul class="student-quick-links">
+            {% for link in quickLinks %}
+                <li>
+                    {% if link.soon or link.href is null %}
+                        <span class="student-quick-card student-quick-card--soon" aria-disabled="true">
+                            <span class="student-quick-card__label">{{ link.label }}</span>
+                            <span class="student-badge">Yakında</span>
+                        </span>
+                    {% else %}
+                        <a class="student-quick-card" href="{{ link.href }}">
+                            <span class="student-quick-card__label">{{ link.label }}</span>
+                        </a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <p class="student-dashboard__actions">
+        <a href="{{ path('app_student_profile') }}">Profil bilgilerini düzenle</a>
+    </p>
+</section>
+{% endblock %}

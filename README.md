@@ -59,12 +59,22 @@ Mailpit (doğrulama e-postaları): http://localhost:8025
 
 Kayıt: http://localhost:8080/kayit · Giriş: http://localhost:8080/giris · Hesap: http://localhost:8080/hesabim
 Şifremi unuttum: http://localhost:8080/sifremi-unuttum · Parola değiştir: http://localhost:8080/hesabim/sifre-degistir
+Öğrenci kurulum: http://localhost:8080/ogrenci/kurulum · Panel: http://localhost:8080/ogrenci · Profil: http://localhost:8080/ogrenci/profil
 
 Public kayıt yalnızca **öğrenci** (`ROLE_STUDENT`) oluşturur; e-posta doğrulanana kadar giriş yapılamaz.
+Doğrulanmış öğrenci ilk girişte `/ogrenci/kurulum` ile kısa profil kurulumundan geçer; tamamlanınca `/ogrenci` sade paneline yönlendirilir.
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
 Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public cevap her durumda aynıdır.
 Süresi dolmuş reset kayıtları: `docker compose exec app php bin/console reset-password:remove-expired`
 Mailpit UI yalnızca localhost’ta dinler (`127.0.0.1:8025`).
+
+### Öğrenci ilk giriş ve panel temeli
+
+- `StudentProfile` ↔ `User` bire bir; sınıf (1–12), isteğe bağlı okul/şehir/öğrenme hedefi; doğum tarihi/telefon/adres yok.
+- Onboarding tamamlanmadan `/ogrenci` ve `/ogrenci/profil` kurulum sayfasına yönlendirir; tamamlanmış kurulum paneline döner.
+- Güvenli `_target_path` korunur; varsayılan login hedefi öğrenci için panel/kurulum, diğer roller için `/hesabim`.
+- Ders/sınav/araç kartları rota yoksa “Yakında” (sahte ilerleme yok). Hesap/parola `/hesabim` altında kalır.
+- Ayrıntı: `docs/architecture-auth-membership-onboarding.md` (öğrenci panel dilimi).
 
 ### Security audit ve SUPER_ADMIN bootstrap (Aşama 2.4)
 
