@@ -1,0 +1,111 @@
+name: Ops SuperAdmin bootstrap (VDS)
+
+# Installs an interactive one-shot helper and/or runs secret-free inspect queries.
+# Does not accept or log passwords. Bootstrap itself must be run over ssh -t.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "inspect = read-only counts; install-helper = place root helper; verify = post-bootstrap checks"
+        type: choice
+        options:
+          - inspect
+          - install-helper
+          - verify
+        default: inspect
+      admin_email:
+        description: "Optional. Only used to check email_taken (not printed). Leave empty to skip."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ops-superadmin-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  vds:
+    name: VDS ops
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Trust host key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.VDS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run remote ops
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          MODE: ${{ inputs.mode }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+        run: |
+          set -euo pipefail
+          REMOTE="${VDS_USER}@${VDS_HOST}"
+
+          if [ "$MODE" = "install-helper" ]; then
+            scp deploy/vds/bootstrap-super-admin-once.sh "$REMOTE:/tmp/testlig-bootstrap-super-admin-once.sh"
+            ssh "$REMOTE" 'install -o root -g root -m 700 /tmp/testlig-bootstrap-super-admin-once.sh /usr/local/sbin/testlig-bootstrap-super-admin-once.sh && rm -f /tmp/testlig-bootstrap-super-admin-once.sh && echo helper_installed=1'
+          fi
+
+          ssh "$REMOTE" "MODE='$MODE' ADMIN_EMAIL=$(printf %q "$ADMIN_EMAIL") bash -s" <<'EOS'
+          set -euo pipefail
+          APP_ROOT=/home/testlig.net/app
+          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
+          APP_USER=testl3865
+          cd "$APP_ROOT"
+          run_app() {
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net "$@"
+          }
+          sql_count() {
+            local sql="$1"
+            run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/dev/null \
+              | tr -d '\r' \
+              | awk 'NF{line=$0} END{ if (match(line, /[0-9]+/)) print substr(line, RSTART, RLENGTH); else print "err" }'
+          }
+
+          echo "mode=${MODE}"
+          echo "helper_present=$([ -x /usr/local/sbin/testlig-bootstrap-super-admin-once.sh ] && echo 1 || echo 0)"
+          SA_USERS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1")"
+          SA_GUARDS="$(sql_count "SELECT COUNT(*) AS c FROM security_bootstrap_guards WHERE name = 'super_admin'")"
+          STUDENT_ADMINS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_STUDENT\"', '\$') = 1 AND (JSON_CONTAINS(global_roles, '\"ROLE_ADMIN\"', '\$') = 1 OR JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1)")"
+          STUDENTS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_STUDENT\"', '\$') = 1")"
+          echo "sa_users=${SA_USERS}"
+          echo "sa_guards=${SA_GUARDS}"
+          echo "student_admins=${STUDENT_ADMINS}"
+          echo "student_users=${STUDENTS}"
+
+          if [ -n "${ADMIN_EMAIL}" ]; then
+            EMAIL_NORM="$(printf '%s' "$ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+            EMAIL_ESC="${EMAIL_NORM//\'/\\\'}"
+            EMAIL_TAKEN="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE normalized_email = '${EMAIL_ESC}'")"
+            echo "email_taken=${EMAIL_TAKEN}"
+            echo "email_provided=1"
+          else
+            echo "email_provided=0"
+          fi
+
+          if [ "$MODE" = "verify" ]; then
+            ACTIVE_SA="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1 AND status = 'active' AND email_verified_at IS NOT NULL")"
+            HASH_LOOKS="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction \
+              "SELECT CASE WHEN password LIKE '\$2%' OR password LIKE '\$argon%' OR LENGTH(password) >= 60 THEN 1 ELSE 0 END AS h FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1 LIMIT 1" 2>/dev/null \
+              | tr -d '\r' | awk 'NF{line=$0} END{ if (match(line, /[0-9]+/)) print substr(line, RSTART, RLENGTH); else print "0" }')"
+            echo "active_verified_sa=${ACTIVE_SA}"
+            echo "password_looks_hashed=${HASH_LOOKS}"
+          fi
+          EOS
