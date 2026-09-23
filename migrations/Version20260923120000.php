@@ -19,19 +19,7 @@ final class Version20260923120000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('CREATE TABLE student_profiles (
-            id BINARY(16) NOT NULL,
-            user_id BINARY(16) NOT NULL,
-            grade_level SMALLINT NOT NULL,
-            school_name VARCHAR(160) DEFAULT NULL,
-            city VARCHAR(100) DEFAULT NULL,
-            learning_goal VARCHAR(500) DEFAULT NULL,
-            onboarding_completed_at DATETIME DEFAULT NULL COMMENT \'(DC2Type:datetime_immutable)\',
-            created_at DATETIME NOT NULL COMMENT \'(DC2Type:datetime_immutable)\',
-            updated_at DATETIME NOT NULL COMMENT \'(DC2Type:datetime_immutable)\',
-            PRIMARY KEY(id)
-        ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
-        $this->addSql('CREATE UNIQUE INDEX uniq_student_profiles_user ON student_profiles (user_id)');
+        $this->addSql('CREATE TABLE student_profiles (id BINARY(16) NOT NULL, user_id BINARY(16) NOT NULL, grade_level INT NOT NULL, school_name VARCHAR(160) DEFAULT NULL, city VARCHAR(100) DEFAULT NULL, learning_goal VARCHAR(500) DEFAULT NULL, onboarding_completed_at DATETIME DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, UNIQUE INDEX uniq_student_profiles_user (user_id), PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
         $this->addSql('ALTER TABLE student_profiles ADD CONSTRAINT FK_STUDENT_PROFILES_USER FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE');
     }
 

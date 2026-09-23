@@ -33,11 +33,11 @@ class StudentProfile
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\OneToOne]
+    #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private User $user;
 
-    #[ORM\Column(name: 'grade_level', type: Types::SMALLINT, enumType: GradeLevel::class)]
+    #[ORM\Column(name: 'grade_level', enumType: GradeLevel::class)]
     private GradeLevel $gradeLevel;
 
     #[ORM\Column(name: 'school_name', length: self::SCHOOL_NAME_MAX, nullable: true)]
