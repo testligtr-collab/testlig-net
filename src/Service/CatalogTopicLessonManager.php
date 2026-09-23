@@ -74,6 +74,7 @@ final class CatalogTopicLessonManager
             ): CatalogTopicLesson {
                 $topic = $this->lockTopic($catalogTopicId);
                 $content = $this->lockContent($learningContentId);
+                $freshActor = $this->lockActor($actorId);
                 $this->assertMayCreate($freshActor);
 
                 $this->assertBindableContent($topic, $content);

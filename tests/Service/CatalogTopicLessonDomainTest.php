@@ -12,7 +12,6 @@ use App\Entity\User;
 use App\Enum\CatalogPublicationStatus;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentScope;
-use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
