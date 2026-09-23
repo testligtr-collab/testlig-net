@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ subject.name }} — Dersler — Testlig{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_courses') }}">Dersler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ subject.name }}</span>
+    </nav>
+    <h1>{{ subject.name }}</h1>
+    {% if subject.description %}
+        <p class="muted">{{ subject.description }}</p>
+    {% endif %}
+
+    {% if units is empty %}
+        <div class="empty-state" role="status">
+            <p>Bu derste henüz yayımlanmış ünite yok.</p>
+        </div>
+    {% else %}
+        <ul class="student-catalog-list">
+            {% for unit in units %}
+                <li>
+                    <a class="student-catalog-row" href="{{ path('app_student_course_unit', {subjectSlug: subject.slug, unitSlug: unit.slug}) }}">
+                        <span>{{ unit.name }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+{% endblock %}

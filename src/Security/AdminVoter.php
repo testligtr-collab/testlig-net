@@ -60,6 +60,8 @@ final class AdminVoter extends Voter
                     AdminPermission::ADMIN_INSTITUTIONS_MANAGE => $this->adminAuthorization->canManageInstitutions($actor),
                     AdminPermission::ADMIN_MEMBERSHIPS_VIEW => $this->adminAuthorization->canViewMemberships($actor),
                     AdminPermission::ADMIN_MEMBERSHIPS_MANAGE => $this->adminAuthorization->canManageMemberships($actor),
+                    AdminPermission::ADMIN_CATALOG_VIEW => $this->adminAuthorization->canViewCatalog($actor),
+                    AdminPermission::ADMIN_CATALOG_MANAGE => $this->adminAuthorization->canManageCatalog($actor),
                     default => false,
                 };
             });

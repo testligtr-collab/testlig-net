@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ unit.name }} — {{ subject.name }} — Testlig{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_courses') }}">Dersler</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_course_subject', {subjectSlug: subject.slug}) }}">{{ subject.name }}</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ unit.name }}</span>
+    </nav>
+    <h1>{{ unit.name }}</h1>
+    {% if unit.description %}
+        <p class="muted">{{ unit.description }}</p>
+    {% endif %}
+
+    <h2 class="student-section-title">Konular</h2>
+    {% if topics is empty %}
+        <div class="empty-state" role="status">
+            <p>Bu ünitede henüz yayımlanmış konu yok.</p>
+        </div>
+    {% else %}
+        <ul class="student-topic-list">
+            {% for topic in topics %}
+                <li class="student-topic-item">
+                    <div>
+                        <p class="student-topic-item__name">{{ topic.name }}</p>
+                        {% if topic.summary %}
+                            <p class="muted">{{ topic.summary|length > 200 ? topic.summary|slice(0, 200) ~ '…' : topic.summary }}</p>
+                        {% endif %}
+                    </div>
+                    {% if topic.estimatedMinutes %}
+                        <span class="student-badge">{{ topic.estimatedMinutes }} dk</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+{% endblock %}

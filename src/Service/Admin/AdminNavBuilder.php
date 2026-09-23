@@ -51,6 +51,10 @@ final class AdminNavBuilder
             $items[] = $this->item('institutions', 'Kurumlar', 'app_admin_institutions', $currentPath, '/yonetim/kurumlar');
         }
 
+        if ($this->adminAuthorization->canViewCatalog($actor)) {
+            $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
+        }
+
         if ($isSa) {
             $items[] = $this->item('payments', 'Ödemeler', 'app_admin_payments', $currentPath, '/yonetim/odemeler');
             $items[] = $this->item('webhooks', 'Webhook', 'app_admin_webhooks', $currentPath, '/yonetim/webhook');

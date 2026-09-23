@@ -123,6 +123,19 @@ final class AdminAuthorization
         $this->assertCanCreateInstitutions($actor);
     }
 
+    /**
+     * Course catalog admin: active+verified ADMIN or SUPER_ADMIN.
+     */
+    public function assertCanViewCatalog(User $actor): void
+    {
+        $this->assertCanAccessAdminShell($actor);
+    }
+
+    public function assertCanManageCatalog(User $actor): void
+    {
+        $this->assertCanAccessAdminShell($actor);
+    }
+
     public function canAccessAdminShell(User $actor): bool
     {
         return $this->isActiveVerifiedAdminOrSuperAdmin($actor);
@@ -181,6 +194,16 @@ final class AdminAuthorization
     public function canManageMemberships(User $actor): bool
     {
         return $this->canCreateInstitutions($actor);
+    }
+
+    public function canViewCatalog(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
+    }
+
+    public function canManageCatalog(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
     }
 
     private function assertActiveVerifiedAdminOrSuperAdmin(User $actor): void
