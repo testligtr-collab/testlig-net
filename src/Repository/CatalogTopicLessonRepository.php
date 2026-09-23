@@ -41,12 +41,12 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->andWhere('l.catalogTopic = :topic')
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
             ->andWhere('l.slug = :slug')
-            ->setParameter('topic', $topic)
+            ->setParameter('topicId', $topic->getId(), 'uuid')
             ->setParameter('slug', $slug);
         if ($exceptId instanceof Uuid) {
-            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId);
+            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId, 'uuid');
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;
@@ -56,12 +56,12 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->andWhere('l.catalogTopic = :topic')
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
             ->andWhere('l.position = :position')
-            ->setParameter('topic', $topic)
+            ->setParameter('topicId', $topic->getId(), 'uuid')
             ->setParameter('position', $position);
         if ($exceptId instanceof Uuid) {
-            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId);
+            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId, 'uuid');
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;
@@ -71,12 +71,12 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->andWhere('l.catalogTopic = :topic')
-            ->andWhere('l.learningContent = :content')
-            ->setParameter('topic', $topic)
-            ->setParameter('content', $content);
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
+            ->andWhere('IDENTITY(l.learningContent) = :contentId')
+            ->setParameter('topicId', $topic->getId(), 'uuid')
+            ->setParameter('contentId', $content->getId(), 'uuid');
         if ($exceptId instanceof Uuid) {
-            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId);
+            $qb->andWhere('l.id != :except')->setParameter('except', $exceptId, 'uuid');
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;

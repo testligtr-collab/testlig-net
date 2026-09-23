@@ -42,9 +42,8 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
     private UserFactory $factory;
     private UserRepository $users;
 
-    protected function setUp(): void
+    private function rebind(): void
     {
-        self::bootKernel();
         $c = static::getContainer();
         $em = $c->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
@@ -67,6 +66,22 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         $users = $c->get(UserRepository::class);
         self::assertInstanceOf(UserRepository::class, $users);
         $this->users = $users;
+    }
+
+    private function reopenIfClosed(): void
+    {
+        if ($this->em->isOpen()) {
+            return;
+        }
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->rebind();
+    }
+
+    protected function setUp(): void
+    {
+        self::bootKernel();
+        $this->rebind();
         $this->cleanup();
     }
 
@@ -80,6 +95,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->placements->create($admin, $topic->getId(), $content->getId(), 'Adım 1b', null, 1, 'dup_content', 'adim-1b');
             self::fail('Expected duplicate content binding rejection');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
 
         $other = $this->createDraftContent($admin, $content->getSubject(), 'uniq_other', 'Other');
@@ -87,12 +103,14 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->placements->create($admin, $topic->getId(), $other->getId(), 'Adım 2', null, 0, 'dup_pos', 'adim-2');
             self::fail('Expected duplicate position rejection');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
 
         try {
             $this->placements->create($admin, $topic->getId(), $other->getId(), 'Adım 3', null, 2, 'dup_slug', 'adim-1');
             self::fail('Expected duplicate slug rejection');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
     }
 
@@ -183,6 +201,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->placements->publish($teacher, $lesson->getId(), 't_publish');
             self::fail('Teacher must not publish placement');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
 
         $this->placements->publish($admin, $lesson->getId(), 'admin_publish');
@@ -200,13 +219,14 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         self::assertNotContains('remove', $publicNames);
 
         [$admin, $topic, $content] = $this->seedPublishedContentBundle('rb');
-        $this->placements->create($admin, $topic->getId(), $content->getId(), 'A', null, 0, 'a', 'a');
+        $this->placements->create($admin, $topic->getId(), $content->getId(), 'Adim A', null, 0, 'a', 'a');
         $before = (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM catalog_topic_lessons');
 
         try {
-            $this->placements->create($admin, $topic->getId(), $content->getId(), 'B', null, 0, 'b', 'b');
+            $this->placements->create($admin, $topic->getId(), $content->getId(), 'Adim B', null, 0, 'b', 'b');
             self::fail('Expected conflict');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
 
         $after = (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM catalog_topic_lessons');
