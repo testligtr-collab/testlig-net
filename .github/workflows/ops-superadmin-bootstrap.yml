@@ -63,24 +63,50 @@ jobs:
             ssh "$REMOTE" 'install -o root -g root -m 700 /tmp/testlig-bootstrap-super-admin-once.sh /usr/local/sbin/testlig-bootstrap-super-admin-once.sh && rm -f /tmp/testlig-bootstrap-super-admin-once.sh && echo helper_installed=1'
           fi
 
-          ssh "$REMOTE" "MODE='$MODE' ADMIN_EMAIL=$(printf %q "$ADMIN_EMAIL") bash -s" <<'EOS'
+          # Pass mode/email as env; remote script is literal (no host expansion surprises).
+          ssh "$REMOTE" "export MODE=$(printf %q "$MODE"); export ADMIN_EMAIL=$(printf %q "$ADMIN_EMAIL"); bash -s" <<'EOS'
           set -euo pipefail
           APP_ROOT=/home/testlig.net/app
           PHP_BIN=/usr/local/lsws/lsphp83/bin/php
           APP_USER=testl3865
           cd "$APP_ROOT"
           run_app() {
-            runuser -u "$APP_USER" -- env HOME=/home/testlig.net "$@"
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod "$@"
           }
+          # Returns a single integer or "err". Never prints SQL errors that may contain DSN.
           sql_count() {
             local sql="$1"
-            run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/dev/null \
-              | tr -d '\r' \
-              | awk 'NF{line=$0} END{ if (match(line, /[0-9]+/)) print substr(line, RSTART, RLENGTH); else print "err" }'
+            local out rc
+            set +e
+            out="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/tmp/testlig-sa-sql.err)"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              echo "err"
+              return 0
+            fi
+            # dbal:run-sql prints an ASCII table; pick the last purely numeric cell.
+            printf '%s\n' "$out" | tr -d '\r' | awk '
+              /^[[:space:]]*[0-9]+[[:space:]]*$/ { v=$1 }
+              END { if (v != "") print v; else print "err" }
+            '
           }
 
           echo "mode=${MODE}"
           echo "helper_present=$([ -x /usr/local/sbin/testlig-bootstrap-super-admin-once.sh ] && echo 1 || echo 0)"
+          echo "console_present=$([ -f bin/console ] && echo 1 || echo 0)"
+
+          # Probe console once (secret-free).
+          set +e
+          run_app "$PHP_BIN" bin/console about --no-interaction >/tmp/testlig-sa-about.out 2>/tmp/testlig-sa-about.err
+          ABOUT_RC=$?
+          set -e
+          echo "console_about_rc=${ABOUT_RC}"
+          if [ "$ABOUT_RC" -ne 0 ]; then
+            # Show only the last non-empty line of stderr without dumping env
+            echo "console_about_err_tail=$(tr -d '\r' </tmp/testlig-sa-about.err | awk 'NF{l=$0} END{print l}' | cut -c1-160)"
+          fi
+
           SA_USERS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1")"
           SA_GUARDS="$(sql_count "SELECT COUNT(*) AS c FROM security_bootstrap_guards WHERE name = 'super_admin'")"
           STUDENT_ADMINS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_STUDENT\"', '\$') = 1 AND (JSON_CONTAINS(global_roles, '\"ROLE_ADMIN\"', '\$') = 1 OR JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1)")"
@@ -90,7 +116,7 @@ jobs:
           echo "student_admins=${STUDENT_ADMINS}"
           echo "student_users=${STUDENTS}"
 
-          if [ -n "${ADMIN_EMAIL}" ]; then
+          if [ -n "${ADMIN_EMAIL:-}" ]; then
             EMAIL_NORM="$(printf '%s' "$ADMIN_EMAIL" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
             EMAIL_ESC="${EMAIL_NORM//\'/\\\'}"
             EMAIL_TAKEN="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE normalized_email = '${EMAIL_ESC}'")"
@@ -102,10 +128,13 @@ jobs:
 
           if [ "$MODE" = "verify" ]; then
             ACTIVE_SA="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1 AND status = 'active' AND email_verified_at IS NOT NULL")"
-            HASH_LOOKS="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction \
-              "SELECT CASE WHEN password LIKE '\$2%' OR password LIKE '\$argon%' OR LENGTH(password) >= 60 THEN 1 ELSE 0 END AS h FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1 LIMIT 1" 2>/dev/null \
-              | tr -d '\r' | awk 'NF{line=$0} END{ if (match(line, /[0-9]+/)) print substr(line, RSTART, RLENGTH); else print "0" }')"
+            HASH_LOOKS="$(sql_count "SELECT CASE WHEN password LIKE '\$2%' OR password LIKE '\$argon%' OR LENGTH(password) >= 60 THEN 1 ELSE 0 END AS h FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1 LIMIT 1")"
             echo "active_verified_sa=${ACTIVE_SA}"
             echo "password_looks_hashed=${HASH_LOOKS}"
+          fi
+
+          # If counts failed, surface last SQL error class only (truncate, no DSN dump if possible).
+          if [ "${SA_USERS}" = "err" ] || [ "${SA_GUARDS}" = "err" ]; then
+            echo "sql_err_tail=$(tr -d '\r' </tmp/testlig-sa-sql.err 2>/dev/null | awk 'NF{l=$0} END{print l}' | cut -c1-200)"
           fi
           EOS
