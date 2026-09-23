@@ -2462,3 +2462,102 @@ body.is-student-surface {
 .student-dashboard__actions {
     margin-top: var(--tl-space-6);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Student course catalog                                                     */
+/* -------------------------------------------------------------------------- */
+
+.student-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+    align-items: center;
+    margin: 0 0 var(--tl-space-4);
+    font-size: var(--tl-fs-sm);
+    color: var(--tl-ink-muted);
+}
+
+.student-breadcrumb a {
+    color: var(--tl-brand-strong);
+    text-decoration: none;
+}
+
+.student-breadcrumb a:hover,
+.student-breadcrumb a:focus-visible {
+    text-decoration: underline;
+}
+
+.student-catalog-grid {
+    list-style: none;
+    margin: var(--tl-space-5) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--tl-space-3);
+}
+
+@media (min-width: 640px) {
+    .student-catalog-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.student-catalog-card,
+.student-catalog-row {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-4);
+    background: var(--tl-surface);
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+    text-decoration: none;
+    color: var(--tl-ink);
+    box-shadow: var(--tl-shadow-sm);
+}
+
+.student-catalog-card:hover,
+.student-catalog-card:focus-visible,
+.student-catalog-row:hover,
+.student-catalog-row:focus-visible {
+    border-color: var(--tl-brand);
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+
+.student-catalog-card__title {
+    font-weight: 600;
+}
+
+.student-catalog-list,
+.student-topic-list {
+    list-style: none;
+    margin: var(--tl-space-4) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--tl-space-3);
+}
+
+.student-topic-item {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+    align-items: flex-start;
+    padding: var(--tl-space-4);
+    background: var(--tl-surface);
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+}
+
+.student-topic-item__name {
+    margin: 0;
+    font-weight: 600;
+}
+
+.student-section-title {
+    margin: var(--tl-space-6) 0 var(--tl-space-3);
+    font-size: var(--tl-fs-lg);
+}
+
+.admin-actions {
+    margin: var(--tl-space-4) 0 var(--tl-space-5);
+}

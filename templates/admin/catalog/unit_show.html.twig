@@ -1,0 +1,79 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ unit.name }} — Müfredat — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_catalog') }}">Müfredat</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_catalog_subject', {id: subject.id.toRfc4122}) }}">{{ subject.name }}</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ unit.name }}</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">{{ unit.name }}</h1>
+        {% if can_manage %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_catalog_unit_edit', {id: unit.id.toRfc4122}) }}">Düzenle</a>
+            <a class="btn btn--primary" href="{{ path('app_admin_catalog_topic_new', {id: unit.id.toRfc4122}) }}">Konu ekle</a>
+        {% endif %}
+    </div>
+    <dl class="account-dl">
+        <dt>Durum</dt><dd>{{ unit.status.labelTr }}</dd>
+        <dt>Slug</dt><dd><code>{{ unit.slug }}</code></dd>
+        <dt>Sıra</dt><dd>{{ unit.position }}</dd>
+    </dl>
+    {% if can_manage %}
+        <div class="admin-actions stack-sm">
+            {% if unit.status.value == 'draft' %}
+                <form method="post" action="{{ path('app_admin_catalog_unit_publish', {id: unit.id.toRfc4122}) }}" onsubmit="return confirm('Bu üniteyi yayımlamak istediğinize emin misiniz?');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('catalog_publish_' ~ unit.id.toRfc4122) }}">
+                    <button type="submit" class="btn btn--primary">Yayımla</button>
+                </form>
+            {% endif %}
+            {% if unit.status.value != 'archived' %}
+                <form method="post" action="{{ path('app_admin_catalog_unit_archive', {id: unit.id.toRfc4122}) }}" onsubmit="return confirm('Bu üniteyi arşivlemek istediğinize emin misiniz?');">
+                    <input type="hidden" name="_token" value="{{ csrf_token('catalog_archive_' ~ unit.id.toRfc4122) }}">
+                    <button type="submit" class="btn btn--ghost">Arşivle</button>
+                </form>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <h2>Konular</h2>
+    {% if topics is empty %}
+        <p class="muted">Henüz konu yok.</p>
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead><tr><th>Ad</th><th>Durum</th><th>Sıra</th><th>Süre</th><th></th></tr></thead>
+                <tbody>
+                    {% for t in topics %}
+                        <tr>
+                            <td>{{ t.name }}</td>
+                            <td>{{ t.status.labelTr }}</td>
+                            <td>{{ t.position }}</td>
+                            <td>{{ t.estimatedMinutes ?? '—' }}</td>
+                            <td>
+                                {% if can_manage %}
+                                    <a href="{{ path('app_admin_catalog_topic_edit', {id: t.id.toRfc4122}) }}">Düzenle</a>
+                                    {% if t.status.value == 'draft' %}
+                                        <form method="post" action="{{ path('app_admin_catalog_topic_publish', {id: t.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Konuyu yayımlamak istediğinize emin misiniz?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('catalog_publish_' ~ t.id.toRfc4122) }}">
+                                            <button type="submit" class="btn btn--ghost">Yayımla</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if t.status.value != 'archived' %}
+                                        <form method="post" action="{{ path('app_admin_catalog_topic_archive', {id: t.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Konuyu arşivlemek istediğinize emin misiniz?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('catalog_archive_' ~ t.id.toRfc4122) }}">
+                                            <button type="submit" class="btn btn--ghost">Arşivle</button>
+                                        </form>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

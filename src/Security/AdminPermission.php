@@ -21,6 +21,8 @@ final class AdminPermission
     public const ADMIN_INSTITUTIONS_MANAGE = 'ADMIN_INSTITUTIONS_MANAGE';
     public const ADMIN_MEMBERSHIPS_VIEW = 'ADMIN_MEMBERSHIPS_VIEW';
     public const ADMIN_MEMBERSHIPS_MANAGE = 'ADMIN_MEMBERSHIPS_MANAGE';
+    public const ADMIN_CATALOG_VIEW = 'ADMIN_CATALOG_VIEW';
+    public const ADMIN_CATALOG_MANAGE = 'ADMIN_CATALOG_MANAGE';
 
     /**
      * @return list<string>
@@ -40,6 +42,8 @@ final class AdminPermission
             self::ADMIN_INSTITUTIONS_MANAGE,
             self::ADMIN_MEMBERSHIPS_VIEW,
             self::ADMIN_MEMBERSHIPS_MANAGE,
+            self::ADMIN_CATALOG_VIEW,
+            self::ADMIN_CATALOG_MANAGE,
         ];
     }
 }

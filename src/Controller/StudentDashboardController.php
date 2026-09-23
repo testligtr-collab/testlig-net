@@ -39,8 +39,8 @@ final class StudentDashboardController extends AbstractController
             'quickLinks' => [
                 [
                     'label' => 'Dersler',
-                    'href' => null,
-                    'soon' => true,
+                    'href' => $this->generateUrl('app_student_courses'),
+                    'soon' => false,
                 ],
                 [
                     'label' => 'Sınavlar',

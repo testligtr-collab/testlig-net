@@ -1,0 +1,23 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ title }} — Müfredat — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_catalog') }}">Müfredat</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ title }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ title }}</h1>
+
+    {{ form_start(form, {attr: {novalidate: 'novalidate', class: 'admin-form'}}) }}
+        {{ form_errors(form) }}
+        <div class="form-row">{{ form_label(form.gradeLevel) }}{{ form_widget(form.gradeLevel) }}{{ form_errors(form.gradeLevel) }}</div>
+        <div class="form-row">{{ form_label(form.name) }}{{ form_widget(form.name) }}{{ form_errors(form.name) }}</div>
+        <div class="form-row">{{ form_label(form.description) }}{{ form_widget(form.description) }}{{ form_errors(form.description) }}</div>
+        <div class="form-row">{{ form_label(form.position) }}{{ form_widget(form.position) }}{{ form_errors(form.position) }}</div>
+        <button type="submit" class="btn btn--primary">Kaydet</button>
+    {{ form_end(form) }}
+{% endblock %}

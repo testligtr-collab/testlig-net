@@ -1,0 +1,52 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Müfredat kataloğu — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>Müfredat</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Müfredat kataloğu</h1>
+        {% if can_manage %}
+            <a class="btn btn--primary" href="{{ path('app_admin_catalog_subject_new') }}">Yeni ders</a>
+        {% endif %}
+    </div>
+    <p class="muted">Öğrenci paneli yalnız yayımlanmış ders → ünite → konu zincirini gösterir. Stage 2.7 kurum müfredatı ayrıdır.</p>
+
+    {% if subjects is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Henüz ders yok',
+            body: 'İlk dersi ekleyerek öğrenci kataloğunu doldurabilirsiniz.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Sınıf</th>
+                        <th>Ad</th>
+                        <th>Slug</th>
+                        <th>Durum</th>
+                        <th>Sıra</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in subjects %}
+                        <tr>
+                            <td>{{ s.gradeLevel.value }}. sınıf</td>
+                            <td>{{ s.name }}</td>
+                            <td><code>{{ s.slug }}</code></td>
+                            <td>{{ s.status.labelTr }}</td>
+                            <td>{{ s.position }}</td>
+                            <td><a href="{{ path('app_admin_catalog_subject', {id: s.id.toRfc4122}) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}
