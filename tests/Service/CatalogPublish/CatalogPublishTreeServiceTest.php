@@ -45,6 +45,12 @@ final class CatalogPublishTreeServiceTest extends KernelTestCase
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(CatalogPublishTreeService::class, $publisher);
         self::assertInstanceOf(CatalogImportService::class, $import);
+        self::assertInstanceOf(CatalogSubjectRepository::class, $subjects);
+        self::assertInstanceOf(CatalogUnitRepository::class, $units);
+        self::assertInstanceOf(CatalogTopicRepository::class, $topics);
+        self::assertInstanceOf(StudentCatalogQuery::class, $query);
+        self::assertInstanceOf(CatalogWriteService::class, $writer);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->publisher = $publisher;
         $this->import = $import;
         $this->subjects = $subjects;
