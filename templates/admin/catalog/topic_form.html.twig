@@ -9,6 +9,16 @@
         <span>{{ title }}</span>
     </nav>
     <h1 class="panel-greeting">{{ title }}</h1>
+    {% if topic is defined and topic and topic.sourceCode %}
+        <dl class="account-dl">
+            <dt>Kaynak kod</dt><dd><code>{{ topic.sourceCode }}</code></dd>
+            <dt>Kaynak sürüm</dt><dd><code>{{ topic.sourceVersion }}</code></dd>
+            {% if topic.sourceUrl %}
+                <dt>Kaynak</dt><dd><a href="{{ topic.sourceUrl }}" rel="noopener noreferrer" target="_blank">Resmî program</a></dd>
+            {% endif %}
+        </dl>
+        <p class="muted">Kaynak alanları içe aktarma ile gelir; formdan değiştirilmez.</p>
+    {% endif %}
     {{ form_start(form, {attr: {novalidate: 'novalidate', class: 'admin-form'}}) }}
         {{ form_errors(form) }}
         <div class="form-row">{{ form_label(form.name) }}{{ form_widget(form.name) }}{{ form_errors(form.name) }}</div>

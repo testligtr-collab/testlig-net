@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Dto\CatalogSourceAttribution;
 use App\Enum\CatalogPublicationStatus;
 use App\Exception\CatalogException;
 use App\Repository\CatalogTopicRepository;
@@ -17,10 +18,14 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Entity(repositoryClass: CatalogTopicRepository::class)]
 #[ORM\Table(name: 'catalog_topics')]
 #[ORM\UniqueConstraint(name: 'uniq_catalog_topic_unit_slug', columns: ['unit_id', 'slug'])]
+#[ORM\UniqueConstraint(name: 'uniq_catalog_topic_source', columns: ['source_version', 'source_code', 'source_occurrence'])]
 #[ORM\Index(name: 'idx_catalog_topic_unit_status_pos', columns: ['unit_id', 'status', 'position'])]
+#[ORM\Index(name: 'idx_catalog_topic_source_lookup', columns: ['source_version', 'source_code'])]
 #[ORM\HasLifecycleCallbacks]
 class CatalogTopic
 {
+    use CatalogSourceFieldsTrait;
+
     public const NAME_MIN = 2;
     public const NAME_MAX = 180;
     public const SUMMARY_MAX = 3000;
@@ -63,6 +68,18 @@ class CatalogTopic
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(name: 'source_code', length: CatalogSourceAttribution::CODE_MAX, nullable: true)]
+    private ?string $sourceCode = null;
+
+    #[ORM\Column(name: 'source_version', length: CatalogSourceAttribution::VERSION_MAX, nullable: true)]
+    private ?string $sourceVersion = null;
+
+    #[ORM\Column(name: 'source_url', length: CatalogSourceAttribution::URL_MAX, nullable: true)]
+    private ?string $sourceUrl = null;
+
+    #[ORM\Column(name: 'source_occurrence', options: ['unsigned' => true])]
+    private int $sourceOccurrence = 1;
+
     private function __construct(
         CatalogUnit $unit,
         string $name,
@@ -71,6 +88,7 @@ class CatalogTopic
         int $position,
         ?int $estimatedMinutes,
         \DateTimeImmutable $now,
+        CatalogSourceAttribution $source,
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? new UuidV7();
@@ -83,6 +101,7 @@ class CatalogTopic
         $this->status = CatalogPublicationStatus::Draft;
         $this->createdAt = $now;
         $this->updatedAt = $now;
+        $this->applySourceAttribution($source);
     }
 
     /**
@@ -97,6 +116,7 @@ class CatalogTopic
         ?int $estimatedMinutes,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
+        ?CatalogSourceAttribution $source = null,
     ): self {
         self::assertName($name);
         self::assertSlug($slug);
@@ -104,7 +124,7 @@ class CatalogTopic
         self::assertEstimatedMinutes($estimatedMinutes);
         $summary = self::normalizeOptionalText($summary, self::SUMMARY_MAX, 'Özet');
 
-        return new self($unit, $name, $slug, $summary, $position, $estimatedMinutes, $now, $id);
+        return new self($unit, $name, $slug, $summary, $position, $estimatedMinutes, $now, self::normalizeSourceAttribution($source), $id);
     }
 
     public function getId(): Uuid

@@ -26,6 +26,19 @@ final class CatalogTopicRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findOneBySourceIdentity(?string $version, ?string $code, int $occurrence): ?CatalogTopic
+    {
+        if (null === $version || null === $code) {
+            return null;
+        }
+
+        return $this->findOneBy([
+            'sourceVersion' => $version,
+            'sourceCode' => $code,
+            'sourceOccurrence' => $occurrence,
+        ]);
+    }
+
     /**
      * @return list<CatalogTopic>
      */

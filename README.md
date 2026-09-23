@@ -64,7 +64,28 @@ Kayıt: http://localhost:8080/kayit · Giriş: http://localhost:8080/giris · He
 
 Public kayıt yalnızca **öğrenci** (`ROLE_STUDENT`) oluşturur; e-posta doğrulanana kadar giriş yapılamaz.
 Doğrulanmış öğrenci ilk girişte `/ogrenci/kurulum` ile kısa profil kurulumundan geçer; tamamlanınca `/ogrenci` sade paneline yönlendirilir.
-Öğrenci ders kataloğu (`CatalogSubject` → `CatalogUnit` → `CatalogTopic`) yalnız **yayımlanmış** hiyerarşiyi gösterir; Stage 2.7 kurum müfredatı (`CurriculumProgram`) ayrıdır. Production’a örnek içerik seed edilmez — boş katalog beklenen davranıştır.
+Öğrenci ders kataloğu (`CatalogSubject` → `CatalogUnit` → `CatalogTopic`) yalnız **yayımlanmış** hiyerarşiyi gösterir; Stage 2.7 kurum müfredatı (`CurriculumProgram`) ayrıdır. Otomatik production seed yoktur.
+
+### MEB katalog içe aktarma (TYMM)
+
+Resmî fixture örneği: `data/catalog/meb/tymm-2026/grade-1-matematik.yaml`  
+Kaynak: TTKB PID=2339, sürüm `TYMM-2026` (program + DÖP PDF URL’leri fixture içinde sabittir).
+
+```powershell
+# Dry-run (varsayılan; DB yazmaz)
+docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml
+
+# Draft satırları yaz (publish etmez)
+docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply
+
+# Mevcut source kimliğinde ad/sıra/url güncelle (opsiyonel)
+docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply --update-existing
+```
+
+- Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
+- Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
+- Publish ayrı admin/onay adımıdır; import asla publish/archive/delete yapmaz.
+
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
 Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public cevap her durumda aynıdır.
 Süresi dolmuş reset kayıtları: `docker compose exec app php bin/console reset-password:remove-expired`

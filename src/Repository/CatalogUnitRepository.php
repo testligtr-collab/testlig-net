@@ -41,6 +41,19 @@ final class CatalogUnitRepository extends ServiceEntityRepository
         return $unit;
     }
 
+    public function findOneBySourceIdentity(?string $version, ?string $code, int $occurrence): ?CatalogUnit
+    {
+        if (null === $version || null === $code) {
+            return null;
+        }
+
+        return $this->findOneBy([
+            'sourceVersion' => $version,
+            'sourceCode' => $code,
+            'sourceOccurrence' => $occurrence,
+        ]);
+    }
+
     /**
      * @return list<CatalogUnit>
      */

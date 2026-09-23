@@ -1,0 +1,88 @@
+# TYMM 2026 — 1. sınıf Matematik (öğrenci katalog iskeleti)
+# Provenance: TTKB PID=2339 — yalnız kısa tema / içerik çerçevesi başlıkları.
+# Uzun öğrenme çıktısı / süreç bileşeni metni kopyalanmaz.
+schema_version: 1
+source:
+  program_id: "2339"
+  version: "TYMM-2026"
+  program_url: "https://mufredat.meb.gov.tr/ProgramDetay.aspx?PID=2339"
+  pdf_url: "https://mufredat.meb.gov.tr/Dosyalar/20268149102521-Matematik%20(1-4)%20DÖP.pdf"
+subject:
+  name: Matematik
+  grade_level: 1
+  position: 0
+  source_code: MAT
+  units:
+    - name: "Nesnelerin Geometrisi (1)"
+      source_code: "MAT.1.3"
+      occurrence: 1
+      position: 1
+      topics:
+        - name: "Uzamsal İlişkiler"
+          position: 1
+        - name: "Eş Nesneler"
+          position: 2
+    - name: "Sayılar ve Nicelikler (1)"
+      source_code: "MAT.1.1"
+      occurrence: 1
+      position: 2
+      topics:
+        - name: "Rakamlar ve Sayılar"
+          position: 1
+        - name: "Sayıları Çözümleme"
+          position: 2
+        - name: "Sıra Sayıları"
+          position: 3
+        - name: "Büyüklükleri Karşılaştırma"
+          position: 4
+        - name: "Ritmik Sayma"
+          position: 5
+        - name: "Sayı ve Şekil Örüntüleri"
+          position: 6
+        - name: "Nesne Sayısını Tahmin Etme"
+          position: 7
+    - name: "Sayılar ve Nicelikler (2)"
+      source_code: "MAT.1.1"
+      occurrence: 2
+      position: 3
+      topics:
+        - name: "Uzunluk ve Kütle Ölçme"
+          position: 1
+    - name: "İşlemlerden Cebirsel Düşünmeye"
+      source_code: "MAT.1.2"
+      occurrence: 1
+      position: 4
+      topics:
+        - name: "Toplama ve Çıkarma İşlemlerini Çözümleme"
+          position: 1
+        - name: "Toplama ve Çıkarma İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem"
+          position: 2
+        - name: "Toplama ve Çıkarma İşlemlerinde Eşitlik"
+          position: 3
+        - name: "Toplama ve Çıkarma İşlemlerinin İlişkisi"
+          position: 4
+    - name: "Sayılar ve Nicelikler (3)"
+      source_code: "MAT.1.1"
+      occurrence: 3
+      position: 5
+      topics:
+        - name: "Paralarımız"
+          position: 1
+    - name: "Nesnelerin Geometrisi (2)"
+      source_code: "MAT.1.3"
+      occurrence: 2
+      position: 6
+      topics:
+        - name: "Nesnelerin Biçimsel Özellikleri"
+          position: 1
+        - name: "Geometrik Yapılardaki Geometrik Şekiller"
+          position: 2
+        - name: "Geometrik Şekilleri Sınıflandırma"
+          position: 3
+    - name: "Veriye Dayalı Araştırma"
+      source_code: "MAT.1.4"
+      occurrence: 1
+      position: 7
+      topics:
+        - name: "Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+          position: 1

@@ -21,6 +21,13 @@
         <dt>Durum</dt><dd>{{ unit.status.labelTr }}</dd>
         <dt>Slug</dt><dd><code>{{ unit.slug }}</code></dd>
         <dt>Sıra</dt><dd>{{ unit.position }}</dd>
+        {% if unit.sourceCode %}
+            <dt>Kaynak kod</dt><dd><code>{{ unit.sourceCode }}</code> · occ {{ unit.sourceOccurrence }}</dd>
+            <dt>Kaynak sürüm</dt><dd><code>{{ unit.sourceVersion }}</code></dd>
+            {% if unit.sourceUrl %}
+                <dt>Kaynak</dt><dd><a href="{{ unit.sourceUrl }}" rel="noopener noreferrer" target="_blank">Resmî program</a></dd>
+            {% endif %}
+        {% endif %}
     </dl>
     {% if can_manage %}
         <div class="admin-actions stack-sm">
@@ -45,11 +52,12 @@
     {% else %}
         <div class="admin-table-wrap">
             <table class="admin-table">
-                <thead><tr><th>Ad</th><th>Durum</th><th>Sıra</th><th>Süre</th><th></th></tr></thead>
+                <thead><tr><th>Ad</th><th>Kaynak</th><th>Durum</th><th>Sıra</th><th>Süre</th><th></th></tr></thead>
                 <tbody>
                     {% for t in topics %}
                         <tr>
                             <td>{{ t.name }}</td>
+                            <td>{% if t.sourceCode %}<code>{{ t.sourceCode }}</code>{% else %}—{% endif %}</td>
                             <td>{{ t.status.labelTr }}</td>
                             <td>{{ t.position }}</td>
                             <td>{{ t.estimatedMinutes ?? '—' }}</td>
