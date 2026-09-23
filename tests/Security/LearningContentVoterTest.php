@@ -99,8 +99,13 @@ final class LearningContentVoterTest extends KernelTestCase
         self::assertTrue($this->decide($teacher, LearningContentPermission::MANAGE, $content));
         self::assertFalse($this->decide($teacher, LearningContentPermission::PUBLISH, $content));
         self::assertTrue($this->decide($head, LearningContentPermission::PUBLISH, $content));
-        self::assertFalse($this->decide($admin, LearningContentPermission::PUBLISH, $content));
+        self::assertTrue($this->decide($admin, LearningContentPermission::PUBLISH, $content));
         self::assertFalse($this->decide($student, LearningContentPermission::VIEW_METADATA, $content));
+
+        $moderator = $this->activeUser('lcv-mod@example.com', UserRole::Moderator);
+        self::assertTrue($this->decide($moderator, LearningContentPermission::VIEW_METADATA, $content));
+        self::assertFalse($this->decide($moderator, LearningContentPermission::PUBLISH, $content));
+        self::assertTrue($this->decide($moderator, LearningContentPermission::RETURN_DRAFT, $content));
 
         $contents->submitForReview($content, $teacher, 'submit');
         $contents->publish($content, $head, 'publish');
@@ -108,6 +113,7 @@ final class LearningContentVoterTest extends KernelTestCase
 
         self::assertTrue($this->decide($student, LearningContentPermission::VIEW_METADATA, $content));
         self::assertTrue($this->decide($head, LearningContentPermission::ARCHIVE, $content));
+        self::assertTrue($this->decide($admin, LearningContentPermission::ARCHIVE, $content));
     }
 
     private function decide(\App\Entity\User $user, string $attribute, mixed $subject): bool

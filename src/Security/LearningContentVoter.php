@@ -20,10 +20,11 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  *
  * Matrix (active+verified required):
  * - SUPER_ADMIN: all
- * - Platform: HEAD/EXPERT create/review/publish; TEACHER own draft manage (no publish);
- *   ADMIN/MODERATOR no auto publish from global role alone
- * - Institution: Owner/Manager manage+publish (review separation in manager);
- *   Teacher own draft; Staff/Student deny; global roles alone grant no tenant access
+ * - Platform ADMIN: create/manage/review/publish/archive
+ * - Platform MODERATOR: view + return draft (no publish)
+ * - Platform HEAD/EXPERT: create/review/publish
+ * - Platform TEACHER: own draft manage + submit (no publish)
+ * - Institution: Owner/Manager manage+publish; Teacher own draft; Staff/Student deny
  *
  * @extends Voter<string, LearningContent|null>
  */
@@ -107,7 +108,8 @@ final class LearningContentVoter extends Voter
     {
         return \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true)
-            || \in_array(UserRole::Teacher->value, $roles, true);
+            || \in_array(UserRole::Teacher->value, $roles, true)
+            || \in_array(UserRole::Admin->value, $roles, true);
     }
 
     /**
@@ -122,24 +124,30 @@ final class LearningContentVoter extends Voter
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
         $isTeacher = \in_array(UserRole::Teacher->value, $roles, true);
+        $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
+        $isModerator = \in_array(UserRole::Moderator->value, $roles, true);
 
         return match ($attribute) {
             LearningContentPermission::VIEW_METADATA => $content->isPublished()
                 || $isHeadOrExpert
+                || $isAdmin
+                || $isModerator
                 || ($isTeacher && $isAuthor),
-            LearningContentPermission::CREATE => $isHeadOrExpert || $isTeacher,
+            LearningContentPermission::CREATE => $isHeadOrExpert || $isTeacher || $isAdmin,
             LearningContentPermission::MANAGE,
             LearningContentPermission::ATTACH_ASSET,
             LearningContentPermission::MANAGE_ALIGNMENT => $isHeadOrExpert
+                || $isAdmin
                 || ($isTeacher && $isAuthor && \in_array($content->status, [
                     LearningContentStatus::Draft,
                     LearningContentStatus::InReview,
                 ], true)),
             LearningContentPermission::SUBMIT_REVIEW => $isHeadOrExpert
+                || $isAdmin
                 || ($isTeacher && $isAuthor && LearningContentStatus::Draft === $content->status),
-            LearningContentPermission::RETURN_DRAFT,
+            LearningContentPermission::RETURN_DRAFT => $isHeadOrExpert || $isAdmin || $isModerator,
             LearningContentPermission::PUBLISH,
-            LearningContentPermission::ARCHIVE => $isHeadOrExpert,
+            LearningContentPermission::ARCHIVE => $isHeadOrExpert || $isAdmin,
             default => false,
         };
     }

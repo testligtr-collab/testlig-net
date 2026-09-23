@@ -97,7 +97,9 @@ php bin/console app:catalog:publish-tree --source-version=TYMM-2026 --subject-co
 
 - Beklenen sayılar zorunlu güvenlik kilidi; sapma → yazma yok.
 - Yalnız draft yayımlanır; archived / yanlış sürüm / yanlış sınıf → durur.
-- Tamamı published ise güvenli no-op. Production ops: `ops-catalog-publish-tree.yml` (yalnız workflow_dispatch).
+- **Publish tree:** `app:catalog:publish-tree` — zorunlu `--expected-subjects/units/topics`; varsayılan dry-run; `--apply` ile topics→units→subject; archived/yanlış sürüm/sınıf reddi; tek TX + `app.catalog.publish-tree` lock; tamamen published → no-op.
+- **Topic lesson placement (domain):** `CatalogTopic` → N `CatalogTopicLesson` → 1 `LearningContent`. Placement = navigation only; content lifecycle stays in Stage 2.15. Explicit `CatalogSubject.canonical_subject_id` → `subjects` (no name/slug auto-map). No production seed / lesson body in this slice.
+- Production ops: `ops-catalog-publish-tree.yml` (yalnız workflow_dispatch).
 
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
 Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public cevap her durumda aynıdır.
@@ -227,6 +229,8 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 
 - Versioned `LearningContent` + sealable revision + append-only publication + outcome alignment + `StoredMediaAsset` metadata registry.
 - Structured content: `src/LearningContent/` (Question content’ten ayrı); HTML/script/iframe/external URL yok; mediaId UUID only.
+- Platform auth: Admin publish; Moderator return-draft only; Teacher no publish. Free access only via explicit `LearningContentAccessPolicy` (gate remains fail-closed by default).
+- Catalog bridge: `CatalogTopicLesson` placements + nullable `CatalogSubject.canonical_subject_id` (UUID FK; no name/slug inference).
 - AccessGate fail-closed: published içerik entitlement gate’e delege eder (free policy veya lisans). Review separation zorunlu.
 - Gerçek upload/storage SDK/ödeme/AI/UI/API yok. Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
 

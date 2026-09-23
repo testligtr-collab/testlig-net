@@ -79,9 +79,17 @@ Auth snapshot cache is invalidated only after successful commit.
 ## Access
 
 `LearningContentAccessGate` is fail-closed. Published platform (and institution) content
-returns `entitlement_required` — free student delivery is not allowed in this stage.
+returns `entitlement_required` unless an explicit `LearningContentAccessPolicy` marks
+`free`. Do not loosen the global default.
 
 Review separation: revision author cannot solely publish the same revision.
+
+Platform authorization (updated): SUPER_ADMIN all; ADMIN create/manage/review/publish;
+MODERATOR view + return-to-draft (no publish); HEAD/EXPERT create/review/publish;
+TEACHER own draft + submit (no publish).
+
+Catalog student navigation binds via `CatalogTopicLesson` (separate from CurriculumProgram
+alignments). See `docs/architecture.md` catalog section.
 
 ## Limitations
 
