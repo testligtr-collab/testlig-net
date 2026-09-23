@@ -17,7 +17,6 @@ use App\Enum\SecurityAuditOutcome;
 use App\Enum\UserRole;
 use App\Exception\CatalogException;
 use App\Repository\CatalogTopicLessonRepository;
-use App\Repository\LearningContentRepository;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -38,7 +37,6 @@ final class CatalogTopicLessonManager
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly CatalogTopicLessonRepository $lessons,
-        private readonly LearningContentRepository $contents,
         private readonly CatalogSlugger $slugger,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
@@ -347,7 +345,7 @@ final class CatalogTopicLessonManager
             ->innerJoin('u.subject', 's')
             ->leftJoin('s.canonicalSubject', 'cs')
             ->andWhere('t.id = :id')
-            ->setParameter('id', $topicId)
+            ->setParameter('id', $topicId, 'uuid')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->setHint(Query::HINT_REFRESH, true)
@@ -361,12 +359,18 @@ final class CatalogTopicLessonManager
 
     private function lockContent(Uuid $contentId): LearningContent
     {
-        $content = $this->contents->find($contentId);
+        $content = $this->em->createQueryBuilder()
+            ->select('c')
+            ->from(LearningContent::class, 'c')
+            ->andWhere('c.id = :id')
+            ->setParameter('id', $contentId, 'uuid')
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
         if (!$content instanceof LearningContent) {
             throw CatalogException::notFound();
         }
-        $this->em->lock($content, LockMode::PESSIMISTIC_WRITE);
-        $this->em->refresh($content);
 
         return $content;
     }
@@ -377,7 +381,7 @@ final class CatalogTopicLessonManager
             ->select('l')
             ->from(CatalogTopicLesson::class, 'l')
             ->andWhere('l.id = :id')
-            ->setParameter('id', $lessonId)
+            ->setParameter('id', $lessonId, 'uuid')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->setHint(Query::HINT_REFRESH, true)
@@ -395,7 +399,7 @@ final class CatalogTopicLessonManager
             ->select('u')
             ->from(User::class, 'u')
             ->andWhere('u.id = :id')
-            ->setParameter('id', $actorId)
+            ->setParameter('id', $actorId, 'uuid')
             ->getQuery()
             ->setLockMode(LockMode::PESSIMISTIC_READ)
             ->setHint(Query::HINT_REFRESH, true)
