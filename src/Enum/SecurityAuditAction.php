@@ -140,6 +140,11 @@ enum SecurityAuditAction: string
     case InstitutionLicenseSeatRevoked = 'institution_license_seat_revoked';
     case LearningContentAccessPolicySet = 'learning_content_access_policy_set';
     case AssessmentAccessPolicySet = 'assessment_access_policy_set';
+    case CatalogTopicLessonCreated = 'catalog_topic_lesson_created';
+    case CatalogTopicLessonUpdated = 'catalog_topic_lesson_updated';
+    case CatalogTopicLessonPublished = 'catalog_topic_lesson_published';
+    case CatalogTopicLessonArchived = 'catalog_topic_lesson_archived';
+    case CatalogSubjectCanonicalMapped = 'catalog_subject_canonical_mapped';
     case CommercialOfferCreated = 'commercial_offer_created';
     case CommercialOfferUpdated = 'commercial_offer_updated';
     case CommercialOfferActivated = 'commercial_offer_activated';

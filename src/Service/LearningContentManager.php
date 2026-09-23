@@ -1147,8 +1147,10 @@ final class LearningContentManager
                     throw LearningContentException::userNotFound();
                 }
 
-                if ($requireArchive || $requireReview) {
+                if ($requireArchive) {
                     $this->assertActorMayPublish($freshActor, $lockedContent);
+                } elseif ($requireReview) {
+                    $this->assertActorMayReturnToDraft($freshActor, $lockedContent);
                 } else {
                     $this->assertActorMayManage($freshActor, $lockedContent);
                 }
@@ -1524,7 +1526,12 @@ final class LearningContentManager
             return;
         }
         if (LearningContentScope::Platform === $scope) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher])) {
+            if ($this->hasAnyRole($actor, [
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Teacher,
+                UserRole::Admin,
+            ])) {
                 return;
             }
             throw LearningContentException::unauthorized();
@@ -1556,7 +1563,7 @@ final class LearningContentManager
             return;
         }
         if (LearningContentScope::Platform === $content->getScope()) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Admin])) {
                 return;
             }
             if ($this->hasAnyRole($actor, [UserRole::Teacher])
@@ -1600,7 +1607,7 @@ final class LearningContentManager
             return;
         }
         if (LearningContentScope::Platform === $content->getScope()) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Admin])) {
                 return;
             }
             throw LearningContentException::unauthorized();
@@ -1622,6 +1629,28 @@ final class LearningContentManager
             return;
         }
         throw LearningContentException::unauthorized();
+    }
+
+    private function assertActorMayReturnToDraft(User $actor, LearningContent $content): void
+    {
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($actor)) {
+            throw LearningContentException::unauthorized();
+        }
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            return;
+        }
+        if (LearningContentScope::Platform === $content->getScope()) {
+            if ($this->hasAnyRole($actor, [
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Admin,
+                UserRole::Moderator,
+            ])) {
+                return;
+            }
+            throw LearningContentException::unauthorized();
+        }
+        $this->assertActorMayPublish($actor, $content);
     }
 
     /**

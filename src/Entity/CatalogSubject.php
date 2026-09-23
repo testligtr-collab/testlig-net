@@ -25,6 +25,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_catalog_subject_source', columns: ['source_version', 'source_code', 'source_occurrence'])]
 #[ORM\Index(name: 'idx_catalog_subject_grade_status_pos', columns: ['grade_level', 'status', 'position'])]
 #[ORM\Index(name: 'idx_catalog_subject_source_lookup', columns: ['source_version', 'source_code'])]
+#[ORM\Index(name: 'idx_catalog_subject_canonical_subject', columns: ['canonical_subject_id'])]
 #[ORM\HasLifecycleCallbacks]
 class CatalogSubject
 {
@@ -77,6 +78,13 @@ class CatalogSubject
 
     #[ORM\Column(name: 'source_occurrence', options: ['unsigned' => true, 'default' => 1])]
     private int $sourceOccurrence = 1;
+
+    /**
+     * Optional explicit FK to platform {@see Subject}. Never inferred from name/slug.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'canonical_subject_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Subject $canonicalSubject = null;
 
     private function __construct(
         GradeLevel $gradeLevel,
@@ -169,6 +177,20 @@ class CatalogSubject
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function getCanonicalSubject(): ?Subject
+    {
+        return $this->canonicalSubject;
+    }
+
+    /**
+     * @internal prefer CatalogWriteService::assignCanonicalSubject
+     */
+    public function assignCanonicalSubject(?Subject $subject, \DateTimeImmutable $now): void
+    {
+        $this->canonicalSubject = $subject;
+        $this->updatedAt = $now;
     }
 
     /**

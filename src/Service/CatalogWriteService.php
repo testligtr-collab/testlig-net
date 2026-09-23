@@ -8,6 +8,7 @@ use App\Dto\CatalogSourceAttribution;
 use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
 use App\Entity\CatalogUnit;
+use App\Entity\Subject;
 use App\Enum\GradeLevel;
 use App\Exception\CatalogException;
 use App\Repository\CatalogSubjectRepository;
@@ -315,6 +316,28 @@ final class CatalogWriteService
             $this->em->flush();
 
             return $topic;
+        });
+    }
+
+    /**
+     * Explicit UUID mapping only — never match by name or slug.
+     */
+    public function assignCanonicalSubject(Uuid $catalogSubjectId, ?Uuid $canonicalSubjectId): CatalogSubject
+    {
+        return $this->em->wrapInTransaction(function () use ($catalogSubjectId, $canonicalSubjectId): CatalogSubject {
+            $catalogSubject = $this->lockSubject($catalogSubjectId);
+            $canonical = null;
+            if ($canonicalSubjectId instanceof Uuid) {
+                $canonical = $this->em->find(Subject::class, $canonicalSubjectId);
+                if (!$canonical instanceof Subject) {
+                    throw CatalogException::notFound();
+                }
+                $this->em->lock($canonical, LockMode::PESSIMISTIC_READ);
+            }
+            $catalogSubject->assignCanonicalSubject($canonical, $this->clock->now());
+            $this->em->flush();
+
+            return $catalogSubject;
         });
     }
 
