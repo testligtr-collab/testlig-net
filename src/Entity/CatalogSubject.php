@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Dto\CatalogSourceAttribution;
 use App\Enum\CatalogPublicationStatus;
 use App\Enum\GradeLevel;
 use App\Exception\CatalogException;
@@ -21,10 +22,14 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Entity(repositoryClass: CatalogSubjectRepository::class)]
 #[ORM\Table(name: 'catalog_subjects')]
 #[ORM\UniqueConstraint(name: 'uniq_catalog_subject_grade_slug', columns: ['grade_level', 'slug'])]
+#[ORM\UniqueConstraint(name: 'uniq_catalog_subject_source', columns: ['source_version', 'source_code', 'source_occurrence'])]
 #[ORM\Index(name: 'idx_catalog_subject_grade_status_pos', columns: ['grade_level', 'status', 'position'])]
+#[ORM\Index(name: 'idx_catalog_subject_source_lookup', columns: ['source_version', 'source_code'])]
 #[ORM\HasLifecycleCallbacks]
 class CatalogSubject
 {
+    use CatalogSourceFieldsTrait;
+
     public const NAME_MIN = 2;
     public const NAME_MAX = 120;
     public const DESCRIPTION_MAX = 1000;
@@ -61,6 +66,18 @@ class CatalogSubject
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(name: 'source_code', length: CatalogSourceAttribution::CODE_MAX, nullable: true)]
+    private ?string $sourceCode = null;
+
+    #[ORM\Column(name: 'source_version', length: CatalogSourceAttribution::VERSION_MAX, nullable: true)]
+    private ?string $sourceVersion = null;
+
+    #[ORM\Column(name: 'source_url', length: CatalogSourceAttribution::URL_MAX, nullable: true)]
+    private ?string $sourceUrl = null;
+
+    #[ORM\Column(name: 'source_occurrence', options: ['unsigned' => true, 'default' => 1])]
+    private int $sourceOccurrence = 1;
+
     private function __construct(
         GradeLevel $gradeLevel,
         string $name,
@@ -68,6 +85,7 @@ class CatalogSubject
         ?string $description,
         int $position,
         \DateTimeImmutable $now,
+        CatalogSourceAttribution $source,
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? new UuidV7();
@@ -79,6 +97,7 @@ class CatalogSubject
         $this->status = CatalogPublicationStatus::Draft;
         $this->createdAt = $now;
         $this->updatedAt = $now;
+        $this->applySourceAttribution($source);
     }
 
     /**
@@ -92,13 +111,14 @@ class CatalogSubject
         int $position,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
+        ?CatalogSourceAttribution $source = null,
     ): self {
         self::assertName($name);
         self::assertSlug($slug);
         self::assertPosition($position);
         $description = self::normalizeOptionalText($description, self::DESCRIPTION_MAX, 'Açıklama');
 
-        return new self($gradeLevel, $name, $slug, $description, $position, $now, $id);
+        return new self($gradeLevel, $name, $slug, $description, $position, $now, self::normalizeSourceAttribution($source), $id);
     }
 
     public function getId(): Uuid

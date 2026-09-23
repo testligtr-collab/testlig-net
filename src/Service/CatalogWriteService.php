@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\CatalogSourceAttribution;
 use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
 use App\Entity\CatalogUnit;
@@ -40,19 +41,23 @@ final class CatalogWriteService
         ?string $description,
         int $position,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogSubject {
         $name = trim($name);
         $slug = $slugOverride ? $this->slugger->slugify($slugOverride) : $this->slugger->slugify($name);
 
-        return $this->em->wrapInTransaction(function () use ($grade, $name, $description, $position, $slug): CatalogSubject {
+        return $this->em->wrapInTransaction(function () use ($grade, $name, $description, $position, $slug, $source): CatalogSubject {
             if ($this->subjects->existsSlugForGrade($grade, $slug)) {
                 throw CatalogException::conflict('Bu sınıf için aynı kısa adres zaten kullanılıyor.');
             }
-            $subject = CatalogSubject::createDraft($grade, $name, $slug, $description, $position, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution && !$source->isEmpty() && $this->subjects->findOneBySourceIdentity($source->version, $source->code, $source->occurrence) instanceof CatalogSubject) {
+                throw CatalogException::conflict('Bu kaynak kimliği için ders zaten mevcut.');
+            }
+            $subject = CatalogSubject::createDraft($grade, $name, $slug, $description, $position, $this->clock->now(), null, $source);
             try {
                 $this->subjects->save($subject);
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu sınıf için aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu sınıf için aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $subject;
@@ -65,20 +70,25 @@ final class CatalogWriteService
         ?string $description,
         int $position,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogSubject {
         $name = trim($name);
 
-        return $this->em->wrapInTransaction(function () use ($subjectId, $name, $description, $position, $slugOverride): CatalogSubject {
+        return $this->em->wrapInTransaction(function () use ($subjectId, $name, $description, $position, $slugOverride, $source): CatalogSubject {
             $subject = $this->lockSubject($subjectId);
             $slug = $slugOverride ? $this->slugger->slugify($slugOverride) : $this->slugger->slugify($name);
             if ($this->subjects->existsSlugForGrade($subject->getGradeLevel(), $slug, $subject->getId())) {
                 throw CatalogException::conflict('Bu sınıf için aynı kısa adres zaten kullanılıyor.');
             }
             $subject->updateDetails($name, $slug, $description, $position, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution) {
+                $this->assertSubjectSourceAvailable($source, $subject->getId());
+                $subject->assignSourceAttribution($source, $this->clock->now());
+            }
             try {
                 $this->em->flush();
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu sınıf için aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu sınıf için aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $subject;
@@ -113,20 +123,24 @@ final class CatalogWriteService
         ?string $description,
         int $position,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogUnit {
         $name = trim($name);
         $slug = $slugOverride ? $this->slugger->slugify($slugOverride) : $this->slugger->slugify($name);
 
-        return $this->em->wrapInTransaction(function () use ($subjectId, $name, $description, $position, $slug): CatalogUnit {
+        return $this->em->wrapInTransaction(function () use ($subjectId, $name, $description, $position, $slug, $source): CatalogUnit {
             $subject = $this->lockSubject($subjectId);
             if ($this->units->existsSlugForSubject($subject, $slug)) {
                 throw CatalogException::conflict('Bu ders altında aynı kısa adres zaten kullanılıyor.');
             }
-            $unit = CatalogUnit::createDraft($subject, $name, $slug, $description, $position, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution && !$source->isEmpty() && $this->units->findOneBySourceIdentity($source->version, $source->code, $source->occurrence) instanceof CatalogUnit) {
+                throw CatalogException::conflict('Bu kaynak kimliği için ünite zaten mevcut.');
+            }
+            $unit = CatalogUnit::createDraft($subject, $name, $slug, $description, $position, $this->clock->now(), null, $source);
             try {
                 $this->units->save($unit);
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu ders altında aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu ders altında aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $unit;
@@ -139,20 +153,25 @@ final class CatalogWriteService
         ?string $description,
         int $position,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogUnit {
         $name = trim($name);
 
-        return $this->em->wrapInTransaction(function () use ($unitId, $name, $description, $position, $slugOverride): CatalogUnit {
+        return $this->em->wrapInTransaction(function () use ($unitId, $name, $description, $position, $slugOverride, $source): CatalogUnit {
             $unit = $this->lockUnit($unitId);
             $slug = $slugOverride ? $this->slugger->slugify($slugOverride) : $this->slugger->slugify($name);
             if ($this->units->existsSlugForSubject($unit->getSubject(), $slug, $unit->getId())) {
                 throw CatalogException::conflict('Bu ders altında aynı kısa adres zaten kullanılıyor.');
             }
             $unit->updateDetails($name, $slug, $description, $position, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution) {
+                $this->assertUnitSourceAvailable($source, $unit->getId());
+                $unit->assignSourceAttribution($source, $this->clock->now());
+            }
             try {
                 $this->em->flush();
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu ders altında aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu ders altında aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $unit;
@@ -188,20 +207,24 @@ final class CatalogWriteService
         int $position,
         ?int $estimatedMinutes,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogTopic {
         $name = trim($name);
         $slug = $slugOverride ? $this->slugger->slugify($slugOverride, CatalogTopic::SLUG_MAX) : $this->slugger->slugify($name, CatalogTopic::SLUG_MAX);
 
-        return $this->em->wrapInTransaction(function () use ($unitId, $name, $summary, $position, $estimatedMinutes, $slug): CatalogTopic {
+        return $this->em->wrapInTransaction(function () use ($unitId, $name, $summary, $position, $estimatedMinutes, $slug, $source): CatalogTopic {
             $unit = $this->lockUnit($unitId);
             if ($this->topics->existsSlugForUnit($unit, $slug)) {
                 throw CatalogException::conflict('Bu ünite altında aynı kısa adres zaten kullanılıyor.');
             }
-            $topic = CatalogTopic::createDraft($unit, $name, $slug, $summary, $position, $estimatedMinutes, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution && !$source->isEmpty() && $this->topics->findOneBySourceIdentity($source->version, $source->code, $source->occurrence) instanceof CatalogTopic) {
+                throw CatalogException::conflict('Bu kaynak kimliği için konu zaten mevcut.');
+            }
+            $topic = CatalogTopic::createDraft($unit, $name, $slug, $summary, $position, $estimatedMinutes, $this->clock->now(), null, $source);
             try {
                 $this->topics->save($topic);
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu ünite altında aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu ünite altında aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $topic;
@@ -215,24 +238,62 @@ final class CatalogWriteService
         int $position,
         ?int $estimatedMinutes,
         ?string $slugOverride = null,
+        ?CatalogSourceAttribution $source = null,
     ): CatalogTopic {
         $name = trim($name);
 
-        return $this->em->wrapInTransaction(function () use ($topicId, $name, $summary, $position, $estimatedMinutes, $slugOverride): CatalogTopic {
+        return $this->em->wrapInTransaction(function () use ($topicId, $name, $summary, $position, $estimatedMinutes, $slugOverride, $source): CatalogTopic {
             $topic = $this->lockTopic($topicId);
             $slug = $slugOverride ? $this->slugger->slugify($slugOverride, CatalogTopic::SLUG_MAX) : $this->slugger->slugify($name, CatalogTopic::SLUG_MAX);
             if ($this->topics->existsSlugForUnit($topic->getUnit(), $slug, $topic->getId())) {
                 throw CatalogException::conflict('Bu ünite altında aynı kısa adres zaten kullanılıyor.');
             }
             $topic->updateDetails($name, $slug, $summary, $position, $estimatedMinutes, $this->clock->now());
+            if ($source instanceof CatalogSourceAttribution) {
+                $this->assertTopicSourceAvailable($source, $topic->getId());
+                $topic->assignSourceAttribution($source, $this->clock->now());
+            }
             try {
                 $this->em->flush();
             } catch (UniqueConstraintViolationException) {
-                throw CatalogException::conflict('Bu ünite altında aynı kısa adres zaten kullanılıyor.');
+                throw CatalogException::conflict('Bu ünite altında aynı kısa adres veya kaynak kimliği zaten kullanılıyor.');
             }
 
             return $topic;
         });
+    }
+
+    private function assertSubjectSourceAvailable(CatalogSourceAttribution $source, Uuid $exceptId): void
+    {
+        if ($source->isEmpty()) {
+            return;
+        }
+        $existing = $this->subjects->findOneBySourceIdentity($source->version, $source->code, $source->occurrence);
+        if ($existing instanceof CatalogSubject && !$existing->getId()->equals($exceptId)) {
+            throw CatalogException::conflict('Bu kaynak kimliği için ders zaten mevcut.');
+        }
+    }
+
+    private function assertUnitSourceAvailable(CatalogSourceAttribution $source, Uuid $exceptId): void
+    {
+        if ($source->isEmpty()) {
+            return;
+        }
+        $existing = $this->units->findOneBySourceIdentity($source->version, $source->code, $source->occurrence);
+        if ($existing instanceof CatalogUnit && !$existing->getId()->equals($exceptId)) {
+            throw CatalogException::conflict('Bu kaynak kimliği için ünite zaten mevcut.');
+        }
+    }
+
+    private function assertTopicSourceAvailable(CatalogSourceAttribution $source, Uuid $exceptId): void
+    {
+        if ($source->isEmpty()) {
+            return;
+        }
+        $existing = $this->topics->findOneBySourceIdentity($source->version, $source->code, $source->occurrence);
+        if ($existing instanceof CatalogTopic && !$existing->getId()->equals($exceptId)) {
+            throw CatalogException::conflict('Bu kaynak kimliği için konu zaten mevcut.');
+        }
     }
 
     public function publishTopic(Uuid $topicId): CatalogTopic

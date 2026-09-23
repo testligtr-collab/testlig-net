@@ -56,10 +56,12 @@
   - **Durum:** `CatalogPublicationStatus` = draft | published | archived. Öğrenci/public sorgular yalnız **published**; üst kayıt published değilse alt published olsa bile görünmez. `publishedAt` ilk yayında set, arşivde korunur.
   - **Slug:** `CatalogSlugger` + `InstitutionNameNormalizer` (Türkçe→ASCII); unique `(grade_level, slug)` / `(subject_id, slug)` / `(unit_id, slug)` DB + servis.
   - **Yazma:** `CatalogWriteService` (TX + PESSIMISTIC_WRITE); fiziksel silme UI’da yok — archive. Admin: `/yonetim/mufredat*` yalnız `ROLE_ADMIN` / `ROLE_SUPER_ADMIN` (`ADMIN_CATALOG_VIEW` / `ADMIN_CATALOG_MANAGE`).
-  - **Okuma:** `StudentCatalogQuery` + DTO list item’lar (Twig/HTTP bağımsız). Öğrenci: `/ogrenci/dersler` — `StudentProfile.gradeLevel` scope; başka sınıf slug’ı opaque 404. Production seed/MEB INSERT yok; boş katalog beklenen.
+  - **Okuma:** `StudentCatalogQuery` + DTO list item’lar (Twig/HTTP bağımsız). Öğrenci: `/ogrenci/dersler` — `StudentProfile.gradeLevel` scope; başka sınıf slug’ı opaque 404. Otomatik production seed yok; MEB içeriği yalnız `app:catalog:import` ile (varsayılan dry-run, `--apply` ile draft).
+  - **Kaynak metadata:** `source_code` / `source_version` / `source_url` / `source_occurrence` (nullable; manuel satırlarda NULL). Import kimliği: `(source_version, source_code, source_occurrence)` UNIQUE. Aynı MEB kodunun birden fazla işleniş teması `occurrence` ile ayrılır (slug ile sessiz çözülmez). İçerik çerçevesi maddelerinde kod yoksa stabil fallback `IC:{unit_code}@{occ}:{position}`.
+  - **Import:** Fixture `data/catalog/meb/tymm-2026/…`; komut publish/archive/delete yapmaz; `--update-existing` olmadan mevcut kimliği değiştirmez; tek TX + `app.catalog.import` lock.
   - **Mobil hazırlık:** Entity doğrudan serialize edilmez; sonraki API `CatalogSubjectListItem` / unit / topic DTO (read model) üzerinden. Bu aşamada public API endpoint yok.
   - **Public `/siniflar`:** Anasayfa `#siniflar` anchor; ayrı sınıf listesi sayfası yok — katalog public entegrasyonu bu dilimde ertelendi.
-  - **DB:** `Version20260923180000` (`catalog_subjects` / `catalog_units` / `catalog_topics`).
+  - **DB:** `Version20260923180000` (`catalog_subjects` / `catalog_units` / `catalog_topics`) + `Version20260924120000` (source provenance columns).
 - **Müfredat / ders (Aşama 2.7):** Platform-global `Subject`; versioned `CurriculumProgram` + `CurriculumUnit` + `CurriculumTopic` (max depth 2); kurum `ClassroomCourse` + `CourseTeacherAssignment` + active guard’lar. UI/controller/API yok.
   - **Subject:** code immutable lowercase snake_case; SUPER_ADMIN create/rename/archive; fiziksel silme yok. Archived subject yeni curriculum/course alamaz.
   - **Curriculum lifecycle:** draft → published → retired (republish yok). Publish’te subject+grade için validity overlap typed `date_overlap`. Published identity/structure immutable; `cloneAsNewVersion` unit/topic’leri yeni UUID ile draft kopyalar.
