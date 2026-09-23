@@ -40,6 +40,8 @@ Creates the first SUPER_ADMIN when ALLOW_SUPER_ADMIN_BOOTSTRAP=1.
 
 Password is read via hidden interactive input (or PHPUnit input stream).
 Never pass the password as a CLI argument.
+Ops may set TESTLIG_BOOTSTRAP_PASSWORD_FILE to a mode-600 temp file
+(collected via read -s); the file contents are not logged.
 
 After success, set ALLOW_SUPER_ADMIN_BOOTSTRAP=0 again.
 HELP
@@ -84,20 +86,41 @@ HELP
             }
         }
 
-        $helper = $this->getHelper('question');
-        if (!$helper instanceof QuestionHelper) {
-            $io->error('Question helper is unavailable.');
+        $password = null;
+        $passwordFile = getenv('TESTLIG_BOOTSTRAP_PASSWORD_FILE');
+        if (\is_string($passwordFile) && '' !== $passwordFile) {
+            // Ops helper path: password was collected via read -s into a mode-600 temp file.
+            // Never accept CLI --password; file must be a regular file readable only here.
+            if (!is_file($passwordFile) || !is_readable($passwordFile)) {
+                $io->error('Password file is missing or unreadable.');
 
-            return Command::FAILURE;
-        }
-        $question = new Question('Password (hidden): ');
-        $question->setHidden(true);
-        $question->setHiddenFallback(false);
-        $password = $helper->ask($input, $output, $question);
-        if (!\is_string($password) || '' === $password) {
-            $io->error('Password is required.');
+                return Command::FAILURE;
+            }
+            $raw = file_get_contents($passwordFile);
+            // Caller deletes the file; best-effort scrub of our read buffer only via unset later.
+            if (!\is_string($raw) || '' === $raw) {
+                $io->error('Password is required.');
 
-            return Command::FAILURE;
+                return Command::FAILURE;
+            }
+            $password = $raw;
+            unset($raw);
+        } else {
+            $helper = $this->getHelper('question');
+            if (!$helper instanceof QuestionHelper) {
+                $io->error('Question helper is unavailable.');
+
+                return Command::FAILURE;
+            }
+            $question = new Question('Password (hidden): ');
+            $question->setHidden(true);
+            $question->setHiddenFallback(false);
+            $password = $helper->ask($input, $output, $question);
+            if (!\is_string($password) || '' === $password) {
+                $io->error('Password is required.');
+
+                return Command::FAILURE;
+            }
         }
 
         try {
