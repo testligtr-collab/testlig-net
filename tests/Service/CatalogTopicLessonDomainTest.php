@@ -192,8 +192,12 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
 
     public function testHardDeleteNotExposedAndRollbackOnConflict(): void
     {
-        self::assertFalse(method_exists($this->placements, 'delete'));
-        self::assertFalse(method_exists($this->placements, 'remove'));
+        $publicNames = array_map(
+            static fn (\ReflectionMethod $m): string => $m->getName(),
+            (new \ReflectionClass(CatalogTopicLessonManager::class))->getMethods(\ReflectionMethod::IS_PUBLIC),
+        );
+        self::assertNotContains('delete', $publicNames);
+        self::assertNotContains('remove', $publicNames);
 
         [$admin, $topic, $content] = $this->seedPublishedContentBundle('rb');
         $this->placements->create($admin, $topic->getId(), $content->getId(), 'A', null, 0, 'a', 'a');
