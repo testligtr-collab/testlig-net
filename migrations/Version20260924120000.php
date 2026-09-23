@@ -23,15 +23,15 @@ final class Version20260924120000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE catalog_subjects ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence SMALLINT UNSIGNED DEFAULT 1 NOT NULL');
+        $this->addSql('ALTER TABLE catalog_subjects ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence INT UNSIGNED DEFAULT 1 NOT NULL');
         $this->addSql('CREATE UNIQUE INDEX uniq_catalog_subject_source ON catalog_subjects (source_version, source_code, source_occurrence)');
         $this->addSql('CREATE INDEX idx_catalog_subject_source_lookup ON catalog_subjects (source_version, source_code)');
 
-        $this->addSql('ALTER TABLE catalog_units ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence SMALLINT UNSIGNED DEFAULT 1 NOT NULL');
+        $this->addSql('ALTER TABLE catalog_units ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence INT UNSIGNED DEFAULT 1 NOT NULL');
         $this->addSql('CREATE UNIQUE INDEX uniq_catalog_unit_source ON catalog_units (source_version, source_code, source_occurrence)');
         $this->addSql('CREATE INDEX idx_catalog_unit_source_lookup ON catalog_units (source_version, source_code)');
 
-        $this->addSql('ALTER TABLE catalog_topics ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence SMALLINT UNSIGNED DEFAULT 1 NOT NULL');
+        $this->addSql('ALTER TABLE catalog_topics ADD source_code VARCHAR(64) DEFAULT NULL, ADD source_version VARCHAR(32) DEFAULT NULL, ADD source_url VARCHAR(500) DEFAULT NULL, ADD source_occurrence INT UNSIGNED DEFAULT 1 NOT NULL');
         $this->addSql('CREATE UNIQUE INDEX uniq_catalog_topic_source ON catalog_topics (source_version, source_code, source_occurrence)');
         $this->addSql('CREATE INDEX idx_catalog_topic_source_lookup ON catalog_topics (source_version, source_code)');
     }

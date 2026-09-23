@@ -75,7 +75,7 @@ class CatalogSubject
     #[ORM\Column(name: 'source_url', length: CatalogSourceAttribution::URL_MAX, nullable: true)]
     private ?string $sourceUrl = null;
 
-    #[ORM\Column(name: 'source_occurrence', options: ['unsigned' => true])]
+    #[ORM\Column(name: 'source_occurrence', options: ['unsigned' => true, 'default' => 1])]
     private int $sourceOccurrence = 1;
 
     private function __construct(
