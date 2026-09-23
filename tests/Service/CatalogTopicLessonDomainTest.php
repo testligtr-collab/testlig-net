@@ -326,7 +326,13 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
 
     private function activeUser(string $email, UserRole $role): User
     {
-        $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', $role);
+        $createAs = \in_array($role, [UserRole::Admin, UserRole::Moderator, UserRole::SuperAdmin], true)
+            ? UserRole::Student
+            : $role;
+        $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', $createAs);
+        if ($createAs !== $role) {
+            $user->addGlobalRole($role);
+        }
         $user->markEmailVerified(new \DateTimeImmutable('now'));
         $user->transitionTo(UserStatus::Active);
         $this->users->save($user);
