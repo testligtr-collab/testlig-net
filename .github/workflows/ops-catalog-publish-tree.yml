@@ -91,6 +91,8 @@ jobs:
             echo "mat_grade1_published=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND source_code = 'MAT' AND grade_level = 1 AND status = 'published' AND slug = 'matematik'")"
             echo "mat_grade1_units=$(sql_count "SELECT COUNT(*) AS c FROM catalog_units u INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND u.status = 'published'")"
             echo "mat_grade1_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND t.status = 'published'")"
+            echo "catalog_topic_lessons=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topic_lessons")"
+            echo "learning_contents=$(sql_count "SELECT COUNT(*) AS c FROM learning_contents")"
             # Local health (OpenLiteSpeed / virtual host). Prefer Host header; fall back to plain loopback.
             set +e
             hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/health 2>/dev/null)
