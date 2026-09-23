@@ -152,7 +152,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $admin = $this->activeStaff('vis-admin@example.com', UserRole::Admin);
         $sa = $this->activeStaff('vis-sa@example.com', UserRole::SuperAdmin);
 
-        $visible = $this->createAndPublishContent($admin, $canonical, 'vis_ok', 'Visible Lesson Body');
+        $visible = $this->createAndPublishContent($admin, $canonical, 'vis_ok', 'Visible Lesson Title', self::SECRET_BODY);
         $packages->setLearningContentAccessPolicy($visible, $sa, ResourceAccessClass::Free, 'set_free');
         $visibleLesson = $placements->create(
             $admin,
@@ -208,7 +208,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $placements->publish($admin, $archivedLesson->getId(), 'pub_arch');
         $placements->archive($admin, $archivedLesson->getId(), 'arch');
 
-        $unpubLcBundle = $this->createAndPublishContent($admin, $canonical, 'vis_unpub', self::SECRET_BODY);
+        $unpubLcBundle = $this->createAndPublishContent($admin, $canonical, 'vis_unpub', 'Unpublished Body Title', self::SECRET_BODY);
         $packages->setLearningContentAccessPolicy($unpubLcBundle, $sa, ResourceAccessClass::Free, 'set_free_unpub');
         $unpubLesson = $placements->create(
             $admin,
@@ -223,21 +223,6 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $placements->publish($admin, $unpubLesson->getId(), 'pub_unpub');
         $contents->archive($unpubLcBundle, $admin, 'archive_lc');
 
-        // Visible lesson body also carries a secret marker that must never reach student HTML.
-        $secretVisible = $this->createAndPublishContent($admin, $canonical, 'vis_secret', self::SECRET_BODY);
-        $packages->setLearningContentAccessPolicy($secretVisible, $sa, ResourceAccessClass::Free, 'set_free_secret');
-        $secretLesson = $placements->create(
-            $admin,
-            $topic->getId(),
-            $secretVisible->getId(),
-            'Güvenli Liste Adımı',
-            null,
-            5,
-            'create_secret',
-            'guvenli-liste',
-        );
-        $placements->publish($admin, $secretLesson->getId(), 'pub_secret');
-
         self::ensureKernelShutdown();
 
         $student = $this->createActive('topic-vis@example.com', UserRole::Student);
@@ -250,7 +235,6 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Görünür Adım');
         self::assertSelectorTextContains('body', 'Kısa özet');
-        self::assertSelectorTextContains('body', 'Güvenli Liste Adımı');
         self::assertSelectorNotExists('body:contains("Taslak Adım")');
         self::assertSelectorNotExists('body:contains("Kapalı Adım")');
         self::assertSelectorNotExists('body:contains("Arşiv Adım")');
@@ -353,9 +337,14 @@ final class StudentTopicPageControllerTest extends WebTestCase
         return $result;
     }
 
-    private function createAndPublishContent(User $author, Subject $subject, string $code, string $title): LearningContent
-    {
-        $content = $this->createDraftContent($author, $subject, $code, $title);
+    private function createAndPublishContent(
+        User $author,
+        Subject $subject,
+        string $code,
+        string $title,
+        ?string $bodyText = null,
+    ): LearningContent {
+        $content = $this->createDraftContent($author, $subject, $code, $title, $bodyText);
         $reviewer = $this->activeStaff($code.'-rev@example.com', UserRole::HeadTeacher);
         /** @var LearningContentManager $contents */
         $contents = static::getContainer()->get(LearningContentManager::class);
@@ -365,8 +354,13 @@ final class StudentTopicPageControllerTest extends WebTestCase
         return $content;
     }
 
-    private function createDraftContent(User $actor, Subject $subject, string $code, string $title): LearningContent
-    {
+    private function createDraftContent(
+        User $actor,
+        Subject $subject,
+        string $code,
+        string $title,
+        ?string $bodyText = null,
+    ): LearningContent {
         /** @var LearningContentManager $contents */
         $contents = static::getContainer()->get(LearningContentManager::class);
         /** @var CurriculumProgramRepository $programs */
@@ -389,7 +383,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
             $code,
             $title,
             null,
-            LearningContentDocument::paragraph($title),
+            LearningContentDocument::paragraph($bodyText ?? $title),
             [['learningOutcome' => $los[0], 'isPrimary' => true]],
             'create',
         );
