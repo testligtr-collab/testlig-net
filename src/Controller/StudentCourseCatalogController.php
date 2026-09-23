@@ -8,6 +8,7 @@ use App\Entity\User;
 use App\Enum\GradeLevel;
 use App\Service\StudentCatalogQuery;
 use App\Service\StudentProfileManager;
+use App\Service\StudentTopicContentQuery;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -21,6 +22,7 @@ final class StudentCourseCatalogController extends AbstractController
     public function __construct(
         private readonly StudentProfileManager $profiles,
         private readonly StudentCatalogQuery $catalog,
+        private readonly StudentTopicContentQuery $topicContent,
     ) {
     }
 
@@ -79,6 +81,43 @@ final class StudentCourseCatalogController extends AbstractController
             'subject' => $detail['subject'],
             'unit' => $detail['unit'],
             'topics' => $detail['topics'],
+        ]);
+    }
+
+    #[Route('/{subjectSlug}/{unitSlug}/{topicSlug}', name: 'app_student_course_topic', methods: ['GET'], requirements: [
+        'subjectSlug' => '[a-z0-9]+(?:-[a-z0-9]+)*',
+        'unitSlug' => '[a-z0-9]+(?:-[a-z0-9]+)*',
+        'topicSlug' => '[a-z0-9]+(?:-[a-z0-9]+)*',
+    ])]
+    public function topic(string $subjectSlug, string $unitSlug, string $topicSlug): Response
+    {
+        $grade = $this->resolveGradeLevel();
+        if ($grade instanceof Response) {
+            return $grade;
+        }
+
+        $user = $this->getUser();
+        if (!$user instanceof User) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $detail = $this->topicContent->getPublishedTopicDetail(
+            $grade,
+            $subjectSlug,
+            $unitSlug,
+            $topicSlug,
+            $user,
+        );
+        if (null === $detail) {
+            throw new NotFoundHttpException();
+        }
+
+        return $this->render('student/courses/topic.html.twig', [
+            'gradeLevel' => $grade,
+            'subject' => $detail->subject,
+            'unit' => $detail->unit,
+            'topic' => $detail->topic,
+            'lessons' => $detail->lessons,
         ]);
     }
 

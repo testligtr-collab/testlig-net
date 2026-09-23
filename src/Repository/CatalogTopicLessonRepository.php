@@ -89,9 +89,9 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
     {
         /** @var list<CatalogTopicLesson> $rows */
         $rows = $this->createQueryBuilder('l')
-            ->andWhere('l.catalogTopic = :topic')
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
             ->andWhere('l.visibilityStatus = :status')
-            ->setParameter('topic', $topic)
+            ->setParameter('topicId', $topic->getId(), 'uuid')
             ->setParameter('status', CatalogPublicationStatus::Published)
             ->orderBy('l.position', 'ASC')
             ->getQuery()

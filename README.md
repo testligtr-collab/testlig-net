@@ -99,6 +99,7 @@ php bin/console app:catalog:publish-tree --source-version=TYMM-2026 --subject-co
 - Yalnız draft yayımlanır; archived / yanlış sürüm / yanlış sınıf → durur.
 - **Publish tree:** `app:catalog:publish-tree` — zorunlu `--expected-subjects/units/topics`; varsayılan dry-run; `--apply` ile topics→units→subject; archived/yanlış sürüm/sınıf reddi; tek TX + `app.catalog.publish-tree` lock; tamamen published → no-op.
 - **Topic lesson placement (domain):** `CatalogTopic` → N `CatalogTopicLesson` → 1 `LearningContent`. Placement = navigation only; content lifecycle stays in Stage 2.15. Explicit `CatalogSubject.canonical_subject_id` → `subjects` (no name/slug auto-map). No production seed / lesson body in this slice.
+- **Student topic page:** Published topic cards link to `/ogrenci/dersler/{subjectSlug}/{unitSlug}/{topicSlug}`. `StudentTopicContentQuery` returns topic meta + accessible published placements only (no revision body / storageKey). Empty placements show “Bu konu için öğrenme adımları hazırlanıyor.”
 - Production ops: `ops-catalog-publish-tree.yml` (yalnız workflow_dispatch).
 
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
