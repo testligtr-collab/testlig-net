@@ -60,7 +60,7 @@ final class CatalogDomainTest extends KernelTestCase
         self::assertCount(1, $detail['topics']);
 
         $this->writer->archiveSubject($subject->getId());
-        self::assertSame([], $this->query->listPublishedSubjectsForGrade(GradeLevel::Grade5));
+        self::assertCount(0, $this->query->listPublishedSubjectsForGrade(GradeLevel::Grade5));
         self::assertNull($this->query->getPublishedUnitDetail(GradeLevel::Grade5, 'matematik', 'sayilar'));
     }
 
@@ -92,7 +92,16 @@ final class CatalogDomainTest extends KernelTestCase
         $this->writer->createUnit($subject->getId(), 'Okulumuz', null, 0);
         $units = $this->query->listPublishedUnitsForGradeSubject(GradeLevel::Grade4, 'hayat-bilgisi');
         self::assertNotNull($units);
-        self::assertSame([], $units);
+        self::assertCount(0, $units);
+
+        $unit = $this->writer->createUnit($subject->getId(), 'Evimiz', null, 1);
+        $this->writer->publishUnit($unit->getId());
+        $units = $this->query->listPublishedUnitsForGradeSubject(GradeLevel::Grade4, 'hayat-bilgisi');
+        self::assertNotNull($units);
+        self::assertSame(
+            ['evimiz'],
+            array_map(static fn ($item): string => $item->slug, $units),
+        );
     }
 
     public function testArchivedCannotRepublish(): void

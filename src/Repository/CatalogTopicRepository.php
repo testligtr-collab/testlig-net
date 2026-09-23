@@ -34,7 +34,7 @@ final class CatalogTopicRepository extends ServiceEntityRepository
         /** @var list<CatalogTopic> $rows */
         $rows = $this->createQueryBuilder('t')
             ->andWhere('t.unit = :unit')
-            ->setParameter('unit', $unit)
+            ->setParameter('unit', $unit->getId(), 'uuid')
             ->orderBy('t.position', 'ASC')
             ->addOrderBy('t.name', 'ASC')
             ->getQuery()
@@ -52,7 +52,7 @@ final class CatalogTopicRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('t')
             ->andWhere('t.unit = :unit')
             ->andWhere('t.status = :status')
-            ->setParameter('unit', $unit)
+            ->setParameter('unit', $unit->getId(), 'uuid')
             ->setParameter('status', CatalogPublicationStatus::Published)
             ->orderBy('t.position', 'ASC')
             ->addOrderBy('t.name', 'ASC')
@@ -68,7 +68,7 @@ final class CatalogTopicRepository extends ServiceEntityRepository
             ->select('COUNT(t.id)')
             ->andWhere('t.unit = :unit')
             ->andWhere('t.slug = :slug')
-            ->setParameter('unit', $unit)
+            ->setParameter('unit', $unit->getId(), 'uuid')
             ->setParameter('slug', $slug);
         if ($exceptId instanceof Uuid) {
             $qb->andWhere('t.id != :except')->setParameter('except', $exceptId, 'uuid');
@@ -82,7 +82,7 @@ final class CatalogTopicRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('t')
             ->select('COUNT(t.id)')
             ->andWhere('t.unit = :unit')
-            ->setParameter('unit', $unit)
+            ->setParameter('unit', $unit->getId(), 'uuid')
             ->getQuery()
             ->getSingleScalarResult();
     }

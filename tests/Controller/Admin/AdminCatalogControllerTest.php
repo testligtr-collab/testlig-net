@@ -7,8 +7,9 @@ namespace App\Tests\Controller\Admin;
 use App\Entity\User;
 use App\Enum\GradeLevel;
 use App\Enum\UserRole;
+use App\Enum\UserStatus;
+use App\Repository\UserRepository;
 use App\Service\CatalogWriteService;
-use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -22,7 +23,7 @@ final class AdminCatalogControllerTest extends WebTestCase
         $client->request('GET', '/yonetim/mufredat');
         self::assertResponseRedirects('/giris');
 
-        $this->createActive('cat-admin-student@example.com', UserRole::Student);
+        $this->createPrivileged('cat-admin-student@example.com', UserRole::Student);
         $client = static::createClient();
         $this->login($client, 'cat-admin-student@example.com');
         $client->request('GET', '/yonetim/mufredat');
@@ -31,7 +32,7 @@ final class AdminCatalogControllerTest extends WebTestCase
 
     public function testAdminCanCreateSubject(): void
     {
-        $this->createActive('cat-admin@example.com', UserRole::Admin);
+        $this->createPrivileged('cat-admin@example.com', UserRole::Admin);
         $client = static::createClient();
         $this->login($client, 'cat-admin@example.com');
 
@@ -50,7 +51,7 @@ final class AdminCatalogControllerTest extends WebTestCase
 
     public function testPublishRequiresValidCsrf(): void
     {
-        $this->createActive('cat-admin-csrf@example.com', UserRole::Admin);
+        $this->createPrivileged('cat-admin-csrf@example.com', UserRole::Admin);
         self::ensureKernelShutdown();
         self::bootKernel();
         /** @var CatalogWriteService $writer */
@@ -77,16 +78,22 @@ final class AdminCatalogControllerTest extends WebTestCase
         $client->followRedirect();
     }
 
-    private function createActive(string $email, UserRole $role): User
+    private function createPrivileged(string $email, UserRole $role): User
     {
         self::ensureKernelShutdown();
         self::bootKernel();
         /** @var UserFactory $factory */
         $factory = static::getContainer()->get(UserFactory::class);
-        /** @var UserAccountLifecycle $lifecycle */
-        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
-        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Admin', 'User', $role);
-        $lifecycle->markEmailVerifiedAndActivate($user);
+        $initial = $role->isPrivilegedBootstrapRole() ? UserRole::Teacher : $role;
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Admin', 'User', $initial);
+        $user->markEmailVerified(new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $user->transitionTo(UserStatus::Active);
+        if ($initial !== $role) {
+            $user->addGlobalRole($role);
+        }
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $users->save($user);
         self::ensureKernelShutdown();
 
         return $user;

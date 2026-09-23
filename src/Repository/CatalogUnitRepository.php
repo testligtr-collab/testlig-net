@@ -28,7 +28,17 @@ final class CatalogUnitRepository extends ServiceEntityRepository
 
     public function findOneBySubjectAndSlug(CatalogSubject $subject, string $slug): ?CatalogUnit
     {
-        return $this->findOneBy(['subject' => $subject, 'slug' => $slug]);
+        /** @var CatalogUnit|null $unit */
+        $unit = $this->createQueryBuilder('u')
+            ->andWhere('u.subject = :subject')
+            ->andWhere('u.slug = :slug')
+            ->setParameter('subject', $subject->getId(), 'uuid')
+            ->setParameter('slug', $slug)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $unit;
     }
 
     /**
@@ -39,7 +49,7 @@ final class CatalogUnitRepository extends ServiceEntityRepository
         /** @var list<CatalogUnit> $rows */
         $rows = $this->createQueryBuilder('u')
             ->andWhere('u.subject = :subject')
-            ->setParameter('subject', $subject)
+            ->setParameter('subject', $subject->getId(), 'uuid')
             ->orderBy('u.position', 'ASC')
             ->addOrderBy('u.name', 'ASC')
             ->getQuery()
@@ -57,7 +67,7 @@ final class CatalogUnitRepository extends ServiceEntityRepository
         $rows = $this->createQueryBuilder('u')
             ->andWhere('u.subject = :subject')
             ->andWhere('u.status = :status')
-            ->setParameter('subject', $subject)
+            ->setParameter('subject', $subject->getId(), 'uuid')
             ->setParameter('status', CatalogPublicationStatus::Published)
             ->orderBy('u.position', 'ASC')
             ->addOrderBy('u.name', 'ASC')
@@ -73,7 +83,7 @@ final class CatalogUnitRepository extends ServiceEntityRepository
             ->select('COUNT(u.id)')
             ->andWhere('u.subject = :subject')
             ->andWhere('u.slug = :slug')
-            ->setParameter('subject', $subject)
+            ->setParameter('subject', $subject->getId(), 'uuid')
             ->setParameter('slug', $slug);
         if ($exceptId instanceof Uuid) {
             $qb->andWhere('u.id != :except')->setParameter('except', $exceptId, 'uuid');
@@ -87,7 +97,7 @@ final class CatalogUnitRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('u')
             ->select('COUNT(u.id)')
             ->andWhere('u.subject = :subject')
-            ->setParameter('subject', $subject)
+            ->setParameter('subject', $subject->getId(), 'uuid')
             ->getQuery()
             ->getSingleScalarResult();
     }
