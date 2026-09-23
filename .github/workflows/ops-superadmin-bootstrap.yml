@@ -7,12 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "inspect = read-only counts; install-helper = place root helper; verify = post-bootstrap checks"
+        description: "inspect = read-only counts; install-helper = place root helper; verify = post-bootstrap checks; diagnose = deploy revision + code markers"
         type: choice
         options:
           - inspect
           - install-helper
           - verify
+          - diagnose
         default: inspect
       admin_email:
         description: "Optional. Only used to check email_taken (not printed). Leave empty to skip."
@@ -96,6 +97,24 @@ jobs:
           echo "helper_present=$([ -x /usr/local/sbin/testlig-bootstrap-super-admin-once.sh ] && echo 1 || echo 0)"
           echo "console_present=$([ -f bin/console ] && echo 1 || echo 0)"
 
+          if [ "$MODE" = "diagnose" ]; then
+            echo "current_revision=$(tr -d '\r\n' </home/testlig.net/shared/CURRENT_REVISION 2>/dev/null || echo missing)"
+            echo "current_release=$(tr -d '\r\n' </home/testlig.net/shared/CURRENT_RELEASE 2>/dev/null || echo missing)"
+            echo "app_revision=$(tr -d '\r\n' </home/testlig.net/app/REVISION 2>/dev/null || echo missing)"
+            echo "cmd_has_pwfile=$([ -f src/Command/BootstrapSuperAdminCommand.php ] && grep -c TESTLIG_BOOTSTRAP_PASSWORD_FILE src/Command/BootstrapSuperAdminCommand.php || echo 0)"
+            echo "helper_has_reads=$([ -f /usr/local/sbin/testlig-bootstrap-super-admin-once.sh ] && grep -c 'read -r -s' /usr/local/sbin/testlig-bootstrap-super-admin-once.sh || echo 0)"
+            # Non-interactive probe: expect either disabled or password-file missing (never print env secrets).
+            set +e
+            PROBE="$(run_app env ALLOW_SUPER_ADMIN_BOOTSTRAP=1 "$PHP_BIN" bin/console app:user:bootstrap-super-admin --email=probe@example.invalid --confirm 2>&1)"
+            PROBE_RC=$?
+            set -e
+            echo "probe_rc=${PROBE_RC}"
+            echo "probe_mentions_disabled=$(printf '%s' "$PROBE" | grep -ci disabled || true)"
+            echo "probe_mentions_password=$(printf '%s' "$PROBE" | grep -ci password || true)"
+            echo "probe_mentions_pwfile=$(printf '%s' "$PROBE" | grep -ci 'password file' || true)"
+            echo "probe_mentions_confirm=$(printf '%s' "$PROBE" | grep -ci confirm || true)"
+          fi
+
           # Probe console once (secret-free).
           set +e
           run_app "$PHP_BIN" bin/console about --no-interaction >/tmp/testlig-sa-about.out 2>/tmp/testlig-sa-about.err
@@ -105,6 +124,10 @@ jobs:
           if [ "$ABOUT_RC" -ne 0 ]; then
             # Show only the last non-empty line of stderr without dumping env
             echo "console_about_err_tail=$(tr -d '\r' </tmp/testlig-sa-about.err | awk 'NF{l=$0} END{print l}' | cut -c1-160)"
+          fi
+
+          if [ "$MODE" = "diagnose" ]; then
+            exit 0
           fi
 
           SA_USERS="$(sql_count "SELECT COUNT(*) AS c FROM users WHERE JSON_CONTAINS(global_roles, '\"ROLE_SUPER_ADMIN\"', '\$') = 1")"
