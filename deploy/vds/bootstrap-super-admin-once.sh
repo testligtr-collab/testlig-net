@@ -47,10 +47,9 @@ run_app() {
 
 sql_count() {
   local sql="$1"
-  # dbal:run-sql prints a table; take the last integer on the last non-empty line.
   run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/dev/null \
     | tr -d '\r' \
-    | awk 'NF{line=$0} END{ if (match(line, /[0-9]+/)) print substr(line, RSTART, RLENGTH); else print "err" }'
+    | awk '/^[[:space:]]*[0-9]+[[:space:]]*$/ { v=$1 } END { if (v != "") print v; else print "err" }'
 }
 
 printf 'Preflight (no secrets)...\n'
