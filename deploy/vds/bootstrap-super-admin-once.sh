@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # One-shot interactive SUPER_ADMIN bootstrap for Testlig VDS.
-# Password: Symfony hidden TTY prompt only (never argv / env file / history).
+# Password: read -s on the SSH TTY (never argv / shell history / logs).
+# Passed to the official console via a mode-600 temp file + TESTLIG_BOOTSTRAP_PASSWORD_FILE.
 # ALLOW_SUPER_ADMIN_BOOTSTRAP is process-scoped; .env.local is not modified.
-# Usage (from an interactive terminal with TTY):
+# Usage:
 #   ssh -t root@HOST '/usr/local/sbin/testlig-bootstrap-super-admin-once.sh --email=admin@example.com'
 set -euo pipefail
 
@@ -14,6 +15,13 @@ PHP_BIN="${PHP_BIN:-/usr/local/lsws/lsphp83/bin/php}"
 APP_USER="${APP_USER:-testl3865}"
 
 die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+cleanup_pw() {
+  if [[ -n "${PASSFILE:-}" && -f "${PASSFILE}" ]]; then
+    shred -u "$PASSFILE" 2>/dev/null || rm -f "$PASSFILE"
+  fi
+}
+trap cleanup_pw EXIT
 
 for arg in "$@"; do
   case "$arg" in
@@ -75,9 +83,27 @@ printf 'email_taken=%s\n' "$EMAIL_TAKEN"
 [[ "$STUDENT_ADMINS" -eq 0 ]] \
   || die "Unexpected student+admin role combination detected; refusing to continue."
 
-printf 'Launching official app:user:bootstrap-super-admin (hidden password prompt)...\n'
+printf 'Password (hidden): '
+read -r -s P1
+printf '\n'
+printf 'Confirm password (hidden): '
+read -r -s P2
+printf '\n'
+[[ -n "$P1" && "$P1" == "$P2" ]] || die "Passwords empty or do not match."
+unset P2
+
+PASSFILE="$(mktemp /tmp/testlig-sa-pw.XXXXXX)"
+chmod 600 "$PASSFILE"
+chown "$APP_USER:$APP_USER" "$PASSFILE"
+# No trailing newline semantics: write exact bytes then clear shell vars.
+printf '%s' "$P1" >"$PASSFILE"
+unset P1
+
+printf 'Launching official app:user:bootstrap-super-admin...\n'
 set +e
-run_app env ALLOW_SUPER_ADMIN_BOOTSTRAP=1 \
+run_app env \
+  ALLOW_SUPER_ADMIN_BOOTSTRAP=1 \
+  TESTLIG_BOOTSTRAP_PASSWORD_FILE="$PASSFILE" \
   "$PHP_BIN" bin/console app:user:bootstrap-super-admin \
   --email="$EMAIL" \
   --first-name="$FIRST_NAME" \
@@ -85,13 +111,14 @@ run_app env ALLOW_SUPER_ADMIN_BOOTSTRAP=1 \
   --confirm
 RC=$?
 set -e
+cleanup_pw
+PASSFILE=""
 
 if [[ "$RC" -ne 0 ]]; then
-  die "Bootstrap command failed (rc=$RC)."
+  die "Bootstrap command failed (rc=$RC). Check password policy / env; no account was created."
 fi
 
 printf 'OK: bootstrap finished. Sign in at /giris then open /yonetim/mufredat.\n'
-# Remove this helper after success (no secrets were written to disk by this script).
 if [[ -f /usr/local/sbin/testlig-bootstrap-super-admin-once.sh ]]; then
   rm -f /usr/local/sbin/testlig-bootstrap-super-admin-once.sh || true
 fi

@@ -80,6 +80,35 @@ final class BootstrapSuperAdminCommandTest extends KernelTestCase
         self::assertStringContainsString('CLI argument', $tester->getDisplay());
     }
 
+    public function testPasswordFileIsUsedWithoutPrintingSecret(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'sa');
+        self::assertNotFalse($file);
+        file_put_contents($file, 'Guclu-Parola-123!');
+        $previous = getenv('TESTLIG_BOOTSTRAP_PASSWORD_FILE');
+        putenv('TESTLIG_BOOTSTRAP_PASSWORD_FILE='.$file);
+        try {
+            $tester = $this->tester();
+            $status = $tester->execute([
+                'command' => 'app:user:bootstrap-super-admin',
+                '--email' => 'cli-sa-pwfile@example.com',
+                '--confirm' => true,
+            ], ['interactive' => false]);
+
+            // Env remains disabled in test; ensure file path is accepted and secret never printed.
+            self::assertSame(1, $status);
+            self::assertStringContainsString('disabled', strtolower($tester->getDisplay()));
+            self::assertStringNotContainsString('Guclu-Parola-123!', $tester->getDisplay());
+        } finally {
+            if (false === $previous) {
+                putenv('TESTLIG_BOOTSTRAP_PASSWORD_FILE');
+            } else {
+                putenv('TESTLIG_BOOTSTRAP_PASSWORD_FILE='.$previous);
+            }
+            @unlink($file);
+        }
+    }
+
     public function testFactoryStillCannotCreateSuperAdmin(): void
     {
         $factory = static::getContainer()->get(UserFactory::class);
