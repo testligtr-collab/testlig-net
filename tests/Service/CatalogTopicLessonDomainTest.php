@@ -98,7 +98,11 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->reopenIfClosed();
         }
 
-        $other = $this->createDraftContent($admin, $content->getSubject(), 'uniq_other', 'Other');
+        $otherSubject = $this->subjects->create($this->superAdmin('uniq-sa-other@example.com'), 'uniq_other_s', 'Other Subj', 'create_s');
+        // Clear canonical so other-subject content can bind for uniqueness checks.
+        $catalogSubjectId = $topic->getUnit()->getSubject()->getId();
+        $this->catalog->assignCanonicalSubject($catalogSubjectId, null);
+        $other = $this->createDraftContent($admin, $otherSubject, 'uniq_other', 'Other');
         try {
             $this->placements->create($admin, $topic->getId(), $other->getId(), 'Adım 2', null, 0, 'dup_pos', 'adim-2');
             self::fail('Expected duplicate position rejection');
@@ -134,10 +138,13 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             self::fail('Expected unpublished LC rejection');
         } catch (CatalogException $e) {
             self::assertStringContainsString('yayımlanmadan', $e->getMessage());
+            $this->reopenIfClosed();
         }
 
         $this->publishContent($admin, $draftContent);
-        $this->em->refresh($draftContent);
+        $this->em->clear();
+        $draftContent = $this->em->find(LearningContent::class, $draftContent->getId());
+        self::assertInstanceOf(LearningContent::class, $draftContent);
         $published = $this->placements->publish($admin, $lesson->getId(), 'publish_ok');
         self::assertSame(CatalogPublicationStatus::Published, $published->getVisibilityStatus());
         self::assertNotNull($published->getPublishedAt());
@@ -149,12 +156,14 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->placements->publish($admin, $archived->getId(), 'reopen');
             self::fail('Expected archived reopen rejection');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
 
         try {
-            $this->placements->updateDraft($admin, $archived->getId(), 'X', null, 9, 'edit_archived');
+            $this->placements->updateDraft($admin, $archived->getId(), 'X Title', null, 9, 'edit_archived');
             self::fail('Expected archived edit rejection');
         } catch (CatalogException) {
+            $this->reopenIfClosed();
         }
     }
 
@@ -181,11 +190,14 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             self::fail('Expected subject mapping mismatch');
         } catch (CatalogException $e) {
             self::assertStringContainsString('canonical', $e->getMessage());
+            $this->reopenIfClosed();
         }
 
         // Clearing mapping allows bind without subject match enforcement.
         $this->catalog->assignCanonicalSubject($catalogSubject->getId(), null);
-        $this->em->refresh($catalogSubject);
+        $this->em->clear();
+        $catalogSubject = $this->em->find(\App\Entity\CatalogSubject::class, $catalogSubject->getId());
+        self::assertNotNull($catalogSubject);
         self::assertNull($catalogSubject->getCanonicalSubject());
         $lesson = $this->placements->create($admin, $topic->getId(), $wrongContent->getId(), 'Adım', null, 0, 'ok_clear');
         self::assertInstanceOf(CatalogTopicLesson::class, $lesson);
@@ -205,8 +217,9 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         }
 
         $this->placements->publish($admin, $lesson->getId(), 'admin_publish');
-        $this->em->refresh($lesson);
-        self::assertTrue($lesson->isPublished());
+        $fresh = $this->em->find(CatalogTopicLesson::class, $lesson->getId());
+        self::assertInstanceOf(CatalogTopicLesson::class, $fresh);
+        self::assertTrue($fresh->isPublished());
     }
 
     public function testHardDeleteNotExposedAndRollbackOnConflict(): void
