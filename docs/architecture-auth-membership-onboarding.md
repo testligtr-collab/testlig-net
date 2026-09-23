@@ -34,6 +34,13 @@ Aşama 2.22’nin amacı:
 
 Bu aşama ürün panellerini tamamlamaz; kimlik ve üyelik omurgasını güvenli genişletir.
 
+### Öğrenci ilk giriş kurulumu + sade panel (sonraki dilim)
+
+Ayrı uygulama dilimi: doğrulanmış `ROLE_STUDENT` için `StudentProfile` (1:1 `User`),
+`/ogrenci/kurulum` → `/ogrenci` / `/ogrenci/profil`. Doğum tarihi / telefon / açık adres toplanmaz.
+Sahte ders/istatistik gösterilmez. Login `target_path` korunur; varsayılan öğrenci hedefi
+kurulum veya paneldir.
+
 ---
 
 ## 2. Mevcut Durum

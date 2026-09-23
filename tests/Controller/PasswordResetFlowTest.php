@@ -300,7 +300,7 @@ final class PasswordResetFlowTest extends WebTestCase
             '_username' => 'reset-ok@example.com',
             '_password' => 'Yeni-Guclu-Parola-456!',
         ]));
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/ogrenci/kurulum');
     }
 
     public function testUsedTokenCannotBeReused(): void

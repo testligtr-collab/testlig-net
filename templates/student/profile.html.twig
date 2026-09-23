@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Profilim — Öğrenci — Testlig{% endblock %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-setup">
+    <p class="eyebrow"><a href="{{ path('app_student_dashboard') }}">← Öğrenci paneli</a></p>
+    <h1>Profilim</h1>
+    <p class="muted">Sınıf ve öğrenme bilgilerini buradan güncelleyebilirsin. E-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
+
+    {{ form_start(form, {attr: {novalidate: 'novalidate', class: 'student-setup__form'}}) }}
+        {{ form_errors(form) }}
+
+        <div class="form-row">
+            {{ form_label(form.gradeLevel) }}
+            {{ form_widget(form.gradeLevel) }}
+            {{ form_errors(form.gradeLevel) }}
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.schoolName) }}
+            {{ form_widget(form.schoolName) }}
+            {{ form_errors(form.schoolName) }}
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.city) }}
+            {{ form_widget(form.city) }}
+            {{ form_errors(form.city) }}
+        </div>
+
+        <div class="form-row">
+            {{ form_label(form.learningGoal) }}
+            {{ form_widget(form.learningGoal) }}
+            {{ form_errors(form.learningGoal) }}
+        </div>
+
+        <button type="submit" class="btn btn--primary">Kaydet</button>
+    {{ form_end(form) }}
+</section>
+{% endblock %}

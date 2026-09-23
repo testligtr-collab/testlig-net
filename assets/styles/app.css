@@ -1260,7 +1260,8 @@ a:hover {
 .form-row input[type="text"],
 .form-row input[type="email"],
 .form-row input[type="password"],
-.form-row select {
+.form-row select,
+.form-row textarea {
     width: 100%;
     box-sizing: border-box;
     padding: 0.65rem 0.75rem;
@@ -1270,7 +1271,8 @@ a:hover {
 }
 
 .form-row input:focus-visible,
-.form-row select:focus-visible {
+.form-row select:focus-visible,
+.form-row textarea:focus-visible {
     outline: 2px solid var(--tl-focus);
     outline-offset: 1px;
 }
@@ -2380,3 +2382,83 @@ a:hover {
     }
 }
 
+
+/* -------------------------------------------------------------------------- */
+/* Student onboarding + simple dashboard                                      */
+/* -------------------------------------------------------------------------- */
+
+body.is-student-surface {
+    background: linear-gradient(180deg, #f7fafc 0%, var(--tl-bg) 40%, #eef4fa 100%);
+}
+
+.student-setup,
+.student-dashboard {
+    max-width: 36rem;
+}
+
+.student-setup__form {
+    display: grid;
+    gap: var(--tl-space-1);
+    margin-top: var(--tl-space-5);
+}
+
+.student-section {
+    margin-top: var(--tl-space-6);
+}
+
+.student-section h2 {
+    margin: 0 0 var(--tl-space-3);
+    font-size: var(--tl-fs-lg);
+}
+
+.student-quick-links {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--tl-space-3);
+}
+
+@media (min-width: 640px) {
+    .student-quick-links {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.student-quick-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--tl-space-2);
+    min-height: 5.5rem;
+    padding: var(--tl-space-4);
+    background: var(--tl-surface);
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+    text-decoration: none;
+    color: var(--tl-ink);
+    box-shadow: var(--tl-shadow-sm);
+}
+
+.student-quick-card--soon {
+    opacity: 0.72;
+    background: var(--tl-bg-elevated);
+}
+
+.student-quick-card__label {
+    font-weight: 600;
+}
+
+.student-badge {
+    align-self: flex-start;
+    font-size: var(--tl-fs-xs);
+    color: var(--tl-ink-muted);
+    border: var(--tl-border-width) solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-sm);
+    padding: 0.15rem 0.45rem;
+    background: var(--tl-surface);
+}
+
+.student-dashboard__actions {
+    margin-top: var(--tl-space-6);
+}
