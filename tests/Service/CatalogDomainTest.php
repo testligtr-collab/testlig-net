@@ -35,13 +35,16 @@ final class CatalogDomainTest extends KernelTestCase
     {
         $subject = $this->writer->createSubject(GradeLevel::Grade5, 'Matematik', null, 1);
         self::assertNull($subject->getPublishedAt());
-        self::assertSame([], $this->query->listPublishedSubjectsForGrade(GradeLevel::Grade5));
+        self::assertCount(0, $this->query->listPublishedSubjectsForGrade(GradeLevel::Grade5));
 
         $this->writer->publishSubject($subject->getId());
         $this->em->clear();
         $listed = $this->query->listPublishedSubjectsForGrade(GradeLevel::Grade5);
         self::assertCount(1, $listed);
-        self::assertSame('matematik', $listed[0]->slug);
+        self::assertSame(
+            ['matematik'],
+            array_map(static fn ($item): string => $item->slug, $listed),
+        );
 
         $unit = $this->writer->createUnit($subject->getId(), 'Sayılar', null, 0);
         $this->writer->publishUnit($unit->getId());
