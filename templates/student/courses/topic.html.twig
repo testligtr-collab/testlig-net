@@ -1,0 +1,45 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ topic.name }} — {{ unit.name }} — Testlig{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_courses') }}">Dersler</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_course_subject', {subjectSlug: subject.slug}) }}">{{ subject.name }}</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_course_unit', {subjectSlug: subject.slug, unitSlug: unit.slug}) }}">{{ unit.name }}</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ topic.name }}</span>
+    </nav>
+    <h1>{{ topic.name }}</h1>
+    {% if topic.summary %}
+        <p class="muted">{{ topic.summary }}</p>
+    {% endif %}
+
+    <h2 class="student-section-title">Öğrenme adımları</h2>
+    {% if lessons is empty %}
+        <div class="empty-state" role="status">
+            <p>Bu konu için öğrenme adımları hazırlanıyor.</p>
+        </div>
+    {% else %}
+        <ol class="student-lesson-list">
+            {% for lesson in lessons %}
+                <li class="student-lesson-item">
+                    <span class="student-lesson-item__pos" aria-hidden="true">{{ lesson.position + 1 }}</span>
+                    <div>
+                        <p class="student-lesson-item__title">{{ lesson.title }}</p>
+                        {% if lesson.summary %}
+                            <p class="muted">{{ lesson.summary }}</p>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+</section>
+{% endblock %}

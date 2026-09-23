@@ -26,6 +26,21 @@ final class CatalogTopicRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findOneByUnitAndSlug(CatalogUnit $unit, string $slug): ?CatalogTopic
+    {
+        /** @var CatalogTopic|null $topic */
+        $topic = $this->createQueryBuilder('t')
+            ->andWhere('t.unit = :unit')
+            ->andWhere('t.slug = :slug')
+            ->setParameter('unit', $unit->getId(), 'uuid')
+            ->setParameter('slug', $slug)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $topic;
+    }
+
     public function findOneBySourceIdentity(?string $version, ?string $code, int $occurrence): ?CatalogTopic
     {
         if (null === $version || null === $code) {

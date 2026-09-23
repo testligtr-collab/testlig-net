@@ -1,0 +1,506 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Controller;
+
+use App\Dto\StudentProfileRequest;
+use App\Entity\CatalogTopic;
+use App\Entity\LearningContent;
+use App\Entity\Subject;
+use App\Entity\User;
+use App\Enum\GradeLevel;
+use App\Enum\LearningContentScope;
+use App\Enum\LearningContentType;
+use App\Enum\ResourceAccessClass;
+use App\Enum\UserRole;
+use App\Enum\UserStatus;
+use App\LearningContent\Content\LearningContentDocument;
+use App\Repository\CatalogSubjectRepository;
+use App\Repository\CatalogTopicRepository;
+use App\Repository\CatalogUnitRepository;
+use App\Repository\CurriculumLearningOutcomeRepository;
+use App\Repository\CurriculumProgramRepository;
+use App\Repository\UserRepository;
+use App\Service\AccessPackageManager;
+use App\Service\CatalogImport\CatalogImportService;
+use App\Service\CatalogPublish\CatalogPublishTreeService;
+use App\Service\CatalogTopicLessonManager;
+use App\Service\CatalogWriteService;
+use App\Service\CurriculumLearningOutcomeManager;
+use App\Service\CurriculumProgramManager;
+use App\Service\CurriculumTopicManager;
+use App\Service\CurriculumUnitManager;
+use App\Service\LearningContentManager;
+use App\Service\StudentProfileManager;
+use App\Service\SubjectManager;
+use App\Service\UserAccountLifecycle;
+use App\Service\UserFactory;
+use App\Tests\Support\AccessEntitlementDbCleanup;
+use App\Tests\Support\LearningContentDbCleanup;
+use App\Tests\Support\QuestionBankDbCleanup;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\KernelBrowser;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Uid\Uuid;
+
+final class StudentTopicPageControllerTest extends WebTestCase
+{
+    private const FIXTURE = 'data/catalog/meb/tymm-2026/grade-1-matematik.yaml';
+    private const SECRET_BODY = 'SECRET_REVISION_BODY_MARKER_9f3a';
+    private const SECRET_STORAGE = 'platform/media/SECRET_STORAGE_KEY_MARKER_7c2b.bin';
+
+    public function testAnonymousTopicRedirectsToLogin(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');
+        self::assertResponseRedirects('/giris');
+    }
+
+    public function testTeacherForbiddenOnStudentTopicRoute(): void
+    {
+        $this->createActive('topic-teacher@example.com', UserRole::Teacher);
+        $client = static::createClient();
+        $this->login($client, 'topic-teacher@example.com');
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testPublishedTopicEmptyStateAndNineteenRoutes(): void
+    {
+        $this->importAndPublishTymm();
+
+        $user = $this->createActive('topic-g1@example.com', UserRole::Student);
+        $this->completeOnboarding($user, GradeLevel::Grade1);
+        $client = static::createClient();
+        $this->login($client, 'topic-g1@example.com');
+
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Uzamsal İlişkiler');
+        self::assertSelectorTextContains('body', 'Bu konu için öğrenme adımları hazırlanıyor.');
+        self::assertSelectorTextContains('.student-breadcrumb', 'Panel');
+        self::assertSelectorTextContains('.student-breadcrumb', 'Dersler');
+        self::assertSelectorTextContains('.student-breadcrumb', 'Matematik');
+
+        $paths = $this->collectPublishedTopicPaths();
+        self::assertCount(19, $paths);
+        foreach ($paths as $path) {
+            $client->request('GET', $path);
+            self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('body', 'Bu konu için öğrenme adımları hazırlanıyor.');
+        }
+
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler"]');
+    }
+
+    public function testWrongSlugCombinationsAndOtherGradeAreOpaque404(): void
+    {
+        $this->importAndPublishTymm();
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var CatalogWriteService $writer */
+        $writer = static::getContainer()->get(CatalogWriteService::class);
+        $math5 = $writer->createSubject(GradeLevel::Grade5, 'Matematik Beş Topic', null, 1);
+        $writer->publishSubject($math5->getId());
+        $unit5 = $writer->createUnit($math5->getId(), 'Tema Beş', null, 0);
+        $writer->publishUnit($unit5->getId());
+        $topic5 = $writer->createTopic($unit5->getId(), 'Konu Beş', null, 0, 10);
+        $writer->publishTopic($topic5->getId());
+        self::ensureKernelShutdown();
+
+        $user = $this->createActive('topic-404@example.com', UserRole::Student);
+        $this->completeOnboarding($user, GradeLevel::Grade1);
+        $client = static::createClient();
+        $this->login($client, 'topic-404@example.com');
+
+        $client->request('GET', '/ogrenci/dersler/matematik/yanlis-unite/uzamsal-iliskiler');
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/yanlis-konu');
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request('GET', '/ogrenci/dersler/yanlis-ders/nesnelerin-geometrisi-1/uzamsal-iliskiler');
+        self::assertResponseStatusCodeSame(404);
+
+        $client->request('GET', '/ogrenci/dersler/matematik-bes-topic/tema-bes/konu-bes');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testPlacementVisibilityFiltersAndNoSecretLeak(): void
+    {
+        [$subjectSlug, $unitSlug, $topicSlug, $topicId] = $this->seedPublishedTopicHierarchy('vis');
+        self::ensureKernelShutdown();
+        self::bootKernel();
+
+        /** @var CatalogTopicLessonManager $placements */
+        $placements = static::getContainer()->get(CatalogTopicLessonManager::class);
+        /** @var LearningContentManager $contents */
+        $contents = static::getContainer()->get(LearningContentManager::class);
+        /** @var AccessPackageManager $packages */
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $topic = $em->find(CatalogTopic::class, $topicId);
+        self::assertInstanceOf(CatalogTopic::class, $topic);
+        $canonical = $topic->getUnit()->getSubject()->getCanonicalSubject();
+        self::assertInstanceOf(Subject::class, $canonical);
+
+        $admin = $this->activeStaff('vis-admin@example.com', UserRole::Admin);
+        $sa = $this->activeStaff('vis-sa@example.com', UserRole::SuperAdmin);
+
+        $visible = $this->createAndPublishContent($admin, $canonical, 'vis_ok', 'Visible Lesson Body');
+        $packages->setLearningContentAccessPolicy($visible, $sa, ResourceAccessClass::Free, 'set_free');
+        $visibleLesson = $placements->create(
+            $admin,
+            $topic->getId(),
+            $visible->getId(),
+            'Görünür Adım',
+            'Kısa özet',
+            0,
+            'create_vis',
+            'gorunur-adim',
+        );
+        $placements->publish($admin, $visibleLesson->getId(), 'pub_vis');
+
+        $draftLc = $this->createDraftContent($admin, $canonical, 'vis_draft_lc', 'Draft LC');
+        $draftPlacement = $placements->create(
+            $admin,
+            $topic->getId(),
+            $draftLc->getId(),
+            'Taslak Adım',
+            null,
+            1,
+            'create_draft',
+            'taslak-adim',
+        );
+        self::assertSame('draft', $draftPlacement->getVisibilityStatus()->value);
+
+        $denied = $this->createAndPublishContent($admin, $canonical, 'vis_deny', 'Denied Body');
+        $packages->setLearningContentAccessPolicy($denied, $sa, ResourceAccessClass::EntitlementRequired, 'set_ent');
+        $deniedLesson = $placements->create(
+            $admin,
+            $topic->getId(),
+            $denied->getId(),
+            'Kapalı Adım',
+            null,
+            2,
+            'create_deny',
+            'kapali-adim',
+        );
+        $placements->publish($admin, $deniedLesson->getId(), 'pub_deny');
+
+        $archivedLc = $this->createAndPublishContent($admin, $canonical, 'vis_arch', 'Archived Body');
+        $packages->setLearningContentAccessPolicy($archivedLc, $sa, ResourceAccessClass::Free, 'set_free_arch');
+        $archivedLesson = $placements->create(
+            $admin,
+            $topic->getId(),
+            $archivedLc->getId(),
+            'Arşiv Adım',
+            null,
+            3,
+            'create_arch',
+            'arsiv-adim',
+        );
+        $placements->publish($admin, $archivedLesson->getId(), 'pub_arch');
+        $placements->archive($admin, $archivedLesson->getId(), 'arch');
+
+        $unpubLcBundle = $this->createAndPublishContent($admin, $canonical, 'vis_unpub', self::SECRET_BODY);
+        $packages->setLearningContentAccessPolicy($unpubLcBundle, $sa, ResourceAccessClass::Free, 'set_free_unpub');
+        $unpubLesson = $placements->create(
+            $admin,
+            $topic->getId(),
+            $unpubLcBundle->getId(),
+            'Gizli Gövde Adım',
+            null,
+            4,
+            'create_unpub',
+            'gizli-govde',
+        );
+        $placements->publish($admin, $unpubLesson->getId(), 'pub_unpub');
+        $contents->archive($unpubLcBundle, $admin, 'archive_lc');
+
+        // Visible lesson body also carries a secret marker that must never reach student HTML.
+        $secretVisible = $this->createAndPublishContent($admin, $canonical, 'vis_secret', self::SECRET_BODY);
+        $packages->setLearningContentAccessPolicy($secretVisible, $sa, ResourceAccessClass::Free, 'set_free_secret');
+        $secretLesson = $placements->create(
+            $admin,
+            $topic->getId(),
+            $secretVisible->getId(),
+            'Güvenli Liste Adımı',
+            null,
+            5,
+            'create_secret',
+            'guvenli-liste',
+        );
+        $placements->publish($admin, $secretLesson->getId(), 'pub_secret');
+
+        self::ensureKernelShutdown();
+
+        $student = $this->createActive('topic-vis@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+        $client = static::createClient();
+        $this->login($client, 'topic-vis@example.com');
+
+        $path = \sprintf('/ogrenci/dersler/%s/%s/%s', $subjectSlug, $unitSlug, $topicSlug);
+        $client->request('GET', $path);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Görünür Adım');
+        self::assertSelectorTextContains('body', 'Kısa özet');
+        self::assertSelectorTextContains('body', 'Güvenli Liste Adımı');
+        self::assertSelectorNotExists('body:contains("Taslak Adım")');
+        self::assertSelectorNotExists('body:contains("Kapalı Adım")');
+        self::assertSelectorNotExists('body:contains("Arşiv Adım")');
+        self::assertSelectorNotExists('body:contains("Gizli Gövde Adım")');
+        $html = $client->getResponse()->getContent() ?: '';
+        self::assertStringNotContainsString(self::SECRET_BODY, $html);
+        self::assertStringNotContainsString(self::SECRET_STORAGE, $html);
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString('content_json', $html);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function collectPublishedTopicPaths(): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var CatalogSubjectRepository $subjects */
+        $subjects = static::getContainer()->get(CatalogSubjectRepository::class);
+        /** @var CatalogUnitRepository $units */
+        $units = static::getContainer()->get(CatalogUnitRepository::class);
+        /** @var CatalogTopicRepository $topics */
+        $topics = static::getContainer()->get(CatalogTopicRepository::class);
+        $subject = $subjects->findOneBySourceIdentity('TYMM-2026', 'MAT', 1);
+        self::assertNotNull($subject);
+        $paths = [];
+        foreach ($units->findPublishedBySubject($subject) as $unit) {
+            foreach ($topics->findPublishedByUnit($unit) as $topic) {
+                $paths[] = \sprintf(
+                    '/ogrenci/dersler/%s/%s/%s',
+                    $subject->getSlug(),
+                    $unit->getSlug(),
+                    $topic->getSlug(),
+                );
+            }
+        }
+        self::ensureKernelShutdown();
+
+        return $paths;
+    }
+
+    private function importAndPublishTymm(): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->cleanupCatalogAndContent();
+        /** @var CatalogImportService $import */
+        $import = static::getContainer()->get(CatalogImportService::class);
+        /** @var CatalogPublishTreeService $publisher */
+        $publisher = static::getContainer()->get(CatalogPublishTreeService::class);
+        $path = \dirname(__DIR__, 2).\DIRECTORY_SEPARATOR.str_replace('/', \DIRECTORY_SEPARATOR, self::FIXTURE);
+        $import->import($path, apply: true, updateExisting: false);
+        $publisher->publish('TYMM-2026', 'MAT', 1, 7, 19, apply: true);
+        self::ensureKernelShutdown();
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string, 3: Uuid}
+     */
+    private function seedPublishedTopicHierarchy(string $prefix): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->cleanupCatalogAndContent();
+
+        /** @var SubjectManager $subjects */
+        $subjects = static::getContainer()->get(SubjectManager::class);
+        /** @var CatalogWriteService $catalog */
+        $catalog = static::getContainer()->get(CatalogWriteService::class);
+
+        $sa = $this->activeStaff($prefix.'-sa-seed@example.com', UserRole::SuperAdmin);
+        $subject = $subjects->create($sa, $prefix.'_subj', 'Subject '.$prefix, 'create_s');
+        $programs = static::getContainer()->get(CurriculumProgramManager::class);
+        $units = static::getContainer()->get(CurriculumUnitManager::class);
+        $topics = static::getContainer()->get(CurriculumTopicManager::class);
+        $outcomes = static::getContainer()->get(CurriculumLearningOutcomeManager::class);
+        self::assertInstanceOf(CurriculumProgramManager::class, $programs);
+        self::assertInstanceOf(CurriculumUnitManager::class, $units);
+        self::assertInstanceOf(CurriculumTopicManager::class, $topics);
+        self::assertInstanceOf(CurriculumLearningOutcomeManager::class, $outcomes);
+
+        $program = $programs->createDraft($subject, $sa, GradeLevel::Grade1, $prefix.'_prog', 'Prog', '1.0', 'create_p');
+        $cUnit = $units->create($program, $sa, $prefix.'_u', 'U', 1, 'create_u');
+        $cTopic = $topics->createRoot($cUnit, $sa, $prefix.'_t', 'T', 1, 'create_t');
+        $outcomes->create($cTopic, $sa, $prefix.'_lo', 'Outcome', 1, 'create_lo');
+        $programs->publish($program, $sa, 'publish_p');
+
+        $catalogSubject = $catalog->createSubject(GradeLevel::Grade1, 'Matematik '.$prefix, null, 1);
+        $catalog->assignCanonicalSubject($catalogSubject->getId(), $subject->getId());
+        $unit = $catalog->createUnit($catalogSubject->getId(), 'Tema '.$prefix, null, 0);
+        $topic = $catalog->createTopic($unit->getId(), 'Konu '.$prefix, 'Özet', 0, 15);
+        $catalog->publishSubject($catalogSubject->getId());
+        $catalog->publishUnit($unit->getId());
+        $catalog->publishTopic($topic->getId());
+
+        $result = [$catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug(), $topic->getId()];
+        self::ensureKernelShutdown();
+
+        return $result;
+    }
+
+    private function createAndPublishContent(User $author, Subject $subject, string $code, string $title): LearningContent
+    {
+        $content = $this->createDraftContent($author, $subject, $code, $title);
+        $reviewer = $this->activeStaff($code.'-rev@example.com', UserRole::HeadTeacher);
+        /** @var LearningContentManager $contents */
+        $contents = static::getContainer()->get(LearningContentManager::class);
+        $contents->submitForReview($content, $author, 'submit');
+        $contents->publish($content, $reviewer, 'publish');
+
+        return $content;
+    }
+
+    private function createDraftContent(User $actor, Subject $subject, string $code, string $title): LearningContent
+    {
+        /** @var LearningContentManager $contents */
+        $contents = static::getContainer()->get(LearningContentManager::class);
+        /** @var CurriculumProgramRepository $programs */
+        $programs = static::getContainer()->get(CurriculumProgramRepository::class);
+        /** @var CurriculumLearningOutcomeRepository $outcomes */
+        $outcomes = static::getContainer()->get(CurriculumLearningOutcomeRepository::class);
+
+        $published = $programs->findPublishedForSubjectAndGrade($subject, GradeLevel::Grade1);
+        self::assertNotEmpty($published);
+        $los = $outcomes->findByProgram($published[0]);
+        self::assertNotEmpty($los);
+
+        return $contents->createDraft(
+            $actor,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::TopicExplanation,
+            $code,
+            $title,
+            null,
+            LearningContentDocument::paragraph($title),
+            [['learningOutcome' => $los[0], 'isPrimary' => true]],
+            'create',
+        );
+    }
+
+    private function activeStaff(string $email, UserRole $role): User
+    {
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $createAs = \in_array($role, [UserRole::Admin, UserRole::Moderator, UserRole::SuperAdmin], true)
+            ? UserRole::Student
+            : $role;
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', $createAs);
+        if ($createAs !== $role) {
+            $user->addGlobalRole($role);
+        }
+        $user->markEmailVerified(new \DateTimeImmutable('now'));
+        $user->transitionTo(UserStatus::Active);
+        $users->save($user);
+
+        return $user;
+    }
+
+    private function login(KernelBrowser $client, string $email): void
+    {
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => $email,
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+    }
+
+    private function createActive(string $email, UserRole $role): User
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserAccountLifecycle $lifecycle */
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Ayşe', 'Yılmaz', $role);
+        $lifecycle->markEmailVerifiedAndActivate($user);
+        self::ensureKernelShutdown();
+
+        return $user;
+    }
+
+    private function completeOnboarding(User $user, GradeLevel $grade): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $fresh = $users->find($user->getId());
+        self::assertInstanceOf(User::class, $fresh);
+        /** @var StudentProfileManager $manager */
+        $manager = static::getContainer()->get(StudentProfileManager::class);
+        $dto = new StudentProfileRequest();
+        $dto->gradeLevel = $grade;
+        $manager->completeOnboarding($fresh, $dto);
+        self::ensureKernelShutdown();
+    }
+
+    private function cleanupCatalogAndContent(): void
+    {
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $conn = $em->getConnection();
+        $sm = $conn->createSchemaManager();
+        if ($sm->tablesExist(['catalog_topic_lessons'])) {
+            $conn->executeStatement('DELETE FROM catalog_topic_lessons');
+        }
+        AccessEntitlementDbCleanup::deleteAll($conn);
+        LearningContentDbCleanup::deleteLearningContents($conn);
+        foreach (['catalog_topics', 'catalog_units', 'catalog_subjects'] as $table) {
+            if ($sm->tablesExist([$table])) {
+                $conn->executeStatement('DELETE FROM '.$table);
+            }
+        }
+        if ($sm->tablesExist(['curriculum_topics'])) {
+            $conn->executeStatement('DELETE FROM curriculum_topics WHERE parent_id IS NOT NULL');
+        }
+        QuestionBankDbCleanup::deleteTables($conn, [
+            'curriculum_learning_outcomes',
+            'curriculum_topics',
+            'curriculum_units',
+            'curriculum_programs',
+            'subjects',
+        ]);
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $this->cleanupCatalogAndContent();
+            /** @var EntityManagerInterface $em */
+            $em = static::getContainer()->get(EntityManagerInterface::class);
+            $conn = $em->getConnection();
+            $sm = $conn->createSchemaManager();
+            foreach (['student_profiles', 'users'] as $table) {
+                if ($sm->tablesExist([$table])) {
+                    $conn->executeStatement('DELETE FROM '.$table);
+                }
+            }
+        } catch (\Throwable) {
+        }
+        parent::tearDown();
+    }
+}

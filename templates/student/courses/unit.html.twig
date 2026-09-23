@@ -27,16 +27,18 @@
     {% else %}
         <ul class="student-topic-list">
             {% for topic in topics %}
-                <li class="student-topic-item">
-                    <div>
-                        <p class="student-topic-item__name">{{ topic.name }}</p>
-                        {% if topic.summary %}
-                            <p class="muted">{{ topic.summary|length > 200 ? topic.summary|slice(0, 200) ~ '…' : topic.summary }}</p>
+                <li>
+                    <a class="student-topic-item student-topic-item--link" href="{{ path('app_student_course_topic', {subjectSlug: subject.slug, unitSlug: unit.slug, topicSlug: topic.slug}) }}">
+                        <div>
+                            <p class="student-topic-item__name">{{ topic.name }}</p>
+                            {% if topic.summary %}
+                                <p class="muted">{{ topic.summary|length > 200 ? topic.summary|slice(0, 200) ~ '…' : topic.summary }}</p>
+                            {% endif %}
+                        </div>
+                        {% if topic.estimatedMinutes %}
+                            <span class="student-badge">{{ topic.estimatedMinutes }} dk</span>
                         {% endif %}
-                    </div>
-                    {% if topic.estimatedMinutes %}
-                        <span class="student-badge">{{ topic.estimatedMinutes }} dk</span>
-                    {% endif %}
+                    </a>
                 </li>
             {% endfor %}
         </ul>
