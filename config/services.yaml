@@ -32,6 +32,10 @@ services:
     App\:
         resource: '../src/'
 
+    App\Service\CatalogPublish\CatalogPublishTreeService:
+        arguments:
+            $afterTopicsHook: null
+
     App\Service\EmailVerificationSenderInterface: '@App\Service\EmailVerificationMailer'
     App\Service\PasswordResetNotifierInterface: '@App\Service\PasswordResetMailer'
     App\Security\InstitutionAuthorizationCacheInvalidator: '@App\Security\RequestScopedInstitutionAuthLookup'
