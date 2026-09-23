@@ -73,18 +73,31 @@ Kaynak: TTKB PID=2339, sürüm `TYMM-2026` (program + DÖP PDF URL’leri fixtur
 
 ```powershell
 # Dry-run (varsayılan; DB yazmaz)
-docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml
+php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml
 
 # Draft satırları yaz (publish etmez)
-docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply
+php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply
 
 # Mevcut source kimliğinde ad/sıra/url güncelle (opsiyonel)
-docker compose exec app php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply --update-existing
+php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply --update-existing
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
 - Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
-- Publish ayrı admin/onay adımıdır; import asla publish/archive/delete yapmaz.
+- Import asla publish/archive/delete yapmaz.
+
+### MEB katalog yayınlama (ağaç)
+
+Bottom-up atomik yayın (`topics` → `units` → `subject`). Varsayılan preflight/dry-run; yalnız `--apply` yazar.
+
+```powershell
+php bin/console app:catalog:publish-tree --source-version=TYMM-2026 --subject-code=MAT --expected-subjects=1 --expected-units=7 --expected-topics=19
+php bin/console app:catalog:publish-tree --source-version=TYMM-2026 --subject-code=MAT --expected-subjects=1 --expected-units=7 --expected-topics=19 --apply
+```
+
+- Beklenen sayılar zorunlu güvenlik kilidi; sapma → yazma yok.
+- Yalnız draft yayımlanır; archived / yanlış sürüm / yanlış sınıf → durur.
+- Tamamı published ise güvenli no-op. Production ops: `ops-catalog-publish-tree.yml` (yalnız workflow_dispatch).
 
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
 Parola sıfırlama yalnızca **active** hesaplara e-posta gönderir; public cevap her durumda aynıdır.
