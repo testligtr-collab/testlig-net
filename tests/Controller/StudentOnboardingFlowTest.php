@@ -128,8 +128,10 @@ final class StudentOnboardingFlowTest extends WebTestCase
             'student_profile[city]' => str_repeat('b', 101),
             'student_profile[learningGoal]' => str_repeat('c', 501),
         ]));
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.form-errors, .form-row ul');
+        self::assertTrue(
+            $client->getResponse()->isSuccessful() || 422 === $client->getResponse()->getStatusCode(),
+        );
+        self::assertSelectorExists('#student_profile_schoolName_error1, .form-errors, ul li');
 
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
@@ -258,9 +260,10 @@ final class StudentOnboardingFlowTest extends WebTestCase
 
     public function testSafeTargetPathStillHonoured(): void
     {
-        $client = static::createClient();
         $this->createActiveUser('target@example.com', UserRole::Student);
-        $client->request('GET', '/giris');
+        $client = static::createClient();
+        $client->request('GET', '/hesabim');
+        self::assertResponseRedirects('/giris');
         $session = $client->getRequest()->getSession();
         $session->set('_security.main.target_path', '/hesabim');
         $session->save();

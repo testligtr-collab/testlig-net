@@ -56,7 +56,7 @@ final class ChangePasswordControllerTest extends WebTestCase
             '_username' => 'change-ok@example.com',
             '_password' => 'Yeni-Guclu-Parola-999!',
         ]));
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/ogrenci/kurulum');
     }
 
     public function testWrongCurrentPasswordRejected(): void
@@ -198,7 +198,7 @@ final class ChangePasswordControllerTest extends WebTestCase
             '_username' => $email,
             '_password' => $newPassword,
         ]));
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/ogrenci/kurulum');
     }
 
     public function testRoleRemovalInvalidatesExistingBrowserSession(): void
