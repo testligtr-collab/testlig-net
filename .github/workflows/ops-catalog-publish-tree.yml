@@ -87,6 +87,20 @@ jobs:
             echo "archived_subjects=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND source_code = 'MAT' AND status = 'archived'")"
             echo "archived_units=$(sql_count "SELECT COUNT(*) AS c FROM catalog_units WHERE source_version = 'TYMM-2026' AND status = 'archived'")"
             echo "archived_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics WHERE source_version = 'TYMM-2026' AND status = 'archived'")"
+            echo "grade1_published_subjects=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE grade_level = 1 AND status = 'published'")"
+            echo "mat_grade1_published=$(sql_count "SELECT COUNT(*) AS c FROM catalog_subjects WHERE source_version = 'TYMM-2026' AND source_code = 'MAT' AND grade_level = 1 AND status = 'published' AND slug = 'matematik'")"
+            echo "mat_grade1_units=$(sql_count "SELECT COUNT(*) AS c FROM catalog_units u INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND u.status = 'published'")"
+            echo "mat_grade1_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND t.status = 'published'")"
+            # Local health (OpenLiteSpeed / virtual host). Prefer Host header; fall back to plain loopback.
+            set +e
+            hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/health 2>/dev/null)
+            hl_rc=$?
+            if [ "$hl_rc" -ne 0 ] || [ -z "$hl" ]; then
+              hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 http://127.0.0.1/health 2>/dev/null || echo err)
+            fi
+            set -e
+            echo "health_local=${hl}"
+            echo "dersler_anon=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/ogrenci/dersler 2>/dev/null || echo err)"
             exit 0
           fi
 
@@ -108,3 +122,14 @@ jobs:
 
           run_app "$PHP_BIN" "${ARGS[@]}"
           EOS
+
+      - name: External HTTP smoke (secret-free)
+        if: inputs.mode == 'verify'
+        run: |
+          set -euo pipefail
+          health=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/health || echo err)
+          dersler=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/ogrenci/dersler || echo err)
+          echo "health_external=${health}"
+          echo "dersler_external=${dersler}"
+          test "${health}" = "403"
+          test "${dersler}" = "302"
