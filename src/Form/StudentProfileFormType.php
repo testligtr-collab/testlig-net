@@ -61,4 +61,9 @@ final class StudentProfileFormType extends AbstractType
             'csrf_token_id' => 'student_profile',
         ]);
     }
+
+    public function getBlockPrefix(): string
+    {
+        return 'student_profile';
+    }
 }
