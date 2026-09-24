@@ -80,11 +80,16 @@ php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-mat
 
 # Mevcut source kimliğinde ad/sıra/url güncelle (opsiyonel)
 php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-matematik.yaml --apply --update-existing
+
+# TYMM pilot curriculum outcome (LearningContent primary-outcome form). Dry-run default.
+php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml
+php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml --apply
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
 - Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
 - Import asla publish/archive/delete yapmaz.
+- Curriculum pilot import: natural keys program `(subject, grade, code, version)` + unit/topic/outcome codes; requires active Subject + SuperAdmin; does **not** create LearningContent or placements.
 
 ### MEB katalog yayınlama (ağaç)
 

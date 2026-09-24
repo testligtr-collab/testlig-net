@@ -28,8 +28,13 @@ class CurriculumTopicRepository extends ServiceEntityRepository
 
     public function existsWithCode(CurriculumUnit $unit, string $code): bool
     {
-        return null !== $this->createQueryBuilder('t')
-            ->select('1')
+        return null !== $this->findOneByUnitAndCode($unit, $code);
+    }
+
+    public function findOneByUnitAndCode(CurriculumUnit $unit, string $code): ?CurriculumTopic
+    {
+        /** @var CurriculumTopic|null $topic */
+        $topic = $this->createQueryBuilder('t')
             ->andWhere('t.unit = :unit')
             ->andWhere('t.code = :code')
             ->setParameter('unit', $unit->getId(), 'uuid')
@@ -37,6 +42,8 @@ class CurriculumTopicRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $topic;
     }
 
     public function existsRootPosition(CurriculumUnit $unit, int $position): bool

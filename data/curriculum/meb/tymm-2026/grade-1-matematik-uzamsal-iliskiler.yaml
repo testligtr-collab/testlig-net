@@ -1,0 +1,31 @@
+# TYMM-2026 — pilot curriculum slice: 1. sınıf Matematik → Uzamsal İlişkiler
+# Official learning outcome only (MAT.1.3.1). Domain codes are snake_case.
+# Provenance: TTKB PID=2339 / tymm.meb.gov.tr theme unit 109.
+schema_version: 1
+source:
+  program_id: "2339"
+  version: "TYMM-2026"
+  program_url: "https://mufredat.meb.gov.tr/ProgramDetay.aspx?PID=2339"
+  pdf_url: "https://mufredat.meb.gov.tr/Dosyalar/20268149102521-Matematik%20(1-4)%20DÖP.pdf"
+  tymm_theme_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/109"
+subject_code: matematik
+program:
+  code: mat_grade1_tymm
+  name: "İlkokul Matematik 1 (TYMM-2026)"
+  version: "TYMM-2026"
+  grade_level: 1
+unit:
+  code: mat_1_3_occ1
+  title: "Nesnelerin Geometrisi (1)"
+  official_theme_code: "MAT.1.3"
+  position: 1
+topic:
+  code: uzamsal_iliskiler
+  title: "Uzamsal İlişkiler"
+  position: 1
+outcome:
+  code: mat_1_3_1
+  official_code: "MAT.1.3.1"
+  description: "Hedefe ulaşmak için mesafeleri ve yönleri içeren yönergeleri çözümleyebilme"
+  position: 1
+publish: true

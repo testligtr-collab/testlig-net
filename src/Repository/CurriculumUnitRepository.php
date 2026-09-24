@@ -27,8 +27,13 @@ class CurriculumUnitRepository extends ServiceEntityRepository
 
     public function existsWithCode(CurriculumProgram $program, string $code): bool
     {
-        return null !== $this->createQueryBuilder('u')
-            ->select('1')
+        return null !== $this->findOneByProgramAndCode($program, $code);
+    }
+
+    public function findOneByProgramAndCode(CurriculumProgram $program, string $code): ?CurriculumUnit
+    {
+        /** @var CurriculumUnit|null $unit */
+        $unit = $this->createQueryBuilder('u')
             ->andWhere('u.program = :program')
             ->andWhere('u.code = :code')
             ->setParameter('program', $program->getId(), 'uuid')
@@ -36,6 +41,8 @@ class CurriculumUnitRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $unit;
     }
 
     public function existsWithPosition(CurriculumProgram $program, int $position): bool

@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\User;
 use App\Enum\UserRole;
+use App\Enum\UserStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\Query;
@@ -75,6 +76,33 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         );
 
         return false !== $result && null !== $result;
+    }
+
+    /**
+     * First active + email-verified SuperAdmin (ops import actor). No PII returned beyond User entity.
+     */
+    public function findOneActiveVerifiedSuperAdmin(): ?User
+    {
+        $roleJson = json_encode(UserRole::SuperAdmin->value, \JSON_THROW_ON_ERROR);
+        $idBinary = $this->getEntityManager()->getConnection()->fetchOne(
+            'SELECT id FROM users
+              WHERE status = :status
+                AND email_verified_at IS NOT NULL
+                AND JSON_CONTAINS(global_roles, :role, \'$\') = 1
+              ORDER BY created_at ASC
+              LIMIT 1',
+            [
+                'status' => UserStatus::Active->value,
+                'role' => $roleJson,
+            ],
+        );
+        if (false === $idBinary || null === $idBinary) {
+            return null;
+        }
+
+        $id = Uuid::fromBinary((string) $idBinary);
+
+        return $this->findOneById($id);
     }
 
     public function save(User $user, bool $flush = true): void
