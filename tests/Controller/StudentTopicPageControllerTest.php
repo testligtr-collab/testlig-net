@@ -324,7 +324,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $programs->publish($program, $sa, 'publish_p');
 
         $catalogSubject = $catalog->createSubject(GradeLevel::Grade1, 'Matematik '.$prefix, null, 1);
-        $catalog->assignCanonicalSubject($catalogSubject->getId(), $subject->getId());
+        $catalog->assignCanonicalSubject($sa, $catalogSubject->getId(), $subject->getId());
         $unit = $catalog->createUnit($catalogSubject->getId(), 'Tema '.$prefix, null, 0);
         $topic = $catalog->createTopic($unit->getId(), 'Konu '.$prefix, 'Özet', 0, 15);
         $catalog->publishSubject($catalogSubject->getId());

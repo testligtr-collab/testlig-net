@@ -1,0 +1,52 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ content.title }} — İçerikler — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ content.title }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ content.title }}</h1>
+
+    <dl class="account-dl">
+        <dt>Kod</dt><dd><code>{{ content.code }}</code></dd>
+        <dt>Tür</dt><dd>{{ content.contentType.value }}</dd>
+        <dt>Durum</dt><dd>{{ content.status.value }}</dd>
+        <dt>Kapsam</dt><dd>{{ content.scope.value }}</dd>
+        <dt>Konu alanı</dt>
+        <dd>{{ content.subject.name }} · <code>{{ content.subject.code }}</code> · <code>{{ content.subject.id.toRfc4122 }}</code></dd>
+        <dt>Sınıf</dt><dd>{{ content.gradeLevel.value }}. sınıf</dd>
+        <dt>Yazar</dt>
+        <dd>{{ content.createdBy.firstName }} {{ content.createdBy.lastName }}</dd>
+        <dt>Erişim politikası</dt>
+        <dd>{% if policy %}{{ policy.accessClass.value }}{% else %}<span class="muted">Yapılandırılmamış (fail-closed)</span>{% endif %}</dd>
+        {% if content.summary %}
+            <dt>Özet</dt><dd>{{ content.summary }}</dd>
+        {% endif %}
+    </dl>
+
+    {% if can_set_policy %}
+        <section class="admin-section" aria-labelledby="policy-heading">
+            <h2 id="policy-heading">Erişim politikası</h2>
+            <p class="muted">Varsayılan güvenli/fail-closed kalır. Free yalnız açık onay ve audit ile işaretlenir.</p>
+            <form method="post" action="{{ path('app_admin_learning_content_policy', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                <input type="hidden" name="_token" value="{{ csrf_token('learning_content_policy_' ~ content.id.toRfc4122) }}">
+                <label>Politika
+                    <select name="access_class" id="access_class">
+                        <option value="entitlement_required" {% if policy and policy.accessClass.value == 'entitlement_required' %}selected{% endif %}>Yetki gerekli</option>
+                        <option value="free" {% if policy and policy.accessClass.value == 'free' %}selected{% endif %}>Ücretsiz (Free)</option>
+                    </select>
+                </label>
+                <label>
+                    <input type="checkbox" name="confirm_free" value="1">
+                    Bu içerik ücretsiz erişime açılacak
+                </label>
+                <button type="submit" class="btn btn--primary">Politikayı kaydet</button>
+            </form>
+        </section>
+    {% endif %}
+{% endblock %}

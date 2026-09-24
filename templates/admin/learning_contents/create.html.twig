@@ -1,0 +1,32 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni taslak içerik — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni taslak</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Yeni taslak içerik</h1>
+        {% if can_create_subject %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
+        {% endif %}
+    </div>
+    <p class="muted">Platform kapsamı · boş paragraf gövdesi · bir birincil öğrenme kazanımı. Gerçek ders metni eklenmez.</p>
+
+    {{ form_start(form) }}
+        {{ form_row(form.code) }}
+        {{ form_row(form.title) }}
+        {{ form_row(form.summary) }}
+        {{ form_row(form.contentType) }}
+        {{ form_row(form.gradeLevel) }}
+        {{ form_row(form.subjectId) }}
+        {{ form_row(form.learningOutcomeId) }}
+        <button type="submit" class="btn btn--primary">Taslak oluştur</button>
+        <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
+    {{ form_end(form) }}
+{% endblock %}

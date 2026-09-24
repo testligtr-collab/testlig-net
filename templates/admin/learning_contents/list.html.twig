@@ -1,0 +1,102 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}İçerikler — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <span>İçerikler</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">İçerikler</h1>
+        {% if can_manage %}
+            <a class="btn btn--primary" href="{{ path('app_admin_learning_content_new') }}">Yeni taslak</a>
+        {% endif %}
+        {% if can_create_subject %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
+        {% endif %}
+    </div>
+
+    <form method="get" class="admin-filters" action="{{ path('app_admin_learning_contents') }}">
+        <label>Ara
+            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
+        </label>
+        <label>Durum
+            <select name="status">
+                <option value="">—</option>
+                {% for s in ['draft','in_review','published','archived'] %}
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Konu alanı
+            <select name="subject_id">
+                <option value="">—</option>
+                {% for s in subjects %}
+                    <option value="{{ s.id.toRfc4122 }}" {% if filters.subject_id|default('') == s.id.toRfc4122 %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Sınıf
+            <select name="grade">
+                <option value="">—</option>
+                {% for g in 1..12 %}
+                    <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button type="submit" class="btn btn--primary">Filtrele</button>
+    </form>
+
+    {% if result.items is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Kayıt yok',
+            body: 'Filtrelere uygun içerik bulunamadı.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Başlık</th>
+                        <th>Kod</th>
+                        <th>Tür</th>
+                        <th>Durum</th>
+                        <th>Konu</th>
+                        <th>Sınıf</th>
+                        <th>Yazar</th>
+                        <th>Erişim</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.title }}</td>
+                            <td><code>{{ row.code }}</code></td>
+                            <td>{{ row.contentType.value }}</td>
+                            <td>{{ row.status.value }}</td>
+                            <td>{{ row.subjectName }}</td>
+                            <td>{{ row.gradeLevel.value }}</td>
+                            <td>{{ row.authorName }}</td>
+                            <td>{{ row.accessClass|default('—') }}</td>
+                            <td><a href="{{ path('app_admin_learning_content', { id: row.id.toRfc4122 }) }}">Detay</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_learning_contents',
+        query: {
+            q: filters.q|default(''),
+            status: filters.status|default(''),
+            subject_id: filters.subject_id|default(''),
+            grade: filters.grade|default('')
+        }
+    } %}
+{% endblock %}

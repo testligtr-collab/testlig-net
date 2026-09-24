@@ -35,14 +35,16 @@ final class AdminNavBuilder
         $currentPath = $this->requestStack->getCurrentRequest()?->getPathInfo() ?? '';
         $isSa = $this->adminAuthorization->canOperatePayments($actor);
         $canAudit = $this->adminAuthorization->canViewSecurityAudit($actor);
+        $canShell = $this->adminAuthorization->canAccessAdminShell($actor);
 
         $canUsers = $this->adminAuthorization->canViewUsers($actor);
         $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
 
-        $items = [
-            $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath),
-            $this->item('system', 'Sistem', 'app_admin_system', $currentPath),
-        ];
+        $items = [];
+        if ($canShell) {
+            $items[] = $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath);
+            $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
+        }
 
         if ($canUsers) {
             $items[] = $this->item('users', 'Kullanıcılar', 'app_admin_users', $currentPath, '/yonetim/kullanicilar');
@@ -53,6 +55,10 @@ final class AdminNavBuilder
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
             $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
+        }
+
+        if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
+            $items[] = $this->item('learning_contents', 'İçerikler', 'app_admin_learning_contents', $currentPath, '/yonetim/icerikler');
         }
 
         if ($isSa) {
@@ -68,7 +74,7 @@ final class AdminNavBuilder
             'nav_items' => $items,
             // Admin SA surfaces exceed the generic 4-slot panel budget; CSS uses auto-fit.
             'mobile_nav' => $items,
-            'panel_role_label' => $isSa ? 'Süper Yönetici' : 'Yönetici',
+            'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : 'İçerik'),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
             'avatar_initials' => $this->initials($actor),
         ];

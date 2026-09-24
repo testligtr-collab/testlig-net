@@ -23,6 +23,9 @@ final class AdminPermission
     public const ADMIN_MEMBERSHIPS_MANAGE = 'ADMIN_MEMBERSHIPS_MANAGE';
     public const ADMIN_CATALOG_VIEW = 'ADMIN_CATALOG_VIEW';
     public const ADMIN_CATALOG_MANAGE = 'ADMIN_CATALOG_MANAGE';
+    public const ADMIN_CATALOG_MAP_CANONICAL = 'ADMIN_CATALOG_MAP_CANONICAL';
+    public const ADMIN_LEARNING_CONTENT_VIEW = 'ADMIN_LEARNING_CONTENT_VIEW';
+    public const ADMIN_LEARNING_CONTENT_MANAGE = 'ADMIN_LEARNING_CONTENT_MANAGE';
 
     /**
      * @return list<string>
@@ -44,6 +47,9 @@ final class AdminPermission
             self::ADMIN_MEMBERSHIPS_MANAGE,
             self::ADMIN_CATALOG_VIEW,
             self::ADMIN_CATALOG_MANAGE,
+            self::ADMIN_CATALOG_MAP_CANONICAL,
+            self::ADMIN_LEARNING_CONTENT_VIEW,
+            self::ADMIN_LEARNING_CONTENT_MANAGE,
         ];
     }
 }

@@ -98,11 +98,8 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $this->reopenIfClosed();
         }
 
-        $otherSubject = $this->subjects->create($this->superAdmin('uniq-sa-other@example.com'), 'uniq_other_s', 'Other Subj', 'create_s');
-        // Clear canonical so other-subject content can bind for uniqueness checks.
-        $catalogSubjectId = $topic->getUnit()->getSubject()->getId();
-        $this->catalog->assignCanonicalSubject($catalogSubjectId, null);
-        $other = $this->createDraftContent($admin, $otherSubject, 'uniq_other', 'Other');
+        // Second content on the same canonical subject (cannot clear mapping while placements exist).
+        $other = $this->createDraftContent($admin, $content->getSubject(), 'uniq_other', 'Other');
         try {
             $this->placements->create($admin, $topic->getId(), $other->getId(), 'Adım 2', null, 0, 'dup_pos', 'adim-2');
             self::fail('Expected duplicate position rejection');
@@ -177,7 +174,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         $catalogSubject = $this->catalog->createSubject(GradeLevel::Grade1, 'Matematik Katalog', null, 1);
         // Same display name as Subject must NOT auto-map.
         self::assertNull($catalogSubject->getCanonicalSubject());
-        $this->catalog->assignCanonicalSubject($catalogSubject->getId(), $math->getId());
+        $this->catalog->assignCanonicalSubject($admin, $catalogSubject->getId(), $math->getId());
         $this->em->refresh($catalogSubject);
         self::assertTrue($math->getId()->equals($catalogSubject->getCanonicalSubject()?->getId()));
 
@@ -194,7 +191,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         }
 
         // Clearing mapping allows bind without subject match enforcement.
-        $this->catalog->assignCanonicalSubject($catalogSubject->getId(), null);
+        $this->catalog->assignCanonicalSubject($admin, $catalogSubject->getId(), null);
         $this->em->clear();
         $catalogSubject = $this->em->find(\App\Entity\CatalogSubject::class, $catalogSubject->getId());
         self::assertNotNull($catalogSubject);
@@ -282,7 +279,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
         $programs->publish($program, $sa, 'publish_p');
 
         $catalogSubject = $this->catalog->createSubject(GradeLevel::Grade1, 'Ders '.$prefix, null, 1);
-        $this->catalog->assignCanonicalSubject($catalogSubject->getId(), $subject->getId());
+        $this->catalog->assignCanonicalSubject($admin, $catalogSubject->getId(), $subject->getId());
         $unit = $this->catalog->createUnit($catalogSubject->getId(), 'Tema '.$prefix, null, 0);
         $topic = $this->catalog->createTopic($unit->getId(), 'Konu '.$prefix, null, 0, 15);
         $this->catalog->publishSubject($catalogSubject->getId());

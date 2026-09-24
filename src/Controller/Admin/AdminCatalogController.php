@@ -17,6 +17,7 @@ use App\Form\CatalogUnitFormType;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CatalogUnitRepository;
+use App\Repository\SubjectRepository;
 use App\Security\AdminPermission;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\CatalogWriteService;
@@ -34,6 +35,7 @@ final class AdminCatalogController extends AdminBaseController
         private readonly CatalogUnitRepository $units,
         private readonly CatalogTopicRepository $topics,
         private readonly CatalogWriteService $writer,
+        private readonly SubjectRepository $canonicalSubjects,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -88,16 +90,55 @@ final class AdminCatalogController extends AdminBaseController
     }
 
     #[Route('/yonetim/mufredat/ders/{id}', name: 'app_admin_catalog_subject', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
-    #[IsGranted(AdminPermission::ADMIN_CATALOG_VIEW)]
     public function subjectShow(string $id): Response
     {
+        if (!$this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW)
+            && !$this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL)) {
+            throw $this->createAccessDeniedException();
+        }
         $subject = $this->requireSubject($id);
 
         return $this->renderAdmin('admin/catalog/subject_show.html.twig', [
             'subject' => $subject,
             'units' => $this->units->findBySubjectOrdered($subject),
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MANAGE),
+            'can_map_canonical' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
+            'canonical_subjects' => $this->canonicalSubjects->findActiveOrdered(),
         ]);
+    }
+
+    #[Route('/yonetim/mufredat/ders/{id}/canonical', name: 'app_admin_catalog_subject_canonical', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL)]
+    public function subjectCanonicalMap(Request $request, string $id): Response
+    {
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('catalog_canonical_map_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+        $raw = trim((string) $request->request->get('canonical_subject_id', ''));
+        $canonicalId = null;
+        if ('' !== $raw) {
+            try {
+                $canonicalId = Uuid::fromString($raw);
+            } catch (\InvalidArgumentException) {
+                $this->addFlash('error', 'Geçersiz canonical konu alanı kimliği.');
+
+                return $this->redirectToRoute('app_admin_catalog_subject', ['id' => $id]);
+            }
+        }
+        try {
+            $this->writer->assignCanonicalSubject(
+                $this->requireActorUser(),
+                Uuid::fromString($id),
+                $canonicalId,
+                'map_canonical',
+            );
+            $this->addFlash('success', null === $canonicalId ? 'Canonical eşleme kaldırıldı.' : 'Canonical eşleme kaydedildi.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_catalog_subject', ['id' => $id]);
     }
 
     #[Route('/yonetim/mufredat/ders/{id}/duzenle', name: 'app_admin_catalog_subject_edit', methods: ['GET', 'POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]

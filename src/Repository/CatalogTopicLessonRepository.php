@@ -99,4 +99,18 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
 
         return $rows;
     }
+
+    public function existsForCatalogSubject(Uuid $catalogSubjectId): bool
+    {
+        $count = (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->innerJoin('l.catalogTopic', 't')
+            ->innerJoin('t.unit', 'u')
+            ->andWhere('IDENTITY(u.subject) = :subjectId')
+            ->setParameter('subjectId', $catalogSubjectId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
+    }
 }
