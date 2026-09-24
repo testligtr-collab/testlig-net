@@ -152,7 +152,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $admin = $this->activeStaff('vis-admin@example.com', UserRole::Admin);
         $sa = $this->activeStaff('vis-sa@example.com', UserRole::SuperAdmin);
 
-        $visible = $this->createAndPublishContent($admin, $canonical, 'vis_ok', 'Visible Lesson Title', self::SECRET_BODY);
+        $visible = $this->createAndPublishContent($admin, $canonical, 'vis_ok', 'Visible Lesson Title', 'Safe visible paragraph');
         $packages->setLearningContentAccessPolicy($visible, $sa, ResourceAccessClass::Free, 'set_free');
         $visibleLesson = $placements->create(
             $admin,
@@ -179,7 +179,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         );
         self::assertSame('draft', $draftPlacement->getVisibilityStatus()->value);
 
-        $denied = $this->createAndPublishContent($admin, $canonical, 'vis_deny', 'Denied Body');
+        $denied = $this->createAndPublishContent($admin, $canonical, 'vis_deny', 'Denied Body', self::SECRET_BODY);
         $packages->setLearningContentAccessPolicy($denied, $sa, ResourceAccessClass::EntitlementRequired, 'set_ent');
         $deniedLesson = $placements->create(
             $admin,
@@ -235,6 +235,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Görünür Adım');
         self::assertSelectorTextContains('body', 'Kısa özet');
+        self::assertSelectorTextContains('body', 'Safe visible paragraph');
         self::assertSelectorNotExists('body:contains("Taslak Adım")');
         self::assertSelectorNotExists('body:contains("Kapalı Adım")');
         self::assertSelectorNotExists('body:contains("Arşiv Adım")');
@@ -244,6 +245,85 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertStringNotContainsString(self::SECRET_STORAGE, $html);
         self::assertStringNotContainsString('storageKey', $html);
         self::assertStringNotContainsString('content_json', $html);
+        self::assertStringNotContainsString('structuredContent', $html);
+        $cacheControl = $client->getResponse()->headers->get('Cache-Control') ?? '';
+        self::assertStringContainsString('no-store', $cacheControl);
+        self::assertStringContainsString('private', $cacheControl);
+    }
+
+    public function testTypedBlocksRenderInOrderWithEscapingAndOpaqueDenies(): void
+    {
+        [$subjectSlug, $unitSlug, $topicSlug, $topicId] = $this->seedPublishedTopicHierarchy('blk');
+        self::ensureKernelShutdown();
+        self::bootKernel();
+
+        /** @var CatalogTopicLessonManager $placements */
+        $placements = static::getContainer()->get(CatalogTopicLessonManager::class);
+        /** @var AccessPackageManager $packages */
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $topic = $em->find(CatalogTopic::class, $topicId);
+        self::assertInstanceOf(CatalogTopic::class, $topic);
+        $canonical = $topic->getUnit()->getSubject()->getCanonicalSubject();
+        self::assertInstanceOf(Subject::class, $canonical);
+
+        $admin = $this->activeStaff('blk-admin@example.com', UserRole::Admin);
+        $sa = $this->activeStaff('blk-sa@example.com', UserRole::SuperAdmin);
+
+        $document = new LearningContentDocument(LearningContentDocument::SCHEMA_VERSION, [
+            ['type' => 'heading', 'level' => 1, 'text' => 'Baslik Bir'],
+            ['type' => 'paragraph', 'text' => 'Tom & Jerry "alinti"'],
+            ['type' => 'list', 'items' => ['Elma', 'Armut']],
+            ['type' => 'callout', 'variant' => 'tip', 'blocks' => [
+                ['type' => 'paragraph', 'text' => 'Ipucu metni'],
+            ]],
+            ['type' => 'quote', 'text' => 'Alinti blogu'],
+            ['type' => 'math', 'latex' => 'x + y = 2'],
+        ]);
+
+        $first = $this->createAndPublishContentWithDocument($admin, $canonical, 'blk_a', 'Ilk Adim', $document);
+        $packages->setLearningContentAccessPolicy($first, $sa, ResourceAccessClass::Free, 'set_free_a');
+        $lessonA = $placements->create($admin, $topic->getId(), $first->getId(), 'Ilk Adim', 'Ozet A', 0, 'create_a', 'ilk-adim');
+        $placements->publish($admin, $lessonA->getId(), 'pub_a');
+
+        $secondDoc = LearningContentDocument::paragraph('Ikinci govde');
+        $second = $this->createAndPublishContentWithDocument($admin, $canonical, 'blk_b', 'Ikinci Adim', $secondDoc);
+        $packages->setLearningContentAccessPolicy($second, $sa, ResourceAccessClass::Free, 'set_free_b');
+        $lessonB = $placements->create($admin, $topic->getId(), $second->getId(), 'Ikinci Adim', null, 1, 'create_b', 'ikinci-adim');
+        $placements->publish($admin, $lessonB->getId(), 'pub_b');
+
+        self::ensureKernelShutdown();
+
+        $student = $this->createActive('topic-blk@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+        $client = static::createClient();
+        $this->login($client, 'topic-blk@example.com');
+
+        $path = \sprintf('/ogrenci/dersler/%s/%s/%s', $subjectSlug, $unitSlug, $topicSlug);
+        $client->request('GET', $path);
+        self::assertResponseIsSuccessful();
+        $html = $client->getResponse()->getContent() ?: '';
+
+        self::assertSelectorTextContains('.student-content-heading', 'Baslik Bir');
+        self::assertSelectorTextContains('.student-content-paragraph', 'Tom & Jerry "alinti"');
+        self::assertSelectorTextContains('.student-content-list', 'Elma');
+        self::assertSelectorTextContains('.student-content-callout--tip', 'Ipucu metni');
+        self::assertSelectorTextContains('.student-content-quote', 'Alinti blogu');
+        self::assertSelectorTextContains('.student-content-math', 'x + y = 2');
+        self::assertStringContainsString('&amp;', $html);
+        self::assertStringNotContainsString('javascript:', $html);
+
+        $posA = strpos($html, 'Ilk Adim');
+        $posB = strpos($html, 'Ikinci Adim');
+        self::assertNotFalse($posA);
+        self::assertNotFalse($posB);
+        self::assertLessThan($posB, $posA);
+
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString(self::SECRET_BODY, $html);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $html);
     }
 
     /**
@@ -337,14 +417,14 @@ final class StudentTopicPageControllerTest extends WebTestCase
         return $result;
     }
 
-    private function createAndPublishContent(
+    private function createAndPublishContentWithDocument(
         User $author,
         Subject $subject,
         string $code,
         string $title,
-        ?string $bodyText = null,
+        LearningContentDocument $document,
     ): LearningContent {
-        $content = $this->createDraftContent($author, $subject, $code, $title, $bodyText);
+        $content = $this->createDraftContentWithDocument($author, $subject, $code, $title, $document);
         $reviewer = $this->activeStaff($code.'-rev@example.com', UserRole::HeadTeacher);
         /** @var LearningContentManager $contents */
         $contents = static::getContainer()->get(LearningContentManager::class);
@@ -354,12 +434,12 @@ final class StudentTopicPageControllerTest extends WebTestCase
         return $content;
     }
 
-    private function createDraftContent(
+    private function createDraftContentWithDocument(
         User $actor,
         Subject $subject,
         string $code,
         string $title,
-        ?string $bodyText = null,
+        LearningContentDocument $document,
     ): LearningContent {
         /** @var LearningContentManager $contents */
         $contents = static::getContainer()->get(LearningContentManager::class);
@@ -383,9 +463,41 @@ final class StudentTopicPageControllerTest extends WebTestCase
             $code,
             $title,
             null,
-            LearningContentDocument::paragraph($bodyText ?? $title),
+            $document,
             [['learningOutcome' => $los[0], 'isPrimary' => true]],
             'create',
+        );
+    }
+
+    private function createAndPublishContent(
+        User $author,
+        Subject $subject,
+        string $code,
+        string $title,
+        ?string $bodyText = null,
+    ): LearningContent {
+        return $this->createAndPublishContentWithDocument(
+            $author,
+            $subject,
+            $code,
+            $title,
+            LearningContentDocument::paragraph($bodyText ?? $title),
+        );
+    }
+
+    private function createDraftContent(
+        User $actor,
+        Subject $subject,
+        string $code,
+        string $title,
+        ?string $bodyText = null,
+    ): LearningContent {
+        return $this->createDraftContentWithDocument(
+            $actor,
+            $subject,
+            $code,
+            $title,
+            LearningContentDocument::paragraph($bodyText ?? $title),
         );
     }
 

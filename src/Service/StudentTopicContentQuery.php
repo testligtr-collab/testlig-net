@@ -17,6 +17,7 @@ use App\Entity\User;
 use App\Enum\CatalogPublicationStatus;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentStatus;
+use App\LearningContent\StudentView\StudentContentBlockNormalizer;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
@@ -27,7 +28,7 @@ use App\Repository\CatalogUnitRepository;
  *
  * Visibility requires AND of: subject/unit/topic published, placement published,
  * LearningContent published with sealed published revision, and access gate allow.
- * Never exposes revision bodies or storageKey.
+ * Bodies are exposed only as normalized typed block views (no raw JSON / storageKey).
  */
 final class StudentTopicContentQuery
 {
@@ -37,6 +38,7 @@ final class StudentTopicContentQuery
         private readonly CatalogTopicRepository $topics,
         private readonly CatalogTopicLessonRepository $lessons,
         private readonly LearningContentAccessGate $accessGate,
+        private readonly StudentContentBlockNormalizer $blockNormalizer,
     ) {
     }
 
@@ -67,12 +69,19 @@ final class StudentTopicContentQuery
             if (!$this->isLessonVisibleToStudent($lesson, $actor)) {
                 continue;
             }
+
+            $publishedRevision = $lesson->getLearningContent()->getPublishedRevision();
+            $blocks = [];
+            if (null !== $publishedRevision && $publishedRevision->isSealed()) {
+                $blocks = $this->blockNormalizer->normalize($publishedRevision->getStructuredContent());
+            }
+
             $lessonItems[] = new CatalogTopicLessonListItem(
-                $lesson->getId()->toRfc4122(),
                 $lesson->getSlug(),
                 $lesson->getDisplayTitle(),
                 $lesson->getSummary(),
                 $lesson->getPosition(),
+                $blocks,
             );
         }
 

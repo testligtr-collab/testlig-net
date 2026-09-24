@@ -1,0 +1,36 @@
+{# Student-safe typed blocks. Autoescape on; never |raw. #}
+{% for block in blocks %}
+    {% if block.type == 'heading' %}
+        {% if block.level == 1 %}
+            <h3 class="student-content-heading">{{ block.text }}</h3>
+        {% elseif block.level == 2 %}
+            <h4 class="student-content-heading">{{ block.text }}</h4>
+        {% else %}
+            <h5 class="student-content-heading">{{ block.text }}</h5>
+        {% endif %}
+    {% elseif block.type == 'paragraph' %}
+        <p class="student-content-paragraph">{{ block.text }}</p>
+    {% elseif block.type == 'quote' %}
+        <blockquote class="student-content-quote"><p>{{ block.text }}</p></blockquote>
+    {% elseif block.type == 'list' %}
+        {% if block.listStyle == 'ordered' %}
+            <ol class="student-content-list">
+                {% for item in block.items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <ul class="student-content-list">
+                {% for item in block.items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% elseif block.type == 'math' %}
+        <p class="student-content-math"><code>{{ block.latex }}</code></p>
+    {% elseif block.type == 'callout' %}
+        <aside class="student-content-callout student-content-callout--{{ block.variant }}" role="note">
+            {% include 'student/content/_blocks.html.twig' with {blocks: block.children} only %}
+        </aside>
+    {% endif %}
+{% endfor %}

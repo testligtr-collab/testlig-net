@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Dto;
 
 /**
- * Student topic page read model (no LearningContent body / revision / storageKey).
+ * Student topic page read model (typed block views; no revision UUID / storageKey / raw JSON).
  */
 final class StudentTopicDetail
 {
