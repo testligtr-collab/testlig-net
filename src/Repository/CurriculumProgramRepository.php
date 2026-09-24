@@ -33,8 +33,17 @@ class CurriculumProgramRepository extends ServiceEntityRepository
         string $code,
         string $version,
     ): bool {
-        return null !== $this->createQueryBuilder('p')
-            ->select('1')
+        return null !== $this->findOneByIdentity($subject, $gradeLevel, $code, $version);
+    }
+
+    public function findOneByIdentity(
+        Subject $subject,
+        GradeLevel $gradeLevel,
+        string $code,
+        string $version,
+    ): ?CurriculumProgram {
+        /** @var CurriculumProgram|null $program */
+        $program = $this->createQueryBuilder('p')
             ->andWhere('p.subject = :subject')
             ->andWhere('p.gradeLevel = :gradeLevel')
             ->andWhere('p.code = :code')
@@ -46,6 +55,8 @@ class CurriculumProgramRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $program;
     }
 
     /**

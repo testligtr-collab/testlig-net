@@ -30,8 +30,13 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
 
     public function existsWithCode(CurriculumProgram $program, string $code): bool
     {
-        return null !== $this->createQueryBuilder('o')
-            ->select('1')
+        return null !== $this->findOneByProgramAndCode($program, $code);
+    }
+
+    public function findOneByProgramAndCode(CurriculumProgram $program, string $code): ?CurriculumLearningOutcome
+    {
+        /** @var CurriculumLearningOutcome|null $outcome */
+        $outcome = $this->createQueryBuilder('o')
             ->andWhere('o.curriculumProgram = :program')
             ->andWhere('o.code = :code')
             ->setParameter('program', $program->getId(), 'uuid')
@@ -39,6 +44,8 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+
+        return $outcome;
     }
 
     public function existsWithPosition(CurriculumTopic $topic, int $position): bool

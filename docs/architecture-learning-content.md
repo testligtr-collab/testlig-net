@@ -123,6 +123,18 @@ Catalog topic show (`/yonetim/mufredat/konu/{id}`) lists placements and creates 
 irreversible. Duplicate slug/position/content → flash. Student topic page still shows
 only AND-gated placement titles (no body).
 
+## Curriculum primary-outcome dependency
+
+Admin create form (`outcomeChoiceMap`) lists only
+`CurriculumLearningOutcomeRepository::findActiveOrderedForSubject` — active
+`CurriculumLearningOutcome` rows for the selected canonical Subject (status=active).
+CatalogSubject mapping alone is not enough; a curriculum program → unit → topic →
+outcome chain must exist. Pilot slice:
+`app:curriculum:import-pilot-outcome` +
+`data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml`
+(MAT.1.3.1 / Uzamsal İlişkiler). Import publishes the program for later LC publish
+eligibility but does not create LearningContent or placements.
+
 ## Limitations
 
 - No real file upload or storage SDK integration
