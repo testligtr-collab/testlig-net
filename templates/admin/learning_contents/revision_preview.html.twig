@@ -1,0 +1,76 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Önizleme — {{ content.title }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_learning_content', {id: content.id.toRfc4122}) }}">{{ content.title }}</a>
+        <span aria-hidden="true">/</span>
+        <span>Önizleme</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Yönetici önizleme</h1>
+        {% if can_manage %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision', {id: content.id.toRfc4122}) }}">Düzenle</a>
+        {% endif %}
+    </div>
+    <p class="muted">Öğrenci yüzü değildir. Metin Twig otomatik kaçış ile gösterilir; ham HTML/JSON yok.</p>
+
+    <article class="admin-section" aria-label="Sürüm gövdesi">
+        {% for block in preview_blocks %}
+            {% set type = block.type|default('') %}
+            {% if type == 'heading' %}
+                {% if block.level|default(2) == 1 %}
+                    <h2>{{ block.text|default('') }}</h2>
+                {% elseif block.level|default(2) == 2 %}
+                    <h3>{{ block.text|default('') }}</h3>
+                {% else %}
+                    <h4>{{ block.text|default('') }}</h4>
+                {% endif %}
+            {% elseif type == 'paragraph' %}
+                <p>{{ block.text|default('') }}</p>
+            {% elseif type == 'quote' %}
+                <blockquote><p>{{ block.text|default('') }}</p></blockquote>
+            {% elseif type == 'list' %}
+                <ul>
+                    {% for item in block.items|default([]) %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            {% elseif type == 'math' %}
+                <p><code>{{ block.latex|default('') }}</code></p>
+            {% elseif type == 'callout' %}
+                <aside class="admin-flash admin-flash--info" role="note">
+                    <strong>{{ block.variant|default('info') }}</strong>
+                    {% for child in block.blocks|default([]) %}
+                        {% if child.type|default('') == 'paragraph' %}
+                            <p>{{ child.text|default('') }}</p>
+                        {% elseif child.type|default('') == 'heading' %}
+                            <p><strong>{{ child.text|default('') }}</strong></p>
+                        {% elseif child.type|default('') == 'list' %}
+                            <ul>
+                                {% for item in child.items|default([]) %}
+                                    <li>{{ item }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% elseif child.type|default('') == 'quote' %}
+                            <blockquote>{{ child.text|default('') }}</blockquote>
+                        {% elseif child.type|default('') == 'math' %}
+                            <code>{{ child.latex|default('') }}</code>
+                        {% else %}
+                            <p class="muted">Desteklenmeyen iç blok</p>
+                        {% endif %}
+                    {% endfor %}
+                </aside>
+            {% else %}
+                <p class="muted">Bu önizlemede gösterilmeyen blok türü.</p>
+            {% endif %}
+        {% else %}
+            <p class="muted">Blok yok.</p>
+        {% endfor %}
+    </article>
+{% endblock %}

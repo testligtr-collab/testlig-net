@@ -8,8 +8,10 @@ use App\Dto\LearningContentCreateRequest;
 use App\Dto\SubjectCreateRequest;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\LearningContent;
+use App\Entity\LearningContentRevision;
 use App\Entity\Subject;
 use App\Enum\GradeLevel;
+use App\Enum\LearningContentFailureReason;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentType;
 use App\Enum\ResourceAccessClass;
@@ -27,6 +29,7 @@ use App\Security\AdminPermission;
 use App\Service\AccessPackageManager;
 use App\Service\Admin\AdminLearningContentQuery;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\Admin\LearningContentRevisionFormMapper;
 use App\Service\LearningContentManager;
 use App\Service\SubjectManager;
 use Symfony\Component\HttpFoundation\Request;
@@ -46,6 +49,7 @@ final class AdminLearningContentController extends AdminBaseController
         private readonly SubjectRepository $subjects,
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly LearningContentAccessPolicyRepository $policies,
+        private readonly LearningContentRevisionFormMapper $revisionFormMapper,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -226,6 +230,223 @@ final class AdminLearningContentController extends AdminBaseController
         return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
     }
 
+    #[Route('/yonetim/icerikler/{id}/revision', name: 'app_admin_learning_content_revision', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionEdit(string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+
+        try {
+            $editorBlocks = $this->revisionFormMapper->editorRowsFromStructuredContent($revision->getStructuredContent());
+        } catch (LearningContentException $e) {
+            $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+        }
+
+        return $this->renderAdmin('admin/learning_contents/revision_edit.html.twig', [
+            'content' => $content,
+            'revision' => $revision,
+            'editor_blocks' => $editorBlocks,
+            'type_choices' => $this->revisionFormMapper->typeChoices(),
+            'csrf_id' => 'learning_content_revision_'.$id,
+        ]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/clone', name: 'app_admin_learning_content_revision_clone', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionClone(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+        if (!$revision->isSealed()) {
+            $this->addFlash('error', 'Yalnız mühürlü sürümler klonlanabilir. Taslak üzerinde doğrudan düzenleyin.');
+
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        try {
+            $this->contents->cloneAsNewRevision($content, $this->requireActorUser(), 'admin_revision_clone');
+            $this->addFlash('success', 'Yeni taslak sürüm oluşturuldu.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/save', name: 'app_admin_learning_content_revision_save', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionSave(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+
+        if (!$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        $postedBlocks = $request->request->all('blocks');
+
+        try {
+            $document = $this->revisionFormMapper->documentFromPostedBlocks($postedBlocks);
+            $this->contents->updateUnsealedRevision(
+                $revision,
+                $this->requireActorUser(),
+                $document,
+                'admin_revision_save',
+            );
+            $this->addFlash('success', 'Sürüm kaydedildi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/add-block', name: 'app_admin_learning_content_revision_add_block', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionAddBlock(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+
+        if (!$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        $type = (string) $request->request->get('block_type', '');
+
+        try {
+            $empty = $this->revisionFormMapper->emptyBlock($type);
+            $structured = $revision->getStructuredContent();
+            $this->revisionFormMapper->editorRowsFromStructuredContent($structured);
+            $blocks = $structured['blocks'] ?? [];
+            if (!\is_array($blocks)) {
+                throw LearningContentException::contentInvalid('Geçersiz içerik gövdesi.');
+            }
+            $blocks[] = $empty;
+            $document = $this->revisionFormMapper->documentFromDomainBlocks($blocks);
+            $this->contents->updateUnsealedRevision(
+                $revision,
+                $this->requireActorUser(),
+                $document,
+                'admin_revision_add_block',
+            );
+            $this->addFlash('success', 'Blok eklendi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/remove-block', name: 'app_admin_learning_content_revision_remove_block', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionRemoveBlock(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+
+        if (!$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        $index = $request->request->getInt('index', -1);
+
+        try {
+            $structured = $revision->getStructuredContent();
+            $this->revisionFormMapper->editorRowsFromStructuredContent($structured);
+            $blocks = $structured['blocks'] ?? [];
+            if (!\is_array($blocks) || !isset($blocks[$index])) {
+                throw LearningContentException::contentInvalid('Kaldırılacak blok bulunamadı.');
+            }
+            unset($blocks[$index]);
+            $document = $this->revisionFormMapper->documentFromDomainBlocks(array_values($blocks));
+            $this->contents->updateUnsealedRevision(
+                $revision,
+                $this->requireActorUser(),
+                $document,
+                'admin_revision_remove_block',
+            );
+            $this->addFlash('success', 'Blok kaldırıldı.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/move-block', name: 'app_admin_learning_content_revision_move_block', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionMoveBlock(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+
+        if (!$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        $index = $request->request->getInt('index', -1);
+        $direction = (string) $request->request->get('direction', '');
+
+        try {
+            $structured = $revision->getStructuredContent();
+            $this->revisionFormMapper->editorRowsFromStructuredContent($structured);
+            $blocks = $structured['blocks'] ?? [];
+            if (!\is_array($blocks) || !isset($blocks[$index])) {
+                throw LearningContentException::contentInvalid('Taşınacak blok bulunamadı.');
+            }
+            $blocks = array_values($blocks);
+            $swapWith = 'up' === $direction ? $index - 1 : ('down' === $direction ? $index + 1 : -1);
+            if ($swapWith < 0 || $swapWith >= \count($blocks)) {
+                throw LearningContentException::contentInvalid('Blok taşınamaz.');
+            }
+            $tmp = $blocks[$index];
+            $blocks[$index] = $blocks[$swapWith];
+            $blocks[$swapWith] = $tmp;
+            $document = $this->revisionFormMapper->documentFromDomainBlocks($blocks);
+            $this->contents->updateUnsealedRevision(
+                $revision,
+                $this->requireActorUser(),
+                $document,
+                'admin_revision_move_block',
+            );
+            $this->addFlash('success', 'Blok sırası güncellendi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/onizleme', name: 'app_admin_learning_content_revision_preview', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function revisionPreview(string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+        $structured = $revision->getStructuredContent();
+        $blocks = $structured['blocks'] ?? [];
+        if (!\is_array($blocks)) {
+            $blocks = [];
+        }
+
+        return $this->renderAdmin('admin/learning_contents/revision_preview.html.twig', [
+            'content' => $content,
+            'revision' => $revision,
+            'preview_blocks' => $blocks,
+            'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
+        ]);
+    }
+
     private function requireContent(string $id): LearningContent
     {
         try {
@@ -306,5 +527,68 @@ final class AdminLearningContentController extends AdminBaseController
         }
 
         return $choices;
+    }
+
+    private function requireCurrentRevision(LearningContent $content): LearningContentRevision
+    {
+        $revision = $content->getCurrentRevision();
+        if (!$revision instanceof LearningContentRevision) {
+            throw $this->createNotFoundException('İçeriğin güncel sürümü bulunamadı.');
+        }
+
+        return $revision;
+    }
+
+    private function assertRevisionCsrf(Request $request, string $id): void
+    {
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('learning_content_revision_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+    }
+
+    private function assertOptimisticRevision(Request $request, LearningContentRevision $revision): bool
+    {
+        $expectedId = (string) $request->request->get('expected_revision_id', '');
+        if ('' === $expectedId || $expectedId !== $revision->getId()->toRfc4122()) {
+            $this->addFlash('error', 'Çakışma: sürüm değişmiş veya mühürlü. Değişiklikler kaydedilmedi; sayfayı yenileyip yeniden deneyin.');
+
+            return false;
+        }
+
+        $expectedHash = $request->request->get('expected_content_hash');
+        if (\is_string($expectedHash) && '' !== $expectedHash && $expectedHash !== $revision->getContentHash()) {
+            $this->addFlash('error', 'Çakışma: içerik başka bir işlemle güncellenmiş. Değişiklikler kaydedilmedi.');
+
+            return false;
+        }
+
+        if ($revision->isSealed()) {
+            $this->addFlash('error', 'Mühürlü sürüm değiştirilemez. Önce yeni sürüm klonlayın.');
+
+            return false;
+        }
+
+        // Non-current pointer (stale entity / race) — manager also checks; surface clearly here.
+        $content = $revision->getContent();
+        if ($content->getCurrentRevisionNumber() !== $revision->getRevisionNumber()) {
+            $this->addFlash('error', 'Çakışma: bu sürüm artık güncel değil. Değişiklikler kaydedilmedi.');
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function flashLearningContentException(LearningContentException $e): void
+    {
+        $message = match ($e->getReason()) {
+            LearningContentFailureReason::Conflict => 'Çakışma: sürüm değişmiş veya mühürlü. Değişiklikler kaydedilmedi.',
+            LearningContentFailureReason::RevisionSealed => 'Mühürlü sürüm değiştirilemez. Önce yeni sürüm klonlayın.',
+            LearningContentFailureReason::Unauthorized => 'Bu işlem için yetkiniz yok.',
+            LearningContentFailureReason::NotFound => 'Kayıt bulunamadı.',
+            default => $e->getMessage(),
+        };
+        $this->addFlash('error', $message);
     }
 }

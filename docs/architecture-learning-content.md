@@ -1,7 +1,8 @@
 # Stage 2.15 — Learning Content + Stored Media foundation
 
-Domain / application / security / persistence only.
-No controllers, UI, REST API, real upload, storage SDK, payment, or AI.
+Domain / application / security / persistence, plus admin workspace list/detail/create
+and a safe typed revision block editor (no student body renderer).
+No REST API, real upload, storage SDK, payment, or AI.
 
 ## Model
 
@@ -91,12 +92,27 @@ TEACHER own draft + submit (no publish).
 Catalog student navigation binds via `CatalogTopicLesson` (separate from CurriculumProgram
 alignments). See `docs/architecture.md` catalog section.
 
+## Admin revision editor (safe block form)
+
+Admin-only draft editor under `/yonetim/icerikler/{id}/revision`:
+
+- Reuses `LearningContentDocument` + `LearningContentDocumentValidator` +
+  `LearningContentManager::updateUnsealedRevision` / `cloneAsNewRevision`
+- UI allowlist (stricter than domain): `heading`, `paragraph`, `list`, `callout`, `quote`, `math`
+  — media / interactive types are not exposed; unknown types rejected in
+  `LearningContentRevisionFormMapper` before the manager runs
+- Optimistic concurrency via hidden `expected_revision_id` (+ optional `expected_content_hash`);
+  stale / sealed / non-current → conflict flash, no silent overwrite
+- Mutations are POST + CSRF (`learning_content_revision_{id}`) + PRG
+- Twig autoescape only (plain text fields); admin preview at `.../revision/onizleme`
+  is not a student body renderer and must not leak `storageKey` / raw JSON
+
 ## Limitations
 
 - No real file upload or storage SDK integration
 - Entitlement / student delivery policy pending
 - No multi-process concurrency harness claim
-- No controllers / HTTP API
+- No student-facing body renderer / public content API
 - Unused attached assets may exist until publish; publish requires referenced assets to be fresh `ready` + `clean`
 - Subtitle/transcript parent pairing is typed as a future hardening (documented limitation)
 - MariaDB cannot defer foreign keys: content INSERT cannot require `current_revision_id NOT NULL`
