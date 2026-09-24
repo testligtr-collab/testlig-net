@@ -64,15 +64,23 @@ final class StudentContentBlockNormalizer
         if (StudentContentBlockView::TYPE_CALLOUT === $type) {
             return $allowCallout ? $this->normalizeCallout($block) : null;
         }
+        if (StudentContentBlockView::TYPE_HEADING === $type) {
+            return $this->normalizeHeading($block);
+        }
+        if (StudentContentBlockView::TYPE_PARAGRAPH === $type) {
+            return $this->normalizeParagraph($block);
+        }
+        if (StudentContentBlockView::TYPE_LIST === $type) {
+            return $this->normalizeList($block);
+        }
+        if (StudentContentBlockView::TYPE_QUOTE === $type) {
+            return $this->normalizeQuote($block);
+        }
+        if (StudentContentBlockView::TYPE_MATH === $type) {
+            return $this->normalizeMath($block);
+        }
 
-        return match ($type) {
-            StudentContentBlockView::TYPE_HEADING => $this->normalizeHeading($block),
-            StudentContentBlockView::TYPE_PARAGRAPH => $this->normalizeParagraph($block),
-            StudentContentBlockView::TYPE_LIST => $this->normalizeList($block),
-            StudentContentBlockView::TYPE_QUOTE => $this->normalizeQuote($block),
-            StudentContentBlockView::TYPE_MATH => $this->normalizeMath($block),
-            default => null,
-        };
+        return null;
     }
 
     /**
