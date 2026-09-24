@@ -127,6 +127,7 @@ final class AdminCatalogControllerTest extends WebTestCase
         self::assertGreaterThan(0, $auditCount);
 
         // Name/slug are never posted as mapping keys — only UUID select values exist.
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->login($client, 'cat-map-admin@example.com');
         $crawler = $client->request('GET', '/yonetim/mufredat/ders/'.$catalogId);

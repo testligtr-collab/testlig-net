@@ -306,21 +306,14 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
 
     private function createDraftContent(User $actor, Subject $subject, string $code, string $title): LearningContent
     {
-        $sa = $this->superAdmin($code.'-sa2@example.com');
-        $programs = static::getContainer()->get(CurriculumProgramManager::class);
-        $units = static::getContainer()->get(CurriculumUnitManager::class);
-        $topics = static::getContainer()->get(CurriculumTopicManager::class);
-        $outcomes = static::getContainer()->get(CurriculumLearningOutcomeManager::class);
-        self::assertInstanceOf(CurriculumProgramManager::class, $programs);
-        self::assertInstanceOf(CurriculumUnitManager::class, $units);
-        self::assertInstanceOf(CurriculumTopicManager::class, $topics);
-        self::assertInstanceOf(CurriculumLearningOutcomeManager::class, $outcomes);
-
-        $program = $programs->createDraft($subject, $sa, GradeLevel::Grade1, $code.'_p', 'P', '1.0', 'cp');
-        $cUnit = $units->create($program, $sa, $code.'_u', 'U', 1, 'cu');
-        $cTopic = $topics->createRoot($cUnit, $sa, $code.'_t', 'T', 1, 'ct');
-        $lo = $outcomes->create($cTopic, $sa, $code.'_lo', 'O', 1, 'clo');
-        $programs->publish($program, $sa, 'pp');
+        /** @var \App\Repository\CurriculumProgramRepository $programs */
+        $programs = static::getContainer()->get(\App\Repository\CurriculumProgramRepository::class);
+        /** @var \App\Repository\CurriculumLearningOutcomeRepository $outcomes */
+        $outcomes = static::getContainer()->get(\App\Repository\CurriculumLearningOutcomeRepository::class);
+        $published = $programs->findPublishedForSubjectAndGrade($subject, GradeLevel::Grade1);
+        self::assertNotEmpty($published);
+        $los = $outcomes->findByProgram($published[0]);
+        self::assertNotEmpty($los);
 
         return $this->contents->createDraft(
             $actor,
@@ -333,7 +326,7 @@ final class CatalogTopicLessonDomainTest extends KernelTestCase
             $title,
             null,
             LearningContentDocument::paragraph('Body'),
-            [['learningOutcome' => $lo, 'isPrimary' => true]],
+            [['learningOutcome' => $los[0], 'isPrimary' => true]],
             'create',
         );
     }

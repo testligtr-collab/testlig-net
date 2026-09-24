@@ -178,7 +178,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $subjects = static::getContainer()->get(SubjectManager::class);
         /** @var EntityManagerInterface $em */
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $sa = $this->loadUser('lc-pol-sa@example.com');
+        $sa = $this->loadUser('lc_pol-sa@example.com');
         $subject = $em->find(Subject::class, $subjectId);
         self::assertInstanceOf(Subject::class, $subject);
         $subjects->archive($subject, $sa, 'archive_for_map');
