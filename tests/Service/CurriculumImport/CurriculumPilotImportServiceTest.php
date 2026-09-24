@@ -20,7 +20,6 @@ use App\Service\CurriculumImport\CurriculumPilotImportService;
 use App\Service\CurriculumImport\CurriculumPilotImportYamlLoader;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class CurriculumPilotImportServiceTest extends KernelTestCase
