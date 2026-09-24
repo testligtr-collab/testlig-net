@@ -39,23 +39,23 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $this->createPrivileged('lc-mod-list@example.com', UserRole::Moderator);
         $this->createPrivileged('lc-student-list@example.com', UserRole::Student);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-admin-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('nav', 'İçerikler');
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-teacher-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-mod-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-student-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseStatusCodeSame(403);
@@ -66,14 +66,14 @@ final class AdminLearningContentControllerTest extends WebTestCase
         [$adminContent, $teacherContent] = $this->seedTwoContents();
 
         $this->createPrivileged('lc-mod-create@example.com', UserRole::Moderator);
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-mod-create@example.com');
         $client->request('GET', '/yonetim/icerikler/yeni');
         self::assertResponseStatusCodeSame(403);
 
         $teacherEmail = 'lc-teacher-idor@example.com';
         $this->createPrivileged($teacherEmail, UserRole::Teacher);
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, $teacherEmail);
         $client->request('GET', '/yonetim/icerikler/'.$adminContent->toRfc4122());
         self::assertResponseStatusCodeSame(404);
@@ -92,7 +92,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         [$subject, $lo] = $this->seedCurriculum('lc_create');
         $this->createPrivileged('lc-admin-create@example.com', UserRole::Admin);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-admin-create@example.com');
         $client->request('POST', '/yonetim/icerikler/yeni', [
             'learning_content_create' => [
@@ -140,7 +140,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         [$subjectId, $contentId, $catalogSubjectId] = $this->seedMappedCatalogAndContent('lc_pol');
         $this->createPrivileged('lc-admin-pol@example.com', UserRole::Admin);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-admin-pol@example.com');
         $client->request('POST', '/yonetim/icerikler/'.$contentId->toRfc4122().'/erisim', [
             '_token' => 'bad',
@@ -184,7 +184,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $subjects->archive($subject, $sa, 'archive_for_map');
         self::ensureKernelShutdown();
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->login($client, 'lc-admin-pol@example.com');
         $client->request('GET', '/yonetim/mufredat/ders/'.$catalogSubjectId->toRfc4122());
         self::assertResponseIsSuccessful();
@@ -373,6 +373,13 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertInstanceOf(User::class, $user);
 
         return $user;
+    }
+
+    private function newClient(): KernelBrowser
+    {
+        self::ensureKernelShutdown();
+
+        return static::createClient();
     }
 
     private function login(KernelBrowser $client, string $email): void
