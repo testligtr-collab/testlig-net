@@ -1,8 +1,8 @@
 # Stage 2.15 — Learning Content + Stored Media foundation
 
-Domain / application / security / persistence, plus admin workspace list/detail/create
-and a safe typed revision block editor (no student body renderer).
-No REST API, real upload, storage SDK, payment, or AI.
+Domain / application / security / persistence, plus admin workspace list/detail/create,
+a safe typed revision block editor, and a student typed-block body renderer on the
+topic page (Twig autoescape; no `|raw`). No REST API, real upload, storage SDK, payment, or AI.
 
 ## Model
 
@@ -120,8 +120,13 @@ Detail (`/yonetim/icerikler/{id}`) exposes review/publish forms wired to
 
 Catalog topic show (`/yonetim/mufredat/konu/{id}`) lists placements and creates drafts via
 `CatalogTopicLessonManager`; publish placement is a separate confirmed POST; archive is
-irreversible. Duplicate slug/position/content → flash. Student topic page still shows
-only AND-gated placement titles (no body).
+irreversible. Duplicate slug/position/content → flash.
+
+Student topic page (`StudentTopicContentQuery`) keeps the AND visibility chain, then
+normalizes sealed published revision bodies via `StudentContentBlockNormalizer` into
+immutable `StudentContentBlockView` DTOs (heading/paragraph/list/quote/math/callout).
+Unknown/malformed/media blocks are skipped. No revision UUID, `storageKey`, audit notes,
+or raw JSON reach Twig. `/ogrenci/*` responses use `Cache-Control: no-store, private`.
 
 ## Curriculum primary-outcome dependency
 
@@ -140,7 +145,7 @@ eligibility but does not create LearningContent or placements.
 - No real file upload or storage SDK integration
 - Entitlement / student delivery policy pending
 - No multi-process concurrency harness claim
-- No student-facing body renderer / public content API
+- No public content REST API / CDN math renderer (math is plain escaped text)
 - Unused attached assets may exist until publish; publish requires referenced assets to be fresh `ready` + `clean`
 - Subtitle/transcript parent pairing is typed as a future hardening (documented limitation)
 - MariaDB cannot defer foreign keys: content INSERT cannot require `current_revision_id NOT NULL`

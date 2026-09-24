@@ -220,7 +220,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         $admin = $this->loadOrCreate('stu-admin@example.com', UserRole::Admin);
         $sa = $this->loadOrCreate('stu-sa@example.com', UserRole::SuperAdmin);
 
-        $visible = $this->createAndPublishContent($admin, $canonical, 'stu_ok', 'Visible Title', self::SECRET_BODY);
+        $visible = $this->createAndPublishContent($admin, $canonical, 'stu_ok', 'Visible Title', 'Safe student paragraph');
         $packages->setLearningContentAccessPolicy($visible, $sa, ResourceAccessClass::Free, 'set_free');
         $visibleLesson = $placements->create(
             $admin,
@@ -237,7 +237,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         $draftLc = $this->createDraftContent($admin, $canonical, 'stu_draft', 'Draft LC');
         $placements->create($admin, $topic->getId(), $draftLc->getId(), 'Taslak Adım', null, 1, 'create_d', 'taslak-adim');
 
-        $denied = $this->createAndPublishContent($admin, $canonical, 'stu_deny', 'Denied');
+        $denied = $this->createAndPublishContent($admin, $canonical, 'stu_deny', 'Denied', self::SECRET_BODY);
         $packages->setLearningContentAccessPolicy($denied, $sa, ResourceAccessClass::EntitlementRequired, 'set_ent');
         $deniedLesson = $placements->create($admin, $topic->getId(), $denied->getId(), 'Kapalı Adım', null, 2, 'create_deny', 'kapali');
         $placements->publish($admin, $deniedLesson->getId(), 'pub_deny');

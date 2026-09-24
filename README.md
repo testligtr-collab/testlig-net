@@ -106,7 +106,7 @@ php bin/console app:catalog:publish-tree --source-version=TYMM-2026 --subject-co
 - **Topic lesson placement (domain):** `CatalogTopic` → N `CatalogTopicLesson` → 1 `LearningContent`. Placement = navigation only; content lifecycle stays in Stage 2.15. Explicit `CatalogSubject.canonical_subject_id` → `subjects` (no name/slug auto-map). No production seed / lesson body in this slice.
 - **Admin content workspace:** `/yonetim/icerikler` — LearningContent list/detail/create (platform drafts). Draft revision block editor at `/yonetim/icerikler/{id}/revision` (typed fields only; admin preview at `.../revision/taslak-gorunum`). Lifecycle on detail: submit-for-review / return-to-draft / publish / archive (POST+CSRF+PRG; note=`reason_code`; Moderator return only; publish requires access policy first + SoD). Catalog subject show maps canonical Subject by UUID only (unmap blocked when placements/LC bound). Access policy fail-closed by default; Free requires explicit confirm + audit (“Bu içerik ücretsiz erişime açılacak”).
 - **Admin placement bind:** Catalog topic show `/yonetim/mufredat/konu/{id}` — placement list + create (published LC) / publish (confirm) / archive via `CatalogTopicLessonManager`. Also create-from-LC-detail. Duplicates (slug/position/content) flash; no student body in admin.
-- **Student topic page:** Published topic cards link to `/ogrenci/dersler/{subjectSlug}/{unitSlug}/{topicSlug}`. `StudentTopicContentQuery` returns topic meta + accessible published placements only (no revision body / storageKey). Empty placements show “Bu konu için öğrenme adımları hazırlanıyor.”
+- **Student topic page:** Published topic cards link to `/ogrenci/dersler/{subjectSlug}/{unitSlug}/{topicSlug}`. `StudentTopicContentQuery` returns topic meta + AND-gated placements with normalized typed block views (no revision UUID / storageKey / raw JSON). Empty placements show “Bu konu için öğrenme adımları hazırlanıyor.” `/ogrenci/*` → `Cache-Control: no-store, private`.
 - Production ops: `ops-catalog-publish-tree.yml` (yalnız workflow_dispatch).
 
 Çıkış yalnızca `POST /cikis` (CSRF zorunlu). Giriş hataları generic mesaj kullanır (hesap durumu ifşa edilmez).
@@ -240,7 +240,7 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Platform auth: Admin publish; Moderator return-draft only; Teacher no publish. Free access only via explicit `LearningContentAccessPolicy` (gate remains fail-closed by default).
 - Catalog bridge: `CatalogTopicLesson` placements + nullable `CatalogSubject.canonical_subject_id` (UUID FK; no name/slug inference).
 - AccessGate fail-closed: published içerik entitlement gate’e delege eder (free policy veya lisans). Review separation zorunlu.
-- Gerçek upload/storage SDK/ödeme/AI/öğrenci body renderer yok. Admin revision editor: typed block form (heading/paragraph/list/callout/quote/math). Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
+- Gerçek upload/storage SDK/ödeme/AI yok. Öğrenci topic sayfası typed block renderer (Twig autoescape). Admin revision editor: typed block form (heading/paragraph/list/callout/quote/math). Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
 
 ### Access package / license / entitlement (Aşama 2.16)
 

@@ -29,12 +29,17 @@
     {% else %}
         <ol class="student-lesson-list">
             {% for lesson in lessons %}
-                <li class="student-lesson-item">
+                <li class="student-lesson-item" id="adim-{{ lesson.slug }}">
                     <span class="student-lesson-item__pos" aria-hidden="true">{{ lesson.position + 1 }}</span>
-                    <div>
-                        <p class="student-lesson-item__title">{{ lesson.title }}</p>
+                    <div class="student-lesson-item__body">
+                        <h3 class="student-lesson-item__title">{{ lesson.title }}</h3>
                         {% if lesson.summary %}
-                            <p class="muted">{{ lesson.summary }}</p>
+                            <p class="muted student-lesson-item__summary">{{ lesson.summary }}</p>
+                        {% endif %}
+                        {% if lesson.blocks is not empty %}
+                            <div class="student-content" aria-label="{{ lesson.title }} içeriği">
+                                {% include 'student/content/_blocks.html.twig' with {blocks: lesson.blocks} only %}
+                            </div>
                         {% endif %}
                     </div>
                 </li>
