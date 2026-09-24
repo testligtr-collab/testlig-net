@@ -27,7 +27,27 @@
         {% if content.summary %}
             <dt>Özet</dt><dd>{{ content.summary }}</dd>
         {% endif %}
+        <dt>Güncel sürüm</dt>
+        <dd>
+            {% if content.currentRevision %}
+                #{{ content.currentRevision.revisionNumber }}
+                {% if content.currentRevision.sealed %}· mühürlü{% else %}· taslak{% endif %}
+            {% else %}
+                <span class="muted">Yok</span>
+            {% endif %}
+        </dd>
     </dl>
+
+    {% if can_manage %}
+        <p class="admin-actions">
+            <a class="btn btn--primary" href="{{ path('app_admin_learning_content_revision', {id: content.id.toRfc4122}) }}">Sürüm düzenle</a>
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision_preview', {id: content.id.toRfc4122}) }}">Önizleme</a>
+        </p>
+    {% elseif is_granted('ADMIN_LEARNING_CONTENT_VIEW') %}
+        <p class="admin-actions">
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision_preview', {id: content.id.toRfc4122}) }}">Önizleme</a>
+        </p>
+    {% endif %}
 
     {% if can_set_policy %}
         <section class="admin-section" aria-labelledby="policy-heading">
