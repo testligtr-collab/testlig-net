@@ -107,6 +107,22 @@ Admin-only draft editor under `/yonetim/icerikler/{id}/revision`:
 - Twig autoescape only (plain text fields); admin preview at `.../revision/taslak-gorunum`
   is not a student body renderer and must not leak `storageKey` / raw JSON
 
+## Admin lifecycle + placement UI
+
+Detail (`/yonetim/icerikler/{id}`) exposes review/publish forms wired to
+`LearningContentManager::submitForReview` / `returnToDraft` / `publish` / `archive`:
+
+- Required short `note` field → audit `reason_code` (snake_case)
+- Moderator: return-to-draft only (no publish control)
+- Publish: access policy must already exist (reject with flash; do not auto-set Free);
+  active canonical subject checked in controller; SoD enforced by manager
+- Free policy form kept with `confirm_free` + warning text
+
+Catalog topic show (`/yonetim/mufredat/konu/{id}`) lists placements and creates drafts via
+`CatalogTopicLessonManager`; publish placement is a separate confirmed POST; archive is
+irreversible. Duplicate slug/position/content → flash. Student topic page still shows
+only AND-gated placement titles (no body).
+
 ## Limitations
 
 - No real file upload or storage SDK integration

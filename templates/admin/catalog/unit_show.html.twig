@@ -56,7 +56,7 @@
                 <tbody>
                     {% for t in topics %}
                         <tr>
-                            <td>{{ t.name }}</td>
+                            <td><a href="{{ path('app_admin_catalog_topic', {id: t.id.toRfc4122}) }}">{{ t.name }}</a></td>
                             <td>{% if t.sourceCode %}<code>{{ t.sourceCode }}</code>{% else %}—{% endif %}</td>
                             <td>{{ t.status.labelTr }}</td>
                             <td>{{ t.position }}</td>

@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\CatalogTopic;
 use App\Entity\CatalogUnit;
+use App\Entity\Subject;
 use App\Enum\CatalogPublicationStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -84,6 +85,33 @@ final class CatalogTopicRepository extends ServiceEntityRepository
             ->setParameter('status', CatalogPublicationStatus::Published)
             ->orderBy('t.position', 'ASC')
             ->addOrderBy('t.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * Non-archived catalog topics whose subject maps to the given canonical Subject.
+     *
+     * @return list<CatalogTopic>
+     */
+    public function findBindableForCanonicalSubject(Subject $canonical): array
+    {
+        /** @var list<CatalogTopic> $rows */
+        $rows = $this->createQueryBuilder('t')
+            ->addSelect('u', 's')
+            ->innerJoin('t.unit', 'u')
+            ->innerJoin('u.subject', 's')
+            ->andWhere('IDENTITY(s.canonicalSubject) = :canonicalId')
+            ->andWhere('t.status != :archived')
+            ->andWhere('u.status != :archived')
+            ->andWhere('s.status != :archived')
+            ->setParameter('canonicalId', $canonical->getId(), 'uuid')
+            ->setParameter('archived', CatalogPublicationStatus::Archived)
+            ->orderBy('s.name', 'ASC')
+            ->addOrderBy('u.position', 'ASC')
+            ->addOrderBy('t.position', 'ASC')
             ->getQuery()
             ->getResult();
 

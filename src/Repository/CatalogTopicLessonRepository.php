@@ -85,6 +85,47 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
     /**
      * @return list<CatalogTopicLesson>
      */
+    public function findOrderedByTopic(CatalogTopic $topic): array
+    {
+        /** @var list<CatalogTopicLesson> $rows */
+        $rows = $this->createQueryBuilder('l')
+            ->addSelect('c')
+            ->innerJoin('l.learningContent', 'c')
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
+            ->setParameter('topicId', $topic->getId(), 'uuid')
+            ->orderBy('l.position', 'ASC')
+            ->addOrderBy('l.displayTitle', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * @return list<CatalogTopicLesson>
+     */
+    public function findOrderedByLearningContent(LearningContent $content): array
+    {
+        /** @var list<CatalogTopicLesson> $rows */
+        $rows = $this->createQueryBuilder('l')
+            ->addSelect('t', 'u', 's')
+            ->innerJoin('l.catalogTopic', 't')
+            ->innerJoin('t.unit', 'u')
+            ->innerJoin('u.subject', 's')
+            ->andWhere('IDENTITY(l.learningContent) = :contentId')
+            ->setParameter('contentId', $content->getId(), 'uuid')
+            ->orderBy('s.name', 'ASC')
+            ->addOrderBy('t.position', 'ASC')
+            ->addOrderBy('l.position', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * @return list<CatalogTopicLesson>
+     */
     public function findPublishedOrderedByTopic(CatalogTopic $topic): array
     {
         /** @var list<CatalogTopicLesson> $rows */

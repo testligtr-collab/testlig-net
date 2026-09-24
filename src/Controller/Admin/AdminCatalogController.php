@@ -9,17 +9,23 @@ use App\Dto\CatalogTopicRequest;
 use App\Dto\CatalogUnitRequest;
 use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
+use App\Entity\CatalogTopicLesson;
 use App\Entity\CatalogUnit;
+use App\Enum\CatalogPublicationStatus;
 use App\Exception\CatalogException;
 use App\Form\CatalogSubjectFormType;
 use App\Form\CatalogTopicFormType;
 use App\Form\CatalogUnitFormType;
 use App\Repository\CatalogSubjectRepository;
+use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CatalogUnitRepository;
+use App\Repository\LearningContentRepository;
 use App\Repository\SubjectRepository;
 use App\Security\AdminPermission;
+use App\Security\CatalogTopicLessonPermission;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\CatalogTopicLessonManager;
 use App\Service\CatalogWriteService;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -36,6 +42,9 @@ final class AdminCatalogController extends AdminBaseController
         private readonly CatalogTopicRepository $topics,
         private readonly CatalogWriteService $writer,
         private readonly SubjectRepository $canonicalSubjects,
+        private readonly CatalogTopicLessonManager $placements,
+        private readonly CatalogTopicLessonRepository $placementRepo,
+        private readonly LearningContentRepository $learningContents,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -435,6 +444,131 @@ final class AdminCatalogController extends AdminBaseController
         return $this->redirectToRoute('app_admin_catalog_unit', ['id' => $topic->getUnit()->getId()->toRfc4122()]);
     }
 
+    #[Route('/yonetim/mufredat/konu/{id}', name: 'app_admin_catalog_topic', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_CATALOG_VIEW)]
+    public function topicShow(string $id): Response
+    {
+        $topic = $this->requireTopic($id);
+        $canonical = $topic->getUnit()->getSubject()->getCanonicalSubject();
+        $publishedContents = null !== $canonical
+            ? $this->learningContents->findPublishedPlatformBySubject($canonical)
+            : [];
+
+        return $this->renderAdmin('admin/catalog/topic_show.html.twig', [
+            'topic' => $topic,
+            'unit' => $topic->getUnit(),
+            'subject' => $topic->getUnit()->getSubject(),
+            'placements' => $this->placementRepo->findOrderedByTopic($topic),
+            'published_contents' => $publishedContents,
+            'can_manage' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MANAGE),
+            'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
+                && CatalogPublicationStatus::Archived !== $topic->getStatus(),
+        ]);
+    }
+
+    #[Route('/yonetim/mufredat/konu/{id}/yerlesim', name: 'app_admin_catalog_topic_placement_create', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_CATALOG_VIEW)]
+    public function topicPlacementCreate(Request $request, string $id): Response
+    {
+        $topic = $this->requireTopic($id);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::CREATE);
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('catalog_topic_placement_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+
+        $contentIdRaw = (string) $request->request->get('learning_content_id', '');
+        $displayTitle = trim((string) $request->request->get('display_title', ''));
+        $slug = trim((string) $request->request->get('slug', ''));
+        $summaryRaw = trim((string) $request->request->get('summary', ''));
+        $position = $request->request->getInt('position', 0);
+        $note = trim((string) $request->request->get('note', 'admin_placement_create'));
+
+        try {
+            $contentUuid = Uuid::fromString($contentIdRaw);
+            $this->placements->create(
+                $this->requireActorUser(),
+                $topic->getId(),
+                $contentUuid,
+                $displayTitle,
+                '' === $summaryRaw ? null : $summaryRaw,
+                $position,
+                '' === $note ? 'admin_placement_create' : $note,
+                '' === $slug ? null : $slug,
+            );
+            $this->addFlash('success', 'Yerleşim taslağı oluşturuldu.');
+        } catch (\InvalidArgumentException) {
+            $this->addFlash('error', 'Geçersiz öğrenme içeriği.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_catalog_topic', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/mufredat/yerlesim/{id}/yayimla', name: 'app_admin_catalog_placement_publish', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_CATALOG_VIEW)]
+    public function placementPublish(Request $request, string $id): Response
+    {
+        $lesson = $this->requirePlacement($id);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::PUBLISH, $lesson);
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('catalog_placement_publish_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+        if ('1' !== (string) $request->request->get('confirm_publish')) {
+            $this->addFlash('error', 'Yayımlama için onay kutusu zorunludur.');
+
+            return $this->redirectToRoute('app_admin_catalog_topic', [
+                'id' => $lesson->getCatalogTopic()->getId()->toRfc4122(),
+            ]);
+        }
+
+        $note = trim((string) $request->request->get('note', 'admin_placement_publish'));
+        try {
+            $this->placements->publish(
+                $this->requireActorUser(),
+                $lesson->getId(),
+                '' === $note ? 'admin_placement_publish' : $note,
+            );
+            $this->addFlash('success', 'Yerleşim yayımlandı.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_catalog_topic', [
+            'id' => $lesson->getCatalogTopic()->getId()->toRfc4122(),
+        ]);
+    }
+
+    #[Route('/yonetim/mufredat/yerlesim/{id}/arsivle', name: 'app_admin_catalog_placement_archive', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_CATALOG_VIEW)]
+    public function placementArchive(Request $request, string $id): Response
+    {
+        $lesson = $this->requirePlacement($id);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::ARCHIVE, $lesson);
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('catalog_placement_archive_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+
+        $note = trim((string) $request->request->get('note', 'admin_placement_archive'));
+        try {
+            $this->placements->archive(
+                $this->requireActorUser(),
+                $lesson->getId(),
+                '' === $note ? 'admin_placement_archive' : $note,
+            );
+            $this->addFlash('success', 'Yerleşim arşivlendi (geri açılamaz).');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_catalog_topic', [
+            'id' => $lesson->getCatalogTopic()->getId()->toRfc4122(),
+        ]);
+    }
+
     private function requireSubject(string $id): CatalogSubject
     {
         try {
@@ -478,5 +612,20 @@ final class AdminCatalogController extends AdminBaseController
         }
 
         return $topic;
+    }
+
+    private function requirePlacement(string $id): CatalogTopicLesson
+    {
+        try {
+            $uuid = Uuid::fromString($id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $lesson = $this->placementRepo->findOneById($uuid);
+        if (!$lesson instanceof CatalogTopicLesson) {
+            throw $this->createNotFoundException();
+        }
+
+        return $lesson;
     }
 }
