@@ -26,7 +26,6 @@ final class CurriculumPilotImportYamlLoader
             throw CurriculumImportException::invalidInput('Curriculum fixture root must be a mapping.');
         }
 
-        /** @var array<mixed> $raw */
         return CurriculumPilotImportDocument::fromArray($raw);
     }
 }
