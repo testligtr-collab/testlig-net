@@ -427,7 +427,7 @@ final class AdminLearningContentController extends AdminBaseController
         return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
     }
 
-    #[Route('/yonetim/icerikler/{id}/revision/onizleme', name: 'app_admin_learning_content_revision_preview', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[Route('/yonetim/icerikler/{id}/revision/taslak-gorunum', name: 'app_admin_learning_content_revision_preview', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
     public function revisionPreview(string $id): Response
     {

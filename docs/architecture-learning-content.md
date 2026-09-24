@@ -104,7 +104,7 @@ Admin-only draft editor under `/yonetim/icerikler/{id}/revision`:
 - Optimistic concurrency via hidden `expected_revision_id` (+ optional `expected_content_hash`);
   stale / sealed / non-current → conflict flash, no silent overwrite
 - Mutations are POST + CSRF (`learning_content_revision_{id}`) + PRG
-- Twig autoescape only (plain text fields); admin preview at `.../revision/onizleme`
+- Twig autoescape only (plain text fields); admin preview at `.../revision/taslak-gorunum`
   is not a student body renderer and must not leak `storageKey` / raw JSON
 
 ## Limitations

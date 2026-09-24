@@ -52,7 +52,7 @@ final class AdminLearningContentRevisionEditorTest extends WebTestCase
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $html);
         self::assertSame(0, $crawler->filter('script')->reduce(static fn ($node) => str_contains($node->text(), 'alert(1)'))->count());
 
-        $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().'/revision/onizleme');
+        $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().'/revision/taslak-gorunum');
         self::assertResponseIsSuccessful();
         $preview = $client->getResponse()->getContent() ?: '';
         self::assertStringNotContainsString('<script>alert(1)</script>', $preview);
@@ -258,13 +258,13 @@ final class AdminLearningContentRevisionEditorTest extends WebTestCase
         $this->createPrivileged('lc-student-prev@example.com', UserRole::Student);
         $client = $this->newClient();
         $this->login($client, 'lc-student-prev@example.com');
-        $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().'/revision/onizleme');
+        $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().'/revision/taslak-gorunum');
         self::assertResponseStatusCodeSame(403);
 
         $this->createPrivileged('lc-teacher-peek@example.com', UserRole::Teacher);
         $client = $this->newClient();
         $this->login($client, 'lc-teacher-peek@example.com');
-        $client->request('GET', '/yonetim/icerikler/'.$otherTeacherContent->toRfc4122().'/revision/onizleme');
+        $client->request('GET', '/yonetim/icerikler/'.$otherTeacherContent->toRfc4122().'/revision/taslak-gorunum');
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -287,7 +287,7 @@ final class AdminLearningContentRevisionEditorTest extends WebTestCase
         $contentId = $this->createDraftContent('lc_leak', 'No Leak', 'lc-admin-leak@example.com');
         $client = $this->newClient();
         $this->login($client, 'lc-admin-leak@example.com');
-        foreach (['/revision', '/revision/onizleme'] as $suffix) {
+        foreach (['/revision', '/revision/taslak-gorunum'] as $suffix) {
             $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().$suffix);
             self::assertResponseIsSuccessful();
             $html = $client->getResponse()->getContent() ?: '';
