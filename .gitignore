@@ -21,7 +21,10 @@
 # --- IDE / OS ---
 /.idea/
 /.vscode/
-/.cursor/
+# Keep local Cursor rules/handoffs private; version-control project Agent Skills only.
+/.cursor/*
+!/.cursor/skills/
+!/.cursor/skills/**
 *.swp
 .DS_Store
 Thumbs.db
