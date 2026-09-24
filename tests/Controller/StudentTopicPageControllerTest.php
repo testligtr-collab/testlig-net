@@ -313,7 +313,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertSelectorTextContains('.student-content-quote', 'Alinti blogu');
         self::assertSelectorTextContains('.student-content-math', 'x + y = 2');
         self::assertStringContainsString('&amp;', $html);
-        self::assertStringNotContainsString('<script', $html);
+        self::assertStringNotContainsString('javascript:', $html);
 
         $posA = strpos($html, 'Ilk Adim');
         $posB = strpos($html, 'Ikinci Adim');
