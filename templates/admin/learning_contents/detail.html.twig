@@ -49,6 +49,52 @@
         </p>
     {% endif %}
 
+    {% set show_lifecycle = can_submit_review or can_return_draft or can_publish or can_archive %}
+    {% if show_lifecycle and content.status.value != 'archived' %}
+        <section class="admin-section" aria-labelledby="lifecycle-heading">
+            <h2 id="lifecycle-heading">İnceleme / yayın</h2>
+            <p class="muted">Gerekçe kodu snake_case olmalıdır (ör. <code>ready_for_review</code>). Audit kaydına yazılır.</p>
+            <div class="admin-actions stack-sm">
+                {% if can_submit_review and content.status.value == 'draft' %}
+                    <form method="post" action="{{ path('app_admin_learning_content_submit_review', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                        <label>Not (gerekçe kodu)
+                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="ready_for_review">
+                        </label>
+                        <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
+                    </form>
+                {% endif %}
+                {% if can_return_draft and content.status.value == 'in_review' %}
+                    <form method="post" action="{{ path('app_admin_learning_content_return_draft', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                        <label>Gerekçe
+                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="needs_revision">
+                        </label>
+                        <button type="submit" class="btn btn--ghost">Taslağa döndür</button>
+                    </form>
+                {% endif %}
+                {% if can_publish and content.status.value == 'in_review' %}
+                    <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('İçeriği yayımlamak istediğinize emin misiniz?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                        <label>Not (gerekçe kodu)
+                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="publish_approved">
+                        </label>
+                        <button type="submit" class="btn btn--primary">Yayımla</button>
+                    </form>
+                {% endif %}
+                {% if can_archive %}
+                    <form method="post" action="{{ path('app_admin_learning_content_archive', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('Arşivleme geri alınamaz. Devam edilsin mi?');">
+                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                        <label>Gerekçe
+                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="archive_obsolete">
+                        </label>
+                        <button type="submit" class="btn btn--ghost">Arşivle</button>
+                    </form>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
+
     {% if can_set_policy %}
         <section class="admin-section" aria-labelledby="policy-heading">
             <h2 id="policy-heading">Erişim politikası</h2>
@@ -69,4 +115,90 @@
             </form>
         </section>
     {% endif %}
+
+    <section class="admin-section" aria-labelledby="placements-heading">
+        <h2 id="placements-heading">Katalog yerleşimleri</h2>
+        <p class="muted">Yerleşim yalnızca navigasyondur; öğrenci gövde içeriği burada gösterilmez.</p>
+        {% if placements is empty %}
+            <p class="muted">Henüz yerleşim yok.</p>
+        {% else %}
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Konu</th><th>Başlık</th><th>Slug</th><th>Sıra</th><th>Durum</th><th></th></tr></thead>
+                    <tbody>
+                        {% for p in placements %}
+                            <tr>
+                                <td>
+                                    {% if is_granted('ADMIN_CATALOG_VIEW') %}
+                                        <a href="{{ path('app_admin_catalog_topic', {id: p.catalogTopic.id.toRfc4122}) }}">{{ p.catalogTopic.name }}</a>
+                                    {% else %}
+                                        {{ p.catalogTopic.name }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ p.displayTitle }}</td>
+                                <td><code>{{ p.slug }}</code></td>
+                                <td>{{ p.position }}</td>
+                                <td>{{ p.visibilityStatus.value }}</td>
+                                <td>
+                                    {% if is_granted('CATALOG_TOPIC_LESSON_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
+                                        <form method="post" action="{{ path('app_admin_learning_content_placement_publish', {placementId: p.id.toRfc4122}) }}" class="stack-sm" style="display:inline-block" onsubmit="return confirm('Yerleşimi yayımlamak istediğinize emin misiniz?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_publish_' ~ p.id.toRfc4122) }}">
+                                            <input type="hidden" name="note" value="admin_placement_publish">
+                                            <label>
+                                                <input type="checkbox" name="confirm_publish" value="1" required>
+                                                Onaylıyorum
+                                            </label>
+                                            <button type="submit" class="btn btn--ghost">Yayımla</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if is_granted('CATALOG_TOPIC_LESSON_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
+                                        <form method="post" action="{{ path('app_admin_learning_content_placement_archive', {placementId: p.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Arşivleme geri alınamaz. Devam?');">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_archive_' ~ p.id.toRfc4122) }}">
+                                            <input type="hidden" name="note" value="admin_placement_archive">
+                                            <button type="submit" class="btn btn--ghost">Arşivle</button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% if can_create_placement %}
+            <h3>Yerleşim ekle</h3>
+            {% if bindable_topics is empty %}
+                <p class="muted">Eşlenmiş (canonical) katalog konusu yok. Önce müfredatta canonical eşleme yapın.</p>
+            {% else %}
+                <form method="post" action="{{ path('app_admin_learning_content_placement_create', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                    <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_' ~ content.id.toRfc4122) }}">
+                    <label>Katalog konusu
+                        <select name="catalog_topic_id" required>
+                            <option value="">Seçin</option>
+                            {% for t in bindable_topics %}
+                                <option value="{{ t.id.toRfc4122 }}">{{ t.unit.subject.name }} / {{ t.unit.name }} / {{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Görünen başlık
+                        <input type="text" name="display_title" required minlength="2" maxlength="200">
+                    </label>
+                    <label>Slug (opsiyonel)
+                        <input type="text" name="slug" maxlength="180" placeholder="otomatik">
+                    </label>
+                    <label>Özet
+                        <textarea name="summary" maxlength="3000" rows="2"></textarea>
+                    </label>
+                    <label>Sıra
+                        <input type="number" name="position" required value="0" min="0" step="1">
+                    </label>
+                    <label>Not
+                        <input type="text" name="note" maxlength="64" value="admin_placement_create">
+                    </label>
+                    <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </section>
 {% endblock %}

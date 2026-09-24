@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Dto\LearningContentCreateRequest;
 use App\Dto\SubjectCreateRequest;
+use App\Entity\CatalogTopicLesson;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\LearningContent;
 use App\Entity\LearningContentRevision;
@@ -13,23 +14,31 @@ use App\Entity\Subject;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentFailureReason;
 use App\Enum\LearningContentScope;
+use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
 use App\Enum\ResourceAccessClass;
+use App\Enum\SubjectStatus;
 use App\Exception\AccessEntitlementException;
+use App\Exception\CatalogException;
 use App\Exception\CommerceException;
 use App\Exception\LearningContentException;
 use App\Exception\SubjectException;
 use App\Form\LearningContentCreateFormType;
 use App\Form\SubjectCreateFormType;
 use App\LearningContent\Content\LearningContentDocument;
+use App\Repository\CatalogTopicLessonRepository;
+use App\Repository\CatalogTopicRepository;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\LearningContentAccessPolicyRepository;
 use App\Repository\SubjectRepository;
 use App\Security\AdminPermission;
+use App\Security\CatalogTopicLessonPermission;
+use App\Security\LearningContentPermission;
 use App\Service\AccessPackageManager;
 use App\Service\Admin\AdminLearningContentQuery;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\LearningContentRevisionFormMapper;
+use App\Service\CatalogTopicLessonManager;
 use App\Service\LearningContentManager;
 use App\Service\SubjectManager;
 use Symfony\Component\HttpFoundation\Request;
@@ -50,6 +59,9 @@ final class AdminLearningContentController extends AdminBaseController
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly LearningContentAccessPolicyRepository $policies,
         private readonly LearningContentRevisionFormMapper $revisionFormMapper,
+        private readonly CatalogTopicLessonManager $placements,
+        private readonly CatalogTopicLessonRepository $placementRepo,
+        private readonly CatalogTopicRepository $catalogTopics,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -183,13 +195,202 @@ final class AdminLearningContentController extends AdminBaseController
     {
         $content = $this->requireContent($id);
         $policy = $this->policies->findForContent($content->getId());
+        $placements = $this->placementRepo->findOrderedByLearningContent($content);
+        $bindableTopics = $this->catalogTopics->findBindableForCanonicalSubject($content->getSubject());
 
         return $this->renderAdmin('admin/learning_contents/detail.html.twig', [
             'content' => $content,
             'policy' => $policy,
+            'placements' => $placements,
+            'bindable_topics' => $bindableTopics,
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
             'can_set_policy' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
+            'can_submit_review' => $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
+            'can_return_draft' => $this->isGranted(LearningContentPermission::RETURN_DRAFT, $content),
+            'can_publish' => $this->isGranted(LearningContentPermission::PUBLISH, $content),
+            'can_archive' => $this->isGranted(LearningContentPermission::ARCHIVE, $content),
+            'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
+                && LearningContentStatus::Archived !== $content->getStatus(),
         ]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/incelemeye-gonder', name: 'app_admin_learning_content_submit_review', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function submitForReview(Request $request, string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $this->denyAccessUnlessGranted(LearningContentPermission::SUBMIT_REVIEW, $content);
+        $this->assertLifecycleCsrf($request, $id);
+
+        try {
+            $note = $this->requireLifecycleNote($request);
+            $this->contents->submitForReview($content, $this->requireActorUser(), $note);
+            $this->addFlash('success', 'İçerik incelemeye gönderildi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/taslaga-dondur', name: 'app_admin_learning_content_return_draft', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function returnToDraft(Request $request, string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $this->denyAccessUnlessGranted(LearningContentPermission::RETURN_DRAFT, $content);
+        $this->assertLifecycleCsrf($request, $id);
+
+        try {
+            $note = $this->requireLifecycleNote($request);
+            $this->contents->returnToDraft($content, $this->requireActorUser(), $note);
+            $this->addFlash('success', 'İçerik taslağa döndürüldü.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/yayimla', name: 'app_admin_learning_content_publish', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function publish(Request $request, string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $this->denyAccessUnlessGranted(LearningContentPermission::PUBLISH, $content);
+        $this->assertLifecycleCsrf($request, $id);
+
+        if (null === $this->policies->findForContent($content->getId())) {
+            $this->addFlash('error', 'Yayımlamadan önce erişim politikası ayarlanmalıdır (fail-closed).');
+
+            return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+        }
+        if (SubjectStatus::Active !== $content->getSubject()->getStatus()) {
+            $this->addFlash('error', 'Canonical konu alanı aktif değil; yayımlama reddedildi.');
+
+            return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+        }
+
+        try {
+            $note = $this->requireLifecycleNote($request);
+            $this->contents->publish($content, $this->requireActorUser(), $note);
+            $this->addFlash('success', 'İçerik yayımlandı.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/arsivle', name: 'app_admin_learning_content_archive', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function archive(Request $request, string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $this->denyAccessUnlessGranted(LearningContentPermission::ARCHIVE, $content);
+        $this->assertLifecycleCsrf($request, $id);
+
+        try {
+            $note = $this->requireLifecycleNote($request);
+            $this->contents->archive($content, $this->requireActorUser(), $note);
+            $this->addFlash('success', 'İçerik arşivlendi (geri açılamaz).');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/yerlesim', name: 'app_admin_learning_content_placement_create', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function createPlacementFromContent(Request $request, string $id): Response
+    {
+        $content = $this->requireContent($id);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::CREATE);
+        $this->assertLifecycleCsrf($request, $id, 'learning_content_placement_');
+
+        $topicIdRaw = (string) $request->request->get('catalog_topic_id', '');
+        $displayTitle = trim((string) $request->request->get('display_title', ''));
+        $slug = trim((string) $request->request->get('slug', ''));
+        $summaryRaw = trim((string) $request->request->get('summary', ''));
+        $position = $request->request->getInt('position', 0);
+        $note = trim((string) $request->request->get('note', 'admin_placement_create'));
+
+        try {
+            $topicUuid = Uuid::fromString($topicIdRaw);
+            $this->placements->create(
+                $this->requireActorUser(),
+                $topicUuid,
+                $content->getId(),
+                $displayTitle,
+                '' === $summaryRaw ? null : $summaryRaw,
+                $position,
+                '' === $note ? 'admin_placement_create' : $note,
+                '' === $slug ? null : $slug,
+            );
+            $this->addFlash('success', 'Yerleşim taslağı oluşturuldu.');
+        } catch (\InvalidArgumentException) {
+            $this->addFlash('error', 'Geçersiz katalog konusu.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/yerlesim/{placementId}/yayimla', name: 'app_admin_learning_content_placement_publish', methods: ['POST'], requirements: ['placementId' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function publishPlacementFromContent(Request $request, string $placementId): Response
+    {
+        $lesson = $this->requirePlacement($placementId);
+        $contentId = $lesson->getLearningContent()->getId()->toRfc4122();
+        $this->requireContent($contentId);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::PUBLISH, $lesson);
+        $this->assertLifecycleCsrf($request, $placementId, 'learning_content_placement_publish_');
+        if ('1' !== (string) $request->request->get('confirm_publish')) {
+            $this->addFlash('error', 'Yayımlama için onay kutusu zorunludur.');
+
+            return $this->redirectToRoute('app_admin_learning_content', ['id' => $contentId]);
+        }
+
+        $note = trim((string) $request->request->get('note', 'admin_placement_publish'));
+        try {
+            $this->placements->publish(
+                $this->requireActorUser(),
+                $lesson->getId(),
+                '' === $note ? 'admin_placement_publish' : $note,
+            );
+            $this->addFlash('success', 'Yerleşim yayımlandı.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $contentId]);
+    }
+
+    #[Route('/yonetim/icerikler/yerlesim/{placementId}/arsivle', name: 'app_admin_learning_content_placement_archive', methods: ['POST'], requirements: ['placementId' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_VIEW)]
+    public function archivePlacementFromContent(Request $request, string $placementId): Response
+    {
+        $lesson = $this->requirePlacement($placementId);
+        $contentId = $lesson->getLearningContent()->getId()->toRfc4122();
+        $this->requireContent($contentId);
+        $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::ARCHIVE, $lesson);
+        $this->assertLifecycleCsrf($request, $placementId, 'learning_content_placement_archive_');
+
+        $note = trim((string) $request->request->get('note', 'admin_placement_archive'));
+        try {
+            $this->placements->archive(
+                $this->requireActorUser(),
+                $lesson->getId(),
+                '' === $note ? 'admin_placement_archive' : $note,
+            );
+            $this->addFlash('success', 'Yerleşim arşivlendi (geri açılamaz).');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content', ['id' => $contentId]);
     }
 
     #[Route('/yonetim/icerikler/{id}/erisim', name: 'app_admin_learning_content_policy', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -461,6 +662,21 @@ final class AdminLearningContentController extends AdminBaseController
         }
     }
 
+    private function requirePlacement(string $id): CatalogTopicLesson
+    {
+        try {
+            $uuid = Uuid::fromString($id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $lesson = $this->placementRepo->findOneById($uuid);
+        if (!$lesson instanceof CatalogTopicLesson) {
+            throw $this->createNotFoundException();
+        }
+
+        return $lesson;
+    }
+
     private function requireActiveSubject(string $id): Subject
     {
         try {
@@ -469,7 +685,7 @@ final class AdminLearningContentController extends AdminBaseController
             throw LearningContentException::invalidInput('Geçersiz konu alanı.');
         }
         $subject = $this->subjects->findOneById($uuid);
-        if (!$subject instanceof Subject || \App\Enum\SubjectStatus::Active !== $subject->getStatus()) {
+        if (!$subject instanceof Subject || SubjectStatus::Active !== $subject->getStatus()) {
             throw LearningContentException::invalidInput('Yalnız aktif canonical konu alanı seçilebilir.');
         }
 
@@ -580,13 +796,42 @@ final class AdminLearningContentController extends AdminBaseController
         return true;
     }
 
+    private function assertLifecycleCsrf(Request $request, string $id, string $prefix = 'learning_content_lifecycle_'): void
+    {
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid($prefix.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+    }
+
+    private function requireLifecycleNote(Request $request): string
+    {
+        $note = strtolower(trim((string) $request->request->get('note', '')));
+        if ('' === $note) {
+            throw LearningContentException::invalidInput('Not / gerekçe kodu zorunludur.');
+        }
+        if (1 !== preg_match('/^[a-z][a-z0-9_]{1,63}$/', $note)) {
+            throw LearningContentException::invalidInput(
+                'Gerekçe kodu snake_case olmalı (ör. ready_for_review, needs_revision).',
+            );
+        }
+
+        return $note;
+    }
+
     private function flashLearningContentException(LearningContentException $e): void
     {
         $message = match ($e->getReason()) {
             LearningContentFailureReason::Conflict => 'Çakışma: sürüm değişmiş veya mühürlü. Değişiklikler kaydedilmedi.',
             LearningContentFailureReason::RevisionSealed => 'Mühürlü sürüm değiştirilemez. Önce yeni sürüm klonlayın.',
+            LearningContentFailureReason::RevisionNotSealed => 'Yayımlama için sürüm mühürlü olmalıdır.',
+            LearningContentFailureReason::ReviewSeparation => 'Yayımlayan, sürüm yazarından farklı olmalıdır (görev ayrımı).',
             LearningContentFailureReason::Unauthorized => 'Bu işlem için yetkiniz yok.',
             LearningContentFailureReason::NotFound => 'Kayıt bulunamadı.',
+            LearningContentFailureReason::InvalidTransition => 'Bu durum geçişi izinli değil.',
+            LearningContentFailureReason::CurriculumNotPublished => 'Yayımlama için müfredat programı yayımda olmalıdır.',
+            LearningContentFailureReason::AlignmentInvalid => $e->getMessage(),
+            LearningContentFailureReason::InvalidInput => $e->getMessage(),
             default => $e->getMessage(),
         };
         $this->addFlash('error', $message);
