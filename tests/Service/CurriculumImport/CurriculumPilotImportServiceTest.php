@@ -33,7 +33,6 @@ final class CurriculumPilotImportServiceTest extends KernelTestCase
     private SubjectManager $subjectManager;
     private UserFactory $userFactory;
     private UserRepository $users;
-    private EntityManagerInterface $em;
     private string $fixturePath;
 
     protected function setUp(): void
@@ -48,7 +47,6 @@ final class CurriculumPilotImportServiceTest extends KernelTestCase
         $subjectManager = $c->get(SubjectManager::class);
         $userFactory = $c->get(UserFactory::class);
         $users = $c->get(UserRepository::class);
-        $em = $c->get(EntityManagerInterface::class);
         self::assertInstanceOf(CurriculumPilotImportService::class, $import);
         self::assertInstanceOf(CurriculumPilotImportYamlLoader::class, $loader);
         self::assertInstanceOf(SubjectRepository::class, $subjects);
@@ -57,7 +55,6 @@ final class CurriculumPilotImportServiceTest extends KernelTestCase
         self::assertInstanceOf(SubjectManager::class, $subjectManager);
         self::assertInstanceOf(UserFactory::class, $userFactory);
         self::assertInstanceOf(UserRepository::class, $users);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
         $this->import = $import;
         $this->loader = $loader;
         $this->subjects = $subjects;
@@ -66,7 +63,6 @@ final class CurriculumPilotImportServiceTest extends KernelTestCase
         $this->subjectManager = $subjectManager;
         $this->userFactory = $userFactory;
         $this->users = $users;
-        $this->em = $em;
         $this->fixturePath = \dirname(__DIR__, 3)
             .\DIRECTORY_SEPARATOR.'data'
             .\DIRECTORY_SEPARATOR.'curriculum'
