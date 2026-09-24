@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Subject;
+use App\Enum\SubjectStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -37,6 +38,23 @@ class SubjectRepository extends ServiceEntityRepository
     public function existsWithSlug(string $slug): bool
     {
         return null !== $this->findOneBy(['slug' => $slug]);
+    }
+
+    /**
+     * @return list<Subject>
+     */
+    public function findActiveOrdered(): array
+    {
+        /** @var list<Subject> $rows */
+        $rows = $this->createQueryBuilder('s')
+            ->andWhere('s.status = :status')
+            ->setParameter('status', SubjectStatus::Active)
+            ->orderBy('s.name', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
     }
 
     public function save(Subject $subject, bool $flush = true): void

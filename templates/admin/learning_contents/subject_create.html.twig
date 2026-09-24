@@ -1,0 +1,22 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni konu alanı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <span aria-hidden="true">/</span>
+        <span>Konu alanı</span>
+    </nav>
+    <h1 class="panel-greeting">Yeni canonical konu alanı</h1>
+    <p class="muted">Yalnız Süper Yönetici. Production’da otomatik oluşturma yok.</p>
+
+    {{ form_start(form) }}
+        {{ form_row(form.code) }}
+        {{ form_row(form.name) }}
+        <button type="submit" class="btn btn--primary">Oluştur</button>
+        <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
+    {{ form_end(form) }}
+{% endblock %}

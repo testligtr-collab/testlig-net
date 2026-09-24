@@ -96,7 +96,15 @@ final class AccessPackageAuthorization
 
     public function assertCanSetResourceAccessPolicy(User $actor): void
     {
-        $this->assertCanPreparePackages($actor);
+        $this->assertActiveVerified($actor);
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            return;
+        }
+        if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            return;
+        }
+
+        throw AccessEntitlementException::unauthorized();
     }
 
     private function assertActiveVerified(User $actor): void

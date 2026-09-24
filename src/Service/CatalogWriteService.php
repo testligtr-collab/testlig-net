@@ -5,11 +5,20 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\CatalogSourceAttribution;
+use App\Dto\SecurityAuditContext;
 use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
+use App\Entity\CatalogTopicLesson;
 use App\Entity\CatalogUnit;
+use App\Entity\LearningContent;
 use App\Entity\Subject;
+use App\Entity\User;
 use App\Enum\GradeLevel;
+use App\Enum\SecurityAuditAction;
+use App\Enum\SecurityAuditActorType;
+use App\Enum\SecurityAuditOutcome;
+use App\Enum\SubjectStatus;
+use App\Enum\UserRole;
 use App\Exception\CatalogException;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\CatalogTopicRepository;
@@ -32,6 +41,8 @@ final class CatalogWriteService
         private readonly CatalogUnitRepository $units,
         private readonly CatalogTopicRepository $topics,
         private readonly CatalogSlugger $slugger,
+        private readonly SecurityAuditRecorder $auditRecorder,
+        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly ClockInterface $clock,
     ) {
     }
@@ -322,10 +333,45 @@ final class CatalogWriteService
     /**
      * Explicit UUID mapping only — never match by name or slug.
      */
-    public function assignCanonicalSubject(Uuid $catalogSubjectId, ?Uuid $canonicalSubjectId): CatalogSubject
-    {
-        return $this->em->wrapInTransaction(function () use ($catalogSubjectId, $canonicalSubjectId): CatalogSubject {
+    public function assignCanonicalSubject(
+        User $actor,
+        Uuid $catalogSubjectId,
+        ?Uuid $canonicalSubjectId,
+        string $reasonCode = 'map_canonical',
+    ): CatalogSubject {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $actorId = $actor->getId();
+
+        return $this->em->wrapInTransaction(function () use (
+            $actorId,
+            $catalogSubjectId,
+            $canonicalSubjectId,
+            $reasonCode,
+        ): CatalogSubject {
             $catalogSubject = $this->lockSubject($catalogSubjectId);
+            $freshActor = $this->lockActor($actorId);
+            $this->assertMayMapCanonical($freshActor);
+
+            $previousCanonical = $catalogSubject->getCanonicalSubject();
+            $previousId = $previousCanonical?->getId();
+            $clearing = null === $canonicalSubjectId;
+            $changing = !$clearing
+                && $previousId instanceof Uuid
+                && !$previousId->equals($canonicalSubjectId);
+
+            if ($clearing || $changing) {
+                if ($this->hasTopicLessonsForCatalogSubject($catalogSubjectId)) {
+                    throw CatalogException::conflict(
+                        'Bu ders altında konu yerleşimi varken canonical eşleme değiştirilemez veya kaldırılamaz.',
+                    );
+                }
+            }
+            if ($clearing && $previousId instanceof Uuid && $this->hasLearningContentForSubject($previousId)) {
+                throw CatalogException::conflict(
+                    'Bu canonical konu alanına bağlı öğrenme içeriği varken eşleme kaldırılamaz.',
+                );
+            }
+
             $canonical = null;
             if ($canonicalSubjectId instanceof Uuid) {
                 $canonical = $this->em->find(Subject::class, $canonicalSubjectId);
@@ -333,12 +379,107 @@ final class CatalogWriteService
                     throw CatalogException::notFound();
                 }
                 $this->em->lock($canonical, LockMode::PESSIMISTIC_READ);
+                if (SubjectStatus::Active !== $canonical->getStatus()) {
+                    throw CatalogException::invalidInput('Yalnız aktif canonical konu alanı seçilebilir.');
+                }
             }
+
+            $sameMapping = (null === $previousId && null === $canonicalSubjectId)
+                || ($previousId instanceof Uuid && $canonicalSubjectId instanceof Uuid && $previousId->equals($canonicalSubjectId));
+            if ($sameMapping) {
+                return $catalogSubject;
+            }
+
             $catalogSubject->assignCanonicalSubject($canonical, $this->clock->now());
+            $this->auditRecorder->record(new SecurityAuditContext(
+                action: SecurityAuditAction::CatalogSubjectCanonicalMapped,
+                actorType: SecurityAuditActorType::User,
+                outcome: SecurityAuditOutcome::Success,
+                actorUser: $freshActor,
+                metadata: [
+                    'source' => 'catalog_write_service',
+                    'reason_code' => $reasonCode,
+                    'catalog_subject_id' => $catalogSubject->getId()->toRfc4122(),
+                    'previous_canonical_subject_id' => $previousId?->toRfc4122(),
+                    'canonical_subject_id' => $canonicalSubjectId?->toRfc4122(),
+                ],
+                captureRequestHashes: false,
+            ), false);
             $this->em->flush();
 
             return $catalogSubject;
         });
+    }
+
+    private function assertMayMapCanonical(User $actor): void
+    {
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($actor)) {
+            throw CatalogException::unauthorized();
+        }
+        $roles = $actor->getRoles();
+        foreach ([UserRole::SuperAdmin, UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher] as $role) {
+            if (\in_array($role->value, $roles, true)) {
+                return;
+            }
+        }
+
+        throw CatalogException::unauthorized();
+    }
+
+    private function hasTopicLessonsForCatalogSubject(Uuid $catalogSubjectId): bool
+    {
+        $count = (int) $this->em->createQueryBuilder()
+            ->select('COUNT(l.id)')
+            ->from(CatalogTopicLesson::class, 'l')
+            ->innerJoin('l.catalogTopic', 't')
+            ->innerJoin('t.unit', 'u')
+            ->andWhere('IDENTITY(u.subject) = :subjectId')
+            ->setParameter('subjectId', $catalogSubjectId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
+    }
+
+    private function hasLearningContentForSubject(Uuid $canonicalSubjectId): bool
+    {
+        $count = (int) $this->em->createQueryBuilder()
+            ->select('COUNT(c.id)')
+            ->from(LearningContent::class, 'c')
+            ->andWhere('IDENTITY(c.subject) = :subjectId')
+            ->setParameter('subjectId', $canonicalSubjectId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return $count > 0;
+    }
+
+    private function lockActor(Uuid $actorId): User
+    {
+        $user = $this->em->createQueryBuilder()
+            ->select('u')
+            ->from(User::class, 'u')
+            ->andWhere('u.id = :id')
+            ->setParameter('id', $actorId, 'uuid')
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_READ)
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
+        if (!$user instanceof User) {
+            throw CatalogException::unauthorized();
+        }
+
+        return $user;
+    }
+
+    private function normalizeReasonCode(string $reasonCode): string
+    {
+        $reasonCode = trim($reasonCode);
+        if ('' === $reasonCode || \strlen($reasonCode) > 64) {
+            throw CatalogException::invalidInput('reason_code geçersiz.');
+        }
+
+        return $reasonCode;
     }
 
     private function lockSubject(Uuid $id): CatalogSubject

@@ -62,6 +62,9 @@ final class AdminVoter extends Voter
                     AdminPermission::ADMIN_MEMBERSHIPS_MANAGE => $this->adminAuthorization->canManageMemberships($actor),
                     AdminPermission::ADMIN_CATALOG_VIEW => $this->adminAuthorization->canViewCatalog($actor),
                     AdminPermission::ADMIN_CATALOG_MANAGE => $this->adminAuthorization->canManageCatalog($actor),
+                    AdminPermission::ADMIN_CATALOG_MAP_CANONICAL => $this->adminAuthorization->canMapCatalogCanonical($actor),
+                    AdminPermission::ADMIN_LEARNING_CONTENT_VIEW => $this->adminAuthorization->canViewLearningContentWorkspace($actor),
+                    AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE => $this->adminAuthorization->canManageLearningContentWorkspace($actor),
                     default => false,
                 };
             });

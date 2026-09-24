@@ -31,6 +31,40 @@
         {% endif %}
     </dl>
 
+    <section class="admin-section" aria-labelledby="canonical-map-heading">
+        <h2 id="canonical-map-heading">Canonical konu alanı</h2>
+        <p class="muted">Eşleme yalnız açık UUID seçimi ile yapılır; isim veya slug otomatik eşlenmez.</p>
+        <dl class="account-dl">
+            <dt>Mevcut eşleme</dt>
+            <dd>
+                {% if subject.canonicalSubject %}
+                    <strong>{{ subject.canonicalSubject.name }}</strong>
+                    · <code>{{ subject.canonicalSubject.code }}</code>
+                    · <code>{{ subject.canonicalSubject.id.toRfc4122 }}</code>
+                {% else %}
+                    <span class="muted">Eşleme yok</span>
+                {% endif %}
+            </dd>
+        </dl>
+        {% if can_map_canonical %}
+            <form method="post" action="{{ path('app_admin_catalog_subject_canonical', {id: subject.id.toRfc4122}) }}" class="stack-sm">
+                <input type="hidden" name="_token" value="{{ csrf_token('catalog_canonical_map_' ~ subject.id.toRfc4122) }}">
+                <label>Aktif konu alanı
+                    <select name="canonical_subject_id">
+                        <option value="">— Eşlemeyi kaldır —</option>
+                        {% for cs in canonical_subjects %}
+                            <option value="{{ cs.id.toRfc4122 }}"
+                                {% if subject.canonicalSubject and subject.canonicalSubject.id.equals(cs.id) %}selected{% endif %}>
+                                {{ cs.name }} ({{ cs.code }}) · {{ cs.id.toRfc4122 }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="submit" class="btn btn--primary">Eşlemeyi kaydet</button>
+            </form>
+        {% endif %}
+    </section>
+
     {% if can_manage %}
         <div class="admin-actions stack-sm">
             {% if subject.status.value == 'draft' %}

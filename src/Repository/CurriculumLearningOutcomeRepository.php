@@ -7,6 +7,8 @@ namespace App\Repository;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
+use App\Entity\Subject;
+use App\Enum\CurriculumContentStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -78,6 +80,29 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
             ->andWhere('o.curriculumProgram = :program')
             ->setParameter('program', $program->getId(), 'uuid')
             ->orderBy('o.position', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * Active learning outcomes for a platform subject (UUID select options).
+     *
+     * @return list<CurriculumLearningOutcome>
+     */
+    public function findActiveOrderedForSubject(Subject $subject): array
+    {
+        /** @var list<CurriculumLearningOutcome> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->innerJoin('o.curriculumProgram', 'p')
+            ->addSelect('p')
+            ->andWhere('IDENTITY(p.subject) = :subjectId')
+            ->andWhere('o.status = :status')
+            ->setParameter('subjectId', $subject->getId(), 'uuid')
+            ->setParameter('status', CurriculumContentStatus::Active)
+            ->orderBy('o.code', 'ASC')
+            ->addOrderBy('o.id', 'ASC')
             ->getQuery()
             ->getResult();
 

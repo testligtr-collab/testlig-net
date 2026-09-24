@@ -136,6 +136,57 @@ final class AdminAuthorization
         $this->assertCanAccessAdminShell($actor);
     }
 
+    /**
+     * Canonical Subject mapping on CatalogSubject: SA | Admin | Head | Expert.
+     */
+    public function assertCanMapCatalogCanonical(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->hasAnyRole($actor, [
+            UserRole::SuperAdmin,
+            UserRole::Admin,
+            UserRole::HeadTeacher,
+            UserRole::ExpertTeacher,
+        ])) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
+    /**
+     * Learning content workspace list/detail: SA | Admin | Head | Expert | Moderator | Teacher.
+     */
+    public function assertCanViewLearningContentWorkspace(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->hasAnyRole($actor, [
+            UserRole::SuperAdmin,
+            UserRole::Admin,
+            UserRole::HeadTeacher,
+            UserRole::ExpertTeacher,
+            UserRole::Moderator,
+            UserRole::Teacher,
+        ])) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
+    /**
+     * Learning content create / policy mutations: SA | Admin | Head | Expert | Teacher.
+     */
+    public function assertCanManageLearningContentWorkspace(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->hasAnyRole($actor, [
+            UserRole::SuperAdmin,
+            UserRole::Admin,
+            UserRole::HeadTeacher,
+            UserRole::ExpertTeacher,
+            UserRole::Teacher,
+        ])) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
     public function canAccessAdminShell(User $actor): bool
     {
         return $this->isActiveVerifiedAdminOrSuperAdmin($actor);
@@ -206,6 +257,42 @@ final class AdminAuthorization
         return $this->canAccessAdminShell($actor);
     }
 
+    public function canMapCatalogCanonical(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+            && $this->hasAnyRole($actor, [
+                UserRole::SuperAdmin,
+                UserRole::Admin,
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+            ]);
+    }
+
+    public function canViewLearningContentWorkspace(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+            && $this->hasAnyRole($actor, [
+                UserRole::SuperAdmin,
+                UserRole::Admin,
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Moderator,
+                UserRole::Teacher,
+            ]);
+    }
+
+    public function canManageLearningContentWorkspace(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+            && $this->hasAnyRole($actor, [
+                UserRole::SuperAdmin,
+                UserRole::Admin,
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Teacher,
+            ]);
+    }
+
     private function assertActiveVerifiedAdminOrSuperAdmin(User $actor): void
     {
         $this->assertActiveVerified($actor);
@@ -229,9 +316,21 @@ final class AdminAuthorization
 
     private function isAdminOrSuperAdmin(User $actor): bool
     {
-        $roles = $actor->getRoles();
+        return $this->hasAnyRole($actor, [UserRole::Admin, UserRole::SuperAdmin]);
+    }
 
-        return \in_array(UserRole::Admin->value, $roles, true)
-            || \in_array(UserRole::SuperAdmin->value, $roles, true);
+    /**
+     * @param list<UserRole> $roles
+     */
+    private function hasAnyRole(User $actor, array $roles): bool
+    {
+        $held = $actor->getRoles();
+        foreach ($roles as $role) {
+            if (\in_array($role->value, $held, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
