@@ -150,7 +150,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         $crawler = $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122());
-        $token = $crawler->filter('input[name="_token"]')->attr('value');
+        $token = $crawler->filter('form[action$="/erisim"] input[name="_token"]')->attr('value');
         self::assertNotNull($token);
         $client->request('POST', '/yonetim/icerikler/'.$contentId->toRfc4122().'/erisim', [
             '_token' => $token,
@@ -161,7 +161,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'onay kutusu');
 
         $crawler = $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122());
-        $token = $crawler->filter('input[name="_token"]')->attr('value');
+        $token = $crawler->filter('form[action$="/erisim"] input[name="_token"]')->attr('value');
         $client->request('POST', '/yonetim/icerikler/'.$contentId->toRfc4122().'/erisim', [
             '_token' => $token,
             'access_class' => ResourceAccessClass::Free->value,

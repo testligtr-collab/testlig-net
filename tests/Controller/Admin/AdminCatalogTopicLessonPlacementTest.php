@@ -92,7 +92,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'eşmuyor');
+        self::assertSelectorTextContains('body', 'uyuşmuyor');
 
         $crawler = $client->request('GET', '/yonetim/mufredat/konu/'.$topicId->toRfc4122());
         $token = $crawler->filter('form[action$="/yerlesim"] input[name="_token"]')->attr('value');
