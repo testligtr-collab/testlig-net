@@ -14,15 +14,6 @@ use App\Dto\StudentContent\StudentContentBlockView;
  */
 final class StudentContentBlockNormalizer
 {
-    private const UI_TYPES = [
-        StudentContentBlockView::TYPE_HEADING,
-        StudentContentBlockView::TYPE_PARAGRAPH,
-        StudentContentBlockView::TYPE_LIST,
-        StudentContentBlockView::TYPE_QUOTE,
-        StudentContentBlockView::TYPE_MATH,
-        StudentContentBlockView::TYPE_CALLOUT,
-    ];
-
     private const CALLOUT_VARIANTS = ['info', 'warning', 'tip', 'note'];
 
     /**
@@ -57,7 +48,7 @@ final class StudentContentBlockNormalizer
     private function normalizeBlock(array $block, bool $allowCallout): ?StudentContentBlockView
     {
         $type = $block['type'] ?? null;
-        if (!\is_string($type) || !\in_array($type, self::UI_TYPES, true)) {
+        if (!\is_string($type)) {
             return null;
         }
 
