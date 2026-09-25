@@ -140,8 +140,11 @@ final class AssessmentManager
         ?string $passScorePercentage,
         array $sections,
         string $reasonCode,
+        ?Subject $subject = null,
+        ?string $operatorNote = null,
     ): Assessment {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $requestedSubjectId = $subject?->getId();
         $normalized = $this->normalizeRevisionInput(
             $title,
             $description,
@@ -166,6 +169,8 @@ final class AssessmentManager
                 $gradeLevel,
                 $normalized,
                 $reasonCode,
+                $requestedSubjectId,
+                $operatorNote,
             ): Assessment {
                 $lockedInstitution = null;
                 if (null !== $institutionId) {
@@ -205,26 +210,32 @@ final class AssessmentManager
                     $normalized,
                     $bundle,
                     $now,
+                    $requestedSubjectId,
                 );
+
+                $createdMetadata = [
+                    'source' => 'assessment_manager',
+                    'reason_code' => $reasonCode,
+                    'assessment_id' => $assessment->getId()->toRfc4122(),
+                    'assessment_revision_id' => $revision->getId()->toRfc4122(),
+                    'revision_number' => 1,
+                    'assessment_type' => $type->value,
+                    'grade_level' => $gradeLevel->value,
+                    'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
+                    'section_count' => \count($normalized['sections']),
+                    'item_count' => $this->countItems($normalized['sections']),
+                    'new_status' => $assessment->getStatus()->value,
+                ];
+                if (null !== $operatorNote && '' !== $operatorNote) {
+                    $createdMetadata['operator_note'] = $operatorNote;
+                }
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentCreated,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
-                        'source' => 'assessment_manager',
-                        'reason_code' => $reasonCode,
-                        'assessment_id' => $assessment->getId()->toRfc4122(),
-                        'assessment_revision_id' => $revision->getId()->toRfc4122(),
-                        'revision_number' => 1,
-                        'assessment_type' => $type->value,
-                        'grade_level' => $gradeLevel->value,
-                        'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
-                        'section_count' => \count($normalized['sections']),
-                        'item_count' => $this->countItems($normalized['sections']),
-                        'new_status' => $assessment->getStatus()->value,
-                    ],
+                    metadata: $createdMetadata,
                     captureRequestHashes: false,
                 ), false);
 
@@ -277,8 +288,11 @@ final class AssessmentManager
         ?string $passScorePercentage,
         array $sections,
         string $reasonCode,
+        ?Subject $subject = null,
+        ?string $operatorNote = null,
     ): AssessmentRevision {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $requestedSubjectId = $subject?->getId();
         $normalized = $this->normalizeRevisionInput(
             $title,
             $description,
@@ -300,6 +314,8 @@ final class AssessmentManager
                 $actorId,
                 $normalized,
                 $reasonCode,
+                $requestedSubjectId,
+                $operatorNote,
             ): AssessmentRevision {
                 $snapshot = $this->fetchAssessmentScopeSnapshot($assessmentId);
                 if (null === $snapshot) {
@@ -350,27 +366,33 @@ final class AssessmentManager
                     $normalized,
                     $bundle,
                     $now,
+                    $requestedSubjectId,
                 );
+
+                $revisionMetadata = [
+                    'source' => 'assessment_manager',
+                    'reason_code' => $reasonCode,
+                    'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
+                    'assessment_revision_id' => $revision->getId()->toRfc4122(),
+                    'revision_number' => $revisionNumber,
+                    'assessment_type' => $lockedAssessment->getType()->value,
+                    'grade_level' => $lockedAssessment->getGradeLevel()->value,
+                    'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
+                    'section_count' => \count($normalized['sections']),
+                    'item_count' => $this->countItems($normalized['sections']),
+                    'old_status' => $snapshot['status'],
+                    'new_status' => $lockedAssessment->getStatus()->value,
+                ];
+                if (null !== $operatorNote && '' !== $operatorNote) {
+                    $revisionMetadata['operator_note'] = $operatorNote;
+                }
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentRevisionCreated,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
-                        'source' => 'assessment_manager',
-                        'reason_code' => $reasonCode,
-                        'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
-                        'assessment_revision_id' => $revision->getId()->toRfc4122(),
-                        'revision_number' => $revisionNumber,
-                        'assessment_type' => $lockedAssessment->getType()->value,
-                        'grade_level' => $lockedAssessment->getGradeLevel()->value,
-                        'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
-                        'section_count' => \count($normalized['sections']),
-                        'item_count' => $this->countItems($normalized['sections']),
-                        'old_status' => $snapshot['status'],
-                        'new_status' => $lockedAssessment->getStatus()->value,
-                    ],
+                    metadata: $revisionMetadata,
                     captureRequestHashes: false,
                 ), false);
 
@@ -391,7 +413,7 @@ final class AssessmentManager
         return $revision;
     }
 
-    public function submitForReview(Assessment $assessment, User $actor, string $reasonCode): void
+    public function submitForReview(Assessment $assessment, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition(
             $assessment,
@@ -402,10 +424,11 @@ final class AssessmentManager
                 $a->submitForReview($now);
             },
             requireRevise: true,
+            operatorNote: $operatorNote,
         );
     }
 
-    public function returnToDraft(Assessment $assessment, User $actor, string $reasonCode): void
+    public function returnToDraft(Assessment $assessment, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition(
             $assessment,
@@ -416,10 +439,11 @@ final class AssessmentManager
                 $a->returnToDraft($now);
             },
             requireReview: true,
+            operatorNote: $operatorNote,
         );
     }
 
-    public function archive(Assessment $assessment, User $actor, string $reasonCode): void
+    public function archive(Assessment $assessment, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition(
             $assessment,
@@ -430,17 +454,18 @@ final class AssessmentManager
                 $a->archive($now);
             },
             requireArchive: true,
+            operatorNote: $operatorNote,
         );
     }
 
-    public function publish(Assessment $assessment, User $actor, string $reasonCode): void
+    public function publish(Assessment $assessment, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $assessmentId = $assessment->getId();
         $actorId = $actor->getId();
 
         try {
-            $this->entityManager->wrapInTransaction(function () use ($assessmentId, $actorId, $reasonCode): void {
+            $this->entityManager->wrapInTransaction(function () use ($assessmentId, $actorId, $reasonCode, $operatorNote): void {
                 $snapshot = $this->fetchAssessmentScopeSnapshot($assessmentId);
                 if (null === $snapshot) {
                     throw AssessmentException::notFound();
@@ -549,13 +574,20 @@ final class AssessmentManager
                     throw AssessmentException::notFound();
                 }
                 $this->assertPublishedPointerMatchesRevision($lockedAssessment, $revision);
+                $lockedAssessment->markFirstPublishedAt($now);
+                $this->assessments->save($lockedAssessment, false);
+                $this->entityManager->flush();
+                $noteMeta = [];
+                if (null !== $operatorNote && '' !== $operatorNote) {
+                    $noteMeta['operator_note'] = $operatorNote;
+                }
 
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::AssessmentPublicationCreated,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
+                    metadata: array_merge([
                         'source' => 'assessment_manager',
                         'reason_code' => $reasonCode,
                         'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
@@ -565,7 +597,7 @@ final class AssessmentManager
                         'publication_number' => $publicationNumber,
                         'section_count' => \count($graph['sections']),
                         'item_count' => \count($graph['items']),
-                    ],
+                    ], $noteMeta),
                     captureRequestHashes: false,
                 ), false);
 
@@ -574,7 +606,7 @@ final class AssessmentManager
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
+                    metadata: array_merge([
                         'source' => 'assessment_manager',
                         'reason_code' => $reasonCode,
                         'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
@@ -586,7 +618,7 @@ final class AssessmentManager
                         'new_status' => $lockedAssessment->getStatus()->value,
                         'assessment_type' => $lockedAssessment->getType()->value,
                         'grade_level' => $lockedAssessment->getGradeLevel()->value,
-                    ],
+                    ], $noteMeta),
                     captureRequestHashes: false,
                 ), false);
 
@@ -615,6 +647,7 @@ final class AssessmentManager
         bool $requireRevise = false,
         bool $requireReview = false,
         bool $requireArchive = false,
+        ?string $operatorNote = null,
     ): void {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $assessmentId = $assessment->getId();
@@ -630,6 +663,7 @@ final class AssessmentManager
                 $requireRevise,
                 $requireReview,
                 $requireArchive,
+                $operatorNote,
             ): void {
                 $snapshot = $this->fetchAssessmentScopeSnapshot($assessmentId);
                 if (null === $snapshot) {
@@ -663,7 +697,9 @@ final class AssessmentManager
                     throw AssessmentException::userNotFound();
                 }
 
-                if ($requireReview || $requireArchive) {
+                if ($requireArchive) {
+                    $this->assertActorMayPublish($freshActor, $lockedAssessment);
+                } elseif ($requireReview) {
                     $this->assertActorMayReview($freshActor, $lockedAssessment);
                 } elseif ($requireRevise) {
                     $this->assertActorMayRevise($freshActor, $lockedAssessment);
@@ -676,20 +712,25 @@ final class AssessmentManager
                 $mutator($lockedAssessment, $now);
                 $this->assessments->save($lockedAssessment, false);
 
+                $transitionMetadata = [
+                    'source' => 'assessment_manager',
+                    'reason_code' => $reasonCode,
+                    'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
+                    'old_status' => $oldStatus,
+                    'new_status' => $lockedAssessment->getStatus()->value,
+                    'assessment_type' => $lockedAssessment->getType()->value,
+                    'grade_level' => $lockedAssessment->getGradeLevel()->value,
+                ];
+                if (null !== $operatorNote && '' !== $operatorNote) {
+                    $transitionMetadata['operator_note'] = $operatorNote;
+                }
+
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: $action,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
-                        'source' => 'assessment_manager',
-                        'reason_code' => $reasonCode,
-                        'assessment_id' => $lockedAssessment->getId()->toRfc4122(),
-                        'old_status' => $oldStatus,
-                        'new_status' => $lockedAssessment->getStatus()->value,
-                        'assessment_type' => $lockedAssessment->getType()->value,
-                        'grade_level' => $lockedAssessment->getGradeLevel()->value,
-                    ],
+                    metadata: $transitionMetadata,
                     captureRequestHashes: false,
                 ), false);
 
@@ -747,8 +788,9 @@ final class AssessmentManager
         array $normalized,
         array $bundle,
         \DateTimeImmutable $now,
+        ?Uuid $requestedSubjectId = null,
     ): AssessmentRevision {
-        $this->assertItemsCompatibleWithAssessment($assessment, $normalized['sections'], $bundle);
+        $this->assertItemsCompatibleWithAssessment($assessment, $normalized['sections'], $bundle, $requestedSubjectId);
 
         $publicSections = [];
         foreach ($normalized['sections'] as $sectionSpec) {
@@ -880,9 +922,11 @@ final class AssessmentManager
      *     revisions: array<string, QuestionRevision>
      * } $bundle
      */
-    private function assertItemsCompatibleWithAssessment(Assessment $assessment, array $sections, array $bundle): void
+    private function assertItemsCompatibleWithAssessment(Assessment $assessment, array $sections, array $bundle, ?Uuid $requestedSubjectId = null): void
     {
         $seenQuestionRevisions = [];
+        $seenQuestionIds = [];
+        $canonicalSubject = $assessment->getSubject();
         foreach ($sections as $sectionSpec) {
             foreach ($sectionSpec['items'] as $itemSpec) {
                 $qKey = $itemSpec['questionRevisionId']->toRfc4122();
@@ -908,8 +952,24 @@ final class AssessmentManager
                 if ($question->getGradeLevel() !== $assessment->getGradeLevel()) {
                     throw AssessmentException::gradeMismatch();
                 }
+                $questionKey = $question->getId()->toRfc4122();
+                if (isset($seenQuestionIds[$questionKey])) {
+                    throw AssessmentException::duplicateQuestion();
+                }
+                $seenQuestionIds[$questionKey] = true;
+                $subject = $question->getSubject();
+                if ($canonicalSubject instanceof Subject && !$canonicalSubject->getId()->equals($subject->getId())) {
+                    throw AssessmentException::subjectMismatch();
+                }
+                if (null !== $requestedSubjectId && !$requestedSubjectId->equals($subject->getId())) {
+                    throw AssessmentException::subjectMismatch();
+                }
+                $canonicalSubject = $subject;
                 $this->assertQuestionScopeAllowed($assessment, $question);
             }
+        }
+        if ($canonicalSubject instanceof Subject) {
+            $assessment->bindSubject($canonicalSubject);
         }
     }
 
@@ -1158,6 +1218,8 @@ final class AssessmentManager
         }
 
         $seen = [];
+        $seenQuestionIds = [];
+        $canonicalSubject = $assessment->getSubject();
         foreach ($graph['items'] as $item) {
             if (!$item->getAssessmentRevision()->getId()->equals($revision->getId())) {
                 throw AssessmentException::conflict();
@@ -1182,6 +1244,16 @@ final class AssessmentManager
             if ($question->getGradeLevel() !== $assessment->getGradeLevel()) {
                 throw AssessmentException::gradeMismatch();
             }
+            $questionKey = $question->getId()->toRfc4122();
+            if (isset($seenQuestionIds[$questionKey])) {
+                throw AssessmentException::duplicateQuestion();
+            }
+            $seenQuestionIds[$questionKey] = true;
+            $subject = $question->getSubject();
+            if ($canonicalSubject instanceof Subject && !$canonicalSubject->getId()->equals($subject->getId())) {
+                throw AssessmentException::subjectMismatch();
+            }
+            $canonicalSubject = $subject;
             $this->assertQuestionScopeAllowed($assessment, $question);
 
             $answerKey = $this->answerKeys->findOneByRevision($qRevision);
@@ -1606,7 +1678,7 @@ final class AssessmentManager
         }
 
         if (AssessmentScope::Platform === $scope) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher, UserRole::Admin])) {
                 return;
             }
             throw AssessmentException::unauthorized();
@@ -1644,7 +1716,10 @@ final class AssessmentManager
             }
             if ($this->hasAnyRole($actor, [UserRole::Teacher])
                 && $assessment->getCreatedBy()->getId()->equals($actor->getId())
-                && AssessmentStatus::Archived !== $assessment->getStatus()) {
+                && AssessmentStatus::Draft === $assessment->getStatus()) {
+                return;
+            }
+            if ($this->hasAnyRole($actor, [UserRole::Admin]) && AssessmentStatus::Draft === $assessment->getStatus()) {
                 return;
             }
             throw AssessmentException::unauthorized();
@@ -1679,7 +1754,7 @@ final class AssessmentManager
             return;
         }
         if (AssessmentScope::Platform === $assessment->getScope()) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Admin, UserRole::Moderator])) {
                 return;
             }
             throw AssessmentException::unauthorized();
@@ -1702,7 +1777,19 @@ final class AssessmentManager
 
     private function assertActorMayPublish(User $actor, Assessment $assessment): void
     {
-        // ADMIN/MODERATOR do not auto-gain publish rights.
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($actor)) {
+            throw AssessmentException::unauthorized();
+        }
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            return;
+        }
+        if (AssessmentScope::Platform === $assessment->getScope()) {
+            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Admin])) {
+                return;
+            }
+            throw AssessmentException::unauthorized();
+        }
+
         $this->assertActorMayReview($actor, $assessment);
     }
 

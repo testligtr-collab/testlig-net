@@ -20,7 +20,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  *
  * Matrix (active+verified required):
  * - SUPER_ADMIN: all
- * - Platform: HEAD/EXPERT all; TEACHER create/revise/submit own drafts + VIEW published; ADMIN/MODERATOR no publish
+ * - Platform: HEAD/EXPERT full; ADMIN create/review/publish/archive (SoD is enforced in the manager); MODERATOR view/review/return, no publish; TEACHER create/revise/submit own drafts + VIEW published
  * - Institution: Owner/Manager all; Teacher create/revise/submit own + VIEW; Staff limited VIEW; Student deny
  *
  * @extends Voter<string, Assessment|null>
@@ -105,7 +105,8 @@ final class AssessmentVoter extends Voter
     {
         return \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true)
-            || \in_array(UserRole::Teacher->value, $roles, true);
+            || \in_array(UserRole::Teacher->value, $roles, true)
+            || \in_array(UserRole::Admin->value, $roles, true);
     }
 
     /**
@@ -119,19 +120,23 @@ final class AssessmentVoter extends Voter
     ): bool {
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
+        $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
+        $isModerator = \in_array(UserRole::Moderator->value, $roles, true);
         $isTeacher = \in_array(UserRole::Teacher->value, $roles, true);
+        $ownDraft = $isTeacher && $isAuthor && AssessmentStatus::Draft === $assessment->status;
 
         return match ($attribute) {
             AssessmentPermission::VIEW => $assessment->isPublished()
                 || $isHeadOrExpert
+                || $isAdmin
+                || $isModerator
                 || ($isTeacher && $isAuthor),
-            AssessmentPermission::CREATE => $isHeadOrExpert || $isTeacher,
+            AssessmentPermission::CREATE => $isHeadOrExpert || $isAdmin || $isTeacher,
             AssessmentPermission::REVISE,
-            AssessmentPermission::SUBMIT => $isHeadOrExpert
-                || ($isTeacher && $isAuthor && \in_array($assessment->status, [AssessmentStatus::Draft, AssessmentStatus::InReview, AssessmentStatus::Published], true)),
-            AssessmentPermission::REVIEW,
+            AssessmentPermission::SUBMIT => $isHeadOrExpert || ($isAdmin && AssessmentStatus::Draft === $assessment->status) || $ownDraft,
+            AssessmentPermission::REVIEW => $isHeadOrExpert || $isAdmin || $isModerator,
             AssessmentPermission::PUBLISH,
-            AssessmentPermission::ARCHIVE => $isHeadOrExpert,
+            AssessmentPermission::ARCHIVE => $isHeadOrExpert || $isAdmin,
             default => false,
         };
     }

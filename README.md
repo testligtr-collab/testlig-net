@@ -90,7 +90,7 @@ php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/t
 - Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
 - Import asla publish/archive/delete yapmaz.
 - Curriculum pilot import: natural keys program `(subject, grade, code, version)` + unit/topic/outcome codes; requires active Subject + SuperAdmin; does **not** create LearningContent or placements.
-- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. Öğrenci çözümü, sınav ve production soru tohumu yoktur. Cevap anahtarı öğrenci sayfalarına yazılmaz.
+- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. Test editörü (`/yonetim/testler`) yayımlanmış sorulardan `Assessment` kaydı kurar. Öğrenci çözümü, cevap gönderme, puanlama ve production soru/test tohumu yoktur. Cevap anahtarı önizlemeye yazılmaz.
 
 ### MEB katalog yayınlama (ağaç)
 
@@ -190,8 +190,8 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Sealed revision: bundle sonrası `is_sealed` 0→1; sealed’a section/item INSERT trigger reddeder. Bypass/session değişkeni yok.
 - Test cleanup: `DELETE FROM assessments` (CASCADE) — `AssessmentDbCleanup`. Pointer NULL UPDATE yok; production trigger publication varken published pointer temizlemeyi reddeder. Uygulamada hard-delete yok (archive); testler fixture wipe için parent DELETE kullanır.
 - Kilit: snapshot → Institution? → Assessment → Subjects → Questions → QuestionRevisions → Users → Revision/sections/items → Publication.
-- Yetki: `AssessmentVoter` (VIEW/CREATE/REVISE/SUBMIT/REVIEW/PUBLISH/ARCHIVE); review separation; ADMIN/MODERATOR otomatik publish yok.
-- Delivery / attempt / scoring / result / UI / API yok. Multi-process concurrency testi yok. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000`.
+- Yetki: `AssessmentVoter` + manager. Admin yayımlar; Moderator inceleyip taslağa döndürür, yayımlamaz; Teacher yalnız kendi taslağı. Yayını sürüm yazarı yapamaz (SuperAdmin dahil).
+- Yönetim editörü `/yonetim/testler` bu modeli kullanır. Öğrenci çözme, attempt, puanlama ve sonuç bu editöre bağlı değildir. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000` + `Version20260925220000`.
 
 ### Sınav atama / delivery (Aşama 2.10)
 
@@ -246,7 +246,7 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 ### Access package / license / entitlement (Aşama 2.16)
 
 - Domain-only packages, versioned grants, licenses, institution seats, resource access policies (`free`|`entitlement_required`).
-- Assessment catalog grants: **grade_level only** (Assessment has no subject); LC catalog: subject+grade.
+- Assessment catalog grants stay **grade_level only**. The assessment identity may store a canonical subject so its items stay in that subject; grants are not inferred from it. LC catalog remains subject+grade.
 - Payment SDK/UI/API yok; Stage 2.17 yalnızca license komutlarını tetikler. Migration: `Version20260912160000`. Detay: `docs/architecture-access-entitlement.md`.
 
 ### Ticaret / ödeme / abonelik / fulfillment (Aşama 2.17)

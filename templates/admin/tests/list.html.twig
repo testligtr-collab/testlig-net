@@ -1,0 +1,44 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Testler — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <span>Testler</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Testler</h1>
+        {% if can_author %}
+            <a class="btn btn--primary" href="{{ path('app_admin_test_new') }}">Yeni test</a>
+        {% endif %}
+    </div>
+
+    {% if assessments is empty %}
+        <p>Henüz test yok.</p>
+    {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kod</th>
+                        <th>Başlık</th>
+                        <th>Tür</th>
+                        <th>Sınıf</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for assessment in assessments %}
+                        <tr>
+                            <td><a href="{{ path('app_admin_test_show', {id: assessment.id.toRfc4122}) }}">{{ assessment.code }}</a></td>
+                            <td>{{ assessment.currentRevision ? assessment.currentRevision.title : '' }}</td>
+                            <td>{{ type_labels[assessment.type.value] }}</td>
+                            <td>{{ assessment.gradeLevel.value }}. sınıf</td>
+                            <td>{{ status_labels[assessment.status.value] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

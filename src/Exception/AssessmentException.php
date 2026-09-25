@@ -95,6 +95,11 @@ final class AssessmentException extends \RuntimeException
         return new self(AssessmentFailureReason::GradeMismatch, 'Question grade level does not match the assessment.');
     }
 
+    public static function subjectMismatch(): self
+    {
+        return new self(AssessmentFailureReason::SubjectMismatch, 'Question subject does not match the assessment.');
+    }
+
     public static function invalidPoints(string $detail = 'Assessment points are invalid.'): self
     {
         return new self(AssessmentFailureReason::InvalidPoints, $detail);

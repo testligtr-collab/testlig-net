@@ -1,0 +1,28 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Test önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <span>Önizleme</span>
+    </nav>
+    <h1 class="panel-greeting">{{ title }}</h1>
+    {% if instructions %}
+        <p>{{ instructions }}</p>
+    {% endif %}
+    <ol>
+        {% for row in rows %}
+            <li>
+                <p>{{ row.stem|join(' ') }}</p>
+                <ol>
+                    {% for option in row.options %}
+                        <li>{{ option }}</li>
+                    {% endfor %}
+                </ol>
+                <p class="muted">{{ row.points }} puan</p>
+            </li>
+        {% endfor %}
+    </ol>
+{% endblock %}

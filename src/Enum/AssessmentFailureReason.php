@@ -20,6 +20,7 @@ enum AssessmentFailureReason: string
     case QuestionScopeMismatch = 'question_scope_mismatch';
     case QuestionRevisionMismatch = 'question_revision_mismatch';
     case GradeMismatch = 'grade_mismatch';
+    case SubjectMismatch = 'subject_mismatch';
     case InvalidPoints = 'invalid_points';
     case ReviewSeparation = 'review_separation';
     case RevisionNotSealed = 'revision_not_sealed';

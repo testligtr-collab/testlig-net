@@ -88,6 +88,9 @@ jobs:
             echo "outcomes_mat_1_3_1_active=$(sql_count "SELECT COUNT(*) AS c FROM curriculum_learning_outcomes o INNER JOIN curriculum_programs p ON p.id = o.curriculum_program_id INNER JOIN subjects s ON s.id = p.subject_id WHERE s.code = 'matematik' AND o.code = 'mat_1_3_1' AND o.status = 'active'")"
             echo "learning_contents=$(sql_count "SELECT COUNT(*) AS c FROM learning_contents")"
             echo "catalog_topic_lessons=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topic_lessons")"
+            echo "questions=$(sql_count "SELECT COUNT(*) AS c FROM questions")"
+            echo "assessments=$(sql_count "SELECT COUNT(*) AS c FROM assessments")"
+            echo "assessment_items=$(sql_count "SELECT COUNT(*) AS c FROM assessment_items")"
             echo "mat_grade1_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND t.status = 'published'")"
             hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/health 2>/dev/null || echo err)
             echo "health_local=${hl}"
