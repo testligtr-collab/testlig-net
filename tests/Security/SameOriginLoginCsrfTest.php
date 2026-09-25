@@ -45,7 +45,9 @@ final class SameOriginLoginCsrfTest extends KernelTestCase
             $session->set('csrf-token', $previousStrategy);
         }
 
-        $request = Request::create('https://testlig.test/giris', 'POST', [], [], [], [
+        $request = Request::create('https://testlig.test/giris', 'POST', [], [
+            $session->getName() => $session->getId(),
+        ], [], [
             'HTTPS' => 'on',
             'HTTP_HOST' => 'testlig.test',
             'HTTP_SEC_FETCH_SITE' => 'same-origin',

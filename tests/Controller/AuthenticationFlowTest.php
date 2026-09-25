@@ -254,15 +254,49 @@ final class AuthenticationFlowTest extends WebTestCase
         self::assertResponseRedirects();
     }
 
+    public function testStaleTokenAfterAccountSwitchIsRejectedUntilFreshForm(): void
+    {
+        $client = static::createClient();
+        $this->createUser('switch-a@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+        $this->createUser('switch-b@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'switch-a@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+
+        $client->request('POST', '/cikis', [
+            '_csrf_token' => $this->getCsrf($client, 'logout'),
+        ]);
+        self::assertResponseRedirects('/');
+
+        $client->request('POST', '/giris', [
+            '_username' => 'switch-b@example.com',
+            '_password' => 'Guclu-Parola-123!',
+            '_csrf_token' => 'invalid-token',
+        ]);
+        self::assertResponseRedirects('/giris');
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Oturum doğrulaması başarısız');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'switch-b@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        self::assertResponseRedirects();
+    }
+
     public function testTeacherAccountLinksToContentsAndCanOpenCreateForm(): void
     {
         $this->createTeacher('csrf-teacher@example.com');
 
-        $anon = static::createClient();
-        $anon->request('GET', '/yonetim/icerikler/yeni');
+        $client = static::createClient();
+        $client->request('GET', '/yonetim/icerikler/yeni');
         self::assertResponseRedirects('/giris');
 
-        $client = static::createClient();
         $crawler = $client->request('GET', '/giris');
         $client->submit($crawler->selectButton('Giriş yap')->form([
             '_username' => 'csrf-teacher@example.com',
