@@ -1,0 +1,42 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sorular — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <span>Sorular</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Sorular</h1>
+        {% if can_author %}
+            <a class="btn btn--primary" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
+        {% endif %}
+    </div>
+
+    {% if questions is empty %}
+        <p>Henüz soru yok.</p>
+    {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kod</th>
+                        <th>Ders</th>
+                        <th>Sınıf</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for question in questions %}
+                        <tr>
+                            <td><a href="{{ path('app_admin_question_show', {id: question.id.toRfc4122}) }}">{{ question.code }}</a></td>
+                            <td>{{ question.subject.name }}</td>
+                            <td>{{ question.gradeLevel.value }}. sınıf</td>
+                            <td>{{ status_labels[question.status.value] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

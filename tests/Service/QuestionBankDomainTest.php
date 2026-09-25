@@ -384,8 +384,10 @@ final class QuestionBankDomainTest extends KernelTestCase
         $this->resetDoctrine();
 
         try {
+            $rawId = new UuidV7();
             $this->em->getConnection()->insert('questions', [
-                'id' => (new UuidV7())->toBinary(),
+                'id' => $rawId->toBinary(),
+                'code' => str_replace('-', '', $rawId->toRfc4122()),
                 'scope' => 'platform',
                 'institution_id' => $instA->getId()->toBinary(),
                 'subject_id' => $subject->getId()->toBinary(),

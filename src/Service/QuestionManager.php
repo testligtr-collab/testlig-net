@@ -364,28 +364,29 @@ final class QuestionManager
         return $revision;
     }
 
-    public function submitForReview(Question $question, User $actor, string $reasonCode): void
+    public function submitForReview(Question $question, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($question, $actor, $reasonCode, SecurityAuditAction::QuestionSubmittedForReview, static function (Question $q, \DateTimeImmutable $now): void {
             $q->submitForReview($now);
-        }, requireManage: true);
+        }, requireManage: true, operatorNote: $this->boundedOperatorNote($operatorNote));
     }
 
-    public function returnToDraft(Question $question, User $actor, string $reasonCode): void
+    public function returnToDraft(Question $question, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($question, $actor, $reasonCode, SecurityAuditAction::QuestionReturnedToDraft, static function (Question $q, \DateTimeImmutable $now): void {
             $q->returnToDraft($now);
-        }, requireReview: true);
+        }, requireReview: true, operatorNote: $this->boundedOperatorNote($operatorNote));
     }
 
-    public function publish(Question $question, User $actor, string $reasonCode): void
+    public function publish(Question $question, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedOperatorNote($operatorNote);
         $questionId = $question->getId();
         $actorId = $actor->getId();
 
         try {
-            $this->entityManager->wrapInTransaction(function () use ($questionId, $actorId, $reasonCode): void {
+            $this->entityManager->wrapInTransaction(function () use ($questionId, $actorId, $reasonCode, $operatorNote): void {
                 // 1–2. Locksless snapshots (question scope + current-revision alignments).
                 $snapshot = $this->fetchQuestionScopeSnapshot($questionId);
                 if (null === $snapshot) {
@@ -467,20 +468,25 @@ final class QuestionManager
                 $lockedQuestion->publish($now);
                 $this->questions->save($lockedQuestion, false);
 
+                $metadata = [
+                    'source' => 'question_manager',
+                    'reason_code' => $reasonCode,
+                    'question_id' => $lockedQuestion->getId()->toRfc4122(),
+                    'revision_id' => $revision->getId()->toRfc4122(),
+                    'revision_number' => $revision->getRevisionNumber(),
+                    'old_status' => $oldStatus,
+                    'new_status' => $lockedQuestion->getStatus()->value,
+                ];
+                if (null !== $operatorNote) {
+                    $metadata['operator_note'] = $operatorNote;
+                }
+
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: SecurityAuditAction::QuestionPublished,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
-                        'source' => 'question_manager',
-                        'reason_code' => $reasonCode,
-                        'question_id' => $lockedQuestion->getId()->toRfc4122(),
-                        'revision_id' => $revision->getId()->toRfc4122(),
-                        'revision_number' => $revision->getRevisionNumber(),
-                        'old_status' => $oldStatus,
-                        'new_status' => $lockedQuestion->getStatus()->value,
-                    ],
+                    metadata: $metadata,
                     captureRequestHashes: false,
                 ), false);
 
@@ -499,11 +505,11 @@ final class QuestionManager
         $this->authCache->invalidateQuestion($questionId);
     }
 
-    public function archive(Question $question, User $actor, string $reasonCode): void
+    public function archive(Question $question, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($question, $actor, $reasonCode, SecurityAuditAction::QuestionArchived, static function (Question $q, \DateTimeImmutable $now): void {
             $q->archive($now);
-        }, requireManage: true);
+        }, requireManage: true, operatorNote: $this->boundedOperatorNote($operatorNote));
     }
 
     /**
@@ -517,6 +523,7 @@ final class QuestionManager
         callable $mutator,
         bool $requireManage = false,
         bool $requireReview = false,
+        ?string $operatorNote = null,
     ): void {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $questionId = $question->getId();
@@ -531,6 +538,7 @@ final class QuestionManager
                 $mutator,
                 $requireManage,
                 $requireReview,
+                $operatorNote,
             ): void {
                 $lockedQuestion = $this->lockQuestionWithScope($questionId);
                 $userIds = [$actorId];
@@ -553,19 +561,24 @@ final class QuestionManager
                 $mutator($lockedQuestion, $now);
                 $this->questions->save($lockedQuestion, false);
 
+                $metadata = [
+                    'source' => 'question_manager',
+                    'reason_code' => $reasonCode,
+                    'question_id' => $lockedQuestion->getId()->toRfc4122(),
+                    'revision_number' => $lockedQuestion->getCurrentRevisionNumber(),
+                    'old_status' => $oldStatus,
+                    'new_status' => $lockedQuestion->getStatus()->value,
+                ];
+                if (null !== $operatorNote) {
+                    $metadata['operator_note'] = $operatorNote;
+                }
+
                 $this->auditRecorder->record(new SecurityAuditContext(
                     action: $action,
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
-                        'source' => 'question_manager',
-                        'reason_code' => $reasonCode,
-                        'question_id' => $lockedQuestion->getId()->toRfc4122(),
-                        'revision_number' => $lockedQuestion->getCurrentRevisionNumber(),
-                        'old_status' => $oldStatus,
-                        'new_status' => $lockedQuestion->getStatus()->value,
-                    ],
+                    metadata: $metadata,
                     captureRequestHashes: false,
                 ), false);
 
@@ -1253,7 +1266,7 @@ final class QuestionManager
         }
 
         if (QuestionScope::Platform === $scope) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher])) {
                 return;
             }
             throw QuestionException::unauthorized();
@@ -1287,12 +1300,12 @@ final class QuestionManager
         }
 
         if (QuestionScope::Platform === $question->getScope()) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
                 return;
             }
             if ($this->hasAnyRole($actor, [UserRole::Teacher])
                 && $question->getCreatedBy()->getId()->equals($actor->getId())
-                && \in_array($question->getStatus(), [QuestionStatus::Draft, QuestionStatus::InReview], true)) {
+                && QuestionStatus::Draft === $question->getStatus()) {
                 return;
             }
             throw QuestionException::unauthorized();
@@ -1327,7 +1340,7 @@ final class QuestionManager
             return;
         }
         if (QuestionScope::Platform === $question->getScope()) {
-            if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+            if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::Moderator, UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
                 return;
             }
             throw QuestionException::unauthorized();
@@ -1350,8 +1363,32 @@ final class QuestionManager
 
     private function assertActorMayPublish(User $actor, Question $question): void
     {
-        // ADMIN/MODERATOR do not auto-gain publish rights.
-        $this->assertActorMayReview($actor, $question);
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($actor)) {
+            throw QuestionException::unauthorized();
+        }
+        if ($this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            return;
+        }
+        if (QuestionScope::Platform === $question->getScope()) {
+            if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher])) {
+                return;
+            }
+            throw QuestionException::unauthorized();
+        }
+        $institution = $question->getInstitution();
+        if (!$institution instanceof Institution) {
+            throw QuestionException::unauthorized();
+        }
+        $membership = $this->freshEntities->findFreshMembershipForUser($actor->getId(), $institution->getId());
+        if (!$membership instanceof InstitutionMembership
+            || InstitutionMembershipStatus::Active !== $membership->getStatus()) {
+            throw QuestionException::unauthorized();
+        }
+        if (\in_array($membership->getRole(), [InstitutionMembershipRole::Owner, InstitutionMembershipRole::Manager], true)) {
+            return;
+        }
+
+        throw QuestionException::unauthorized();
     }
 
     /**
@@ -1377,5 +1414,28 @@ final class QuestionManager
         }
 
         return $reasonCode;
+    }
+
+    private function boundedOperatorNote(?string $note): ?string
+    {
+        if (null === $note) {
+            return null;
+        }
+        $length = \strlen($note);
+        for ($i = 0; $i < $length; ++$i) {
+            $byte = \ord($note[$i]);
+            if ($byte < 32 && 9 !== $byte && 10 !== $byte && 13 !== $byte) {
+                throw QuestionException::invalidInput('operator note contains invalid characters.');
+            }
+        }
+        $note = trim($note);
+        if ('' === $note) {
+            return null;
+        }
+        if (mb_strlen($note) > 500) {
+            throw QuestionException::invalidInput('operator note is too long.');
+        }
+
+        return $note;
     }
 }

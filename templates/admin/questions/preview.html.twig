@@ -1,0 +1,26 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Soru önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_question_show', {id: question.id.toRfc4122}) }}">Soru</a>
+        <span aria-hidden="true">/</span>
+        <span>Önizleme</span>
+    </nav>
+    <h1 class="panel-greeting">Önizleme</h1>
+    {% for line in stem_lines %}
+        <p>{{ line }}</p>
+    {% endfor %}
+    <ol>
+        {% for line in option_lines %}
+            <li>{{ line }}</li>
+        {% endfor %}
+    </ol>
+    {% if explanation_lines is not empty %}
+        <h2>Çözüm</h2>
+        {% for line in explanation_lines %}
+            <p>{{ line }}</p>
+        {% endfor %}
+    {% endif %}
+{% endblock %}

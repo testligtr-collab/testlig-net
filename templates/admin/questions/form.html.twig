@@ -1,0 +1,126 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ question ? 'Soruyu düzenle' : 'Yeni soru' }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_questions') }}">Sorular</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ question ? 'Düzenle' : 'Yeni soru' }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ question ? 'Soruyu düzenle' : 'Yeni soru' }}</h1>
+
+    <form method="get" class="admin-filters" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+        <label>Sınıf
+            <select name="grade">
+                {% for item in grades %}
+                    <option value="{{ item.value }}" {{ grade == item.value ? 'selected' : '' }}>{{ item.value }}. sınıf</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Ders
+            <select name="subject_id">
+                {% for subject in subjects %}
+                    <option value="{{ subject.id.toRfc4122 }}" {{ subject_id == subject.id.toRfc4122 ? 'selected' : '' }}>{{ subject.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="btn" type="submit">Kazanımları getir</button>
+    </form>
+
+    <form method="post" id="question-editor" class="stack-sm" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+        <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
+        <input type="hidden" name="grade" value="{{ grade }}">
+        <input type="hidden" name="subject_id" value="{{ subject_id }}">
+
+        <label>Kazanım
+            <select name="outcome_id" required>
+                <option value="">Seçin</option>
+                {% for outcome in outcomes %}
+                    <option value="{{ outcome.id.toRfc4122 }}" {{ values.outcome_id == outcome.id.toRfc4122 ? 'selected' : '' }}>{{ outcome.code }} — {{ outcome.description }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Zorluk
+            <select name="difficulty" required>
+                {% for value, label in difficulties %}
+                    <option value="{{ value }}" {{ values.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>Soru kökü
+            <textarea name="stem" rows="8" required class="revision-text">{{ values.stem }}</textarea>
+        </label>
+
+        <fieldset>
+            <legend>Cevap seçenekleri</legend>
+            <div id="option-list">
+                {% for text in values.options %}
+                    <div class="option-row stack-sm">
+                        <label>Seçenek
+                            <textarea name="options[]" rows="3" required class="revision-text">{{ text }}</textarea>
+                        </label>
+                        <label>
+                            <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
+                            Doğru cevap
+                        </label>
+                        <button class="btn btn--ghost" type="button" data-remove-option>Kaldır</button>
+                    </div>
+                {% endfor %}
+            </div>
+            <button class="btn" type="button" id="add-option">Seçenek ekle</button>
+        </fieldset>
+
+        <label>Çözüm
+            <textarea name="explanation" rows="6" class="revision-text">{{ values.explanation }}</textarea>
+        </label>
+
+        <button class="btn btn--primary" type="submit">Taslak kaydet</button>
+    </form>
+    <script>
+        (function () {
+            var form = document.getElementById('question-editor');
+            var list = document.getElementById('option-list');
+            var dirty = false;
+            form.addEventListener('input', function () { dirty = true; });
+            window.addEventListener('beforeunload', function (event) {
+                if (!dirty) return;
+                event.preventDefault();
+                event.returnValue = '';
+            });
+            form.addEventListener('submit', function () { dirty = false; });
+            function rows() { return list.querySelectorAll('.option-row'); }
+            function renumber() {
+                rows().forEach(function (row, index) {
+                    var radio = row.querySelector('input[type="radio"]');
+                    radio.value = String(index + 1);
+                    row.querySelector('[data-remove-option]').disabled = rows().length <= 2;
+                });
+            }
+            document.getElementById('add-option').addEventListener('click', function () {
+                if (rows().length >= 6) return;
+                var first = rows()[0];
+                var copy = first.cloneNode(true);
+                copy.querySelector('textarea').value = '';
+                copy.querySelector('input[type="radio"]').checked = false;
+                list.appendChild(copy);
+                dirty = true;
+                renumber();
+            });
+            list.addEventListener('click', function (event) {
+                var button = event.target.closest('[data-remove-option]');
+                if (!button || rows().length <= 2) return;
+                button.closest('.option-row').remove();
+                if (!list.querySelector('input[type="radio"]:checked') && rows()[0]) {
+                    rows()[0].querySelector('input[type="radio"]').checked = true;
+                }
+                dirty = true;
+                renumber();
+            });
+            renumber();
+        })();
+    </script>
+{% endblock %}

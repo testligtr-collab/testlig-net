@@ -28,6 +28,7 @@ final class SecurityAuditMetadataSanitizer
         'previous_membership_role',
         'new_membership_role',
         'reason_code',
+        'operator_note',
         'academic_year_id',
         'classroom_id',
         'membership_id',

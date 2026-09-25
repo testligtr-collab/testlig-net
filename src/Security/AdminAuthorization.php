@@ -293,6 +293,23 @@ final class AdminAuthorization
             ]);
     }
 
+    public function canViewQuestionBank(User $actor): bool
+    {
+        return $this->canViewLearningContentWorkspace($actor);
+    }
+
+    public function canAuthorQuestions(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+            && $this->hasAnyRole($actor, [
+                UserRole::SuperAdmin,
+                UserRole::Admin,
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Teacher,
+            ]);
+    }
+
     private function assertActiveVerifiedAdminOrSuperAdmin(User $actor): void
     {
         $this->assertActiveVerified($actor);
