@@ -90,6 +90,7 @@ php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/t
 - Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
 - Import asla publish/archive/delete yapmaz.
 - Curriculum pilot import: natural keys program `(subject, grade, code, version)` + unit/topic/outcome codes; requires active Subject + SuperAdmin; does **not** create LearningContent or placements.
+- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. Öğrenci çözümü, sınav ve production soru tohumu yoktur. Cevap anahtarı öğrenci sayfalarına yazılmaz.
 
 ### MEB katalog yayınlama (ağaç)
 

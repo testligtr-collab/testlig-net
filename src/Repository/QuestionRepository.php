@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Institution;
 use App\Entity\Question;
+use App\Entity\User;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -61,6 +62,29 @@ class QuestionRepository extends ServiceEntityRepository
             ->orderBy('q.createdAt', 'DESC')
             ->getQuery()
             ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * @return list<Question>
+     */
+    public function findPlatformVisible(User $actor, bool $seeAll): array
+    {
+        $qb = $this->createQueryBuilder('q')
+            ->andWhere('q.scope = :scope')
+            ->setParameter('scope', QuestionScope::Platform)
+            ->orderBy('q.updatedAt', 'DESC')
+            ->addOrderBy('q.id', 'DESC')
+            ->setMaxResults(100);
+        if (!$seeAll) {
+            $qb->andWhere('q.status = :published OR IDENTITY(q.createdBy) = :actor')
+                ->setParameter('published', QuestionStatus::Published)
+                ->setParameter('actor', $actor->getId(), 'uuid');
+        }
+
+        /** @var list<Question> $rows */
+        $rows = $qb->getQuery()->getResult();
 
         return $rows;
     }

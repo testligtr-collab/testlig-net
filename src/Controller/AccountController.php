@@ -32,6 +32,9 @@ final class AccountController extends AbstractController
             'learning_contents_href' => $this->adminAuthorization->canViewLearningContentWorkspace($user)
                 ? $this->generateUrl('app_admin_learning_contents')
                 : null,
+            'questions_href' => $this->adminAuthorization->canViewQuestionBank($user)
+                ? $this->generateUrl('app_admin_questions')
+                : null,
         ]);
     }
 }

@@ -50,6 +50,7 @@ final class QuestionTypeAnswerValidator
     private function singleChoice(array $options, array $answerSpec): array
     {
         $normalizedOptions = $this->normalizeOptions($options, minCount: 2);
+        $this->assertSingleChoiceBounds($normalizedOptions);
         $correct = $answerSpec['correctStableKey'] ?? null;
         if (!\is_string($correct) || '' === $correct) {
             throw QuestionException::answerInvalid('single_choice requires exactly one correctStableKey.');
@@ -258,6 +259,60 @@ final class QuestionTypeAnswerValidator
         usort($normalized, static fn (array $a, array $b): int => $a['position'] <=> $b['position']);
 
         return $normalized;
+    }
+
+    /**
+     * @param list<array{stableKey: string, content: array<string, mixed>, position: int}> $options
+     */
+    private function assertSingleChoiceBounds(array $options): void
+    {
+        if (\count($options) > 6) {
+            throw QuestionException::answerInvalid('single_choice allows at most 6 options.');
+        }
+
+        $seen = [];
+        foreach ($options as $option) {
+            $text = $this->visibleOptionText($option['content']);
+            if ('' === $text) {
+                throw QuestionException::answerInvalid('Option text is required.');
+            }
+            $key = mb_strtolower($text);
+            if (isset($seen[$key])) {
+                throw QuestionException::answerInvalid('Duplicate option text.');
+            }
+            $seen[$key] = true;
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $content
+     */
+    private function visibleOptionText(array $content): string
+    {
+        $blocks = $content['blocks'] ?? null;
+        if (!\is_array($blocks)) {
+            return '';
+        }
+        $parts = [];
+        foreach ($blocks as $block) {
+            if (!\is_array($block)) {
+                continue;
+            }
+            $text = $block['text'] ?? null;
+            if (\is_string($text) && '' !== trim($text)) {
+                $parts[] = trim($text);
+            }
+            $items = $block['items'] ?? null;
+            if (\is_array($items)) {
+                foreach ($items as $item) {
+                    if (\is_string($item) && '' !== trim($item)) {
+                        $parts[] = trim($item);
+                    }
+                }
+            }
+        }
+
+        return trim(implode(' ', $parts));
     }
 
     private function normalizeDecimal(string $raw): string

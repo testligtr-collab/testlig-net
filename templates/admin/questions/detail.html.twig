@@ -1,0 +1,107 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Soru — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_questions') }}">Sorular</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ question.code }}</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Soru</h1>
+        <a class="btn btn--ghost" href="{{ path('app_admin_question_preview', {id: question.id.toRfc4122}) }}">Önizleme</a>
+        {% if can_edit %}
+            <a class="btn btn--primary" href="{{ path('app_admin_question_edit', {id: question.id.toRfc4122}) }}">Düzenle</a>
+        {% endif %}
+    </div>
+
+    <section class="workflow-progress" aria-label="İlerleme">
+        <ol class="workflow-steps">
+            {% for step in progress.steps %}
+                <li class="{{ step.done ? 'is-done' : '' }}">{{ step.label }}</li>
+            {% endfor %}
+        </ol>
+        <p><strong>{{ progress.next.label }}</strong> {{ progress.next.hint }}</p>
+    </section>
+    <form id="question-csrf" hidden>
+        <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+    </form>
+
+    <dl class="account-dl">
+        <dt>Kod</dt>
+        <dd>{{ question.code }}</dd>
+        <dt>Durum</dt>
+        <dd>{{ status_label }}</dd>
+        <dt>Ders</dt>
+        <dd>{{ subject_name }}</dd>
+        <dt>Sınıf</dt>
+        <dd>{{ grade_label }}</dd>
+        <dt>Kazanım</dt>
+        <dd>{{ outcome_label }}</dd>
+        <dt>Zorluk</dt>
+        <dd>{{ difficulty_label }}</dd>
+    </dl>
+
+    <h2>Soru kökü</h2>
+    {% for line in stem_lines %}
+        <p>{{ line }}</p>
+    {% endfor %}
+
+    <h2>Seçenekler</h2>
+    <ol>
+        {% for line in option_lines %}
+            <li>
+                {{ line }}
+                {% if correct_position == loop.index %}
+                    <span>Doğru cevap</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+
+    {% if explanation_lines is not empty %}
+        <h2>Çözüm</h2>
+        {% for line in explanation_lines %}
+            <p>{{ line }}</p>
+        {% endfor %}
+    {% endif %}
+
+    {% if progress.next.kind == 'submit' %}
+        <form method="post" action="{{ path('app_admin_question_submit', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision_number }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">İncelemeye gönder</button>
+        </form>
+    {% elseif progress.next.kind == 'return' %}
+        <form method="post" action="{{ path('app_admin_question_return', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision_number }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Taslağa döndür</button>
+        </form>
+    {% elseif progress.next.kind == 'publish' %}
+        <form method="post" action="{{ path('app_admin_question_publish', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision_number }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Yayınla</button>
+        </form>
+    {% elseif progress.next.kind == 'archive' %}
+        <form method="post" action="{{ path('app_admin_question_archive', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision_number }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Arşivle</button>
+        </form>
+    {% endif %}
+{% endblock %}

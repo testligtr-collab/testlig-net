@@ -24,6 +24,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_question_id_subject', columns: ['id', 'subject_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_question_id_institution', columns: ['id', 'institution_id'])]
 #[ORM\UniqueConstraint(name: 'uniq_question_id_scope', columns: ['id', 'scope'])]
+#[ORM\UniqueConstraint(name: 'uniq_question_code', columns: ['code'])]
 #[ORM\Index(name: 'idx_question_scope_status', columns: ['scope', 'status'])]
 #[ORM\Index(name: 'idx_question_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\Index(name: 'idx_question_subject_grade', columns: ['subject_id', 'grade_level'])]
@@ -33,6 +34,12 @@ class Question
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
+
+    /**
+     * Immutable public identity. Derived once from the id; never edited.
+     */
+    #[ORM\Column(length: 32)]
+    private string $code;
 
     #[ORM\Column(length: 32, enumType: QuestionScope::class)]
     private QuestionScope $scope;
@@ -58,6 +65,9 @@ class Question
     #[ORM\Column(name: 'current_revision_number')]
     private int $currentRevisionNumber;
 
+    #[ORM\Column(name: 'published_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
+
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
@@ -81,6 +91,7 @@ class Question
         }
 
         $this->id = $id ?? new UuidV7();
+        $this->code = str_replace('-', '', $this->id->toRfc4122());
         $this->scope = $scope;
         $this->institution = $institution;
         $this->subject = $subject;
@@ -110,6 +121,11 @@ class Question
     public function getId(): Uuid
     {
         return $this->id;
+    }
+
+    public function getCode(): string
+    {
+        return $this->code;
     }
 
     public function getScope(): QuestionScope
@@ -153,6 +169,11 @@ class Question
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    public function getPublishedAt(): ?\DateTimeImmutable
+    {
+        return $this->publishedAt;
     }
 
     public function getUpdatedAt(): \DateTimeImmutable
@@ -202,6 +223,9 @@ class Question
             throw QuestionException::invalidTransition();
         }
         $this->status = QuestionStatus::Published;
+        if (null === $this->publishedAt) {
+            $this->publishedAt = $now;
+        }
         $this->updatedAt = $now;
     }
 

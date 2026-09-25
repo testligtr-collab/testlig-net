@@ -18,11 +18,10 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 /**
  * Platform / institution question authorization via DBAL snapshots.
  *
- * Matrix (active+verified required):
- * - SUPER_ADMIN: all
- * - Platform: HEAD/EXPERT_TEACHER manage/review/publish/answer; TEACHER manage own drafts; VIEW published for active users
- * - Institution: Owner/Manager all; Teacher manage own + VIEW published; Staff/Student deny (except no auto VIEW)
- * - ADMIN/MODERATOR: no publish rights from global role alone
+ * - SUPER_ADMIN: all attributes; publish of the revision author is still denied by QuestionManager
+ * - Platform: ADMIN and HEAD/EXPERT manage/review/publish/answer; MODERATOR review/return and answer view, no publish
+ * - TEACHER: own draft manage/submit and answer view; published VIEW
+ * - Institution: Owner/Manager all; Teacher manage own + VIEW published; Staff/Student deny
  *
  * @extends Voter<string, Question>
  */
@@ -94,17 +93,21 @@ final class QuestionVoter extends Voter
     ): bool {
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
+        $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
+        $isModerator = \in_array(UserRole::Moderator->value, $roles, true);
         $isTeacher = \in_array(UserRole::Teacher->value, $roles, true);
+        $publisher = $isAdmin || $isHeadOrExpert;
+        $reviewer = $publisher || $isModerator;
+        $teacherOwnDraft = $isTeacher && $isAuthor && QuestionStatus::Draft === $question->status;
 
         return match ($attribute) {
             QuestionPermission::VIEW => $question->isPublished()
-                || $isHeadOrExpert
+                || $reviewer
                 || ($isTeacher && $isAuthor),
-            QuestionPermission::MANAGE => $isHeadOrExpert
-                || ($isTeacher && $isAuthor && \in_array($question->status, [QuestionStatus::Draft, QuestionStatus::InReview], true)),
-            QuestionPermission::REVIEW,
-            QuestionPermission::PUBLISH,
-            QuestionPermission::ANSWER_KEY_VIEW => $isHeadOrExpert,
+            QuestionPermission::MANAGE => $publisher || $teacherOwnDraft,
+            QuestionPermission::REVIEW => $reviewer,
+            QuestionPermission::PUBLISH => $publisher,
+            QuestionPermission::ANSWER_KEY_VIEW => $reviewer || ($isTeacher && $isAuthor),
             default => false,
         };
     }
