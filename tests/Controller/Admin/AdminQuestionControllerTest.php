@@ -166,7 +166,8 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringContainsString('yayınlayamazsınız', (string) $client->getResponse()->getContent());
         $this->postToken($client, $path.'/yayinla');
         self::assertStringContainsString('yayınlayamazsınız', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('Yayında', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Soru yayınlandı', (string) $client->getResponse()->getContent());
+        self::assertSelectorTextContains('body', 'İncelemede');
 
         $client = $this->newClient();
         $this->login($client, 'qb-admin-pub@example.com');
