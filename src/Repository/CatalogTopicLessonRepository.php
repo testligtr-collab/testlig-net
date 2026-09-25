@@ -67,6 +67,18 @@ class CatalogTopicLessonRepository extends ServiceEntityRepository
         return (int) $qb->getQuery()->getSingleScalarResult() > 0;
     }
 
+    public function highestPositionForTopic(Uuid $topicId): ?int
+    {
+        $max = $this->createQueryBuilder('l')
+            ->select('MAX(l.position)')
+            ->andWhere('IDENTITY(l.catalogTopic) = :topicId')
+            ->setParameter('topicId', $topicId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return null === $max ? null : (int) $max;
+    }
+
     public function existsContentForTopic(CatalogTopic $topic, LearningContent $content, ?Uuid $exceptId = null): bool
     {
         $qb = $this->createQueryBuilder('l')

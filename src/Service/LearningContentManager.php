@@ -523,38 +523,39 @@ final class LearningContentManager
         return $updated;
     }
 
-    public function submitForReview(LearningContent $content, User $actor, string $reasonCode): void
+    public function submitForReview(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($content, $actor, $reasonCode, SecurityAuditAction::LearningContentSubmittedForReview, true, static function (LearningContent $c, LearningContentRevision $r, \DateTimeImmutable $now): void {
             if (!$r->isSealed()) {
                 $r->seal($now);
             }
             $c->submitForReview($now);
-        });
+        }, operatorNote: $operatorNote);
     }
 
-    public function returnToDraft(LearningContent $content, User $actor, string $reasonCode): void
+    public function returnToDraft(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($content, $actor, $reasonCode, SecurityAuditAction::LearningContentReturnedToDraft, false, static function (LearningContent $c, LearningContentRevision $r, \DateTimeImmutable $now): void {
             $c->returnToDraft($now);
-        }, requireReview: true);
+        }, requireReview: true, operatorNote: $operatorNote);
     }
 
-    public function archive(LearningContent $content, User $actor, string $reasonCode): void
+    public function archive(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $this->transition($content, $actor, $reasonCode, SecurityAuditAction::LearningContentArchived, false, static function (LearningContent $c, LearningContentRevision $r, \DateTimeImmutable $now): void {
             $c->archive($now);
-        }, requireArchive: true);
+        }, requireArchive: true, operatorNote: $operatorNote);
     }
 
-    public function publish(LearningContent $content, User $actor, string $reasonCode): void
+    public function publish(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedOperatorNote($operatorNote);
         $contentId = $content->getId();
         $actorId = $actor->getId();
 
         try {
-            $this->entityManager->wrapInTransaction(function () use ($contentId, $actorId, $reasonCode): void {
+            $this->entityManager->wrapInTransaction(function () use ($contentId, $actorId, $reasonCode, $operatorNote): void {
                 $snapshot = $this->fetchContentSnapshot($contentId);
                 if (null === $snapshot) {
                     throw LearningContentException::notFound();
@@ -649,7 +650,7 @@ final class LearningContentManager
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
+                    metadata: $this->withOperatorNote([
                         'source' => 'learning_content_manager',
                         'reason_code' => $reasonCode,
                         'content_id' => $lockedContent->getId()->toRfc4122(),
@@ -661,7 +662,7 @@ final class LearningContentManager
                         'old_status' => $oldStatus,
                         'new_status' => $lockedContent->getStatus()->value,
                         'schema_version' => $revision->getSchemaVersion(),
-                    ],
+                    ], $operatorNote),
                     captureRequestHashes: false,
                 ), false);
 
@@ -1103,8 +1104,10 @@ final class LearningContentManager
         callable $mutator,
         bool $requireReview = false,
         bool $requireArchive = false,
+        ?string $operatorNote = null,
     ): void {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedOperatorNote($operatorNote);
         $contentId = $content->getId();
         $actorId = $actor->getId();
 
@@ -1113,6 +1116,7 @@ final class LearningContentManager
                 $contentId,
                 $actorId,
                 $reasonCode,
+                $operatorNote,
                 $action,
                 $sealCurrent,
                 $mutator,
@@ -1180,7 +1184,7 @@ final class LearningContentManager
                     actorType: SecurityAuditActorType::User,
                     outcome: SecurityAuditOutcome::Success,
                     actorUser: $freshActor,
-                    metadata: [
+                    metadata: $this->withOperatorNote([
                         'source' => 'learning_content_manager',
                         'reason_code' => $reasonCode,
                         'content_id' => $lockedContent->getId()->toRfc4122(),
@@ -1189,7 +1193,7 @@ final class LearningContentManager
                         'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
                         'old_status' => $oldStatus,
                         'new_status' => $lockedContent->getStatus()->value,
-                    ],
+                    ], $operatorNote),
                     captureRequestHashes: false,
                 ), false);
 
@@ -1686,6 +1690,36 @@ final class LearningContentManager
         }
 
         return $reasonCode;
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     *
+     * @return array<string, mixed>
+     */
+    private function withOperatorNote(array $metadata, ?string $operatorNote): array
+    {
+        if (null !== $operatorNote && '' !== $operatorNote) {
+            $metadata['operator_note'] = $operatorNote;
+        }
+
+        return $metadata;
+    }
+
+    private function boundedOperatorNote(?string $operatorNote): ?string
+    {
+        if (null === $operatorNote) {
+            return null;
+        }
+        $operatorNote = trim($operatorNote);
+        if ('' === $operatorNote) {
+            return null;
+        }
+        if (mb_strlen($operatorNote) > 500) {
+            return mb_substr($operatorNote, 0, 500);
+        }
+
+        return $operatorNote;
     }
 
     /**

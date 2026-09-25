@@ -12,18 +12,58 @@
     </nav>
     <h1 class="panel-greeting">{{ content.title }}</h1>
 
+    <section class="admin-section workflow-progress" aria-labelledby="workflow-heading">
+        <h2 id="workflow-heading">İlerleme</h2>
+        <ol class="workflow-steps">
+            {% for step in workflow.steps %}
+                <li class="{{ step.done ? 'is-done' : 'is-pending' }}">{{ step.done ? 'Tamam' : 'Sırada' }} — {{ step.label }}</li>
+            {% endfor %}
+        </ol>
+        <p><strong>{{ workflow.next.label }}</strong></p>
+        <p class="muted">{{ workflow.next.hint }}</p>
+        {% if workflow.next.kind == 'edit_revision' and can_manage %}
+            <p class="admin-actions">
+                <a class="btn btn--primary" href="{{ path('app_admin_learning_content_revision', {id: content.id.toRfc4122}) }}">Sürümü hazırla</a>
+            </p>
+        {% elseif workflow.next.kind == 'submit_review' %}
+            <form method="post" action="{{ path('app_admin_learning_content_submit_review', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                <input type="hidden" name="note" value="{{ reason_submit }}">
+                <label>İşlem notu (opsiyonel)
+                    <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+                </label>
+                <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
+            </form>
+        {% elseif workflow.next.kind == 'publish' %}
+            <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('İçeriği yayımlamak istediğinize emin misiniz?');">
+                <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
+                <input type="hidden" name="note" value="{{ reason_publish }}">
+                <label>İşlem notu (opsiyonel)
+                    <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
+                </label>
+                <button type="submit" class="btn btn--primary">Yayımla</button>
+            </form>
+        {% elseif workflow.next.kind == 'set_policy' %}
+            <p class="admin-actions"><a class="btn btn--primary" href="#policy-heading">Erişim politikasını kaydet</a></p>
+        {% elseif workflow.next.kind == 'create_placement' %}
+            <p class="admin-actions"><a class="btn btn--primary" href="#placement-form">Taslak yerleşim oluştur</a></p>
+        {% elseif workflow.next.kind == 'publish_placement' %}
+            <p class="muted">Aşağıdaki taslak yerleşimde onay kutusunu işaretleyip yayımla.</p>
+        {% endif %}
+    </section>
+
     <dl class="account-dl">
         <dt>Kod</dt><dd><code>{{ content.code }}</code></dd>
-        <dt>Tür</dt><dd>{{ content.contentType.value }}</dd>
-        <dt>Durum</dt><dd>{{ content.status.value }}</dd>
-        <dt>Kapsam</dt><dd>{{ content.scope.value }}</dd>
+        <dt>Tür</dt><dd>{{ content.contentType.value|workflow_label('type') }}</dd>
+        <dt>Durum</dt><dd>{{ content.status.value|workflow_label('status') }}</dd>
+        <dt>Kapsam</dt><dd>{{ content.scope.value|workflow_label('scope') }}</dd>
         <dt>Konu alanı</dt>
         <dd>{{ content.subject.name }} · <code>{{ content.subject.code }}</code> · <code>{{ content.subject.id.toRfc4122 }}</code></dd>
         <dt>Sınıf</dt><dd>{{ content.gradeLevel.value }}. sınıf</dd>
         <dt>Yazar</dt>
         <dd>{{ content.createdBy.firstName }} {{ content.createdBy.lastName }}</dd>
         <dt>Erişim politikası</dt>
-        <dd>{% if policy %}{{ policy.accessClass.value }}{% else %}<span class="muted">Yapılandırılmamış (fail-closed)</span>{% endif %}</dd>
+        <dd>{% if policy %}{{ policy.accessClass.value|workflow_label('access') }}{% else %}<span class="muted">Yapılandırılmamış (öğrenci gövdesi kapalı)</span>{% endif %}</dd>
         {% if content.summary %}
             <dt>Özet</dt><dd>{{ content.summary }}</dd>
         {% endif %}
@@ -49,44 +89,26 @@
         </p>
     {% endif %}
 
-    {% set show_lifecycle = can_submit_review or can_return_draft or can_publish or can_archive %}
-    {% if show_lifecycle and content.status.value != 'archived' %}
+    {% if can_return_draft or can_archive %}
         <section class="admin-section" aria-labelledby="lifecycle-heading">
-            <h2 id="lifecycle-heading">İnceleme / yayın</h2>
-            <p class="muted">Gerekçe kodu snake_case olmalıdır (ör. <code>ready_for_review</code>). Audit kaydına yazılır.</p>
+            <h2 id="lifecycle-heading">Diğer işlemler</h2>
             <div class="admin-actions stack-sm">
-                {% if can_submit_review and content.status.value == 'draft' %}
-                    <form method="post" action="{{ path('app_admin_learning_content_submit_review', {id: content.id.toRfc4122}) }}" class="stack-sm">
-                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
-                        <label>Not (gerekçe kodu)
-                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="ready_for_review">
-                        </label>
-                        <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
-                    </form>
-                {% endif %}
                 {% if can_return_draft and content.status.value == 'in_review' %}
                     <form method="post" action="{{ path('app_admin_learning_content_return_draft', {id: content.id.toRfc4122}) }}" class="stack-sm">
                         <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
-                        <label>Gerekçe
-                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="needs_revision">
+                        <input type="hidden" name="note" value="{{ reason_return }}">
+                        <label>İşlem notu (opsiyonel)
+                            <textarea name="operator_note" maxlength="500" rows="2"></textarea>
                         </label>
                         <button type="submit" class="btn btn--ghost">Taslağa döndür</button>
-                    </form>
-                {% endif %}
-                {% if can_publish and content.status.value == 'in_review' %}
-                    <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('İçeriği yayımlamak istediğinize emin misiniz?');">
-                        <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
-                        <label>Not (gerekçe kodu)
-                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="publish_approved">
-                        </label>
-                        <button type="submit" class="btn btn--primary">Yayımla</button>
                     </form>
                 {% endif %}
                 {% if can_archive %}
                     <form method="post" action="{{ path('app_admin_learning_content_archive', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('Arşivleme geri alınamaz. Devam edilsin mi?');">
                         <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
-                        <label>Gerekçe
-                            <input type="text" name="note" required maxlength="64" pattern="[a-z][a-z0-9_]{1,63}" placeholder="archive_obsolete">
+                        <input type="hidden" name="note" value="{{ reason_archive }}">
+                        <label>İşlem notu (opsiyonel)
+                            <textarea name="operator_note" maxlength="500" rows="2"></textarea>
                         </label>
                         <button type="submit" class="btn btn--ghost">Arşivle</button>
                     </form>
@@ -98,13 +120,13 @@
     {% if can_set_policy %}
         <section class="admin-section" aria-labelledby="policy-heading">
             <h2 id="policy-heading">Erişim politikası</h2>
-            <p class="muted">Varsayılan güvenli/fail-closed kalır. Free yalnız açık onay ve audit ile işaretlenir.</p>
+            <p class="muted">Varsayılan kapalı kalır. Ücretsiz yalnız açık onay ile işaretlenir.</p>
             <form method="post" action="{{ path('app_admin_learning_content_policy', {id: content.id.toRfc4122}) }}" class="stack-sm">
                 <input type="hidden" name="_token" value="{{ csrf_token('learning_content_policy_' ~ content.id.toRfc4122) }}">
                 <label>Politika
                     <select name="access_class" id="access_class">
                         <option value="entitlement_required" {% if policy and policy.accessClass.value == 'entitlement_required' %}selected{% endif %}>Yetki gerekli</option>
-                        <option value="free" {% if policy and policy.accessClass.value == 'free' %}selected{% endif %}>Ücretsiz (Free)</option>
+                        <option value="free" {% if policy and policy.accessClass.value == 'free' %}selected{% endif %}>Ücretsiz</option>
                     </select>
                 </label>
                 <label>
@@ -138,23 +160,23 @@
                                 <td>{{ p.displayTitle }}</td>
                                 <td><code>{{ p.slug }}</code></td>
                                 <td>{{ p.position }}</td>
-                                <td>{{ p.visibilityStatus.value }}</td>
+                                <td>{{ p.visibilityStatus.value|workflow_label('status') }}</td>
                                 <td>
                                     {% if is_granted('CATALOG_TOPIC_LESSON_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
                                         <form method="post" action="{{ path('app_admin_learning_content_placement_publish', {placementId: p.id.toRfc4122}) }}" class="stack-sm" style="display:inline-block" onsubmit="return confirm('Yerleşimi yayımlamak istediğinize emin misiniz?');">
                                             <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_publish_' ~ p.id.toRfc4122) }}">
-                                            <input type="hidden" name="note" value="admin_placement_publish">
+                                            <input type="hidden" name="note" value="{{ reason_placement_publish }}">
                                             <label>
                                                 <input type="checkbox" name="confirm_publish" value="1" required>
                                                 Onaylıyorum
                                             </label>
-                                            <button type="submit" class="btn btn--ghost">Yayımla</button>
+                                            <button type="submit" class="btn btn--primary">Yerleşimi yayımla</button>
                                         </form>
                                     {% endif %}
                                     {% if is_granted('CATALOG_TOPIC_LESSON_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
                                         <form method="post" action="{{ path('app_admin_learning_content_placement_archive', {placementId: p.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Arşivleme geri alınamaz. Devam?');">
                                             <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_archive_' ~ p.id.toRfc4122) }}">
-                                            <input type="hidden" name="note" value="admin_placement_archive">
+                                            <input type="hidden" name="note" value="{{ reason_placement_archive }}">
                                             <button type="submit" class="btn btn--ghost">Arşivle</button>
                                         </form>
                                     {% endif %}
@@ -167,37 +189,50 @@
         {% endif %}
 
         {% if can_create_placement %}
-            <h3>Yerleşim ekle</h3>
+            <h3 id="placement-form">Yerleşim ekle</h3>
             {% if bindable_topics is empty %}
-                <p class="muted">Eşlenmiş (canonical) katalog konusu yok. Önce müfredatta canonical eşleme yapın.</p>
+                <p class="muted">Eşlenmiş katalog konusu yok. Önce müfredatta canonical eşleme yapın.</p>
             {% else %}
-                <form method="post" action="{{ path('app_admin_learning_content_placement_create', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                <form method="post" action="{{ path('app_admin_learning_content_placement_create', {id: content.id.toRfc4122}) }}" class="stack-sm" id="placement-create-form">
                     <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_' ~ content.id.toRfc4122) }}">
+                    <input type="hidden" name="note" value="{{ reason_placement_create }}">
                     <label>Katalog konusu
-                        <select name="catalog_topic_id" required>
+                        <select name="catalog_topic_id" id="placement-topic" required>
                             <option value="">Seçin</option>
                             {% for t in bindable_topics %}
-                                <option value="{{ t.id.toRfc4122 }}">{{ t.unit.subject.name }} / {{ t.unit.name }} / {{ t.name }}</option>
+                                <option value="{{ t.id.toRfc4122 }}" data-next-position="{{ suggested_positions[t.id.toRfc4122]|default(0) }}">{{ t.unit.subject.name }} / {{ t.unit.name }} / {{ t.name }}</option>
                             {% endfor %}
                         </select>
                     </label>
                     <label>Görünen başlık
-                        <input type="text" name="display_title" required minlength="2" maxlength="200">
+                        <input type="text" name="display_title" required minlength="2" maxlength="200" value="{{ content.title }}">
                     </label>
-                    <label>Slug (opsiyonel)
-                        <input type="text" name="slug" maxlength="180" placeholder="otomatik">
-                    </label>
+                    <p class="muted">Kısa adres başlıktan otomatik üretilir.</p>
                     <label>Özet
-                        <textarea name="summary" maxlength="3000" rows="2"></textarea>
+                        <textarea name="summary" maxlength="3000" rows="3" class="revision-text">{{ content.summary }}</textarea>
                     </label>
                     <label>Sıra
-                        <input type="number" name="position" required value="0" min="0" step="1">
+                        <input type="number" name="position" id="placement-position" required value="0" min="0" step="1">
                     </label>
-                    <label>Not
-                        <input type="text" name="note" maxlength="64" value="admin_placement_create">
+                    <label>İşlem notu (opsiyonel)
+                        <textarea name="operator_note" maxlength="500" rows="2"></textarea>
                     </label>
                     <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
                 </form>
+                <script>
+                    (function () {
+                        var select = document.getElementById('placement-topic');
+                        var position = document.getElementById('placement-position');
+                        if (!select || !position) return;
+                        var apply = function () {
+                            var option = select.options[select.selectedIndex];
+                            if (!option || !option.value) return;
+                            var next = option.getAttribute('data-next-position');
+                            if (next !== null && next !== '') position.value = next;
+                        };
+                        select.addEventListener('change', apply);
+                    })();
+                </script>
             {% endif %}
         {% endif %}
     </section>

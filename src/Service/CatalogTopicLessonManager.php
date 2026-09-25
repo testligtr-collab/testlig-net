@@ -53,8 +53,10 @@ final class CatalogTopicLessonManager
         int $position,
         string $reasonCode,
         ?string $slugOverride = null,
+        ?string $operatorNote = null,
     ): CatalogTopicLesson {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedNote($operatorNote);
         $displayTitle = trim($displayTitle);
         $slug = $slugOverride ? $this->slugger->slugify($slugOverride) : $this->slugger->slugify($displayTitle);
         $actorId = $actor->getId();
@@ -69,6 +71,7 @@ final class CatalogTopicLessonManager
                 $position,
                 $slug,
                 $reasonCode,
+                $operatorNote,
             ): CatalogTopicLesson {
                 $topic = $this->lockTopic($catalogTopicId);
                 $content = $this->lockContent($learningContentId);
@@ -98,16 +101,16 @@ final class CatalogTopicLessonManager
                     $now,
                 );
                 $this->lessons->save($lesson, false);
-                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonCreated, $lesson, $reasonCode, [
+                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonCreated, $lesson, $reasonCode, $this->noteMeta([
                     'old_status' => null,
                     'new_status' => $lesson->getVisibilityStatus()->value,
-                ]);
+                ], $operatorNote));
                 $this->em->flush();
 
                 return $lesson;
             });
         } catch (UniqueConstraintViolationException) {
-            throw CatalogException::conflict('Yerleşim benzersizlik kısıtı ihlal edildi.');
+            throw CatalogException::conflict('Bu konu için aynı içerik, kısa adres veya sıra zaten kullanılıyor.');
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw CatalogException::conflict();
         }
@@ -164,19 +167,20 @@ final class CatalogTopicLessonManager
                 return $lesson;
             });
         } catch (UniqueConstraintViolationException) {
-            throw CatalogException::conflict('Yerleşim benzersizlik kısıtı ihlal edildi.');
+            throw CatalogException::conflict('Bu konu için aynı içerik, kısa adres veya sıra zaten kullanılıyor.');
         } catch (DeadlockException|LockWaitTimeoutException) {
             throw CatalogException::conflict();
         }
     }
 
-    public function publish(User $actor, Uuid $lessonId, string $reasonCode): CatalogTopicLesson
+    public function publish(User $actor, Uuid $lessonId, string $reasonCode, ?string $operatorNote = null): CatalogTopicLesson
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedNote($operatorNote);
         $actorId = $actor->getId();
 
         try {
-            return $this->em->wrapInTransaction(function () use ($actorId, $lessonId, $reasonCode): CatalogTopicLesson {
+            return $this->em->wrapInTransaction(function () use ($actorId, $lessonId, $reasonCode, $operatorNote): CatalogTopicLesson {
                 $lesson = $this->lockLesson($lessonId);
                 $this->lockTopic($lesson->getCatalogTopic()->getId());
                 $content = $this->lockContent($lesson->getLearningContent()->getId());
@@ -198,10 +202,10 @@ final class CatalogTopicLessonManager
                 $oldStatus = $lesson->getVisibilityStatus()->value;
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $lesson->publish($now);
-                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonPublished, $lesson, $reasonCode, [
+                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonPublished, $lesson, $reasonCode, $this->noteMeta([
                     'old_status' => $oldStatus,
                     'new_status' => $lesson->getVisibilityStatus()->value,
-                ]);
+                ], $operatorNote));
                 $this->em->flush();
 
                 return $lesson;
@@ -211,13 +215,14 @@ final class CatalogTopicLessonManager
         }
     }
 
-    public function archive(User $actor, Uuid $lessonId, string $reasonCode): CatalogTopicLesson
+    public function archive(User $actor, Uuid $lessonId, string $reasonCode, ?string $operatorNote = null): CatalogTopicLesson
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $operatorNote = $this->boundedNote($operatorNote);
         $actorId = $actor->getId();
 
         try {
-            return $this->em->wrapInTransaction(function () use ($actorId, $lessonId, $reasonCode): CatalogTopicLesson {
+            return $this->em->wrapInTransaction(function () use ($actorId, $lessonId, $reasonCode, $operatorNote): CatalogTopicLesson {
                 $lesson = $this->lockLesson($lessonId);
                 $this->lockTopic($lesson->getCatalogTopic()->getId());
                 $freshActor = $this->lockActor($actorId);
@@ -226,10 +231,10 @@ final class CatalogTopicLessonManager
                 $oldStatus = $lesson->getVisibilityStatus()->value;
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $lesson->archive($now);
-                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonArchived, $lesson, $reasonCode, [
+                $this->audit($freshActor, SecurityAuditAction::CatalogTopicLessonArchived, $lesson, $reasonCode, $this->noteMeta([
                     'old_status' => $oldStatus,
                     'new_status' => $lesson->getVisibilityStatus()->value,
-                ]);
+                ], $operatorNote));
                 $this->em->flush();
 
                 return $lesson;
@@ -446,5 +451,35 @@ final class CatalogTopicLessonManager
         }
 
         return $reasonCode;
+    }
+
+    /**
+     * @param array<string, scalar|null> $extra
+     *
+     * @return array<string, scalar|null>
+     */
+    private function noteMeta(array $extra, ?string $operatorNote): array
+    {
+        if (null !== $operatorNote && '' !== $operatorNote) {
+            $extra['operator_note'] = $operatorNote;
+        }
+
+        return $extra;
+    }
+
+    private function boundedNote(?string $operatorNote): ?string
+    {
+        if (null === $operatorNote) {
+            return null;
+        }
+        $operatorNote = trim($operatorNote);
+        if ('' === $operatorNote) {
+            return null;
+        }
+        if (mb_strlen($operatorNote) > 500) {
+            return mb_substr($operatorNote, 0, 500);
+        }
+
+        return $operatorNote;
     }
 }

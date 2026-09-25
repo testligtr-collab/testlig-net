@@ -184,7 +184,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'published');
+        self::assertSelectorTextContains('body', 'Yayında');
 
         $crawler = $client->request('GET', '/yonetim/mufredat/konu/'.$topicId->toRfc4122());
         $okRow = $crawler->filter('tr:contains("Görünür Adım")');
@@ -196,7 +196,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'archived');
+        self::assertSelectorTextContains('body', 'Arşivlenmiş');
     }
 
     public function testStudentTopicVisibilityFreeAndAndGateNoBodyLeak(): void

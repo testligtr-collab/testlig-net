@@ -10,7 +10,6 @@ use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentScope;
-use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
 use App\Enum\ResourceAccessClass;
 use App\Enum\UserRole;
@@ -46,6 +45,10 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('form[action$="/incelemeye-gonder"]');
         self::assertSelectorNotExists('form[action$="/yayimla"]');
+        self::assertSelectorTextContains('body', 'Konu anlatımı');
+        self::assertSelectorTextContains('body', 'Taslak');
+        self::assertSelectorTextContains('body', 'İşlem notu');
+        self::assertSelectorNotExists('input[name="note"][required]');
 
         $token = $crawler->filter('form[action$="/incelemeye-gonder"] input[name="_token"]')->attr('value');
         self::assertNotNull($token);
@@ -55,7 +58,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', LearningContentStatus::InReview->value);
+        self::assertSelectorTextContains('body', 'İncelemede');
 
         $client = $this->newClient();
         $this->login($client, 'lc-life-mod@example.com');
@@ -79,7 +82,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', LearningContentStatus::Draft->value);
+        self::assertSelectorTextContains('body', 'Taslak');
 
         $client = $this->newClient();
         $this->login($client, 'lc-life-teacher@example.com');
@@ -102,7 +105,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', LearningContentStatus::Published->value);
+        self::assertSelectorTextContains('body', 'Yayında');
     }
 
     public function testLifecycleRequiresCsrfAndNote(): void
@@ -126,7 +129,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'zorunlu');
+        self::assertSelectorTextContains('body', 'İncelemede');
     }
 
     public function testPublishRejectsMissingPolicyUnsealedAndAuthorSoloPublish(): void
@@ -236,7 +239,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', LearningContentStatus::Archived->value);
+        self::assertSelectorTextContains('body', 'Arşivlenmiş');
         self::assertSelectorNotExists('form[action$="/incelemeye-gonder"]');
         self::assertSelectorNotExists('form[action$="/yayimla"]');
     }

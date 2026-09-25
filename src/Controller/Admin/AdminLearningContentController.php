@@ -26,6 +26,9 @@ use App\Exception\SubjectException;
 use App\Form\LearningContentCreateFormType;
 use App\Form\SubjectCreateFormType;
 use App\LearningContent\Content\LearningContentDocument;
+use App\Presentation\ContentWorkflowProgress;
+use App\Presentation\ContentWorkflowReason;
+use App\Presentation\PlacementPosition;
 use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CurriculumLearningOutcomeRepository;
@@ -62,6 +65,8 @@ final class AdminLearningContentController extends AdminBaseController
         private readonly CatalogTopicLessonManager $placements,
         private readonly CatalogTopicLessonRepository $placementRepo,
         private readonly CatalogTopicRepository $catalogTopics,
+        private readonly ContentWorkflowReason $workflowReason,
+        private readonly ContentWorkflowProgress $workflowProgress,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -197,12 +202,57 @@ final class AdminLearningContentController extends AdminBaseController
         $policy = $this->policies->findForContent($content->getId());
         $placements = $this->placementRepo->findOrderedByLearningContent($content);
         $bindableTopics = $this->catalogTopics->findBindableForCanonicalSubject($content->getSubject());
+        $revision = $content->getCurrentRevision();
+        $hasDraftPlacement = false;
+        $hasPublishedPlacement = false;
+        $canPublishPlacement = false;
+        foreach ($placements as $placement) {
+            if ('draft' === $placement->getVisibilityStatus()->value) {
+                $hasDraftPlacement = true;
+                if ($this->isGranted(CatalogTopicLessonPermission::PUBLISH, $placement)) {
+                    $canPublishPlacement = true;
+                }
+            }
+            if ('published' === $placement->getVisibilityStatus()->value) {
+                $hasPublishedPlacement = true;
+            }
+        }
+        $suggestedPositions = [];
+        foreach ($bindableTopics as $topic) {
+            $suggestedPositions[$topic->getId()->toRfc4122()] = PlacementPosition::next(
+                $this->placementRepo->highestPositionForTopic($topic->getId()),
+            );
+        }
 
         return $this->renderAdmin('admin/learning_contents/detail.html.twig', [
             'content' => $content,
             'policy' => $policy,
             'placements' => $placements,
             'bindable_topics' => $bindableTopics,
+            'suggested_positions' => $suggestedPositions,
+            'workflow' => $this->workflowProgress->summarize([
+                'status' => $content->getStatus()->value,
+                'has_revision' => null !== $revision,
+                'revision_sealed' => null !== $revision && $revision->isSealed(),
+                'access_class' => $policy?->getAccessClass()->value,
+                'has_draft_placement' => $hasDraftPlacement,
+                'has_published_placement' => $hasPublishedPlacement,
+                'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)
+                    || $this->isGranted(LearningContentPermission::MANAGE, $content),
+                'can_submit_review' => $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
+                'can_publish' => $this->isGranted(LearningContentPermission::PUBLISH, $content),
+                'can_set_policy' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
+                'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
+                    && LearningContentStatus::Archived !== $content->getStatus(),
+                'can_publish_placement' => $canPublishPlacement,
+            ]),
+            'reason_submit' => ContentWorkflowReason::SUBMIT_REVIEW,
+            'reason_return' => ContentWorkflowReason::RETURN_DRAFT,
+            'reason_publish' => ContentWorkflowReason::PUBLISH,
+            'reason_archive' => ContentWorkflowReason::ARCHIVE,
+            'reason_placement_create' => ContentWorkflowReason::PLACEMENT_CREATE,
+            'reason_placement_publish' => ContentWorkflowReason::PLACEMENT_PUBLISH,
+            'reason_placement_archive' => ContentWorkflowReason::PLACEMENT_ARCHIVE,
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
             'can_set_policy' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
             'can_submit_review' => $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
@@ -223,8 +273,12 @@ final class AdminLearningContentController extends AdminBaseController
         $this->assertLifecycleCsrf($request, $id);
 
         try {
-            $note = $this->requireLifecycleNote($request);
-            $this->contents->submitForReview($content, $this->requireActorUser(), $note);
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::SUBMIT_REVIEW,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
+            $this->contents->submitForReview($content, $this->requireActorUser(), $reason['code'], $reason['operator_note']);
             $this->addFlash('success', 'İçerik incelemeye gönderildi.');
         } catch (LearningContentException $e) {
             $this->flashLearningContentException($e);
@@ -242,8 +296,12 @@ final class AdminLearningContentController extends AdminBaseController
         $this->assertLifecycleCsrf($request, $id);
 
         try {
-            $note = $this->requireLifecycleNote($request);
-            $this->contents->returnToDraft($content, $this->requireActorUser(), $note);
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::RETURN_DRAFT,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
+            $this->contents->returnToDraft($content, $this->requireActorUser(), $reason['code'], $reason['operator_note']);
             $this->addFlash('success', 'İçerik taslağa döndürüldü.');
         } catch (LearningContentException $e) {
             $this->flashLearningContentException($e);
@@ -272,8 +330,12 @@ final class AdminLearningContentController extends AdminBaseController
         }
 
         try {
-            $note = $this->requireLifecycleNote($request);
-            $this->contents->publish($content, $this->requireActorUser(), $note);
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PUBLISH,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
+            $this->contents->publish($content, $this->requireActorUser(), $reason['code'], $reason['operator_note']);
             $this->addFlash('success', 'İçerik yayımlandı.');
         } catch (LearningContentException $e) {
             $this->flashLearningContentException($e);
@@ -291,8 +353,12 @@ final class AdminLearningContentController extends AdminBaseController
         $this->assertLifecycleCsrf($request, $id);
 
         try {
-            $note = $this->requireLifecycleNote($request);
-            $this->contents->archive($content, $this->requireActorUser(), $note);
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::ARCHIVE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
+            $this->contents->archive($content, $this->requireActorUser(), $reason['code'], $reason['operator_note']);
             $this->addFlash('success', 'İçerik arşivlendi (geri açılamaz).');
         } catch (LearningContentException $e) {
             $this->flashLearningContentException($e);
@@ -313,11 +379,24 @@ final class AdminLearningContentController extends AdminBaseController
         $displayTitle = trim((string) $request->request->get('display_title', ''));
         $slug = trim((string) $request->request->get('slug', ''));
         $summaryRaw = trim((string) $request->request->get('summary', ''));
-        $position = $request->request->getInt('position', 0);
-        $note = trim((string) $request->request->get('note', 'admin_placement_create'));
 
         try {
             $topicUuid = Uuid::fromString($topicIdRaw);
+            if ('' === $displayTitle) {
+                $displayTitle = $content->getTitle();
+            }
+            if ('' === $summaryRaw && null !== $content->getSummary()) {
+                $summaryRaw = $content->getSummary();
+            }
+            $positionRaw = trim((string) $request->request->get('position', ''));
+            $position = '' === $positionRaw
+                ? PlacementPosition::next($this->placementRepo->highestPositionForTopic($topicUuid))
+                : (int) $positionRaw;
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_CREATE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->placements->create(
                 $this->requireActorUser(),
                 $topicUuid,
@@ -325,12 +404,15 @@ final class AdminLearningContentController extends AdminBaseController
                 $displayTitle,
                 '' === $summaryRaw ? null : $summaryRaw,
                 $position,
-                '' === $note ? 'admin_placement_create' : $note,
+                $reason['code'],
                 '' === $slug ? null : $slug,
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim taslağı oluşturuldu.');
         } catch (\InvalidArgumentException) {
             $this->addFlash('error', 'Geçersiz katalog konusu.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
         } catch (CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -353,14 +435,21 @@ final class AdminLearningContentController extends AdminBaseController
             return $this->redirectToRoute('app_admin_learning_content', ['id' => $contentId]);
         }
 
-        $note = trim((string) $request->request->get('note', 'admin_placement_publish'));
+        $reason = $this->workflowReason->resolve(
+            ContentWorkflowReason::PLACEMENT_PUBLISH,
+            $request->request->get('note'),
+            $request->request->get('operator_note'),
+        );
         try {
             $this->placements->publish(
                 $this->requireActorUser(),
                 $lesson->getId(),
-                '' === $note ? 'admin_placement_publish' : $note,
+                $reason['code'],
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim yayımlandı.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
         } catch (CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -378,14 +467,21 @@ final class AdminLearningContentController extends AdminBaseController
         $this->denyAccessUnlessGranted(CatalogTopicLessonPermission::ARCHIVE, $lesson);
         $this->assertLifecycleCsrf($request, $placementId, 'learning_content_placement_archive_');
 
-        $note = trim((string) $request->request->get('note', 'admin_placement_archive'));
+        $reason = $this->workflowReason->resolve(
+            ContentWorkflowReason::PLACEMENT_ARCHIVE,
+            $request->request->get('note'),
+            $request->request->get('operator_note'),
+        );
         try {
             $this->placements->archive(
                 $this->requireActorUser(),
                 $lesson->getId(),
-                '' === $note ? 'admin_placement_archive' : $note,
+                $reason['code'],
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim arşivlendi (geri açılamaz).');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
         } catch (CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -802,21 +898,6 @@ final class AdminLearningContentController extends AdminBaseController
         if (!$this->isCsrfTokenValid($prefix.$id, (string) $request->request->get('_token'))) {
             throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
         }
-    }
-
-    private function requireLifecycleNote(Request $request): string
-    {
-        $note = strtolower(trim((string) $request->request->get('note', '')));
-        if ('' === $note) {
-            throw LearningContentException::invalidInput('Not / gerekçe kodu zorunludur.');
-        }
-        if (1 !== preg_match('/^[a-z][a-z0-9_]{1,63}$/', $note)) {
-            throw LearningContentException::invalidInput(
-                'Gerekçe kodu snake_case olmalı (ör. ready_for_review, needs_revision).',
-            );
-        }
-
-        return $note;
     }
 
     private function flashLearningContentException(LearningContentException $e): void
