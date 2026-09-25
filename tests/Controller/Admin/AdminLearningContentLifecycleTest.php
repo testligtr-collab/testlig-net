@@ -129,7 +129,7 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'zorunlu');
+        self::assertSelectorTextContains('body', 'İncelemede');
     }
 
     public function testPublishRejectsMissingPolicyUnsealedAndAuthorSoloPublish(): void

@@ -33,29 +33,34 @@ final class ContentWorkflowReason
         $postedRaw = \is_string($postedNote) ? $postedNote : '';
         $operatorRaw = \is_string($operatorNote) ? $operatorNote : '';
         $posted = strtolower(trim($postedRaw));
-        $prose = trim($operatorRaw);
-        if ('' !== $posted && 1 !== preg_match('/^[a-z][a-z0-9_]{1,63}$/', $posted)) {
-            if ('' === $prose) {
-                $prose = trim($postedRaw);
-            }
+        $postedIsCode = '' !== $posted && 1 === preg_match('/^[a-z][a-z0-9_]{1,63}$/', $posted);
+        $noteSource = '' !== trim($operatorRaw) ? $operatorRaw : '';
+        if ('' === $noteSource && !$postedIsCode && '' !== $posted) {
+            $noteSource = $postedRaw;
+        }
+        if (!$postedIsCode) {
             $posted = '';
         }
 
         return [
             'code' => '' === $posted ? $defaultCode : $posted,
-            'operator_note' => $this->normalizeNote($prose),
+            'operator_note' => $this->normalizeNote($noteSource),
         ];
     }
 
     private function normalizeNote(string $note): ?string
     {
+        $length = \strlen($note);
+        for ($i = 0; $i < $length; ++$i) {
+            $byte = \ord($note[$i]);
+            if ($byte < 32 && 9 !== $byte && 10 !== $byte && 13 !== $byte) {
+                throw LearningContentException::invalidInput('İşlem notu geçersiz karakter içeriyor.');
+            }
+        }
         $note = trim(strip_tags($note));
         $note = preg_replace('/\s+/u', ' ', $note) ?? '';
         if ('' === $note) {
             return null;
-        }
-        if (1 === preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', $note)) {
-            throw LearningContentException::invalidInput('İşlem notu geçersiz karakter içeriyor.');
         }
         if (mb_strlen($note) > self::MAX_NOTE) {
             $note = mb_substr($note, 0, self::MAX_NOTE);

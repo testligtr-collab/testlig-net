@@ -68,7 +68,10 @@ final class StudentTopicPageControllerTest extends WebTestCase
 
     public function testAdminForbiddenOnStudentTopicRoute(): void
     {
-        $this->createActive('topic-admin-deny@example.com', UserRole::Admin);
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->activeStaff('topic-admin-deny@example.com', UserRole::Admin);
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->login($client, 'topic-admin-deny@example.com');
         $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');

@@ -169,7 +169,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', ResourceAccessClass::Free->value);
+        self::assertSelectorTextContains('body', 'Ücretsiz');
 
         // Archive subject and reject mapping to it.
         self::ensureKernelShutdown();
