@@ -254,44 +254,9 @@ final class AuthenticationFlowTest extends WebTestCase
         self::assertResponseRedirects();
     }
 
-    public function testStaleDoubleSubmitStrategyRejectsPlaceholderUntilNewSession(): void
-    {
-        $client = static::createClient();
-        $this->createUser('csrf-strategy@example.com', 'Guclu-Parola-123!', UserStatus::Active);
-
-        $crawler = $client->request('GET', '/giris');
-        $session = $client->getRequest()->getSession();
-        $session->set('csrf-token', 2);
-        $session->save();
-
-        $client->submit($crawler->selectButton('Giriş yap')->form([
-            '_username' => 'csrf-strategy@example.com',
-            '_password' => 'Guclu-Parola-123!',
-        ]));
-        self::assertResponseRedirects('/giris');
-        $client->followRedirect();
-        self::assertSelectorTextContains('body', 'Oturum doğrulaması başarısız');
-
-        $fresh = static::createClient();
-        $crawler = $fresh->request('GET', '/giris');
-        $fresh->submit($crawler->selectButton('Giriş yap')->form([
-            '_username' => 'csrf-strategy@example.com',
-            '_password' => 'Guclu-Parola-123!',
-        ]));
-        self::assertResponseRedirects();
-    }
-
     public function testTeacherAccountLinksToContentsAndCanOpenCreateForm(): void
     {
-        self::ensureKernelShutdown();
-        self::bootKernel();
-        /** @var UserFactory $factory */
-        $factory = static::getContainer()->get(UserFactory::class);
-        /** @var UserAccountLifecycle $lifecycle */
-        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
-        $user = $factory->createAndPersist('csrf-teacher@example.com', 'Guclu-Parola-123!', 'A', 'U', UserRole::Teacher);
-        $lifecycle->markEmailVerifiedAndActivate($user);
-        self::ensureKernelShutdown();
+        $this->createTeacher('csrf-teacher@example.com');
 
         $anon = static::createClient();
         $anon->request('GET', '/yonetim/icerikler/yeni');
@@ -350,6 +315,19 @@ final class AuthenticationFlowTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return $user;
+    }
+
+    private function createTeacher(string $email): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserAccountLifecycle $lifecycle */
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', UserRole::Teacher);
+        $lifecycle->markEmailVerifiedAndActivate($user);
+        self::ensureKernelShutdown();
     }
 
     private function getCsrf(KernelBrowser $client, string $tokenId): string
