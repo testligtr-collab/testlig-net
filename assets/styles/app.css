@@ -2704,3 +2704,22 @@ body.is-student-surface {
 .admin-actions {
     margin: var(--tl-space-4) 0 var(--tl-space-5);
 }
+
+.workflow-steps {
+    margin: 0 0 var(--tl-space-4);
+    padding-left: 1.2rem;
+}
+
+.workflow-steps .is-done {
+    color: var(--tl-color-text, inherit);
+}
+
+.workflow-steps .is-pending {
+    color: var(--tl-color-muted, #6b7280);
+}
+
+textarea.revision-text {
+    min-height: 8rem;
+    width: 100%;
+    resize: vertical;
+}

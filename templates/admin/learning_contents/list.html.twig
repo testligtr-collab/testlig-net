@@ -26,7 +26,7 @@
             <select name="status">
                 <option value="">—</option>
                 {% for s in ['draft','in_review','published','archived'] %}
-                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s|workflow_label('status') }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -75,12 +75,12 @@
                         <tr>
                             <td>{{ row.title }}</td>
                             <td><code>{{ row.code }}</code></td>
-                            <td>{{ row.contentType.value }}</td>
-                            <td>{{ row.status.value }}</td>
+                            <td>{{ row.contentType.value|workflow_label('type') }}</td>
+                            <td>{{ row.status.value|workflow_label('status') }}</td>
                             <td>{{ row.subjectName }}</td>
                             <td>{{ row.gradeLevel.value }}</td>
                             <td>{{ row.authorName }}</td>
-                            <td>{{ row.accessClass|default('—') }}</td>
+                            <td>{% if row.accessClass %}{{ row.accessClass|workflow_label('access') }}{% else %}—{% endif %}</td>
                             <td><a href="{{ path('app_admin_learning_content', { id: row.id.toRfc4122 }) }}">Detay</a></td>
                         </tr>
                     {% endfor %}

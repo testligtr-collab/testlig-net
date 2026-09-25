@@ -45,7 +45,7 @@
                         {% elseif block.type == 'math' %}
                             <code>{{ block.latex }}</code>
                         {% elseif block.type == 'callout' %}
-                            <p>[{{ block.variant }}] {{ block.callout_text }}</p>
+                            <p>[{{ block.variant|workflow_label('callout') }}] {{ block.callout_text }}</p>
                         {% else %}
                             <p>{{ block.text }}</p>
                         {% endif %}
@@ -56,7 +56,7 @@
     {% else %}
         <section class="admin-section" aria-labelledby="blocks-heading">
             <h2 id="blocks-heading">Bloklar</h2>
-            <p class="muted">JSON/HTML yok. Düz metin alanları; kaydetmeden önce önizleyin.</p>
+            <p class="muted">Düz metin alanları. Kaydetmeden çıkarsanız yazdıklarınız kaybolur.</p>
 
             <form method="post" action="{{ path('app_admin_learning_content_revision_save', {id: content.id.toRfc4122}) }}" class="stack-sm" id="revision-save-form">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
@@ -65,7 +65,7 @@
 
                 {% for block in editor_blocks %}
                     <fieldset class="admin-section">
-                        <legend>{{ loop.index }}. {{ block.type_label }}</legend>
+                        <legend>Blok {{ loop.index }} — {{ block.type_label }}</legend>
                         <input type="hidden" name="blocks[{{ loop.index0 }}][type]" value="{{ block.type }}">
 
                         {% if block.type == 'heading' %}
@@ -81,11 +81,11 @@
                             </label>
                         {% elseif block.type == 'paragraph' or block.type == 'quote' %}
                             <label>Metin
-                                <textarea name="blocks[{{ loop.index0 }}][text]" rows="3" required>{{ block.text }}</textarea>
+                                <textarea name="blocks[{{ loop.index0 }}][text]" rows="8" required class="revision-text">{{ block.text }}</textarea>
                             </label>
                         {% elseif block.type == 'list' %}
                             <label>Maddeler (satır başına bir)
-                                <textarea name="blocks[{{ loop.index0 }}][items]" rows="4" required>{{ block.items_text }}</textarea>
+                                <textarea name="blocks[{{ loop.index0 }}][items]" rows="8" required class="revision-text">{{ block.items_text }}</textarea>
                             </label>
                         {% elseif block.type == 'math' %}
                             <label>LaTeX
@@ -95,12 +95,12 @@
                             <label>Tür
                                 <select name="blocks[{{ loop.index0 }}][variant]">
                                     {% for variant in ['info', 'warning', 'tip', 'note'] %}
-                                        <option value="{{ variant }}" {% if block.variant == variant %}selected{% endif %}>{{ variant }}</option>
+                                        <option value="{{ variant }}" {% if block.variant == variant %}selected{% endif %}>{{ variant|workflow_label('callout') }}</option>
                                     {% endfor %}
                                 </select>
                             </label>
                             <label>Metin
-                                <textarea name="blocks[{{ loop.index0 }}][callout_text]" rows="3" required>{{ block.callout_text }}</textarea>
+                                <textarea name="blocks[{{ loop.index0 }}][callout_text]" rows="6" required class="revision-text">{{ block.callout_text }}</textarea>
                             </label>
                         {% endif %}
                     </fieldset>
@@ -114,7 +114,7 @@
                     <div class="admin-actions">
                         <span class="muted">Blok {{ loop.index }}:</span>
                         {% if not loop.first %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -124,7 +124,7 @@
                             </form>
                         {% endif %}
                         {% if not loop.last %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -134,7 +134,7 @@
                             </form>
                         {% endif %}
                         {% if editor_blocks|length > 1 %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" style="display:inline">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -148,8 +148,9 @@
         </section>
 
         <section class="admin-section" aria-labelledby="add-heading">
-            <h2 id="add-heading">Blok ekle</h2>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_add_block', {id: content.id.toRfc4122}) }}" class="stack-sm">
+            <h2 id="add-heading">Yeni blok ekle</h2>
+            <p class="muted">Seçtiğiniz tür listenin sonuna boş bir blok olarak eklenir. Metni kaydettikten sonra bu blokta doldurun.</p>
+            <form method="post" action="{{ path('app_admin_learning_content_revision_add_block', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -160,8 +161,41 @@
                         {% endfor %}
                     </select>
                 </label>
-                <button type="submit" class="btn btn--primary">Blok ekle</button>
+                <button type="submit" class="btn btn--primary">Yeni blok ekle</button>
             </form>
         </section>
     {% endif %}
+    <script>
+        (function () {
+            var form = document.getElementById('revision-save-form');
+            if (!form) return;
+            var dirty = false;
+            var mark = function () { dirty = true; };
+            form.addEventListener('input', mark);
+            form.addEventListener('change', mark);
+            form.addEventListener('submit', function () { dirty = false; });
+            window.addEventListener('beforeunload', function (event) {
+                if (!dirty) return;
+                event.preventDefault();
+            });
+            document.querySelectorAll('form[data-warn-unsaved]').forEach(function (other) {
+                other.addEventListener('submit', function (event) {
+                    if (!dirty) return;
+                    if (!window.confirm('Kaydedilmemiş değişiklikler var. Yine de devam edilsin mi?')) {
+                        event.preventDefault();
+                    } else {
+                        dirty = false;
+                    }
+                });
+            });
+            document.querySelectorAll('textarea.revision-text').forEach(function (area) {
+                var grow = function () {
+                    area.style.height = 'auto';
+                    area.style.height = area.scrollHeight + 'px';
+                };
+                area.addEventListener('input', grow);
+                grow();
+            });
+        })();
+    </script>
 {% endblock %}

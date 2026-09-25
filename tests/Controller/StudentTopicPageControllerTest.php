@@ -66,6 +66,15 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testAdminForbiddenOnStudentTopicRoute(): void
+    {
+        $this->createActive('topic-admin-deny@example.com', UserRole::Admin);
+        $client = static::createClient();
+        $this->login($client, 'topic-admin-deny@example.com');
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');
+        self::assertResponseStatusCodeSame(403);
+    }
+
     public function testPublishedTopicEmptyStateAndNineteenRoutes(): void
     {
         $this->importAndPublishTymm();

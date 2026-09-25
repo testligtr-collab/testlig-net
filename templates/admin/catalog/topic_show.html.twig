@@ -48,16 +48,16 @@
                                 <td>{{ p.displayTitle }}</td>
                                 <td>
                                     <a href="{{ path('app_admin_learning_content', {id: p.learningContent.id.toRfc4122}) }}">{{ p.learningContent.title }}</a>
-                                    · <code>{{ p.learningContent.status.value }}</code>
+                                    · {{ p.learningContent.status.value|workflow_label('status') }}
                                 </td>
                                 <td><code>{{ p.slug }}</code></td>
                                 <td>{{ p.position }}</td>
-                                <td>{{ p.visibilityStatus.value }}</td>
+                                <td>{{ p.visibilityStatus.value|workflow_label('status') }}</td>
                                 <td>
                                     {% if is_granted('CATALOG_TOPIC_LESSON_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
                                         <form method="post" action="{{ path('app_admin_catalog_placement_publish', {id: p.id.toRfc4122}) }}" class="stack-sm" style="display:inline-block" onsubmit="return confirm('Yerleşimi yayımlamak istediğinize emin misiniz?');">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_placement_publish_' ~ p.id.toRfc4122) }}">
-                                            <input type="hidden" name="note" value="admin_placement_publish">
+                                            <input type="hidden" name="note" value="{{ reason_placement_publish }}">
                                             <label>
                                                 <input type="checkbox" name="confirm_publish" value="1" required>
                                                 Onaylıyorum
@@ -68,7 +68,7 @@
                                     {% if is_granted('CATALOG_TOPIC_LESSON_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
                                         <form method="post" action="{{ path('app_admin_catalog_placement_archive', {id: p.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Arşivleme geri alınamaz. Devam?');">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_placement_archive_' ~ p.id.toRfc4122) }}">
-                                            <input type="hidden" name="note" value="admin_placement_archive">
+                                            <input type="hidden" name="note" value="{{ reason_placement_archive }}">
                                             <button type="submit" class="btn btn--ghost">Arşivle</button>
                                         </form>
                                     {% endif %}
@@ -87,33 +87,46 @@
             {% elseif published_contents is empty %}
                 <p class="muted">Bu canonical subject için yayımlanmış platform içeriği yok.</p>
             {% else %}
-                <form method="post" action="{{ path('app_admin_catalog_topic_placement_create', {id: topic.id.toRfc4122}) }}" class="stack-sm">
+                <form method="post" action="{{ path('app_admin_catalog_topic_placement_create', {id: topic.id.toRfc4122}) }}" class="stack-sm" id="topic-placement-form">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_topic_placement_' ~ topic.id.toRfc4122) }}">
+                    <input type="hidden" name="note" value="{{ reason_placement_create }}">
                     <label>Yayımlanmış içerik
-                        <select name="learning_content_id" required>
+                        <select name="learning_content_id" id="topic-placement-content" required>
                             <option value="">Seçin</option>
                             {% for c in published_contents %}
-                                <option value="{{ c.id.toRfc4122 }}">{{ c.title }} ({{ c.code }})</option>
+                                <option value="{{ c.id.toRfc4122 }}" data-title="{{ c.title }}" data-summary="{{ c.summary }}">{{ c.title }} ({{ c.code }})</option>
                             {% endfor %}
                         </select>
                     </label>
                     <label>Görünen başlık
-                        <input type="text" name="display_title" required minlength="2" maxlength="200">
+                        <input type="text" name="display_title" id="topic-placement-title" required minlength="2" maxlength="200">
                     </label>
-                    <label>Slug (opsiyonel)
-                        <input type="text" name="slug" maxlength="180" placeholder="otomatik">
-                    </label>
+                    <p class="muted">Kısa adres başlıktan otomatik üretilir. Sıra, bu konudaki sonraki boş değerdir.</p>
                     <label>Özet
-                        <textarea name="summary" maxlength="3000" rows="2"></textarea>
+                        <textarea name="summary" id="topic-placement-summary" maxlength="3000" rows="3" class="revision-text"></textarea>
                     </label>
                     <label>Sıra
-                        <input type="number" name="position" required value="0" min="0" step="1">
+                        <input type="number" name="position" required value="{{ suggested_position }}" min="0" step="1">
                     </label>
-                    <label>Not
-                        <input type="text" name="note" maxlength="64" value="admin_placement_create">
+                    <label>İşlem notu (opsiyonel)
+                        <textarea name="operator_note" maxlength="500" rows="2"></textarea>
                     </label>
                     <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
                 </form>
+                <script>
+                    (function () {
+                        var select = document.getElementById('topic-placement-content');
+                        var title = document.getElementById('topic-placement-title');
+                        var summary = document.getElementById('topic-placement-summary');
+                        if (!select || !title || !summary) return;
+                        select.addEventListener('change', function () {
+                            var option = select.options[select.selectedIndex];
+                            if (!option || !option.value) return;
+                            title.value = option.getAttribute('data-title') || '';
+                            summary.value = option.getAttribute('data-summary') || '';
+                        });
+                    })();
+                </script>
             {% endif %}
         {% endif %}
     </section>

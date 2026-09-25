@@ -11,11 +11,15 @@ use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
 use App\Entity\CatalogTopicLesson;
 use App\Entity\CatalogUnit;
+use App\Entity\LearningContent;
 use App\Enum\CatalogPublicationStatus;
 use App\Exception\CatalogException;
+use App\Exception\LearningContentException;
 use App\Form\CatalogSubjectFormType;
 use App\Form\CatalogTopicFormType;
 use App\Form\CatalogUnitFormType;
+use App\Presentation\ContentWorkflowReason;
+use App\Presentation\PlacementPosition;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
@@ -45,6 +49,7 @@ final class AdminCatalogController extends AdminBaseController
         private readonly CatalogTopicLessonManager $placements,
         private readonly CatalogTopicLessonRepository $placementRepo,
         private readonly LearningContentRepository $learningContents,
+        private readonly ContentWorkflowReason $workflowReason,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -460,6 +465,10 @@ final class AdminCatalogController extends AdminBaseController
             'subject' => $topic->getUnit()->getSubject(),
             'placements' => $this->placementRepo->findOrderedByTopic($topic),
             'published_contents' => $publishedContents,
+            'suggested_position' => PlacementPosition::next($this->placementRepo->highestPositionForTopic($topic->getId())),
+            'reason_placement_create' => ContentWorkflowReason::PLACEMENT_CREATE,
+            'reason_placement_publish' => ContentWorkflowReason::PLACEMENT_PUBLISH,
+            'reason_placement_archive' => ContentWorkflowReason::PLACEMENT_ARCHIVE,
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MANAGE),
             'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
                 && CatalogPublicationStatus::Archived !== $topic->getStatus(),
@@ -481,11 +490,29 @@ final class AdminCatalogController extends AdminBaseController
         $displayTitle = trim((string) $request->request->get('display_title', ''));
         $slug = trim((string) $request->request->get('slug', ''));
         $summaryRaw = trim((string) $request->request->get('summary', ''));
-        $position = $request->request->getInt('position', 0);
-        $note = trim((string) $request->request->get('note', 'admin_placement_create'));
 
         try {
             $contentUuid = Uuid::fromString($contentIdRaw);
+            if ('' === $displayTitle || '' === $summaryRaw) {
+                $linked = $this->learningContents->findOneById($contentUuid);
+                if ($linked instanceof LearningContent) {
+                    if ('' === $displayTitle) {
+                        $displayTitle = $linked->getTitle();
+                    }
+                    if ('' === $summaryRaw && null !== $linked->getSummary()) {
+                        $summaryRaw = $linked->getSummary();
+                    }
+                }
+            }
+            $positionRaw = trim((string) $request->request->get('position', ''));
+            $position = '' === $positionRaw
+                ? PlacementPosition::next($this->placementRepo->highestPositionForTopic($topic->getId()))
+                : (int) $positionRaw;
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_CREATE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->placements->create(
                 $this->requireActorUser(),
                 $topic->getId(),
@@ -493,12 +520,15 @@ final class AdminCatalogController extends AdminBaseController
                 $displayTitle,
                 '' === $summaryRaw ? null : $summaryRaw,
                 $position,
-                '' === $note ? 'admin_placement_create' : $note,
+                $reason['code'],
                 '' === $slug ? null : $slug,
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim taslağı oluşturuldu.');
         } catch (\InvalidArgumentException) {
             $this->addFlash('error', 'Geçersiz öğrenme içeriği.');
+        } catch (LearningContentException $e) {
+            $this->addFlash('error', $e->getMessage());
         } catch (CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
@@ -524,15 +554,20 @@ final class AdminCatalogController extends AdminBaseController
             ]);
         }
 
-        $note = trim((string) $request->request->get('note', 'admin_placement_publish'));
         try {
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_PUBLISH,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->placements->publish(
                 $this->requireActorUser(),
                 $lesson->getId(),
-                '' === $note ? 'admin_placement_publish' : $note,
+                $reason['code'],
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim yayımlandı.');
-        } catch (CatalogException $e) {
+        } catch (LearningContentException|CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
 
@@ -552,15 +587,20 @@ final class AdminCatalogController extends AdminBaseController
             throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
         }
 
-        $note = trim((string) $request->request->get('note', 'admin_placement_archive'));
         try {
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_ARCHIVE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->placements->archive(
                 $this->requireActorUser(),
                 $lesson->getId(),
-                '' === $note ? 'admin_placement_archive' : $note,
+                $reason['code'],
+                $reason['operator_note'],
             );
             $this->addFlash('success', 'Yerleşim arşivlendi (geri açılamaz).');
-        } catch (CatalogException $e) {
+        } catch (LearningContentException|CatalogException $e) {
             $this->addFlash('error', $e->getMessage());
         }
 
