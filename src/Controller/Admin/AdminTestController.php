@@ -259,10 +259,7 @@ final class AdminTestController extends AdminBaseController
 
         $this->addFlash('success', 'Taslak kaydedildi.');
 
-        return $this->debugMoveHeader(
-            $this->redirectToRoute('app_admin_test_show', ['id' => $assessment->getId()->toRfc4122()]),
-            $request,
-        );
+        return $this->redirectToRoute('app_admin_test_show', ['id' => $assessment->getId()->toRfc4122()]);
     }
 
     private function lifecycle(Request $request, string $id, string $action): Response
@@ -465,16 +462,6 @@ final class AdminTestController extends AdminBaseController
         usort($resolved, static fn (array $left, array $right): int => $left['position'] <=> $right['position']);
 
         return $resolved;
-    }
-
-    private function debugMoveHeader(Response $response, Request $request): Response
-    {
-        if ($this->getParameter('kernel.debug')) {
-            $command = $this->moveCommand($request);
-            $response->headers->set('X-Test-Move', '' === $command ? 'none' : $command);
-        }
-
-        return $response;
     }
 
     private function moveCommand(Request $request): string
