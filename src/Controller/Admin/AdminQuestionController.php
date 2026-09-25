@@ -212,12 +212,10 @@ final class AdminQuestionController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
         } catch (QuestionException $e) {
-            $this->addFlash('error', $this->questionMessage($e));
-
-            return $this->redirectToRoute('app_admin_question_new', [
+            return $this->redirectQuestionError('app_admin_question_new', [
                 'subject_id' => $request->request->getString('subject_id'),
                 'grade' => $request->request->getString('grade'),
-            ]);
+            ], $e);
         }
     }
 
@@ -251,9 +249,7 @@ final class AdminQuestionController extends AdminBaseController
             );
             $this->addFlash('success', 'Taslak kaydedildi.');
         } catch (QuestionException $e) {
-            $this->addFlash('error', $this->questionMessage($e));
-
-            return $this->redirectToRoute('app_admin_question_edit', ['id' => $question->getId()->toRfc4122()]);
+            return $this->redirectQuestionError('app_admin_question_edit', ['id' => $question->getId()->toRfc4122()], $e);
         }
 
         return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
@@ -285,7 +281,7 @@ final class AdminQuestionController extends AdminBaseController
             };
             $this->addFlash('success', $this->successMessage($action));
         } catch (QuestionException $e) {
-            $this->addFlash('error', $this->questionMessage($e));
+            return $this->redirectQuestionError('app_admin_question_show', ['id' => $question->getId()->toRfc4122()], $e);
         } catch (LearningContentException) {
             $this->addFlash('error', 'İşlem notu kaydedilemedi.');
         }
@@ -654,6 +650,20 @@ final class AdminQuestionController extends AdminBaseController
             'archive' => 'Soru arşivlendi.',
             default => 'Kaydedildi.',
         };
+    }
+
+    /**
+     * @param array<string, string> $params
+     */
+    private function redirectQuestionError(string $route, array $params, QuestionException $exception): Response
+    {
+        $this->addFlash('error', $this->questionMessage($exception));
+        $response = $this->redirectToRoute($route, $params);
+        if ($this->getParameter('kernel.debug')) {
+            $response->headers->set('X-Question-Failure', $exception->getMessage());
+        }
+
+        return $response;
     }
 
     private function questionMessage(QuestionException $exception): string

@@ -53,11 +53,8 @@ final class AdminQuestionControllerTest extends WebTestCase
             'options' => ['Evet', 'Hayir'],
             'correct' => '1',
         ]);
-        self::assertResponseRedirects();
-        $client->followRedirect();
-        self::assertResponseIsSuccessful();
+        $location = $this->openCreated($client);
         self::assertSelectorTextContains('body', 'Taslak');
-        $location = $client->getRequest()->getPathInfo();
 
         $client = $this->newClient();
         $this->login($client, 'qb-teacher-b@example.com');
@@ -121,10 +118,8 @@ final class AdminQuestionControllerTest extends WebTestCase
             'options' => ['DogruGizliMetin', 'YanlisSecenekMetni'],
             'correct' => '1',
         ]);
-        $client->followRedirect();
-        $path = $client->getRequest()->getPathInfo();
-        $this->postAction($client, $path.'/incelemeye-gonder', '1');
-        $client->followRedirect();
+        $path = $this->openCreated($client);
+        $this->postAction($client, 'incelemeye-gonder');
         self::assertSelectorTextContains('body', 'İncelemede');
 
         $client->request('GET', $path.'/gorunum');
@@ -150,12 +145,10 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringContainsString('Taslağa döndür', $moderatorHtml);
         self::assertStringNotContainsString('>Yayınla<', $moderatorHtml);
 
-        $this->postAction($client, $path.'/yayinla', '1');
-        $client->followRedirect();
+        $this->postToken($client, $path.'/yayinla');
         self::assertStringContainsString('yetkiniz yok', (string) $client->getResponse()->getContent());
 
-        $this->postAction($client, $path.'/taslaga-dondur', '1');
-        $client->followRedirect();
+        $this->postAction($client, 'taslaga-dondur');
         self::assertSelectorTextContains('body', 'Taslak');
     }
 
@@ -168,13 +161,10 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client = $this->newClient();
         $this->login($client, 'qb-head-author@example.com');
         $this->postNew($client, $ids, []);
-        $client->followRedirect();
-        $path = $client->getRequest()->getPathInfo();
-        $this->postAction($client, $path.'/incelemeye-gonder', '1');
-        $client->followRedirect();
+        $path = $this->openCreated($client);
+        $this->postAction($client, 'incelemeye-gonder');
         self::assertStringContainsString('yayınlayamazsınız', (string) $client->getResponse()->getContent());
-        $this->postAction($client, $path.'/yayinla', '1');
-        $client->followRedirect();
+        $this->postToken($client, $path.'/yayinla');
         self::assertStringContainsString('yayınlayamazsınız', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Yayında', (string) $client->getResponse()->getContent());
 
@@ -182,16 +172,13 @@ final class AdminQuestionControllerTest extends WebTestCase
         $this->login($client, 'qb-admin-pub@example.com');
         $client->request('GET', $path);
         self::assertSelectorTextContains('body', 'Yayınla');
-        $this->postAction($client, $path.'/yayinla', '1');
-        $client->followRedirect();
+        $this->postAction($client, 'yayinla');
         self::assertSelectorTextContains('body', 'Yayında');
-        $client->request('GET', $path.'/duzenle');
-        self::assertResponseStatusCodeSame(403);
-
-        $this->postAction($client, $path.'/arsivle', '1');
-        $client->followRedirect();
+        $this->postAction($client, 'arsivle');
         self::assertSelectorTextContains('body', 'Arşivde');
         self::assertStringNotContainsString('>Yayınla<', (string) $client->getResponse()->getContent());
+        $client->request('GET', $path.'/duzenle');
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testStaleRevisionIsRejected(): void
@@ -201,8 +188,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client = $this->newClient();
         $this->login($client, 'qb-teacher-conc@example.com');
         $this->postNew($client, $ids, ['stem' => 'Ilk kok']);
-        $client->followRedirect();
-        $path = $client->getRequest()->getPathInfo();
+        $path = $this->openCreated($client);
         $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
         self::assertResponseIsSuccessful();
         $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
@@ -256,20 +242,37 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client->request('POST', '/yonetim/sorular/yeni', $this->payload($ids, array_merge(['_token' => $token], $overrides)));
     }
 
-    private function postAction(KernelBrowser $client, string $path, string $revision): void
+    private function openCreated(KernelBrowser $client): string
     {
-        $page = $client->getCrawler();
-        if (0 === $page->filter('form')->count()) {
-            $page = $client->request('GET', preg_replace('#/(incelemeye-gonder|yayinla|taslaga-dondur|arsivle)$#', '', $path) ?? $path);
-        }
-        $tokenNode = $page->filter('#question-csrf input[name="_token"], form[action*="/yonetim/sorular"] input[name="_token"]');
-        self::assertGreaterThan(0, $tokenNode->count());
-        $token = (string) $tokenNode->first()->attr('value');
+        $failure = (string) $client->getResponse()->headers->get('X-Question-Failure');
+        self::assertResponseRedirects(null, null, $failure);
+        $client->followRedirect();
+        self::assertStringContainsString('Taslak kaydedildi', (string) $client->getResponse()->getContent(), $failure);
+
+        return $client->getRequest()->getPathInfo();
+    }
+
+    private function postAction(KernelBrowser $client, string $needle): void
+    {
+        $formNode = $client->getCrawler()->filter('form[action*="'.$needle.'"]');
+        self::assertGreaterThan(0, $formNode->count(), (string) $client->getResponse()->getContent());
+        $client->submit($formNode->form([
+            'operator_note' => 'Kontrol notu',
+        ]));
+        $failure = (string) $client->getResponse()->headers->get('X-Question-Failure');
+        self::assertResponseRedirects(null, null, $failure.' '.$client->getResponse()->getStatusCode());
+        $client->followRedirect();
+    }
+
+    private function postToken(KernelBrowser $client, string $path): void
+    {
+        $token = (string) $client->getCrawler()->filter('#question-csrf input[name="_token"]')->attr('value');
         $client->request('POST', $path, [
             '_token' => $token,
-            'expected_revision' => $revision,
-            'operator_note' => 'Kontrol notu',
+            'expected_revision' => '1',
         ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
     }
 
     /**
