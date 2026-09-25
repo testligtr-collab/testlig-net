@@ -41,6 +41,7 @@ final class AuthenticationFlowTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Hesabım');
         self::assertSelectorTextContains('body', 'active@example.com');
+        self::assertSelectorNotExists('a[href="/yonetim/icerikler"]');
 
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
@@ -201,6 +202,115 @@ final class AuthenticationFlowTest extends WebTestCase
         self::assertSelectorNotExists('body:contains("throttle@example.com")');
     }
 
+    public function testInvalidCsrfOnLoginIsRejected(): void
+    {
+        $client = static::createClient();
+        $this->createUser('csrf-bad@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+        $client->request('GET', '/giris');
+        $client->request('POST', '/giris', [
+            '_username' => 'csrf-bad@example.com',
+            '_password' => 'Guclu-Parola-123!',
+            '_csrf_token' => 'invalid-token',
+        ]);
+        self::assertResponseRedirects('/giris');
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Oturum doğrulaması başarısız');
+    }
+
+    public function testLogoutInvalidatesPreviousLoginCsrfUntilFreshGet(): void
+    {
+        $client = static::createClient();
+        $this->createUser('csrf-rotate@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+
+        $crawler = $client->request('GET', '/giris');
+        $token = $crawler->filter('input[name="_csrf_token"]')->attr('value');
+        self::assertIsString($token);
+
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'csrf-rotate@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+
+        $client->request('POST', '/cikis', [
+            '_csrf_token' => $this->getCsrf($client, 'logout'),
+        ]);
+        self::assertResponseRedirects('/');
+
+        $client->request('POST', '/giris', [
+            '_username' => 'csrf-rotate@example.com',
+            '_password' => 'Guclu-Parola-123!',
+            '_csrf_token' => 'invalid-token',
+        ]);
+        self::assertResponseRedirects('/giris');
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Oturum doğrulaması başarısız');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'csrf-rotate@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        self::assertResponseRedirects();
+    }
+
+    public function testStaleTokenAfterAccountSwitchIsRejectedUntilFreshForm(): void
+    {
+        $client = static::createClient();
+        $this->createUser('switch-a@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+        $this->createUser('switch-b@example.com', 'Guclu-Parola-123!', UserStatus::Active);
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'switch-a@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+
+        $client->request('POST', '/cikis', [
+            '_csrf_token' => $this->getCsrf($client, 'logout'),
+        ]);
+        self::assertResponseRedirects('/');
+
+        $client->request('POST', '/giris', [
+            '_username' => 'switch-b@example.com',
+            '_password' => 'Guclu-Parola-123!',
+            '_csrf_token' => 'invalid-token',
+        ]);
+        self::assertResponseRedirects('/giris');
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Oturum doğrulaması başarısız');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'switch-b@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        self::assertResponseRedirects();
+    }
+
+    public function testTeacherAccountLinksToContentsAndCanOpenCreateForm(): void
+    {
+        $this->createTeacher('csrf-teacher@example.com');
+
+        $client = static::createClient();
+        $client->request('GET', '/yonetim/icerikler/yeni');
+        self::assertResponseRedirects('/giris');
+
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => 'csrf-teacher@example.com',
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/yonetim/icerikler"]');
+
+        $client->request('GET', '/yonetim/icerikler/yeni');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('nav', 'İçerikler');
+    }
+
     private function loginAs(KernelBrowser $client, string $email): void
     {
         $this->createUser($email, 'Guclu-Parola-123!', UserStatus::Active);
@@ -239,6 +349,19 @@ final class AuthenticationFlowTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return $user;
+    }
+
+    private function createTeacher(string $email): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserAccountLifecycle $lifecycle */
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', UserRole::Teacher);
+        $lifecycle->markEmailVerifiedAndActivate($user);
+        self::ensureKernelShutdown();
     }
 
     private function getCsrf(KernelBrowser $client, string $tokenId): string
