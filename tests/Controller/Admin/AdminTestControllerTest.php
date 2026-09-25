@@ -198,6 +198,7 @@ final class AdminTestControllerTest extends WebTestCase
             ],
         ]);
         self::assertResponseRedirects();
+        self::assertSame('down-0', (string) $client->getResponse()->headers->get('X-Test-Move'));
         $client->followRedirect();
         $html = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Taslak kaydedildi', $html);
