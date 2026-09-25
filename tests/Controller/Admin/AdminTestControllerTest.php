@@ -183,8 +183,20 @@ final class AdminTestControllerTest extends WebTestCase
             ['question_id' => $seed['second_question'], 'position' => '2', 'points' => '2'],
         ]);
         $edit = $client->request('GET', $path.'/duzenle');
-        $down = $edit->selectButton('Aşağı');
-        $client->submit($down->form());
+        $token = (string) $edit->filter('#test-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'title' => 'Siralama testi',
+            'instructions' => 'Yonerge',
+            'grade' => '1',
+            'subject_id' => $seed['subject'],
+            'move_down_0' => '1',
+            'items' => [
+                ['question_id' => $seed['question'], 'position' => '1', 'points' => '1'],
+                ['question_id' => $seed['second_question'], 'position' => '2', 'points' => '2'],
+            ],
+        ]);
         self::assertResponseRedirects();
         $client->followRedirect();
         $html = (string) $client->getResponse()->getContent();
