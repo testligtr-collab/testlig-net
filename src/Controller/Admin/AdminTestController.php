@@ -430,7 +430,7 @@ final class AdminTestController extends AdminBaseController
                 'points' => '1',
             ];
         }
-        $items = $this->applyMove($items, $request->request->getString('move'));
+        $items = $this->applyMove($items, $this->moveCommand($request));
         $seenIds = [];
         $seenPositions = [];
         $resolved = [];
@@ -462,6 +462,17 @@ final class AdminTestController extends AdminBaseController
         usort($resolved, static fn (array $left, array $right): int => $left['position'] <=> $right['position']);
 
         return $resolved;
+    }
+
+    private function moveCommand(Request $request): string
+    {
+        foreach ($request->request->keys() as $key) {
+            if (1 === preg_match('/^move_(up|down)_(\d+)$/', $key, $matches)) {
+                return $matches[1].'-'.$matches[2];
+            }
+        }
+
+        return '';
     }
 
     /**

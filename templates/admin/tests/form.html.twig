@@ -88,8 +88,8 @@
                 <label>Puan
                     <input type="text" name="items[{{ loop.index0 }}][points]" value="{{ row.points }}" required>
                 </label>
-                <button class="btn" type="submit" name="move" value="up-{{ loop.index0 }}">Yukarı</button>
-                <button class="btn" type="submit" name="move" value="down-{{ loop.index0 }}">Aşağı</button>
+                <button class="btn" type="submit" name="move_up_{{ loop.index0 }}" value="1">Yukarı</button>
+                <button class="btn" type="submit" name="move_down_{{ loop.index0 }}" value="1">Aşağı</button>
             </fieldset>
         {% endfor %}
 
