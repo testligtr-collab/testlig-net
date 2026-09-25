@@ -1060,6 +1060,7 @@ final class QuestionBankSecurityHardeningTest extends KernelTestCase
 
         $connection->insert('questions', [
             'id' => $questionId->toBinary(),
+            'code' => str_replace('-', '', $questionId->toRfc4122()),
             'scope' => QuestionScope::Platform->value,
             'institution_id' => null,
             'subject_id' => $subject->getId()->toBinary(),

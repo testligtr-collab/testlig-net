@@ -144,7 +144,7 @@ final class AdminQuestionController extends AdminBaseController
         return $this->renderForm($request, $question);
     }
 
-    #[Route('/yonetim/sorular/{id}/onizleme', name: 'app_admin_question_preview', methods: ['GET'])]
+    #[Route('/yonetim/sorular/{id}/gorunum', name: 'app_admin_question_preview', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function preview(string $id): Response
     {

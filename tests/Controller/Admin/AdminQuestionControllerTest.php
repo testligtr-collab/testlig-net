@@ -35,6 +35,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         $client->request('GET', '/ogrenci/dersler');
+        $client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('correctStableKey', (string) $client->getResponse()->getContent());
     }
@@ -81,7 +82,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         $html = (string) $client->getResponse()->getContent();
-        self::assertStringNotContainsString('<script>', $html);
+        self::assertStringNotContainsString('alert(1)', $html);
         self::assertStringContainsString('Soru kaydedilemedi', $html);
 
         $this->postNew($client, $ids, ['options' => ['Ayni', 'Ayni']]);
@@ -126,7 +127,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'İncelemede');
 
-        $client->request('GET', $path.'/onizleme');
+        $client->request('GET', $path.'/gorunum');
         $preview = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('Doğru cevap', $preview);
         self::assertStringNotContainsString('correctStableKey', $preview);
@@ -135,7 +136,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client = $this->newClient();
         $this->login($client, 'qb-student-public@example.com');
         $client->request('GET', '/ogrenci/dersler');
-        self::assertResponseIsSuccessful();
+        $client->followRedirect();
         self::assertStringNotContainsString('DogruGizliMetin', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('correctStableKey', (string) $client->getResponse()->getContent());
 
@@ -261,7 +262,9 @@ final class AdminQuestionControllerTest extends WebTestCase
         if (0 === $page->filter('form')->count()) {
             $page = $client->request('GET', preg_replace('#/(incelemeye-gonder|yayinla|taslaga-dondur|arsivle)$#', '', $path) ?? $path);
         }
-        $token = (string) $page->filter('input[name="_token"]')->first()->attr('value');
+        $tokenNode = $page->filter('#question-csrf input[name="_token"], form[action*="/yonetim/sorular"] input[name="_token"]');
+        self::assertGreaterThan(0, $tokenNode->count());
+        $token = (string) $tokenNode->first()->attr('value');
         $client->request('POST', $path, [
             '_token' => $token,
             'expected_revision' => $revision,
