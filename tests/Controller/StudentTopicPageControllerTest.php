@@ -70,8 +70,17 @@ final class StudentTopicPageControllerTest extends WebTestCase
     {
         self::ensureKernelShutdown();
         self::bootKernel();
-        $this->activeStaff('topic-admin-deny@example.com', UserRole::Admin);
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user = $factory->createAndPersist('topic-admin-deny@example.com', 'Guclu-Parola-123!', 'A', 'U', UserRole::Teacher);
+        $user->markEmailVerified(new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $user->transitionTo(UserStatus::Active);
+        $user->addGlobalRole(UserRole::Admin);
+        $users->save($user);
         self::ensureKernelShutdown();
+
         $client = static::createClient();
         $this->login($client, 'topic-admin-deny@example.com');
         $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler');

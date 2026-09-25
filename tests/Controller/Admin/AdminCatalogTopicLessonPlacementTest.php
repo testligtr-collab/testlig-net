@@ -196,7 +196,7 @@ final class AdminCatalogTopicLessonPlacementTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertSelectorTextContains('body', 'archived');
+        self::assertSelectorTextContains('body', 'Arşivlenmiş');
     }
 
     public function testStudentTopicVisibilityFreeAndAndGateNoBodyLeak(): void
