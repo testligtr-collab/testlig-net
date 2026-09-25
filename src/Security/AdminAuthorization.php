@@ -298,6 +298,16 @@ final class AdminAuthorization
         return $this->canViewLearningContentWorkspace($actor);
     }
 
+    public function canViewTestBank(User $actor): bool
+    {
+        return $this->canViewQuestionBank($actor);
+    }
+
+    public function canAuthorTests(User $actor): bool
+    {
+        return $this->canAuthorQuestions($actor);
+    }
+
     public function canAuthorQuestions(User $actor): bool
     {
         return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)

@@ -65,6 +65,10 @@ final class AdminNavBuilder
             $items[] = $this->item('questions', 'Sorular', 'app_admin_questions', $currentPath, '/yonetim/sorular');
         }
 
+        if ($this->adminAuthorization->canViewTestBank($actor)) {
+            $items[] = $this->item('tests', 'Testler', 'app_admin_tests', $currentPath, '/yonetim/testler');
+        }
+
         if ($isSa) {
             $items[] = $this->item('payments', 'Ödemeler', 'app_admin_payments', $currentPath, '/yonetim/odemeler');
             $items[] = $this->item('webhooks', 'Webhook', 'app_admin_webhooks', $currentPath, '/yonetim/webhook');

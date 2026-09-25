@@ -1,0 +1,118 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ assessment ? 'Testi düzenle' : 'Yeni test' }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ assessment ? assessment.code : 'Yeni' }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ assessment ? 'Testi düzenle' : 'Yeni test' }}</h1>
+
+    <form method="get" class="stack-sm" action="{{ assessment ? path('app_admin_test_edit', {id: assessment.id.toRfc4122}) : path('app_admin_test_new') }}">
+        {% if assessment %}
+            <input type="hidden" name="grade" value="{{ assessment.gradeLevel.value }}">
+            <input type="hidden" name="subject_id" value="{{ assessment.subject ? assessment.subject.id.toRfc4122 : '' }}">
+        {% else %}
+            <label>Sınıf
+                <select name="grade">
+                    {% for level in 1..12 %}
+                        <option value="{{ level }}" {{ grade and grade.value == level ? 'selected' : '' }}>{{ level }}. sınıf</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>Ders
+                <select name="subject_id">
+                    <option value="">Seçin</option>
+                    {% for item in subjects %}
+                        <option value="{{ item.id.toRfc4122 }}" {{ subject and subject.id.equals(item.id) ? 'selected' : '' }}>{{ item.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        {% endif %}
+        <label>Kazanım kodu
+            <input type="text" name="outcome" value="{{ filters.outcome }}" maxlength="64">
+        </label>
+        <label>Zorluk
+            <select name="difficulty">
+                <option value="">Tümü</option>
+                {% for value, label in difficulty_labels %}
+                    <option value="{{ value }}" {{ filters.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Soru kodu
+            <input type="text" name="code" value="{{ filters.code }}" maxlength="32">
+        </label>
+        <label>Metin
+            <input type="search" name="q" value="{{ filters.q }}" maxlength="200">
+        </label>
+        <button class="btn" type="submit">Soruları listele</button>
+    </form>
+
+    <form id="test-editor" method="post" class="stack-sm" action="{{ assessment ? path('app_admin_test_edit', {id: assessment.id.toRfc4122}) : path('app_admin_test_new') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+        <input type="hidden" name="expected_revision" value="{{ revision ? revision.revisionNumber : 0 }}">
+        <label>Başlık
+            <input type="text" name="title" required maxlength="200" value="{{ revision ? revision.title : '' }}">
+        </label>
+        <label>Açıklama / yönerge
+            <textarea name="instructions" maxlength="10000" rows="4">{{ revision ? revision.instructions : '' }}</textarea>
+        </label>
+        {% if assessment %}
+            <p>Sınıf: {{ assessment.gradeLevel.value }}. sınıf</p>
+            <p>Ders: {{ subject ? subject.name : '' }}</p>
+            <input type="hidden" name="grade" value="{{ assessment.gradeLevel.value }}">
+            <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
+        {% else %}
+            <input type="hidden" name="grade" value="{{ grade ? grade.value : '' }}">
+            <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
+        {% endif %}
+        <label>Süre (dakika, isteğe bağlı)
+            <input type="number" name="duration_minutes" min="1" max="360" value="{{ revision and revision.durationSeconds ? (revision.durationSeconds / 60)|round(0, 'ceil') : '' }}">
+        </label>
+
+        <h2>Seçili sorular</h2>
+        {% if selected is empty %}
+            <p>Henüz soru seçilmedi.</p>
+        {% endif %}
+        {% for row in selected %}
+            <fieldset>
+                <legend>{{ row.position }}. {{ row.code }}</legend>
+                <p>{{ row.stem }}</p>
+                <input type="hidden" name="items[{{ loop.index0 }}][question_id]" value="{{ row.question_id }}">
+                <label>Sıra
+                    <input type="number" name="items[{{ loop.index0 }}][position]" min="1" value="{{ row.position }}" required>
+                </label>
+                <label>Puan
+                    <input type="text" name="items[{{ loop.index0 }}][points]" value="{{ row.points }}" required>
+                </label>
+                <button class="btn" type="submit" name="move_up_{{ loop.index0 }}" value="1">Yukarı</button>
+                <button class="btn" type="submit" name="move_down_{{ loop.index0 }}" value="1">Aşağı</button>
+            </fieldset>
+        {% endfor %}
+
+        <h2>Yayımlanmış sorular</h2>
+        {% if subject is null or grade is null %}
+            <p>Soru listesi için sınıf ve ders seçin.</p>
+        {% elseif picker is empty %}
+            <p>Bu filtrede yayımlanmış soru yok.</p>
+        {% else %}
+            {% for row in picker %}
+                <label>
+                    <input type="checkbox" name="add_ids[]" value="{{ row.id }}">
+                    {{ row.code }} — {{ row.stem }}
+                </label>
+            {% endfor %}
+            {% if page > 1 %}
+                <a href="{{ path(assessment ? 'app_admin_test_edit' : 'app_admin_test_new', assessment ? {id: assessment.id.toRfc4122, page: page - 1} : {page: page - 1}) }}">Önceki</a>
+            {% endif %}
+            {% if picker|length == 10 %}
+                <a href="{{ path(assessment ? 'app_admin_test_edit' : 'app_admin_test_new', assessment ? {id: assessment.id.toRfc4122, page: page + 1} : {page: page + 1}) }}">Sonraki</a>
+            {% endif %}
+        {% endif %}
+
+        <button class="btn btn--primary" type="submit">Taslak kaydet</button>
+    </form>
+{% endblock %}

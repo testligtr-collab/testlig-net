@@ -26,6 +26,8 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_assessment_id_scope', columns: ['id', 'scope'])]
 #[ORM\Index(name: 'idx_assessment_scope_status', columns: ['scope', 'status'])]
 #[ORM\Index(name: 'idx_assessment_institution_status', columns: ['institution_id', 'status'])]
+#[ORM\UniqueConstraint(name: 'uniq_assessment_code', columns: ['code'])]
+#[ORM\Index(name: 'idx_assessment_subject', columns: ['subject_id'])]
 #[ORM\Index(name: 'idx_assessment_grade', columns: ['grade_level'])]
 #[ORM\Index(name: 'idx_assessment_created_by', columns: ['created_by_id'])]
 class Assessment
@@ -44,8 +46,18 @@ class Assessment
     #[ORM\Column(length: 32, enumType: AssessmentType::class)]
     private AssessmentType $type;
 
+    #[ORM\Column(length: 32)]
+    private string $code;
+
     #[ORM\Column(name: 'grade_level', enumType: GradeLevel::class)]
     private GradeLevel $gradeLevel;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'subject_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Subject $subject = null;
+
+    #[ORM\Column(name: 'published_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $publishedAt = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'created_by_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
@@ -91,10 +103,13 @@ class Assessment
         }
 
         $this->id = $id ?? new UuidV7();
+        $this->code = str_replace('-', '', $this->id->toRfc4122());
         $this->scope = $scope;
         $this->institution = $institution;
         $this->type = $type;
         $this->gradeLevel = $gradeLevel;
+        $this->subject = null;
+        $this->publishedAt = null;
         $this->createdBy = $createdBy;
         $this->status = AssessmentStatus::Draft;
         $this->currentRevision = null;
@@ -141,9 +156,46 @@ class Assessment
         return $this->type;
     }
 
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
     public function getGradeLevel(): GradeLevel
     {
         return $this->gradeLevel;
+    }
+
+    #[Ignore]
+    public function getSubject(): ?Subject
+    {
+        return $this->subject;
+    }
+
+    public function getPublishedAt(): ?\DateTimeImmutable
+    {
+        return $this->publishedAt;
+    }
+
+    /**
+     * First subject bind is immutable. Later placements must use the same subject.
+     */
+    #[Ignore]
+    public function bindSubject(Subject $subject): void
+    {
+        if ($this->subject instanceof Subject && !$this->subject->getId()->equals($subject->getId())) {
+            throw AssessmentException::subjectMismatch();
+        }
+        $this->subject = $subject;
+    }
+
+    #[Ignore]
+    public function markFirstPublishedAt(\DateTimeImmutable $now): void
+    {
+        if (AssessmentStatus::Published !== $this->status || null !== $this->publishedAt) {
+            return;
+        }
+        $this->publishedAt = $now;
     }
 
     #[Ignore]

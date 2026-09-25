@@ -172,19 +172,22 @@ final class AssessmentVoterTest extends KernelTestCase
         self::assertTrue($this->decide($teacher, AssessmentPermission::SUBMIT, $assessment));
         self::assertFalse($this->decide($teacher, AssessmentPermission::PUBLISH, $assessment));
         self::assertTrue($this->decide($head, AssessmentPermission::PUBLISH, $assessment));
-        self::assertFalse($this->decide($admin, AssessmentPermission::PUBLISH, $assessment));
+        self::assertTrue($this->decide($admin, AssessmentPermission::VIEW, $assessment));
+        self::assertTrue($this->decide($admin, AssessmentPermission::PUBLISH, $assessment));
         self::assertFalse($this->decide($student, AssessmentPermission::VIEW, $assessment));
 
         $assessments->submitForReview($assessment, $teacher, 'submit_a');
         $assessment = $this->em->find(Assessment::class, $assessment->getId());
         self::assertInstanceOf(Assessment::class, $assessment);
+        self::assertFalse($this->decide($teacher, AssessmentPermission::REVISE, $assessment));
+        self::assertFalse($this->decide($teacher, AssessmentPermission::PUBLISH, $assessment));
         $assessments->publish($assessment, $head, 'publish_a');
         $assessment = $this->em->find(Assessment::class, $assessment->getId());
         self::assertInstanceOf(Assessment::class, $assessment);
 
         self::assertTrue($this->decide($student, AssessmentPermission::VIEW, $assessment));
         self::assertTrue($this->decide($teacher, AssessmentPermission::VIEW, $assessment));
-        self::assertFalse($this->decide($admin, AssessmentPermission::PUBLISH, $assessment));
+        self::assertFalse($this->decide($admin, AssessmentPermission::REVISE, $assessment));
     }
 
     private function decide(User $user, string $attribute, Assessment $assessment): bool

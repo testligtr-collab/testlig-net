@@ -1,0 +1,96 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Test — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ assessment.code }}</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">{{ revision.title }}</h1>
+        <a class="btn btn--ghost" href="{{ path('app_admin_test_preview', {id: assessment.id.toRfc4122}) }}">Önizleme</a>
+        {% if can_edit %}
+            <a class="btn btn--primary" href="{{ path('app_admin_test_edit', {id: assessment.id.toRfc4122}) }}">Düzenle</a>
+        {% endif %}
+    </div>
+
+    <section class="workflow-progress" aria-label="İlerleme">
+        <ol class="workflow-steps">
+            {% for step in progress.steps %}
+                <li class="{{ step.done ? 'is-done' : '' }}">{{ step.label }}</li>
+            {% endfor %}
+        </ol>
+        <p><strong>{{ progress.next.label }}</strong> {{ progress.next.hint }}</p>
+    </section>
+
+    <dl class="account-dl">
+        <dt>Kod</dt>
+        <dd>{{ assessment.code }}</dd>
+        <dt>Tür</dt>
+        <dd>{{ type_label }}</dd>
+        <dt>Durum</dt>
+        <dd>{{ status_label }}</dd>
+        <dt>Ders</dt>
+        <dd>{{ subject_name }}</dd>
+        <dt>Sınıf</dt>
+        <dd>{{ grade_label }}</dd>
+        <dt>Soru sayısı</dt>
+        <dd>{{ question_count }}</dd>
+        <dt>Toplam puan</dt>
+        <dd>{{ total_points }}</dd>
+        <dt>Tahmini süre</dt>
+        <dd>{{ duration_label }}</dd>
+    </dl>
+
+    {% if revision.instructions %}
+        <h2>Yönerge</h2>
+        <p>{{ revision.instructions }}</p>
+    {% endif %}
+
+    <h2>Sorular</h2>
+    <ol>
+        {% for row in rows %}
+            <li>{{ row.code }} — {{ row.stem }} ({{ row.points }} puan)</li>
+        {% endfor %}
+    </ol>
+
+    {% if progress.next.kind == 'submit' %}
+        <form method="post" action="{{ path('app_admin_test_submit', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision.revisionNumber }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">İncelemeye gönder</button>
+        </form>
+    {% elseif progress.next.kind == 'return' %}
+        <form method="post" action="{{ path('app_admin_test_return', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision.revisionNumber }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Taslağa döndür</button>
+        </form>
+    {% elseif progress.next.kind == 'publish' %}
+        <form method="post" action="{{ path('app_admin_test_publish', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision.revisionNumber }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Yayınla</button>
+        </form>
+    {% elseif progress.next.kind == 'archive' %}
+        <form method="post" action="{{ path('app_admin_test_archive', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+            <input type="hidden" name="expected_revision" value="{{ revision.revisionNumber }}">
+            <label>İşlem notu
+                <textarea name="operator_note" maxlength="500" rows="2"></textarea>
+            </label>
+            <button class="btn btn--primary" type="submit">Arşivle</button>
+        </form>
+    {% endif %}
+{% endblock %}

@@ -6,7 +6,12 @@ namespace App\Repository;
 
 use App\Entity\Institution;
 use App\Entity\Question;
+use App\Entity\QuestionRevision;
+use App\Entity\QuestionRevisionAlignment;
+use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\GradeLevel;
+use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -87,6 +92,61 @@ class QuestionRepository extends ServiceEntityRepository
         $rows = $qb->getQuery()->getResult();
 
         return $rows;
+    }
+
+    /**
+     * Published platform questions for one subject and grade. Answer keys are not loaded.
+     *
+     * @return list<Question>
+     */
+    public function searchPublishedPlatform(
+        Subject $subject,
+        GradeLevel $grade,
+        string $code,
+        string $text,
+        ?QuestionDifficulty $difficulty,
+        string $outcomeCode,
+        int $limit,
+        int $offset,
+    ): array {
+        $qb = $this->createQueryBuilder('q')
+            ->innerJoin(QuestionRevision::class, 'r', 'WITH', 'r.question = q AND r.revisionNumber = q.currentRevisionNumber')
+            ->andWhere('q.scope = :scope')
+            ->andWhere('q.status = :status')
+            ->andWhere('q.subject = :subject')
+            ->andWhere('q.gradeLevel = :grade')
+            ->setParameter('scope', QuestionScope::Platform)
+            ->setParameter('status', QuestionStatus::Published)
+            ->setParameter('subject', $subject->getId(), 'uuid')
+            ->setParameter('grade', $grade)
+            ->orderBy('q.code', 'ASC')
+            ->setMaxResults($limit)
+            ->setFirstResult($offset);
+
+        if ('' !== $code) {
+            $qb->andWhere('q.code LIKE :code')->setParameter('code', '%'.$this->like($code).'%');
+        }
+        if ('' !== $text) {
+            $qb->andWhere('r.stemContent LIKE :text')->setParameter('text', '%'.$this->like($text).'%');
+        }
+        if ($difficulty instanceof QuestionDifficulty) {
+            $qb->andWhere('r.difficulty = :difficulty')->setParameter('difficulty', $difficulty);
+        }
+        if ('' !== $outcomeCode) {
+            $qb->andWhere(
+                'EXISTS (SELECT 1 FROM '.QuestionRevisionAlignment::class.' alignment JOIN alignment.learningOutcome outcome WHERE alignment.revision = r AND alignment.isPrimary = true AND outcome.code = :outcome)'
+            )->setParameter('outcome', $outcomeCode);
+        }
+
+        /** @var list<Question> $rows */
+        $rows = $qb->getQuery()->getResult();
+
+        return $rows;
+    }
+
+    private function like(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     public function save(Question $question, bool $flush = true): void
