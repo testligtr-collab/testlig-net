@@ -20,10 +20,11 @@ final class Version20260925220000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql('ALTER TABLE assessments ADD code VARCHAR(32) DEFAULT NULL, ADD subject_id BINARY(16) DEFAULT NULL COMMENT \'(DC2Type:uuid)\', ADD published_at DATETIME DEFAULT NULL');
+        $this->addSql('ALTER TABLE assessments ADD code VARCHAR(32) DEFAULT NULL, ADD subject_id BINARY(16) DEFAULT NULL, ADD published_at DATETIME DEFAULT NULL');
         $this->addSql('UPDATE assessments SET code = LOWER(HEX(id)) WHERE code IS NULL');
         $this->addSql('ALTER TABLE assessments MODIFY code VARCHAR(32) NOT NULL');
         $this->addSql('CREATE UNIQUE INDEX uniq_assessment_code ON assessments (code)');
+        $this->addSql('CREATE INDEX idx_assessment_subject ON assessments (subject_id)');
         $this->addSql('ALTER TABLE assessments ADD CONSTRAINT FK_ASSESSMENT_SUBJECT FOREIGN KEY (subject_id) REFERENCES subjects (id) ON DELETE RESTRICT');
     }
 
@@ -31,6 +32,7 @@ final class Version20260925220000 extends AbstractMigration
     {
         $this->addSql('ALTER TABLE assessments DROP FOREIGN KEY FK_ASSESSMENT_SUBJECT');
         $this->addSql('DROP INDEX uniq_assessment_code ON assessments');
+        $this->addSql('DROP INDEX idx_assessment_subject ON assessments');
         $this->addSql('ALTER TABLE assessments DROP code, DROP subject_id, DROP published_at');
     }
 }

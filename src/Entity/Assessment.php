@@ -27,6 +27,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Index(name: 'idx_assessment_scope_status', columns: ['scope', 'status'])]
 #[ORM\Index(name: 'idx_assessment_institution_status', columns: ['institution_id', 'status'])]
 #[ORM\UniqueConstraint(name: 'uniq_assessment_code', columns: ['code'])]
+#[ORM\Index(name: 'idx_assessment_subject', columns: ['subject_id'])]
 #[ORM\Index(name: 'idx_assessment_grade', columns: ['grade_level'])]
 #[ORM\Index(name: 'idx_assessment_created_by', columns: ['created_by_id'])]
 class Assessment
