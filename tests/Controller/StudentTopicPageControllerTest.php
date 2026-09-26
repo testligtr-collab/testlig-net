@@ -488,6 +488,7 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $client->request('GET', $topicPath.'/medya-adim/pdf/9');
         self::assertResponseStatusCodeSame(404);
 
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->login($client, 'med-other@example.com');
         $client->request('GET', $openLink);
