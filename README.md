@@ -90,7 +90,7 @@ php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/t
 - Hata → tek transaction rollback; paralel import `app.catalog.import` kilidi ile engellenir.
 - Import asla publish/archive/delete yapmaz.
 - Curriculum pilot import: natural keys program `(subject, grade, code, version)` + unit/topic/outcome codes; requires active Subject + SuperAdmin; does **not** create LearningContent or placements.
-- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. Test editörü (`/yonetim/testler`) yayımlanmış sorulardan `Assessment` kaydı kurar. Öğrenci çözümü, cevap gönderme, puanlama ve production soru/test tohumu yoktur. Cevap anahtarı önizlemeye yazılmaz.
+- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. Test editörü (`/yonetim/testler`) yayımlanmış sorulardan `Assessment` kaydı kurar. Öğrenci `/ogrenci/testler` üzerinde yalnız kendi sınıfının yayımlanmış platform testini, mevcut `AssessmentAttempt` ve `DecimalScoreCalculator` ile bir kez çözer. Production soru, test veya attempt tohumu yoktur. Cevap anahtarı çözüm ekranına yazılmaz.
 
 ### MEB katalog yayınlama (ağaç)
 
@@ -120,7 +120,7 @@ Mailpit UI yalnızca localhost’ta dinler (`127.0.0.1:8025`).
 - `StudentProfile` ↔ `User` bire bir; sınıf (1–12), isteğe bağlı okul/şehir/öğrenme hedefi; doğum tarihi/telefon/adres yok.
 - Onboarding tamamlanmadan `/ogrenci` ve `/ogrenci/profil` kurulum sayfasına yönlendirir; tamamlanmış kurulum paneline döner.
 - Güvenli `_target_path` korunur; varsayılan login hedefi öğrenci için panel/kurulum, diğer roller için `/hesabim`.
-- Dersler: `/ogrenci/dersler` (sınıf seviyesine göre published katalog). Sınavlar / öğrenme araçları henüz “Yakında”.
+- Dersler: `/ogrenci/dersler` (sınıf seviyesine göre published katalog). Testler: `/ogrenci/testler`. Öğrenme araçları henüz “Yakında”.
 - Hesap/parola `/hesabim` altında kalır.
 - Ayrıntı: `docs/architecture-auth-membership-onboarding.md` (öğrenci panel dilimi); katalog: `docs/architecture.md`.
 
@@ -191,7 +191,7 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Test cleanup: `DELETE FROM assessments` (CASCADE) — `AssessmentDbCleanup`. Pointer NULL UPDATE yok; production trigger publication varken published pointer temizlemeyi reddeder. Uygulamada hard-delete yok (archive); testler fixture wipe için parent DELETE kullanır.
 - Kilit: snapshot → Institution? → Assessment → Subjects → Questions → QuestionRevisions → Users → Revision/sections/items → Publication.
 - Yetki: `AssessmentVoter` + manager. Admin yayımlar; Moderator inceleyip taslağa döndürür, yayımlamaz; Teacher yalnız kendi taslağı. Yayını sürüm yazarı yapamaz (SuperAdmin dahil).
-- Yönetim editörü `/yonetim/testler` bu modeli kullanır. Öğrenci çözme, attempt, puanlama ve sonuç bu editöre bağlı değildir. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000` + `Version20260925220000`.
+- Yönetim editörü `/yonetim/testler` bu modeli kullanır ve attempt başlatmaz. Öğrenci denemesi `/ogrenci/testler` aynı mühürlü revision’ı kullanır. Migration: `Version20260910120000` + `Version20260910200000` + `Version20260910300000` + `Version20260910400000` + `Version20260925220000`.
 
 ### Sınav atama / delivery (Aşama 2.10)
 
@@ -200,21 +200,21 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Aktivasyonda eligible öğrenciler materialize edilir; transfer eski snapshot’ı silmez; sonradan katılan otomatik eklenmez (`addEligibleRecipient` kontrollü).
 - Access gate: fresh user/membership/institution/window/publication integrity; `attemptQuotaMustBeChecked=true` (kota Stage 2.11’de uygulanır).
 - Yetki: `AssessmentDeliveryVoter` (Owner/Manager full; Teacher yalnız atanmış sınıf; Student ACCESS_SELF).
-- Scoring / result / UI / API yok. Migration: `Version20260910500000`.
+- Öğrenci denemesi bu delivery kapısını kullanır: ilk başlangıçta `bireysel-deneme` teknik kurumu ve tek kullanımlık student-audience delivery oluşur. Migration: `Version20260910500000` + `Version20260926120000` (`assessment_platform_practices`).
 
 ### Sınav attempt / cevap (Aşama 2.11)
 
 - `AssessmentAttempt` + materialize `AssessmentAttemptItem` + `AssessmentAttemptActiveGuard` + şifreli `AssessmentAttemptAnswer` (XChaCha20-Poly1305; plaintext yok).
 - Lifecycle: start → saveAnswer (autosave + `client_revision`) → submit | expire | cancel (owner/manager).
 - Yetki: `AssessmentAttemptVoter` (Student START/VIEW/SAVE/SUBMIT; Owner/Manager VIEW+CANCEL; Teacher VIEW).
-- Scoring / result / UI / API yok. Migration: `Version20260910700000`. Test cleanup: `AssessmentAttemptDbCleanup` delivery’den önce.
+- Öğrenci denemesi bu attempt modelini kullanır (`/ogrenci/testler`). Ayrı attempt tablosu yok. Migration: `Version20260910700000`. Test cleanup: `AssessmentAttemptDbCleanup` delivery’den önce.
 
 ### Sınav puanlama / sonuç (Aşama 2.12)
 
 - Versioned `AssessmentScoringRun` + `AssessmentItemScore` + append-only `AssessmentManualGradeDecision` + `AssessmentResultRelease` (tek aktif released guard).
 - Policy: `testlig_default_v1` (bcmath; float yok). Otomatik: single/multiple/true_false/numeric; short_answer accepted list veya manual_pending.
 - Öğrenci yalnız active release + `StudentResultView` (cevap anahtarı/ciphertext yok). Regrade yeni run; eski release sessizce değişmez.
-- UI/controller/API/PDF/raporlama yok. Migration: `Version20260910900000`.
+- Öğrenci deneme sonucu bu calculator’ı kullanır; öğretmen/kurum raporu, PDF ve release paneli yoktur. Migration: `Version20260910900000`.
 
 ### Sonuç inceleme politikası (Aşama 2.13)
 

@@ -2723,3 +2723,63 @@ textarea.revision-text {
     width: 100%;
     resize: vertical;
 }
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.student-test-facts,
+.student-test-review {
+    margin: var(--tl-space-4) 0;
+    padding-left: 1.2rem;
+}
+
+.student-test-instructions {
+    white-space: pre-wrap;
+}
+
+.student-test-progress {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+    list-style: none;
+    margin: var(--tl-space-4) 0;
+    padding: 0;
+}
+
+.student-test-progress a {
+    display: inline-flex;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+    text-decoration: none;
+}
+
+.student-test-option {
+    display: flex;
+    gap: var(--tl-space-2);
+    align-items: flex-start;
+    margin: var(--tl-space-2) 0;
+}
+
+.student-test-saved {
+    font-weight: 600;
+}
+
+@media (max-width: 640px) {
+    .student-test-facts,
+    .student-test-review {
+        padding-left: 1rem;
+    }
+}

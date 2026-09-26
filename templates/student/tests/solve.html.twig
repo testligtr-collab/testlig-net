@@ -1,0 +1,98 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Soru {{ test.position }} — {{ test.title }}{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_test_show', {code: test.code}) }}">{{ test.title }}</a>
+    </nav>
+    <h1>{{ test.title }}</h1>
+    <p class="muted">Soru {{ test.position }} / {{ test.count }}</p>
+    {% if test.deadline %}
+        <p id="test-deadline" class="muted" data-deadline="{{ test.deadline_iso }}">Süre bitişi: {{ test.deadline }}</p>
+    {% endif %}
+    {% if saved %}
+        <p class="student-test-saved" role="status">Kaydedildi</p>
+    {% endif %}
+
+    <ol class="student-test-progress" aria-label="Sorular">
+        {% for item in test.progress %}
+            <li>
+                <a href="{{ path('app_student_test_solve', {code: test.code, s: item.position}) }}"
+                   {% if item.current %}aria-current="page"{% endif %}>
+                    {{ item.position }}
+                    <span class="visually-hidden">{% if item.answered %}cevaplandı{% else %}boş{% endif %}</span>
+                </a>
+            </li>
+        {% endfor %}
+    </ol>
+
+    <article class="student-test-question">
+        {% for line in test.stem %}
+            <p>{{ line }}</p>
+        {% endfor %}
+        <form id="student-test-answer" method="post" action="{{ path('app_student_test_answer', {code: test.code}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
+            <input type="hidden" name="position" value="{{ test.position }}">
+            <input type="hidden" name="expected_version" value="{{ test.expected_version }}">
+            <fieldset>
+                <legend class="visually-hidden">Seçenekler</legend>
+                {% for option in test.options %}
+                    <label class="student-test-option">
+                        <input type="radio" name="choice" value="{{ option.index }}" {% if option.selected %}checked{% endif %} required>
+                        <span>{{ option.text }}</span>
+                    </label>
+                {% endfor %}
+            </fieldset>
+            <button type="submit">Kaydet</button>
+        </form>
+    </article>
+
+    <nav class="student-test-nav" aria-label="Soru gezintisi">
+        {% if test.position > 1 %}
+            <a href="{{ path('app_student_test_solve', {code: test.code, s: test.position - 1}) }}">Önceki</a>
+        {% endif %}
+        {% if test.position < test.count %}
+            <a href="{{ path('app_student_test_solve', {code: test.code, s: test.position + 1}) }}">Sonraki</a>
+        {% endif %}
+    </nav>
+
+    <form id="student-test-finish" method="post" action="{{ path('app_student_test_finish', {code: test.code}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
+        <label>
+            <input type="checkbox" name="confirm" value="1" required>
+            Testi bitirmek istiyorum
+        </label>
+        <button type="submit">Testi bitir</button>
+    </form>
+</section>
+{% endblock %}
+
+{% block javascripts %}
+{{ parent() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var node = document.getElementById('test-deadline');
+    if (!node) {
+        return;
+    }
+    var raw = node.getAttribute('data-deadline') || '';
+    var end = Date.parse(raw);
+    if (!end) {
+        return;
+    }
+    var tick = function () {
+        if (Date.now() >= end) {
+            window.location.reload();
+            return;
+        }
+        window.setTimeout(tick, 1000);
+    };
+    tick();
+});
+</script>
+{% endblock %}

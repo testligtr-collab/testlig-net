@@ -91,6 +91,8 @@ jobs:
             echo "questions=$(sql_count "SELECT COUNT(*) AS c FROM questions")"
             echo "assessments=$(sql_count "SELECT COUNT(*) AS c FROM assessments")"
             echo "assessment_items=$(sql_count "SELECT COUNT(*) AS c FROM assessment_items")"
+            echo "attempts=$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempts")"
+            echo "attempt_answers=$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempt_answers")"
             echo "mat_grade1_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND t.status = 'published'")"
             hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/health 2>/dev/null || echo err)
             echo "health_local=${hl}"

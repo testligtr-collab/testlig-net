@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ test.title }} — Testlig{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ test.title }}</span>
+    </nav>
+    <h1>{{ test.title }}</h1>
+    {% if test.instructions %}
+        <p class="student-test-instructions">{{ test.instructions }}</p>
+    {% endif %}
+    <ul class="student-test-facts">
+        <li>{{ test.question_count }} soru</li>
+        <li>{{ test.duration_label }}</li>
+        <li>Toplam {{ test.total_points }} puan</li>
+    </ul>
+
+    {% if test.state == 'done' %}
+        <a class="button" href="{{ path('app_student_test_result', {code: test.code}) }}">Sonucu gör</a>
+    {% elseif test.state == 'resume' %}
+        <a class="button" href="{{ path('app_student_test_solve', {code: test.code}) }}">Devam et</a>
+    {% else %}
+        <form id="student-test-start" method="post" action="{{ path('app_student_test_start', {code: test.code}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
+            <button type="submit">Teste başla</button>
+        </form>
+    {% endif %}
+</section>
+{% endblock %}

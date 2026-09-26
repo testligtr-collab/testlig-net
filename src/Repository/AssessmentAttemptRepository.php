@@ -85,6 +85,21 @@ class AssessmentAttemptRepository extends ServiceEntityRepository
         return $attempt;
     }
 
+    public function findOwnedForDelivery(Uuid $deliveryId, Uuid $userId): ?AssessmentAttempt
+    {
+        $attempt = $this->createQueryBuilder('a')
+            ->andWhere('a.delivery = :delivery')
+            ->andWhere('a.user = :user')
+            ->setParameter('delivery', $deliveryId, 'uuid')
+            ->setParameter('user', $userId, 'uuid')
+            ->orderBy('a.attemptNumber', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $attempt instanceof AssessmentAttempt ? $attempt : null;
+    }
+
     public function save(AssessmentAttempt $attempt, bool $flush = true): void
     {
         $this->getEntityManager()->persist($attempt);
