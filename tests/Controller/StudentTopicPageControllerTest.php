@@ -44,6 +44,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
@@ -474,7 +475,13 @@ final class StudentTopicPageControllerTest extends WebTestCase
         $cache = $client->getResponse()->headers->get('Cache-Control') ?? '';
         self::assertStringContainsString('no-store', $cache);
         self::assertStringContainsString('private', $cache);
-        self::assertStringStartsWith('%PDF-', (string) $client->getResponse()->getContent());
+        $pdfResponse = $client->getResponse();
+        self::assertInstanceOf(BinaryFileResponse::class, $pdfResponse);
+        ob_start();
+        $pdfResponse->sendContent();
+        $pdfBytes = ob_get_clean();
+        self::assertIsString($pdfBytes);
+        self::assertStringStartsWith('%PDF-', $pdfBytes);
 
         $client->request('GET', $topicPath.'/kapali-medya/pdf/0');
         self::assertResponseStatusCodeSame(404);
