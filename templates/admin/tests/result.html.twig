@@ -1,0 +1,49 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sonuç detayı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_test_results', {id: assessment_id, q: search}) }}">Sonuçlar</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ detail.studentName }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ detail.title }}</h1>
+    <p>{{ detail.studentName }} · {{ detail.statusLabel }}</p>
+    <ul class="student-test-facts">
+        <li>Başlangıç: {{ detail.startedAt }}</li>
+        {% if detail.completedAt %}
+            <li>Tamamlanma: {{ detail.completedAt }}</li>
+        {% endif %}
+        {% if detail.revealed %}
+            <li>Doğru: {{ detail.correct }}</li>
+            <li>Yanlış: {{ detail.incorrect }}</li>
+            <li>Boş: {{ detail.unanswered }}</li>
+            <li>Puan: {{ detail.earned }} / {{ detail.total }}</li>
+            <li>Yüzde: {{ detail.percentage }}</li>
+        {% endif %}
+    </ul>
+
+    {% if detail.revealed %}
+        <ol class="student-test-review">
+            {% for question in detail.questions %}
+                <li>
+                    <h2>Soru {{ question.position }}</h2>
+                    {% for line in question.stem %}
+                        <p>{{ line }}</p>
+                    {% endfor %}
+                    <p>Öğrencinin cevabı: {% if question.studentAnswer %}{{ question.studentAnswer }}{% else %}Boş{% endif %}</p>
+                    <p>Doğru cevap: {{ question.correctAnswer }}</p>
+                    <p>{{ question.label }}</p>
+                    {% if question.explanation %}
+                        {% for line in question.explanation %}
+                            <p>{{ line }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ol>
+    {% else %}
+        <p role="status">Bu deneme henüz tamamlanmadı.</p>
+    {% endif %}
+{% endblock %}

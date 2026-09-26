@@ -11,6 +11,9 @@
     <div class="admin-page-header">
         <h1 class="panel-greeting">{{ revision.title }}</h1>
         <a class="btn btn--ghost" href="{{ path('app_admin_test_preview', {id: assessment.id.toRfc4122}) }}">Önizleme</a>
+        {% if can_view_results %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_test_results', {id: assessment.id.toRfc4122}) }}">Sonuçlar</a>
+        {% endif %}
         {% if can_edit %}
             <a class="btn btn--primary" href="{{ path('app_admin_test_edit', {id: assessment.id.toRfc4122}) }}">Düzenle</a>
         {% endif %}

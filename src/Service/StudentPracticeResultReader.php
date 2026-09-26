@@ -70,6 +70,36 @@ final class StudentPracticeResultReader
         if (!$attempt->getUser()->getId()->equals($student->getId())) {
             return null;
         }
+
+        return $this->readScored($attempt);
+    }
+
+    /**
+     * Scored result text. Does not authorize the caller.
+     *
+     * Decrypts with the attempt owner. Callers must already have proven access.
+     *
+     * @return array{
+     *     title: string,
+     *     correct: int,
+     *     incorrect: int,
+     *     unanswered: int,
+     *     earned: string,
+     *     total: string,
+     *     percentage: string,
+     *     questions: list<array{
+     *         position: int,
+     *         stem: list<string>,
+     *         options: list<string>,
+     *         student_answer: string,
+     *         correct_answer: string,
+     *         label: string,
+     *         explanation: list<string>
+     *     }>
+     * }|null
+     */
+    public function readScored(AssessmentAttempt $attempt): ?array
+    {
         $run = $this->runs->findLatestForAttempt($attempt->getId());
         if (!$run instanceof AssessmentScoringRun || ScoringRunStatus::Completed !== $run->getStatus()) {
             return null;
@@ -98,7 +128,7 @@ final class StudentPracticeResultReader
                 return null;
             }
             $options = $this->optionTexts($item, $questionRevision);
-            $selected = $this->selectedText($student, $attempt, $item, $options);
+            $selected = $this->selectedText($attempt->getUser(), $attempt, $item, $options);
             $correct = $this->correctText($questionRevision, $options);
             if (null === $correct) {
                 return null;
