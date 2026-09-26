@@ -51,6 +51,7 @@ security:
         - { path: ^/basvuru, roles: ROLE_USER }
         - { path: ^/hesabim, roles: ROLE_USER }
         - { path: ^/ogrenci, roles: ROLE_STUDENT }
+        - { path: ^/veli, roles: ROLE_PARENT }
         - { path: ^/yonetim(?:/|$), roles: ROLE_USER }
         - { path: ^/$, roles: PUBLIC_ACCESS }
 

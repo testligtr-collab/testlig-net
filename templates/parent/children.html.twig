@@ -1,0 +1,23 @@
+{% extends 'parent/layout.html.twig' %}
+
+{% block title %}Çocuklarım — Veli — Testlig{% endblock %}
+
+{% block parent_content %}
+<section class="student-form-card">
+    <h1>Çocuklarım</h1>
+    {% if children is empty %}
+        <p class="muted">Bağlı çocuk yok.</p>
+        <p><a class="btn btn--cta" href="{{ path('app_parent_link') }}">Bağlantı kodunu gir</a></p>
+    {% else %}
+        <ul>
+            {% for child in children %}
+                <li>
+                    <a href="{{ path('app_parent_child', {reference: child.reference}) }}" {% if app.request.attributes.get('reference') == child.reference %}aria-current="page"{% endif %}>
+                        {{ child.displayName }} — {{ child.gradeLabel }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+{% endblock %}

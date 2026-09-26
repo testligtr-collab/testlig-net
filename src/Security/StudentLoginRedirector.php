@@ -28,6 +28,10 @@ final class StudentLoginRedirector
     public function defaultPathFor(User $user): string
     {
         if (!$this->isStudent($user)) {
+            if (\in_array(UserRole::Parent->value, $user->getRoles(), true)) {
+                return $this->urlGenerator->generate('app_parent_dashboard');
+            }
+
             return $this->urlGenerator->generate('app_account');
         }
 

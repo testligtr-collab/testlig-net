@@ -199,7 +199,7 @@ class ParentStudentLink
 
     /**
      * Whether this row is the active pair occupant (requires active-guard row in DB).
-     * Verified still does not imply child-data authorization in this foundation slice.
+     * Verified grants only the limited `/veli` summary, and only while this row occupies the guard.
      */
     public function isActivePairOccupant(): bool
     {

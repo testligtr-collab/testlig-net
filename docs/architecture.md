@@ -218,6 +218,12 @@
 - **Yerel posta:** Mailpit (`http://localhost:8025`); container SMTP `mailpit:1025`.
 - **Bu aşamada yok:** beni hatırla, OAuth/JWT, MFA, öğretmen/öğrenci panelleri (prod), public kurum kaydı, davet, yoklama/sınav attempt UI, scoring HTTP API, sonuç ekranı/PDF/sertifika, checkout UI / ödeme sağlayıcı SDK'sı, kullanıcı/kurum/içerik CRUD admin UI, EasyAdmin, REST admin API, Stage 2.21.
 
+## Veli bağlantısı ve veli paneli
+
+Öğrenci kendi profilinden tek kullanımlık bir bağlantı kodu üretir. Kod 15 dakika geçerlidir, DB’de yalnız HMAC özeti olarak durur ve düz metin audit’e yazılmaz. Veli kodu `/veli/baglan` üzerinde girer; e-posta veya ad ile öğrenci araması yoktur. Geçerli kod, mevcut `ParentStudentLink` satırını `verified` yapar ve `parent_student_link_active_guards` kaydını açar. Ayrılmış `PersonalInvitation` yolu aynı link tablosunu kullanmaya devam eder. Açık kod için ayrı `parent_student_link_codes` tablosu vardır çünkü kişisel davet alıcı kullanıcıyı zorunlu tutar.
+
+`verified` bağlantı yalnız `/veli` özetini açar: çocuğun adı, sınıfı, yayımlanmış ders adları ve yayımlanmış test sonucu (puan, yüzde, doğru/yanlış/boş, tarih). Devam eden deneme yalnız “Devam ediyor” olarak görünür. Parola, e-posta, okul, şehir, öğrenme hedefi, cevap, çözüm, stable key, ciphertext ve soru kimliği veliye gösterilmez. Veli öğrenci adına test başlatamaz. Öğrenci başına en fazla 4 aktif veli vardır. Bağlantı soft-end edilir; hard delete yoktur. `ROLE_PARENT` tek başına veri açmaz. Teacher, Moderator ve Institution `/veli` üzerinde 403’tür. Admin rolü de, aktif bağlantı yoksa veli verisi görmez. Tüm `/veli` yanıtları `Cache-Control: no-store, private` ve `X-Robots-Tag: noindex` taşır.
+
 ## Sonraki aşamalar
 
 Davet akışları, paneller, gerçek ödeme sağlayıcı entegrasyonu + checkout yüzeyi (2.17 domain temeli üzerine) ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.

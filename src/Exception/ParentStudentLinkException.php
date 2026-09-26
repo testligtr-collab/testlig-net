@@ -44,4 +44,14 @@ final class ParentStudentLinkException extends \RuntimeException
     {
         return new self('Çok fazla deneme. Lütfen daha sonra tekrar deneyin.');
     }
+
+    public static function codeRejected(): self
+    {
+        return new self('Kod geçersiz veya süresi dolmuş.');
+    }
+
+    public static function parentLimitReached(): self
+    {
+        return new self('Bu öğrenci için bağlantı sınırı dolu.');
+    }
 }

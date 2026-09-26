@@ -80,6 +80,20 @@ framework:
             limit: 10
             interval: '15 minutes'
 
+        # Open parent-link code. Cache-backed so a rolled-back redeem still counts.
+        parent_link_code_issue:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '1 hour'
+        parent_link_code_redeem:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
+        parent_link_code_redeem_ip:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '15 minutes'
+
 when@test:
     framework:
         rate_limiter:
@@ -141,3 +155,15 @@ when@test:
                 policy: 'fixed_window'
                 limit: 5
                 interval: '1 minute'
+            parent_link_code_issue:
+                policy: 'fixed_window'
+                limit: 8
+                interval: '15 minutes'
+            parent_link_code_redeem:
+                policy: 'fixed_window'
+                limit: 8
+                interval: '15 minutes'
+            parent_link_code_redeem_ip:
+                policy: 'fixed_window'
+                limit: 20
+                interval: '15 minutes'

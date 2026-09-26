@@ -10,7 +10,7 @@ use Doctrine\DBAL\Connection;
  * Test-only cleanup for parent–student links and personal invitations.
  *
  * FK-safe order before deleting users (RESTRICT on link/invitation user columns):
- * active guards → links → personal invitations → participation codes.
+ * active guards → links → open link codes → personal invitations → participation codes.
  */
 final class ParentStudentLinkDbCleanup
 {
@@ -20,6 +20,7 @@ final class ParentStudentLinkDbCleanup
     private const TABLES = [
         'parent_student_link_active_guards',
         'parent_student_links',
+        'parent_student_link_codes',
         'personal_invitations',
         'participation_codes',
     ];

@@ -1,0 +1,43 @@
+{% extends 'parent/layout.html.twig' %}
+
+{% block title %}Test sonuçları — Veli — Testlig{% endblock %}
+
+{% block parent_content %}
+<section class="student-form-card">
+    <h1>Test sonuçları</h1>
+    {% if children is empty %}
+        <p class="muted">Bağlı çocuk yok.</p>
+        <p><a class="btn btn--cta" href="{{ path('app_parent_link') }}">Bağlantı kodunu gir</a></p>
+    {% else %}
+        <ul>
+            {% for child in children %}
+                <li>
+                    <a href="{{ path('app_parent_tests', {cocuk: child.reference}) }}" {% if summary and summary.childReference == child.reference %}aria-current="page"{% endif %}>
+                        {{ child.displayName }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+
+{% if summary %}
+    <section>
+        <h2>{{ summary.childName }}</h2>
+        {% for item in summary.items %}
+            {% include 'parent/_summary.html.twig' with {summary: item} %}
+        {% else %}
+            <p class="muted">Henüz test yok.</p>
+        {% endfor %}
+        {% if summary.pages > 1 %}
+            <nav aria-label="Sayfalar">
+                {% for number in 1..summary.pages %}
+                    <a href="{{ path('app_parent_tests', {cocuk: summary.childReference, sayfa: number}) }}" {% if number == summary.page %}aria-current="page"{% endif %}>{{ number }}</a>
+                {% endfor %}
+            </nav>
+        {% endif %}
+    </section>
+{% elseif children|length > 1 %}
+    <p class="muted">Sonuçları görmek için bir çocuk seç.</p>
+{% endif %}
+{% endblock %}

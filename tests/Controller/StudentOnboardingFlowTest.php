@@ -193,7 +193,7 @@ final class StudentOnboardingFlowTest extends WebTestCase
             '_username' => 'parent@example.com',
             '_password' => 'Guclu-Parola-123!',
         ]));
-        self::assertResponseRedirects('/hesabim');
+        self::assertResponseRedirects('/veli');
 
         $client->request('GET', '/ogrenci');
         self::assertResponseStatusCodeSame(403);

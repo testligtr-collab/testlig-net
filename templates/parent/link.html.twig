@@ -1,0 +1,21 @@
+{% extends 'parent/layout.html.twig' %}
+
+{% block title %}Bağlan — Veli — Testlig{% endblock %}
+
+{% block parent_content %}
+<section class="student-form-card">
+    <h1>Merhaba, {{ parent_name }}</h1>
+    <p class="muted">Öğrencinin oluşturduğu bağlantı kodunu gir. E-posta veya ad ile arama yapılmaz.</p>
+    <form method="post" action="{{ path('app_parent_link') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('parent_link_redeem') }}">
+        <div class="form-row">
+            <label for="parent-link-code">Bağlantı kodu</label>
+            <input id="parent-link-code" name="code" class="form-control" autocomplete="off" required>
+        </div>
+        <button type="submit" class="btn btn--cta">Bağlantı kodunu gir</button>
+    </form>
+    {% if has_children %}
+        <p><a href="{{ path('app_parent_dashboard') }}">Panele dön</a></p>
+    {% endif %}
+</section>
+{% endblock %}

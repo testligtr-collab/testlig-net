@@ -1,0 +1,36 @@
+<article class="student-form-card">
+    <h3>{{ summary.title }}</h3>
+    {% if summary.subjectName %}
+        <p>{{ summary.subjectName }}</p>
+    {% endif %}
+    <p>
+        <span>{{ summary.statusLabel }}</span>
+        {% if summary.whenLabel %}
+            <span class="muted">{{ summary.whenLabel }}</span>
+        {% endif %}
+    </p>
+    {% if summary.showScores %}
+        <dl>
+            <div>
+                <dt>Puan</dt>
+                <dd>{{ summary.points }} / {{ summary.maximumPoints }}</dd>
+            </div>
+            <div>
+                <dt>Yüzde</dt>
+                <dd>{{ summary.percentage }}</dd>
+            </div>
+            <div>
+                <dt>Doğru</dt>
+                <dd>{{ summary.correctCount }}</dd>
+            </div>
+            <div>
+                <dt>Yanlış</dt>
+                <dd>{{ summary.incorrectCount }}</dd>
+            </div>
+            <div>
+                <dt>Boş</dt>
+                <dd>{{ summary.blankCount }}</dd>
+            </div>
+        </dl>
+    {% endif %}
+</article>

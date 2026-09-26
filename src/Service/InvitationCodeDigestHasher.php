@@ -71,6 +71,25 @@ final class InvitationCodeDigestHasher
         return $this->keyId;
     }
 
+    /**
+     * Digest of an unaddressed parent-link code. The record id is not part of the
+     * message so a parent can redeem from the code alone. Plaintext is not stored.
+     */
+    public function hashOpenParentLinkCode(string $normalizedCode): string
+    {
+        $normalizedCode = $this->assertPlainCode($normalizedCode);
+
+        return hash_hmac('sha256', "parent_link_open_v1\n".$normalizedCode, $this->pepper);
+    }
+
+    /**
+     * Opaque panel reference. Not a user id and not reversible to the link row by itself.
+     */
+    public function parentPanelReference(Uuid $linkId): string
+    {
+        return substr(hash_hmac('sha256', 'parent_panel_v1:'.$linkId->toRfc4122(), $this->pepper), 0, 20);
+    }
+
     public function hash(InvitationCodeKind $kind, Uuid $recordId, string $purposeOrScope, string $plainCode): string
     {
         return hash_hmac('sha256', $this->canonicalMessage($kind, $recordId, $purposeOrScope, $plainCode), $this->pepper);
