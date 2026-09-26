@@ -1,10 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}{{ subject.name }} — Dersler — Testlig{% endblock %}
-{% block body_class %}is-student-surface{% endblock %}
 
-{% block body %}
-<section class="page student-catalog">
+{% block student_content %}
+<section class="student-catalog">
     <nav class="student-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_student_dashboard') }}">Panel</a>
         <span aria-hidden="true">/</span>
@@ -22,11 +21,12 @@
             <p>Bu derste henüz yayımlanmış ünite yok.</p>
         </div>
     {% else %}
-        <ul class="student-catalog-list">
+        <ul class="student-catalog-grid">
             {% for unit in units %}
                 <li>
-                    <a class="student-catalog-row" href="{{ path('app_student_course_unit', {subjectSlug: subject.slug, unitSlug: unit.slug}) }}">
-                        <span>{{ unit.name }}</span>
+                    <a class="student-catalog-card" href="{{ path('app_student_course_unit', {subjectSlug: subject.slug, unitSlug: unit.slug}) }}">
+                        <span class="student-catalog-card__title">{{ unit.name }}</span>
+                        <span class="student-catalog-card__action">Üniteye git</span>
                     </a>
                 </li>
             {% endfor %}

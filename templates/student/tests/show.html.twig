@@ -1,10 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}{{ test.title }} — Testlig{% endblock %}
-{% block body_class %}is-student-surface{% endblock %}
 
-{% block body %}
-<section class="page student-catalog">
+{% block student_content %}
+<section class="student-catalog student-form-card">
     <nav class="student-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_student_dashboard') }}">Panel</a>
         <span aria-hidden="true">/</span>
@@ -23,13 +22,13 @@
     </ul>
 
     {% if test.state == 'done' %}
-        <a class="button" href="{{ path('app_student_test_result', {code: test.code}) }}">Sonucu gör</a>
+        <a class="btn btn--cta" href="{{ path('app_student_test_result', {code: test.code}) }}">Sonucu gör</a>
     {% elseif test.state == 'resume' %}
-        <a class="button" href="{{ path('app_student_test_solve', {code: test.code}) }}">Devam et</a>
+        <a class="btn btn--cta" href="{{ path('app_student_test_solve', {code: test.code}) }}">Devam et</a>
     {% else %}
         <form id="student-test-start" method="post" action="{{ path('app_student_test_start', {code: test.code}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
-            <button type="submit">Teste başla</button>
+            <button class="btn btn--cta" type="submit">Teste başla</button>
         </form>
     {% endif %}
 </section>

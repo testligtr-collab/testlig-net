@@ -1,20 +1,21 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Soru {{ test.position }} — {{ test.title }}{% endblock %}
-{% block body_class %}is-student-surface{% endblock %}
 
-{% block body %}
-<section class="page student-catalog">
+{% block student_content %}
+<section class="student-solve">
     <nav class="student-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_student_tests') }}">Testler</a>
         <span aria-hidden="true">/</span>
         <a href="{{ path('app_student_test_show', {code: test.code}) }}">{{ test.title }}</a>
     </nav>
-    <h1>{{ test.title }}</h1>
-    <p class="muted">Soru {{ test.position }} / {{ test.count }}</p>
-    {% if test.deadline %}
-        <p id="test-deadline" class="muted" data-deadline="{{ test.deadline_iso }}">Süre bitişi: {{ test.deadline }}</p>
-    {% endif %}
+    <header class="student-solve__head">
+        <h1>{{ test.title }}</h1>
+        <p class="student-progress">Soru {{ test.position }} / {{ test.count }}</p>
+        {% if test.deadline %}
+            <p id="test-deadline" class="student-timer" data-deadline="{{ test.deadline_iso }}">Süre bitişi: {{ test.deadline }}</p>
+        {% endif %}
+    </header>
     {% if saved %}
         <p class="student-test-saved" role="status">Kaydedildi</p>
     {% endif %}
@@ -48,26 +49,26 @@
                     </label>
                 {% endfor %}
             </fieldset>
-            <button type="submit">Kaydet</button>
+            <button class="btn btn--ghost" type="submit">Kaydet</button>
         </form>
     </article>
 
     <nav class="student-test-nav" aria-label="Soru gezintisi">
         {% if test.position > 1 %}
-            <a href="{{ path('app_student_test_solve', {code: test.code, s: test.position - 1}) }}">Önceki</a>
+            <a class="btn btn--ghost" href="{{ path('app_student_test_solve', {code: test.code, s: test.position - 1}) }}">Önceki</a>
         {% endif %}
         {% if test.position < test.count %}
-            <a href="{{ path('app_student_test_solve', {code: test.code, s: test.position + 1}) }}">Sonraki</a>
+            <a class="btn btn--ghost" href="{{ path('app_student_test_solve', {code: test.code, s: test.position + 1}) }}">Sonraki</a>
         {% endif %}
     </nav>
 
-    <form id="student-test-finish" method="post" action="{{ path('app_student_test_finish', {code: test.code}) }}">
+    <form id="student-test-finish" class="student-finish" method="post" action="{{ path('app_student_test_finish', {code: test.code}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
-        <label>
+        <label class="student-finish__confirm">
             <input type="checkbox" name="confirm" value="1" required>
             Testi bitirmek istiyorum
         </label>
-        <button type="submit">Testi bitir</button>
+        <button class="btn btn--cta" type="submit">Testi bitir</button>
     </form>
 </section>
 {% endblock %}

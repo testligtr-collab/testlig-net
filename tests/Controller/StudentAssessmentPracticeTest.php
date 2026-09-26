@@ -109,7 +109,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringContainsString('no-store', $cache);
         self::assertStringContainsString('private', $cache);
         self::assertStringContainsString('Sinif testi', (string) $client->getResponse()->getContent());
-        self::assertStringContainsString('Başla', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Teste başla', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Baska sinif testi', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Taslak testi', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Arsiv testi', (string) $client->getResponse()->getContent());
