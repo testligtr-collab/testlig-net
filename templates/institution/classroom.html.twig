@@ -1,0 +1,13 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Sınıf — Testlig{% endblock %}
+
+{% block institution_content %}
+<article class="student-form-card">
+    <h1>{{ classroom.name }}</h1>
+    <p>{{ classroom.gradeLabel }} · {{ classroom.academicYearName }}</p>
+    <p>Durum: {{ classroom.statusLabel }}</p>
+    <p>Öğretmen {{ classroom.teacherCount }} · Öğrenci {{ classroom.studentCount }}</p>
+    <p><a href="{{ path('app_institution_classrooms') }}">Sınıf listesine dön</a></p>
+</article>
+{% endblock %}

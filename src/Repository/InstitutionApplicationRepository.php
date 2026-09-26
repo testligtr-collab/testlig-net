@@ -28,6 +28,17 @@ class InstitutionApplicationRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    public function findLatestForUser(User $user): ?InstitutionApplication
+    {
+        return $this->createQueryBuilder('a')
+            ->andWhere('IDENTITY(a.user) = :userId')
+            ->setParameter('userId', $user->getId(), 'uuid')
+            ->orderBy('a.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findOpenForUser(User $user): ?InstitutionApplication
     {
         return $this->createQueryBuilder('a')

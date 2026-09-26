@@ -3200,3 +3200,73 @@ ul.admin-metric-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
+
+.table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.institution-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.institution-table th,
+.institution-table td {
+    text-align: left;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--tl-line, #d7e2ee);
+}
+
+.institution-table a,
+.student-page .btn,
+.nav-toggle {
+    min-height: 44px;
+}
+
+.student-page a:focus-visible,
+.student-page button:focus-visible,
+.nav-toggle:focus-visible {
+    outline: 3px solid var(--tl-brand, #2b7bb9);
+    outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+    .institution-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .institution-table,
+    .institution-table tbody,
+    .institution-table tr,
+    .institution-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .institution-table tr {
+        margin-bottom: 0.75rem;
+        background: var(--tl-surface, #fff);
+        border: 1px solid var(--tl-line, #d7e2ee);
+        border-radius: 12px;
+    }
+
+    .institution-table td::before {
+        content: attr(data-label);
+        display: block;
+        font-weight: 700;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .student-page *,
+    .mobile-drawer {
+        scroll-behavior: auto;
+        transition: none;
+        animation: none;
+    }
+}

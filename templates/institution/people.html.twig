@@ -1,0 +1,42 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}{{ heading }} — Testlig{% endblock %}
+
+{% block institution_content %}
+<section>
+    <h1>{{ heading }}</h1>
+    {% if people is empty %}
+        <p class="student-form-card">{{ empty_message }}</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Ad soyad</th>
+                        <th>Kurum rolü</th>
+                        <th>Durum</th>
+                        {% if show_grade %}<th>Sınıf seviyesi</th><th>Sınıf</th>{% endif %}
+                        {% if show_classrooms %}<th>Atanmış sınıf</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person in people %}
+                        <tr>
+                            <td data-label="Ad soyad">{{ person.name }}</td>
+                            <td data-label="Kurum rolü">{{ person.roleLabel }}</td>
+                            <td data-label="Durum">{{ person.statusLabel }}</td>
+                            {% if show_grade %}
+                                <td data-label="Sınıf seviyesi">{{ person.gradeLabel|default('—') }}</td>
+                                <td data-label="Sınıf">{{ person.classroomName|default('—') }}</td>
+                            {% endif %}
+                            {% if show_classrooms %}
+                                <td data-label="Atanmış sınıf">{{ person.assignedClassroomCount }}</td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

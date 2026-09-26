@@ -1,0 +1,39 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Sınıflar — Testlig{% endblock %}
+
+{% block institution_content %}
+<section>
+    <h1>Sınıflar</h1>
+    {% if classrooms is empty %}
+        <p class="student-form-card">Henüz sınıf oluşturulmamış.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Sınıf</th>
+                        <th>Seviye</th>
+                        <th>Dönem</th>
+                        <th>Öğretmen</th>
+                        <th>Öğrenci</th>
+                        <th>Durum</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for classroom in classrooms %}
+                        <tr>
+                            <td data-label="Sınıf"><a href="{{ path('app_institution_classroom', {reference: classroom.reference}) }}">{{ classroom.name }}</a></td>
+                            <td data-label="Seviye">{{ classroom.gradeLabel }}</td>
+                            <td data-label="Dönem">{{ classroom.academicYearName }}</td>
+                            <td data-label="Öğretmen">{{ classroom.teacherCount }}</td>
+                            <td data-label="Öğrenci">{{ classroom.studentCount }}</td>
+                            <td data-label="Durum">{{ classroom.statusLabel }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

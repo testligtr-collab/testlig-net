@@ -90,6 +90,15 @@ final class InvitationCodeDigestHasher
         return substr(hash_hmac('sha256', 'parent_panel_v1:'.$linkId->toRfc4122(), $this->pepper), 0, 20);
     }
 
+    public function workspaceReference(string $scope, Uuid $id): string
+    {
+        if (1 !== preg_match('/^[a-z][a-z0-9_]{0,31}$/', $scope)) {
+            throw InvitationCodeException::invalidInput();
+        }
+
+        return substr(hash_hmac('sha256', 'workspace_v1:'.$scope.':'.$id->toRfc4122(), $this->pepper), 0, 20);
+    }
+
     public function hash(InvitationCodeKind $kind, Uuid $recordId, string $purposeOrScope, string $plainCode): string
     {
         return hash_hmac('sha256', $this->canonicalMessage($kind, $recordId, $purposeOrScope, $plainCode), $this->pepper);

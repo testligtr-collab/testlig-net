@@ -1,0 +1,27 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kurum seçin — Testlig{% endblock %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block stylesheets %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block body %}
+<div class="student-page">
+    <section class="student-form-card">
+        <h1>Kurum seçin</h1>
+        <p>Birden fazla kurum üyeliğiniz var. Çalışma alanı yalnız seçtiğiniz kurumu gösterir.</p>
+        {% for option in options %}
+            <form method="post" action="{{ path('app_institution_context') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_context') }}">
+                <input type="hidden" name="reference" value="{{ option.reference }}">
+                <button type="submit" class="btn btn--cta">{{ option.institutionName }}</button>
+                <p class="muted">{{ option.roleLabel }}</p>
+            </form>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}

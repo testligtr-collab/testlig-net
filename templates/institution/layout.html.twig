@@ -1,0 +1,22 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block stylesheets %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block site_chrome %}
+    {% include 'institution/_header.html.twig' %}
+{% endblock %}
+
+{% block site_footer %}
+    {% include 'parent/_footer.html.twig' %}
+{% endblock %}
+
+{% block body %}
+    <div class="student-page">
+        {% block institution_content %}{% endblock %}
+    </div>
+{% endblock %}

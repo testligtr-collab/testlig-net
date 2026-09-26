@@ -224,6 +224,10 @@
 
 `verified` bağlantı yalnız `/veli` özetini açar: çocuğun adı, sınıfı, yayımlanmış ders adları ve yayımlanmış test sonucu (puan, yüzde, doğru/yanlış/boş, tarih). Devam eden deneme yalnız “Devam ediyor” olarak görünür. Parola, e-posta, okul, şehir, öğrenme hedefi, cevap, çözüm, stable key, ciphertext ve soru kimliği veliye gösterilmez. Veli öğrenci adına test başlatamaz. Öğrenci başına en fazla 4 aktif veli vardır. Bağlantı soft-end edilir; hard delete yoktur. `ROLE_PARENT` tek başına veri açmaz. Teacher, Moderator ve Institution `/veli` üzerinde 403’tür. Admin rolü de, aktif bağlantı yoksa veli verisi görmez. Tüm `/veli` yanıtları `Cache-Control: no-store, private` ve `X-Robots-Tag: noindex` taşır.
 
+## Kurum çalışma alanı
+
+`/kurum` yeni bir kurum şeması açmaz. Erişim `institutions` + `institution_memberships` üzerinden, aktif kurum ve aktif owner/manager üyeliği ister. Global Student, Parent, Moderator, Teacher, Admin ve SuperAdmin rolleri üyelik olmadan kurum verisi açmaz; mevcut `InstitutionVoter` içindeki SuperAdmin kısa yolu bu yüzeye bağlanmaz. Birden fazla üyelikte seçim POST + CSRF ile session’da sunucuda doğrulanmış UUID olarak durur ve her istekte üyelik yeniden okunur. Listeler ve sayılar yalnız seçili kurumun SQL filtresindendir. Platform testleri kurum testi gibi listelenmez. E-posta, UUID, vergi ve audit alanları şablona verilmez. Bu dilimde sınıf, üyelik, davet ve kurum yazma işlemi yoktur. Tüm `/kurum` yanıtları `no-store, private` ve `noindex` taşır.
+
 ## Sonraki aşamalar
 
 Davet akışları, paneller, gerçek ödeme sağlayıcı entegrasyonu + checkout yüzeyi (2.17 domain temeli üzerine) ve ders/öğrenci deneyimi ayrı görevlerle eklenecektir.
