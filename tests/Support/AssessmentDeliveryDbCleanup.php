@@ -22,10 +22,12 @@ final class AssessmentDeliveryDbCleanup
     {
         // Attempts RESTRICT on delivery — wipe attempts first.
         AssessmentAttemptDbCleanup::deleteAttempts($connection);
+        $schema = $connection->createSchemaManager();
+        if ($schema->tablesExist(['assessment_platform_practices'])) {
+            $connection->executeStatement('DELETE FROM assessment_platform_practices');
+        }
         // Draft review policies (if any remaining) before delivery delete.
         AssessmentAttemptDbCleanup::deleteReviewPolicyRows($connection);
-
-        $schema = $connection->createSchemaManager();
         if ($schema->tablesExist(['assessment_deliveries'])) {
             $connection->executeStatement('DELETE FROM assessment_deliveries');
         }
@@ -39,6 +41,7 @@ final class AssessmentDeliveryDbCleanup
             'assessment_result_active_review_policy_guards',
             'assessment_result_review_policies',
             'assessment_delivery_recipients',
+            'assessment_platform_practices',
             'assessment_deliveries',
         ] as $table) {
             if (!$schema->tablesExist([$table])) {

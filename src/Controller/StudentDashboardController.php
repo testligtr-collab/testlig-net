@@ -43,9 +43,9 @@ final class StudentDashboardController extends AbstractController
                     'soon' => false,
                 ],
                 [
-                    'label' => 'Sınavlar',
-                    'href' => null,
-                    'soon' => true,
+                    'label' => 'Testler',
+                    'href' => $this->generateUrl('app_student_tests'),
+                    'soon' => false,
                 ],
                 [
                     'label' => 'Öğrenme araçları',
