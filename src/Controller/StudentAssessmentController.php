@@ -11,6 +11,7 @@ use App\Exception\AssessmentAttemptException;
 use App\Exception\StudentPracticeException;
 use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
+use App\Service\StudentTestHistoryQuery;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +28,7 @@ final class StudentAssessmentController extends AbstractController
     public function __construct(
         private readonly StudentProfileManager $profiles,
         private readonly StudentAssessmentPractice $practice,
+        private readonly StudentTestHistoryQuery $historyQuery,
     ) {
     }
 
@@ -42,6 +44,19 @@ final class StudentAssessmentController extends AbstractController
         return $this->render('student/tests/index.html.twig', [
             'gradeLevel' => $grade,
             'tests' => $this->practice->listFor($user, $grade),
+        ]);
+    }
+
+    #[Route('/gecmisim', name: 'app_student_test_history', methods: ['GET'])]
+    public function history(): Response
+    {
+        $grade = $this->grade();
+        if ($grade instanceof Response) {
+            return $grade;
+        }
+
+        return $this->render('student/tests/history.html.twig', [
+            'tests' => $this->historyQuery->listFor($this->student()),
         ]);
     }
 

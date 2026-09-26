@@ -40,6 +40,7 @@ use App\Security\AdminPermission;
 use App\Security\AssessmentPermission;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\AssessmentManager;
+use App\Service\AssessmentResultReportGate;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -64,6 +65,7 @@ final class AdminTestController extends AdminBaseController
         private readonly AssessmentManager $assessmentManager,
         private readonly ContentWorkflowReason $workflowReason,
         private readonly TestWorkflowProgress $workflowProgress,
+        private readonly AssessmentResultReportGate $resultReportGate,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -121,6 +123,7 @@ final class AdminTestController extends AdminBaseController
             'subject_name' => $assessment->getSubject()?->getName() ?? '',
             'grade_label' => $assessment->getGradeLevel()->value.'. sınıf',
             'can_edit' => $this->canEdit($assessment),
+            'can_view_results' => $this->resultReportGate->canRead($actor, $assessment),
             'progress' => $this->workflowProgress->summarize([
                 'status' => $assessment->getStatus()->value,
                 'can_edit' => $this->canEdit($assessment),

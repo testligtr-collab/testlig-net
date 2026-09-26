@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Test geçmişim — Testlig{% endblock %}
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block body %}
+<section class="page student-catalog">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_student_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <span>Test geçmişim</span>
+    </nav>
+    <h1>Test geçmişim</h1>
+
+    {% if tests is empty %}
+        <div class="empty-state" role="status">
+            <p>Henüz tamamladığın veya yarım bıraktığın bir test yok.</p>
+        </div>
+    {% else %}
+        <ul class="student-catalog-grid">
+            {% for test in tests %}
+                <li class="student-catalog-card">
+                    <span class="student-catalog-card__title">{{ test.title }}</span>
+                    <span class="student-catalog-card__meta muted">{{ test.subject }}</span>
+                    <span class="student-test-state">{{ test.stateLabel }}</span>
+                    {% if test.completedAt %}
+                        <span class="student-catalog-card__meta">{{ test.completedAt }}</span>
+                    {% endif %}
+                    {% if test.state == 'done' and test.correct is not null %}
+                        <span class="student-catalog-card__meta">Doğru {{ test.correct }} · Yanlış {{ test.incorrect }} · Boş {{ test.unanswered }}</span>
+                        <span class="student-catalog-card__meta">{{ test.earned }} / {{ test.total }} · {{ test.percentage }}</span>
+                        <a href="{{ path('app_student_test_result', {code: test.code}) }}">Sonucu görüntüle</a>
+                    {% elseif test.state == 'resume' %}
+                        <a href="{{ path('app_student_test_solve', {code: test.code}) }}">Çözüme dön</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+{% endblock %}

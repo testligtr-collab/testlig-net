@@ -12,6 +12,7 @@
     </nav>
     <h1>Testler</h1>
     <p class="muted">{{ gradeLevel.value }}. sınıf için yayımlanmış testler</p>
+    <p><a href="{{ path('app_student_test_history') }}">Test geçmişim</a></p>
 
     {% if tests is empty %}
         <div class="empty-state" role="status">

@@ -328,6 +328,126 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         }
     }
 
+    public function testHistoryAndAuthorizedReportStayInsideTheProvenScope(): void
+    {
+        $seed = $this->seed('p62');
+        $owner = $this->createActive('practice-history@example.com', UserRole::Student);
+        $this->completeOnboarding($owner, GradeLevel::Grade1);
+        $other = $this->createActive('practice-history-other@example.com', UserRole::Student);
+        $this->completeOnboarding($other, GradeLevel::Grade1);
+
+        $client = static::createClient();
+        $client->request('GET', '/ogrenci/testler/gecmisim');
+        self::assertResponseRedirects('/giris');
+        $client->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseRedirects('/giris');
+
+        $this->login($client, 'practice-history@example.com');
+        $client->request('GET', '/ogrenci/testler/gecmisim');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Henüz tamamladığın', (string) $client->getResponse()->getContent());
+
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['main']);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $client->request('GET', '/ogrenci/testler/gecmisim');
+        $open = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Devam ediyor', $open);
+        self::assertStringContainsString('Çözüme dön', $open);
+        self::assertStringNotContainsString('16.6666', $open);
+        self::assertStringNotContainsString('Doğru cevap', $open);
+
+        $this->answerAndFinish($client, $seed['main']);
+        $client->request('GET', '/ogrenci/testler/gecmisim');
+        $history = (string) $client->getResponse()->getContent();
+        $cache = (string) $client->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('no-store', $cache);
+        self::assertStringContainsString('private', $cache);
+        self::assertStringContainsString('Sinif testi', $history);
+        self::assertStringContainsString('Tamamlandı', $history);
+        self::assertStringContainsString('16.6666', $history);
+        self::assertStringContainsString('1.00', $history);
+        self::assertStringContainsString('6.00', $history);
+        self::assertStringContainsString('Sonucu görüntüle', $history);
+        self::assertStringNotContainsString('Doğru cevap', $history);
+        self::assertStringNotContainsString('practice-history@example.com', $history);
+        self::assertStringNotContainsString($seed['hidden'], $history);
+        self::assertStringNotContainsString('opt_', $history);
+        self::assertStringNotContainsString('correctStableKey', $history);
+
+        self::ensureKernelShutdown();
+        $otherClient = static::createClient();
+        $this->login($otherClient, 'practice-history-other@example.com');
+        $otherClient->request('GET', '/ogrenci/testler/gecmisim');
+        self::assertStringNotContainsString('16.6666', (string) $otherClient->getResponse()->getContent());
+        $otherClient->request('GET', '/ogrenci/testler/'.$seed['main'].'/sonuc');
+        self::assertResponseStatusCodeSame(404);
+
+        self::ensureKernelShutdown();
+        $admin = static::createClient();
+        $this->login($admin, 'p62-ed@example.com');
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden']);
+        self::assertStringContainsString('Sonuçlar', (string) $admin->getResponse()->getContent());
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        $report = (string) $admin->getResponse()->getContent();
+        $reportCache = (string) $admin->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('no-store', $reportCache);
+        self::assertStringContainsString('private', $reportCache);
+        self::assertStringContainsString('Ayşe Yılmaz', $report);
+        self::assertStringContainsString('16.6666', $report);
+        self::assertStringContainsString('1.00', $report);
+        self::assertStringNotContainsString('practice-history@example.com', $report);
+        self::assertStringNotContainsString('Doğru cevap', $report);
+        self::assertStringNotContainsString('opt_', $report);
+        self::assertStringNotContainsString('correctStableKey', $report);
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar?page=2');
+        self::assertStringContainsString('Bu sayfada sonuç yok', (string) $admin->getResponse()->getContent());
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar?q=Yokboyle');
+        self::assertStringContainsString('Aramanla eşleşen sonuç yok', (string) $admin->getResponse()->getContent());
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
+        $detail = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString('Doğru cevap', $detail);
+        self::assertStringContainsString('Bir nedir? B', $detail);
+        self::assertStringContainsString('Cozum metni', $detail);
+        self::assertStringNotContainsString('practice-history@example.com', $detail);
+        self::assertStringNotContainsString('opt_', $detail);
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/9');
+        self::assertResponseStatusCodeSame(404);
+
+        self::ensureKernelShutdown();
+        $super = static::createClient();
+        $this->login($super, 'p62-sa@example.com');
+        $super->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Ayşe Yılmaz', (string) $super->getResponse()->getContent());
+
+        $this->createActive('practice-report-teacher@example.com', UserRole::Teacher);
+        self::ensureKernelShutdown();
+        $teacher = static::createClient();
+        $this->login($teacher, 'practice-report-teacher@example.com');
+        $teacher->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->createPrivileged('practice-report-mod@example.com', UserRole::Moderator);
+        self::ensureKernelShutdown();
+        $moderator = static::createClient();
+        $this->login($moderator, 'practice-report-mod@example.com');
+        $moderator->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+
+        self::ensureKernelShutdown();
+        $studentAdmin = static::createClient();
+        $this->login($studentAdmin, 'practice-history@example.com');
+        $studentAdmin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+
+        self::ensureKernelShutdown();
+        $empty = static::createClient();
+        $this->login($empty, 'p62-ed@example.com');
+        $empty->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar?q=');
+        self::assertResponseIsSuccessful();
+    }
+
     public function testMigrationDeclaresThePracticeBinding(): void
     {
         $path = \dirname(__DIR__, 2).'/migrations/Version20260926120000.php';
@@ -577,6 +697,32 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $dto->gradeLevel = $grade;
         $manager->completeOnboarding($fresh, $dto);
         self::ensureKernelShutdown();
+    }
+
+    private function answerAndFinish(KernelBrowser $client, string $code): void
+    {
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/cevap', [
+            '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
+            'position' => '1',
+            'choice' => '2',
+            'expected_version' => (string) $crawler->filter('input[name="expected_version"]')->attr('value'),
+        ]);
+        $client->followRedirect();
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=2');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/cevap', [
+            '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
+            'position' => '2',
+            'choice' => '1',
+            'expected_version' => (string) $crawler->filter('input[name="expected_version"]')->attr('value'),
+        ]);
+        $client->followRedirect();
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/bitir', [
+            '_token' => (string) $crawler->filter('#student-test-finish input[name="_token"]')->attr('value'),
+            'confirm' => '1',
+        ]);
+        $client->followRedirect();
     }
 
     private function login(KernelBrowser $client, string $email): void

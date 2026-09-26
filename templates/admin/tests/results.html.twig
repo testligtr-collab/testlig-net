@@ -1,0 +1,90 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sonuçlar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_tests') }}">Testler</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_test_show', {id: assessment_id}) }}">{{ title }}</a>
+        <span aria-hidden="true">/</span>
+        <span>Sonuçlar</span>
+    </nav>
+    <h1 class="panel-greeting">Sonuçlar</h1>
+    <p class="muted">{{ title }}</p>
+
+    <form method="get" action="{{ path('app_admin_test_results', {id: assessment_id}) }}" class="stack-sm">
+        <label>Ad, soyad veya test başlığı
+            <input type="search" name="q" value="{{ search }}" maxlength="100">
+        </label>
+        <button class="btn btn--primary" type="submit">Ara</button>
+    </form>
+
+    {% if summary.completed == 0 and summary.inProgress == 0 %}
+        <div class="empty-state" role="status">
+            <p>{% if search %}Aramanla eşleşen sonuç yok.{% else %}Bu test için henüz sonuç yok.{% endif %}</p>
+        </div>
+    {% else %}
+        <ul class="student-test-facts">
+            <li>Katılımcı: {{ summary.participants }}</li>
+            <li>Tamamlanan: {{ summary.completed }}</li>
+            <li>Devam eden: {{ summary.inProgress }}</li>
+            {% if summary.averagePercentage %}
+                <li>Ortalama yüzde: {{ summary.averagePercentage }}</li>
+                <li>En yüksek: {{ summary.highestPercentage }}</li>
+                <li>En düşük: {{ summary.lowestPercentage }}</li>
+            {% endif %}
+        </ul>
+        {% if result.items is empty %}
+            <p role="status">Bu sayfada sonuç yok.</p>
+        {% endif %}
+    {% endif %}
+
+    {% if result.items is not empty %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Öğrenci</th>
+                        <th>Test</th>
+                        <th>Durum</th>
+                        <th>Başlangıç</th>
+                        <th>Tamamlanma</th>
+                        <th>Doğru</th>
+                        <th>Yanlış</th>
+                        <th>Boş</th>
+                        <th>Puan</th>
+                        <th>Yüzde</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.items %}
+                        <tr>
+                            <td>{{ row.studentName }}</td>
+                            <td>{{ row.title }}</td>
+                            <td>{{ row.statusLabel }}</td>
+                            <td>{{ row.startedAt }}</td>
+                            <td>{{ row.completedAt|default('—') }}</td>
+                            <td>{% if row.scored %}{{ row.correct }}{% else %}—{% endif %}</td>
+                            <td>{% if row.scored %}{{ row.incorrect }}{% else %}—{% endif %}</td>
+                            <td>{% if row.scored %}{{ row.unanswered }}{% else %}—{% endif %}</td>
+                            <td>{% if row.scored %}{{ row.earned }} / {{ row.total }}{% else %}—{% endif %}</td>
+                            <td>{% if row.scored %}{{ row.percentage }}{% else %}—{% endif %}</td>
+                            <td>
+                                <a href="{{ path('app_admin_test_result', {id: assessment_id, rank: row.rank, q: search}) }}">Detay</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% include 'components/admin_pagination.html.twig' with {
+        result: result,
+        route: 'app_admin_test_results',
+        route_params: { id: assessment_id },
+        query: { q: search }
+    } %}
+{% endblock %}
