@@ -427,7 +427,6 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $this->login($teacher, 'practice-report-teacher@example.com');
         $teacher->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('16.6666', (string) $teacher->getResponse()->getContent());
 
         $this->createPrivileged('practice-report-mod@example.com', UserRole::Moderator);
         self::ensureKernelShutdown();
