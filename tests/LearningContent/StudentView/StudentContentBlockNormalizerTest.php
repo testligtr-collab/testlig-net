@@ -86,4 +86,83 @@ final class StudentContentBlockNormalizerTest extends TestCase
         ]);
         self::assertSame([], $views);
     }
+
+    public function testVideoAndDocumentAreRenderedOnlyFromSafeFields(): void
+    {
+        $assetId = '018f0000-0000-7000-8000-000000000099';
+        $views = $this->normalizer->normalize([
+            'blocks' => [
+                [
+                    'type' => 'video',
+                    'provider' => 'youtube',
+                    'providerVideoId' => 'dQw4w9WgXcQ',
+                    'title' => 'Konu videosu',
+                    'description' => 'Kisa aciklama',
+                    'url' => 'https://evil.example/watch',
+                ],
+                [
+                    'type' => 'video',
+                    'provider' => 'youtube',
+                    'providerVideoId' => 'not-valid',
+                    'title' => '',
+                    'description' => '',
+                ],
+                [
+                    'type' => 'document',
+                    'assetId' => $assetId,
+                    'label' => 'Calisma',
+                ],
+                [
+                    'type' => 'document',
+                    'assetId' => 'not-a-uuid',
+                    'label' => 'Bozuk',
+                ],
+            ],
+        ], static function (int $index, string $id, string $label) use ($assetId): ?StudentContentBlockView {
+            if ($id !== $assetId) {
+                return null;
+            }
+
+            return StudentContentBlockView::document($label, 'Notlar.pdf', '2 KB', '/ogrenci/dersler/a/b/c/adim/pdf/'.$index);
+        });
+
+        self::assertCount(2, $views);
+        self::assertSame(StudentContentBlockView::TYPE_VIDEO, $views[0]->type);
+        self::assertSame('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', $views[0]->embedSrc);
+        self::assertStringNotContainsString('evil.example', (string) $views[0]->embedSrc);
+        self::assertSame(StudentContentBlockView::TYPE_DOCUMENT, $views[1]->type);
+        self::assertSame('Notlar.pdf', $views[1]->fileName);
+    }
+
+    public function testReadyVideoOmitsVisitorUrl(): void
+    {
+        $views = $this->normalizer->normalize([
+            'blocks' => [[
+                'type' => 'video',
+                'provider' => 'vimeo',
+                'providerVideoId' => '123456789',
+                'title' => '',
+                'description' => '',
+            ]],
+        ]);
+
+        self::assertCount(1, $views);
+        self::assertSame('Video', $views[0]->text);
+        self::assertSame('https://player.vimeo.com/video/123456789', $views[0]->embedSrc);
+    }
+
+    public function testDocumentClosureFailureIsSkipped(): void
+    {
+        $views = $this->normalizer->normalize([
+            'blocks' => [[
+                'type' => 'document',
+                'assetId' => '018f0000-0000-7000-8000-000000000099',
+                'label' => 'Calisma',
+            ]],
+        ], static function (): StudentContentBlockView {
+            throw new \RuntimeException('missing file');
+        });
+
+        self::assertSame([], $views);
+    }
 }

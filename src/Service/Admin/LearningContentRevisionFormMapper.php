@@ -20,6 +20,8 @@ final class LearningContentRevisionFormMapper
         'callout',
         'quote',
         'math',
+        'video',
+        'document',
     ];
 
     private const TYPE_LABELS = [
@@ -29,22 +31,30 @@ final class LearningContentRevisionFormMapper
         'callout' => 'Uyarı kutusu',
         'quote' => 'Alıntı',
         'math' => 'Matematik',
+        'video' => 'Video',
+        'document' => 'PDF doküman',
     ];
 
     /**
-     * @param array<mixed> $postedBlocks
+     * @param array<int|string, mixed> $postedBlocks
+     * @param array<mixed>             $storedBlocks
      */
-    public function documentFromPostedBlocks(array $postedBlocks): LearningContentDocument
+    public function documentFromPostedBlocks(array $postedBlocks, array $storedBlocks = []): LearningContentDocument
     {
         ksort($postedBlocks, \SORT_NUMERIC);
         $postedBlocks = array_values($postedBlocks);
+        $storedBlocks = array_values($storedBlocks);
 
         $blocks = [];
-        foreach ($postedBlocks as $raw) {
+        foreach ($postedBlocks as $index => $raw) {
             if (!\is_array($raw)) {
                 throw LearningContentException::contentInvalid('Geçersiz blok verisi.');
             }
-            $blocks[] = $this->mapPostedBlock($raw);
+            $stored = $storedBlocks[$index] ?? null;
+            if (null !== $stored && !\is_array($stored)) {
+                throw LearningContentException::contentInvalid('Geçersiz blok verisi.');
+            }
+            $blocks[] = $this->mapPostedBlock($raw, $stored);
         }
 
         if ([] === $blocks) {
@@ -95,7 +105,10 @@ final class LearningContentRevisionFormMapper
      *     items_text: string,
      *     latex: string,
      *     variant: string,
-     *     callout_text: string
+     *     callout_text: string,
+     *     video_title: string,
+     *     video_description: string,
+     *     document_label: string
      * }>
      */
     public function editorRowsFromStructuredContent(array $structuredContent): array
@@ -142,6 +155,7 @@ final class LearningContentRevisionFormMapper
                 'variant' => 'info',
                 'blocks' => [['type' => 'paragraph', 'text' => 'Yeni bilgi']],
             ],
+            'video', 'document' => throw LearningContentException::contentInvalid('Video ve PDF ayrı formdan eklenir.'),
         };
     }
 
@@ -152,6 +166,9 @@ final class LearningContentRevisionFormMapper
     {
         $choices = [];
         foreach (self::TYPE_LABELS as $value => $label) {
+            if ('video' === $value || 'document' === $value) {
+                continue;
+            }
             $choices[$label] = $value;
         }
 
@@ -159,11 +176,12 @@ final class LearningContentRevisionFormMapper
     }
 
     /**
-     * @param array<mixed> $raw
+     * @param array<mixed>      $raw
+     * @param array<mixed>|null $stored
      *
      * @return array<string, mixed>
      */
-    private function mapPostedBlock(array $raw): array
+    private function mapPostedBlock(array $raw, ?array $stored = null): array
     {
         $type = $raw['type'] ?? null;
         if (!\is_string($type) || '' === $type) {
@@ -196,7 +214,71 @@ final class LearningContentRevisionFormMapper
                 'latex' => $this->requireString($raw, 'latex', 'Matematik ifadesi zorunludur.'),
             ],
             'callout' => $this->mapCallout($raw),
+            'video' => $this->mapStoredVideo($raw, $stored),
+            'document' => $this->mapStoredDocument($raw, $stored),
         };
+    }
+
+    /**
+     * @param array<mixed>              $raw
+     * @param array<string, mixed>|null $stored
+     *
+     * @return array<string, mixed>
+     */
+    private function mapStoredVideo(array $raw, ?array $stored): array
+    {
+        if (!\is_array($stored) || 'video' !== ($stored['type'] ?? null)) {
+            throw LearningContentException::contentInvalid('Video bloğu kayıttaki sürümle eşleşmiyor.');
+        }
+        $provider = $stored['provider'] ?? null;
+        $id = $stored['providerVideoId'] ?? null;
+        if (!\is_string($provider) || !\is_string($id)) {
+            throw LearningContentException::contentInvalid('Video bloğu kayıttaki sürümle eşleşmiyor.');
+        }
+
+        return [
+            'type' => 'video',
+            'provider' => $provider,
+            'providerVideoId' => $id,
+            'title' => $this->optionalString($raw, 'video_title'),
+            'description' => $this->optionalString($raw, 'video_description'),
+        ];
+    }
+
+    /**
+     * @param array<mixed>              $raw
+     * @param array<string, mixed>|null $stored
+     *
+     * @return array<string, mixed>
+     */
+    private function mapStoredDocument(array $raw, ?array $stored): array
+    {
+        if (!\is_array($stored) || 'document' !== ($stored['type'] ?? null)) {
+            throw LearningContentException::contentInvalid('Doküman bloğu kayıttaki sürümle eşleşmiyor.');
+        }
+        $assetId = $stored['assetId'] ?? null;
+        if (!\is_string($assetId) || '' === $assetId) {
+            throw LearningContentException::contentInvalid('Doküman bloğu kayıttaki sürümle eşleşmiyor.');
+        }
+
+        return [
+            'type' => 'document',
+            'assetId' => $assetId,
+            'label' => $this->requireString($raw, 'document_label', 'Doküman bağlantı metni zorunludur.'),
+        ];
+    }
+
+    /**
+     * @param array<mixed> $raw
+     */
+    private function optionalString(array $raw, string $key): string
+    {
+        $value = $raw[$key] ?? '';
+        if (!\is_string($value)) {
+            throw LearningContentException::contentInvalid('Metin alanı geçersiz.');
+        }
+
+        return trim($value);
     }
 
     /**
@@ -297,7 +379,10 @@ final class LearningContentRevisionFormMapper
      *     items_text: string,
      *     latex: string,
      *     variant: string,
-     *     callout_text: string
+     *     callout_text: string,
+     *     video_title: string,
+     *     video_description: string,
+     *     document_label: string
      * }
      */
     private function blockToEditorRow(string $type, array $block): array
@@ -336,6 +421,9 @@ final class LearningContentRevisionFormMapper
             'latex' => $latex,
             'variant' => $variant,
             'callout_text' => $calloutText,
+            'video_title' => \is_string($block['title'] ?? null) ? $block['title'] : '',
+            'video_description' => \is_string($block['description'] ?? null) ? $block['description'] : '',
+            'document_label' => \is_string($block['label'] ?? null) ? $block['label'] : '',
         ];
     }
 }

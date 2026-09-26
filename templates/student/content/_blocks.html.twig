@@ -32,5 +32,20 @@
         <aside class="student-content-callout student-content-callout--{{ block.variant }}" role="note">
             {% include 'student/content/_blocks.html.twig' with {blocks: block.children} only %}
         </aside>
+    {% elseif block.type == 'video' %}
+        <figure class="student-content-video">
+            <div class="student-content-video__frame">
+                <iframe src="{{ block.embedSrc }}" title="{{ block.text }}" loading="lazy" allow="fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-presentation">Video yüklenemedi.</iframe>
+            </div>
+            {% if block.description %}
+                <figcaption>{{ block.description }}</figcaption>
+            {% endif %}
+        </figure>
+    {% elseif block.type == 'document' %}
+        <article class="student-content-document">
+            <p>{{ block.text }}</p>
+            <p>{{ block.fileName }} · {{ block.fileSizeLabel }}</p>
+            <a href="{{ block.openPath }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
+        </article>
     {% endif %}
 {% endfor %}

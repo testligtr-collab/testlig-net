@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\LearningContent\StudentView;
 
 use App\Dto\StudentContent\StudentContentBlockView;
+use App\LearningContent\Document\VideoEmbed;
+use App\LearningContent\Document\VideoUrlParser;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Fail-closed normalizer: sealed revision JSON → student block views.
@@ -17,11 +20,12 @@ final class StudentContentBlockNormalizer
     private const CALLOUT_VARIANTS = ['info', 'warning', 'tip', 'note'];
 
     /**
-     * @param array<mixed> $structuredContent
+     * @param array<mixed>                                                   $structuredContent
+     * @param (\Closure(int, string, string): ?StudentContentBlockView)|null $documentAt
      *
      * @return list<StudentContentBlockView>
      */
-    public function normalize(array $structuredContent): array
+    public function normalize(array $structuredContent, ?\Closure $documentAt = null): array
     {
         $blocks = $structuredContent['blocks'] ?? null;
         if (!\is_array($blocks)) {
@@ -29,8 +33,22 @@ final class StudentContentBlockNormalizer
         }
 
         $views = [];
-        foreach ($blocks as $block) {
+        foreach (array_values($blocks) as $index => $block) {
             if (!\is_array($block)) {
+                continue;
+            }
+            if ('document' === ($block['type'] ?? null)) {
+                $view = $this->normalizeDocument($block, $index, $documentAt);
+                if ($view instanceof StudentContentBlockView) {
+                    $views[] = $view;
+                }
+                continue;
+            }
+            if ('video' === ($block['type'] ?? null)) {
+                $view = $this->normalizeVideo($block);
+                if ($view instanceof StudentContentBlockView) {
+                    $views[] = $view;
+                }
                 continue;
             }
             $view = $this->normalizeBlock($block, allowCallout: true);
@@ -186,6 +204,54 @@ final class StudentContentBlockNormalizer
         }
 
         return StudentContentBlockView::callout($childViews, $variant);
+    }
+
+    /**
+     * @param array<mixed>                                                   $block
+     * @param (\Closure(int, string, string): ?StudentContentBlockView)|null $documentAt
+     */
+    private function normalizeDocument(array $block, int $index, ?\Closure $documentAt): ?StudentContentBlockView
+    {
+        if (!$documentAt instanceof \Closure) {
+            return null;
+        }
+        $assetId = $block['assetId'] ?? null;
+        $label = $block['label'] ?? null;
+        if (!\is_string($assetId) || !Uuid::isValid($assetId) || !$this->isSafePlainText($label)) {
+            return null;
+        }
+
+        try {
+            return $documentAt($index, $assetId, $label);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param array<mixed> $block
+     */
+    private function normalizeVideo(array $block): ?StudentContentBlockView
+    {
+        $provider = $block['provider'] ?? null;
+        $id = $block['providerVideoId'] ?? null;
+        if (!\is_string($provider) || !\is_string($id) || !VideoUrlParser::isProviderId($provider, $id)) {
+            return null;
+        }
+        $title = $block['title'] ?? '';
+        $description = $block['description'] ?? '';
+        if (!\is_string($title) || !\is_string($description)) {
+            return null;
+        }
+        if ('' !== trim($title) && !$this->isSafePlainText($title)) {
+            return null;
+        }
+        if ('' !== trim($description) && !$this->isSafePlainText($description)) {
+            return null;
+        }
+        $visibleTitle = '' !== trim($title) ? trim($title) : 'Video';
+
+        return StudentContentBlockView::video($visibleTitle, (new VideoEmbed($provider, $id))->playerUrl(), trim($description));
     }
 
     private function isSafePlainText(mixed $value): bool

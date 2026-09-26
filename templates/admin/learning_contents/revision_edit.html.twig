@@ -46,6 +46,11 @@
                             <code>{{ block.latex }}</code>
                         {% elseif block.type == 'callout' %}
                             <p>[{{ block.variant|workflow_label('callout') }}] {{ block.callout_text }}</p>
+                        {% elseif block.type == 'video' %}
+                            <p>{{ block.video_title }}</p>
+                            {% if block.video_description %}<p>{{ block.video_description }}</p>{% endif %}
+                        {% elseif block.type == 'document' %}
+                            <p>{{ block.document_label }}</p>
                         {% else %}
                             <p>{{ block.text }}</p>
                         {% endif %}
@@ -101,6 +106,17 @@
                             </label>
                             <label>Metin
                                 <textarea name="blocks[{{ loop.index0 }}][callout_text]" rows="6" required class="revision-text">{{ block.callout_text }}</textarea>
+                            </label>
+                        {% elseif block.type == 'video' %}
+                            <label>Başlık
+                                <textarea name="blocks[{{ loop.index0 }}][video_title]" rows="2" class="revision-text">{{ block.video_title }}</textarea>
+                            </label>
+                            <label>Açıklama
+                                <textarea name="blocks[{{ loop.index0 }}][video_description]" rows="4" class="revision-text">{{ block.video_description }}</textarea>
+                            </label>
+                        {% elseif block.type == 'document' %}
+                            <label>Görünen bağlantı metni
+                                <textarea name="blocks[{{ loop.index0 }}][document_label]" rows="2" required class="revision-text">{{ block.document_label }}</textarea>
                             </label>
                         {% endif %}
                     </fieldset>
@@ -163,6 +179,68 @@
                 </label>
                 <button type="submit" class="btn btn--primary">Yeni blok ekle</button>
             </form>
+        </section>
+
+        <section class="admin-section" aria-labelledby="video-heading">
+            <h2 id="video-heading">Video ekle</h2>
+            <p class="muted">YouTube veya Vimeo sayfa adresini yapıştırın. Gömme kodu, iframe ve ham HTML kabul edilmez.</p>
+            <form method="post" action="{{ path('app_admin_learning_content_revision_video', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                <label>Video adresi
+                    <input type="url" name="video_url" required placeholder="https://">
+                </label>
+                <label>Başlık
+                    <textarea name="title" rows="2" class="revision-text"></textarea>
+                </label>
+                <label>Açıklama
+                    <textarea name="description" rows="4" class="revision-text"></textarea>
+                </label>
+                <button type="submit" class="btn btn--primary">Video ekle</button>
+            </form>
+        </section>
+
+        <section class="admin-section" aria-labelledby="pdf-heading">
+            <h2 id="pdf-heading">PDF doküman ekle</h2>
+            <p class="muted">Yalnız PDF, en fazla 25 MB. Dosya onay bekler; yönetici kullanıma hazır demeden sürüme bağlanamaz. Antivirüs taraması yoktur.</p>
+            <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-warn-unsaved="1">
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                <label>PDF dosyası
+                    <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+                </label>
+                <button type="submit" class="btn btn--primary">PDF yükle</button>
+            </form>
+            {% if documents is not empty %}
+                <ul class="stack-sm">
+                    {% for card in documents %}
+                        <li>
+                            <strong>{{ card.name }}</strong>
+                            <span class="muted">{{ card.sizeLabel }} · {{ card.statusLabel }}</span>
+                            <a href="{{ path('app_admin_learning_document_preview', {id: content.id.toRfc4122, handle: card.handle}) }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
+                            {% if card.canApprove %}
+                                <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_ready', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                    <input type="hidden" name="handle" value="{{ card.handle }}">
+                                    <button type="submit" class="btn btn--ghost">Kullanıma hazır</button>
+                                </form>
+                            {% endif %}
+                            {% if card.canAttach %}
+                                <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_attach', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                                    <input type="hidden" name="handle" value="{{ card.handle }}">
+                                    <label>Görünen bağlantı metni
+                                        <textarea name="label" rows="2" required class="revision-text"></textarea>
+                                    </label>
+                                    <button type="submit" class="btn btn--ghost">Sürüme ekle</button>
+                                </form>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
         </section>
     {% endif %}
     <script>
