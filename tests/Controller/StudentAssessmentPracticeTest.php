@@ -154,6 +154,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $client->request('GET', '/ogrenci/testler');
         self::assertStringContainsString('Devam et', (string) $client->getResponse()->getContent());
 
+        self::ensureKernelShutdown();
         $otherClient = static::createClient();
         $this->login($otherClient, 'practice-other@example.com');
         $otherClient->request('GET', '/ogrenci/testler/'.$seed['main'].'/sonuc');
@@ -661,7 +662,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
                 $connection->executeStatement("DELETE FROM institutions WHERE slug = 'bireysel-deneme'");
             }
         } catch (\Throwable) {
-            self::ensureKernelShutdown();
         }
+        self::ensureKernelShutdown();
     }
 }
