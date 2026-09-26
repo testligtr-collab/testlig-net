@@ -7,8 +7,8 @@ namespace App\Enum;
 /**
  * Parent–student link lifecycle (Stage 2.22.5a foundation).
  *
- * {@see Verified} is a domain state only — it does not grant child-data access,
- * open an accept API, or change InvitationPurposeContract allow-lists.
+ * {@see Verified} grants only the limited parent summary on `/veli`.
+ * It does not grant student actions, answer keys, admin access, or a new role.
  */
 enum ParentStudentLinkStatus: string
 {

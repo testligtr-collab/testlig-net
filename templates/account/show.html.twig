@@ -2,11 +2,13 @@
 
 {% block title %}Hesabım — Testlig{% endblock %}
 
-{% block body_class %}{% if is_granted('ROLE_STUDENT') %}is-student-surface{% endif %}{% endblock %}
+{% block body_class %}{% if is_granted('ROLE_STUDENT') or is_granted('ROLE_PARENT') %}is-student-surface{% endif %}{% endblock %}
 
 {% block site_chrome %}
     {% if is_granted('ROLE_STUDENT') %}
         {% include 'student/_header.html.twig' %}
+    {% elseif is_granted('ROLE_PARENT') %}
+        {% include 'parent/_header.html.twig' %}
     {% else %}
         {{ parent() }}
     {% endif %}
@@ -15,6 +17,8 @@
 {% block site_footer %}
     {% if is_granted('ROLE_STUDENT') %}
         {% include 'student/_footer.html.twig' %}
+    {% elseif is_granted('ROLE_PARENT') %}
+        {% include 'parent/_footer.html.twig' %}
     {% else %}
         {{ parent() }}
     {% endif %}

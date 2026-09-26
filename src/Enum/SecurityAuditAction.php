@@ -199,4 +199,8 @@ enum SecurityAuditAction: string
     case ParentStudentLinkVerified = 'parent_student_link_verified';
     case ParentStudentLinkEnded = 'parent_student_link_ended';
     case ParentStudentLinkAcceptFailed = 'parent_student_link_accept_failed';
+    case LinkCodeCreated = 'link_code_created';
+    case LinkCodeRevoked = 'link_code_revoked';
+    case ParentLinkActivated = 'parent_link_activated';
+    case ParentLinkRevoked = 'parent_link_revoked';
 }

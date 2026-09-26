@@ -1,0 +1,33 @@
+{% extends 'parent/layout.html.twig' %}
+
+{% block title %}Panel — Veli — Testlig{% endblock %}
+
+{% block parent_content %}
+<section>
+    <h1>Merhaba, {{ parent_name }}</h1>
+    <p class="muted">Bağlı çocuklarının özeti. Başka bir öğrencinin bilgisi burada görünmez.</p>
+    <p><a class="btn btn--cta" href="{{ path('app_parent_link') }}">Bağlantı kodunu gir</a></p>
+</section>
+<div class="student-card-grid">
+    {% for child in children %}
+        <article class="student-form-card">
+            <h2>{{ child.displayName }}</h2>
+            <p>{{ child.gradeLabel }}</p>
+            {% if child.subjectNames is not empty %}
+                <ul>
+                    {% for name in child.subjectNames %}
+                        <li>{{ name }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% for summary in child.recentTests %}
+                {% include 'parent/_summary.html.twig' with {summary: summary} %}
+            {% else %}
+                <p class="muted">Henüz test yok.</p>
+            {% endfor %}
+            <p><a href="{{ path('app_parent_child', {reference: child.reference}) }}">Ayrıntı</a></p>
+            <p><a href="{{ path('app_parent_tests', {cocuk: child.reference}) }}">Test sonuçları</a></p>
+        </article>
+    {% endfor %}
+</div>
+{% endblock %}

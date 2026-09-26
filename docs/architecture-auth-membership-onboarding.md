@@ -382,7 +382,9 @@ entity isimleri 2.22.4’te kesinleşir.
 10. Bu aşamada doğum tarihi / TC zorunluluğu eklenmez; yaş/veli onayı hukuki kapı bekler.
 
 Kurum üyeliği bu ilişkiyi ikame etmez; veli erişimi doğrulanmış parent-link (veya kurum
-aracılı onaylı süreç) ile sınırlanır.
+aracılı onaylı süreç) ile sınırlanır. Doğrulanmış bağlantı yalnız `/veli` özetini açar.
+Öğrenci test başlatma, cevap, çözüm ve profil düzenleme veliye açık değildir. Ayrıntı
+`docs/architecture.md` içindeki veli paneli bölümündedir.
 
 ---
 

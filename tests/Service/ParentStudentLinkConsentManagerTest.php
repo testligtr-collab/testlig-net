@@ -123,7 +123,7 @@ final class ParentStudentLinkConsentManagerTest extends KernelTestCase
         );
         self::assertNotEmpty($events);
         $meta = $events[0]->getMetadata();
-        self::assertFalse($meta['grants_child_data_access'] ?? true);
+        self::assertTrue($meta['grants_child_data_access'] ?? false);
         self::assertArrayNotHasKey('plain_code', $meta);
         self::assertArrayNotHasKey('code_digest', $meta);
         self::assertArrayNotHasKey('email', $meta);

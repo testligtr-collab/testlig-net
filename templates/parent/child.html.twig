@@ -1,0 +1,21 @@
+{% extends 'parent/layout.html.twig' %}
+
+{% block title %}{{ child.displayName }} — Veli — Testlig{% endblock %}
+
+{% block parent_content %}
+<section class="student-form-card">
+    <h1>{{ child.displayName }}</h1>
+    <p>{{ child.gradeLabel }}</p>
+    {% if child.subjectNames is empty %}
+        <p class="muted">Bu sınıf için yayımlanmış ders yok.</p>
+    {% else %}
+        <h2>Dersler</h2>
+        <ul>
+            {% for name in child.subjectNames %}
+                <li>{{ name }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <p><a href="{{ path('app_parent_tests', {cocuk: child.reference}) }}">Test sonuçları</a></p>
+</section>
+{% endblock %}

@@ -201,6 +201,7 @@ final class SecurityAuditMetadataSanitizer
         'registration_flow',
         // Stage 2.22.5b parent–student link consent (identifiers / flags only).
         'link_id',
+        'link_code_id',
         'invitation_id',
         'grants_child_data_access',
     ];

@@ -264,7 +264,7 @@ final class ParentStudentLinkConsentManager
                         'link_id' => $link->getId()->toRfc4122(),
                         'invitation_id' => $invitation->getId()->toRfc4122(),
                         'purpose' => $purpose,
-                        'grants_child_data_access' => false,
+                        'grants_child_data_access' => true,
                     ],
                     correlationId: $link->getId()->toRfc4122().':verified',
                     captureRequestHashes: false,

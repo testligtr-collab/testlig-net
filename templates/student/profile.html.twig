@@ -42,4 +42,47 @@
         <button type="submit" class="btn btn--cta">Kaydet</button>
     {{ form_end(form) }}
 </section>
+
+<section class="student-form-card" id="velilerim">
+    <h2>Velilerim</h2>
+    <p class="muted">Bağlantı kodu 15 dakika geçerlidir ve yalnız bir kez kullanılabilir. Kodu veliye uygulama dışında ilet. E-posta gösterilmez.</p>
+    <input type="hidden" id="parent-link-revoke-token" value="{{ csrf_token('student_parent_link_revoke') }}">
+
+    {% if issued_parent_code %}
+        <div class="form-row">
+            <label for="parent-link-code">Bağlantı kodu</label>
+            <input id="parent-link-code" class="form-control" readonly value="{{ issued_parent_code }}">
+            <p class="muted">Kodu şimdi seçip kopyala. Bu kod bir daha gösterilmez.</p>
+        </div>
+    {% elseif open_parent_code %}
+        <p>Açık bir bağlantı kodun var. Son kullanma: {{ open_parent_code.expiresLabel }}.</p>
+        <form method="post" action="{{ path('app_student_parent_code_revoke') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('student_parent_code_revoke') }}">
+            <button type="submit" class="btn btn--ghost">Kodu iptal et</button>
+        </form>
+    {% endif %}
+
+    <form method="post" action="{{ path('app_student_parent_code_issue') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('student_parent_code_issue') }}">
+        <button type="submit" class="btn btn--cta">Yeni bağlantı kodu oluştur</button>
+    </form>
+
+    {% if parent_links is empty %}
+        <p class="muted">Bağlı veli yok.</p>
+    {% else %}
+        <ul>
+            {% for link in parent_links %}
+                <li>
+                    <span>{{ link.displayName }}</span>
+                    <span class="muted">{{ link.sinceLabel }}</span>
+                    <form method="post" action="{{ path('app_student_parent_link_revoke') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('student_parent_link_revoke') }}">
+                        <input type="hidden" name="reference" value="{{ link.reference }}">
+                        <button type="submit" class="btn btn--ghost">Bağlantıyı kaldır</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
 {% endblock %}

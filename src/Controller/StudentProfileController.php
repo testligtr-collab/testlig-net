@@ -8,6 +8,8 @@ use App\Dto\StudentProfileRequest;
 use App\Entity\User;
 use App\Exception\StudentProfileException;
 use App\Form\StudentProfileFormType;
+use App\Service\ParentLinkQuery;
+use App\Service\ParentStudentLinkCodeManager;
 use App\Service\StudentProfileManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -21,6 +23,7 @@ final class StudentProfileController extends AbstractController
 {
     public function __construct(
         private readonly StudentProfileManager $profiles,
+        private readonly ParentLinkQuery $parentLinks,
     ) {
     }
 
@@ -52,10 +55,16 @@ final class StudentProfileController extends AbstractController
             }
         }
 
+        $issuedCode = $request->getSession()->get(ParentStudentLinkCodeManager::DISPLAY_SESSION_KEY);
+        $request->getSession()->remove(ParentStudentLinkCodeManager::DISPLAY_SESSION_KEY);
+
         return $this->render('student/profile.html.twig', [
             'form' => $form,
             'user' => $user,
             'profile' => $profile,
+            'parent_links' => $this->parentLinks->parentsForStudent($user),
+            'open_parent_code' => $this->parentLinks->openCodeForStudent($user),
+            'issued_parent_code' => \is_string($issuedCode) ? $issuedCode : null,
         ]);
     }
 }
