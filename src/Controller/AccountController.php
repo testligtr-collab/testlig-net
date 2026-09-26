@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Security\AdminAuthorization;
+use App\Service\Admin\ContentWorkspaceSummary;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -15,6 +16,7 @@ final class AccountController extends AbstractController
 {
     public function __construct(
         private readonly AdminAuthorization $adminAuthorization,
+        private readonly ContentWorkspaceSummary $workspaceSummary,
     ) {
     }
 
@@ -38,6 +40,7 @@ final class AccountController extends AbstractController
             'tests_href' => $this->adminAuthorization->canViewTestBank($user)
                 ? $this->generateUrl('app_admin_tests')
                 : null,
+            'workspace' => $this->workspaceSummary->forActor($user),
         ]);
     }
 }

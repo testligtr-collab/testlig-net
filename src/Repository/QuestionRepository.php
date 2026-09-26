@@ -94,6 +94,18 @@ class QuestionRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    public function countCreatedBy(User $actor): int
+    {
+        return (int) $this->createQueryBuilder('q')
+            ->select('COUNT(q.id)')
+            ->andWhere('q.scope = :scope')
+            ->andWhere('IDENTITY(q.createdBy) = :actor')
+            ->setParameter('scope', QuestionScope::Platform)
+            ->setParameter('actor', $actor->getId(), 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * Published platform questions for one subject and grade. Answer keys are not loaded.
      *

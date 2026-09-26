@@ -155,7 +155,7 @@
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
                                 <input type="hidden" name="index" value="{{ loop.index0 }}">
-                                <button type="submit" class="btn btn--ghost">Kaldır</button>
+                                <button type="submit" class="btn btn--ghost" onclick="return confirm('Bu blok kaldırılsın mı?');">Kaldır</button>
                             </form>
                         {% endif %}
                     </div>
@@ -207,8 +207,9 @@
             <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-warn-unsaved="1">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                 <label>PDF dosyası
-                    <input type="file" name="pdf" accept="application/pdf,.pdf" required>
+                    <input type="file" name="pdf" accept="application/pdf,.pdf" required id="pdf-file">
                 </label>
+                <p id="pdf-file-meta" class="muted" role="status"></p>
                 <button type="submit" class="btn btn--primary">PDF yükle</button>
             </form>
             {% if documents is not empty %}
@@ -273,6 +274,20 @@
                 };
                 area.addEventListener('input', grow);
                 grow();
+            });
+        })();
+        (function () {
+            var input = document.getElementById('pdf-file');
+            var meta = document.getElementById('pdf-file-meta');
+            if (!input || !meta) return;
+            input.addEventListener('change', function () {
+                var file = input.files && input.files[0];
+                if (!file) {
+                    meta.textContent = '';
+                    return;
+                }
+                var kb = Math.max(1, Math.round(file.size / 1024));
+                meta.textContent = file.name + ' · ' + kb + ' KB';
             });
         })();
     </script>

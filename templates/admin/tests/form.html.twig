@@ -6,7 +6,7 @@
     <nav class="admin-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_admin_tests') }}">Testler</a>
         <span aria-hidden="true">/</span>
-        <span>{{ assessment ? assessment.code : 'Yeni' }}</span>
+        <span>{{ assessment ? 'Düzenle' : 'Yeni' }}</span>
     </nav>
     <h1 class="panel-greeting">{{ assessment ? 'Testi düzenle' : 'Yeni test' }}</h1>
 

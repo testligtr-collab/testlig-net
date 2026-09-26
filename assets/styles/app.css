@@ -3115,3 +3115,76 @@ body.is-student-surface {
         transition: none;
     }
 }
+
+/* Content workspace: same open surface, separate from the student shell. */
+body.is-admin-panel {
+    background: linear-gradient(180deg, #f7fafc 0%, var(--tl-bg) 42%, #eef4fa 100%);
+}
+
+.ws-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0.1rem 0.55rem;
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-brand-soft);
+    color: var(--tl-brand-strong);
+    font-size: var(--tl-fs-sm);
+    font-weight: 600;
+}
+
+.ws-section,
+.is-admin-panel fieldset.admin-section {
+    margin: 0 0 var(--tl-space-4);
+    padding: var(--tl-space-4);
+    background: var(--tl-surface);
+    border: var(--tl-border-width) solid var(--tl-border);
+    border-radius: var(--tl-radius-lg);
+    box-shadow: var(--tl-shadow-sm);
+}
+
+.ws-section legend,
+.is-admin-panel fieldset.admin-section legend {
+    padding: 0 0.35rem;
+    font-weight: 650;
+}
+
+ul.admin-metric-grid {
+    list-style: none;
+    margin: var(--tl-space-3) 0;
+    padding: 0;
+}
+
+.ws-summary h2,
+.is-admin-panel .admin-section h2 {
+    margin-top: 0;
+}
+
+.is-admin-panel .admin-filters input,
+.is-admin-panel .admin-filters select,
+.is-admin-panel .ws-section input,
+.is-admin-panel .ws-section select,
+.is-admin-panel .ws-section textarea,
+.is-admin-panel fieldset.admin-section input,
+.is-admin-panel fieldset.admin-section select,
+.is-admin-panel fieldset.admin-section textarea {
+    min-height: 2.75rem;
+    max-width: 100%;
+}
+
+.is-admin-panel textarea.revision-text {
+    min-height: 8rem;
+}
+
+.is-admin-panel .admin-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .is-admin-panel .panel-nav-link,
+    .is-admin-panel .btn {
+        transition: none;
+    }
+}

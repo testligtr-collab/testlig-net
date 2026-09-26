@@ -19,14 +19,24 @@
     <p class="muted">Platform kapsamı · boş paragraf gövdesi · bir birincil öğrenme kazanımı. Gerçek ders metni eklenmez.</p>
 
     {{ form_start(form) }}
-        {{ form_row(form.code) }}
-        {{ form_row(form.title) }}
-        {{ form_row(form.summary) }}
-        {{ form_row(form.contentType) }}
-        {{ form_row(form.gradeLevel) }}
-        {{ form_row(form.subjectId) }}
-        {{ form_row(form.learningOutcomeId) }}
-        <button type="submit" class="btn btn--primary">Taslak oluştur</button>
+        <fieldset class="ws-section">
+            <legend>Temel bilgiler</legend>
+            {{ form_row(form.code) }}
+            {{ form_row(form.title) }}
+            {{ form_row(form.summary) }}
+            {{ form_row(form.contentType) }}
+        </fieldset>
+        <fieldset class="ws-section">
+            <legend>Ders ve sınıf</legend>
+            {{ form_row(form.gradeLevel) }}
+            {{ form_row(form.subjectId) }}
+        </fieldset>
+        <fieldset class="ws-section">
+            <legend>Kazanım</legend>
+            {{ form_row(form.learningOutcomeId) }}
+            <p class="muted">Erişim, içerik sürümü ve katalog yerleşimi taslak oluşturulduktan sonra ayrı adımlardır.</p>
+        </fieldset>
+        <button type="submit" class="btn btn--cta">Taslak oluştur</button>
         <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
     {{ form_end(form) }}
 {% endblock %}

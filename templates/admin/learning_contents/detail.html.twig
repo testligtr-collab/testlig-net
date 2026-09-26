@@ -32,7 +32,7 @@
                 <label>İşlem notu (opsiyonel)
                     <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
                 </label>
-                <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
+                <button type="submit" class="btn btn--cta">İncelemeye gönder</button>
             </form>
         {% elseif workflow.next.kind == 'publish' %}
             <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('İçeriği yayımlamak istediğinize emin misiniz?');">
@@ -41,7 +41,7 @@
                 <label>İşlem notu (opsiyonel)
                     <textarea name="operator_note" maxlength="500" rows="2" class="revision-text"></textarea>
                 </label>
-                <button type="submit" class="btn btn--primary">Yayımla</button>
+                <button type="submit" class="btn btn--cta">Yayımla</button>
             </form>
         {% elseif workflow.next.kind == 'set_policy' %}
             <p class="admin-actions"><a class="btn btn--primary" href="#policy-heading">Erişim politikasını kaydet</a></p>
@@ -58,7 +58,7 @@
         <dt>Durum</dt><dd>{{ content.status.value|workflow_label('status') }}</dd>
         <dt>Kapsam</dt><dd>{{ content.scope.value|workflow_label('scope') }}</dd>
         <dt>Konu alanı</dt>
-        <dd>{{ content.subject.name }} · <code>{{ content.subject.code }}</code> · <code>{{ content.subject.id.toRfc4122 }}</code></dd>
+        <dd>{{ content.subject.name }}</dd>
         <dt>Sınıf</dt><dd>{{ content.gradeLevel.value }}. sınıf</dd>
         <dt>Yazar</dt>
         <dd>{{ content.createdBy.firstName }} {{ content.createdBy.lastName }}</dd>

@@ -33,14 +33,40 @@
         <dd>{{ user.email }}</dd>
     </dl>
     <p><a class="btn" href="{{ path('app_account_change_password') }}">Parola değiştir</a></p>
-    {% if learning_contents_href %}
-        <p><a class="btn" href="{{ learning_contents_href }}">İçerikler</a></p>
-    {% endif %}
-    {% if questions_href %}
-        <p><a class="btn" href="{{ questions_href }}">Sorular</a></p>
-    {% endif %}
-    {% if tests_href %}
-        <p><a class="btn" href="{{ tests_href }}">Testler</a></p>
+    {% if workspace %}
+        <section class="ws-summary" aria-labelledby="workspace-heading">
+            <h2 id="workspace-heading">Çalışma alanı</h2>
+            <ul class="admin-metric-grid">
+                <li class="admin-metric"><span class="admin-metric__label">{% if workspace.ownContentCounts %}Taslak içeriklerim{% else %}Taslak içerikler{% endif %}</span><span class="admin-metric__value">{{ workspace.draftContents }}</span></li>
+                <li class="admin-metric"><span class="admin-metric__label">İnceleme bekleyenler</span><span class="admin-metric__value">{{ workspace.reviewContents }}</span></li>
+                <li class="admin-metric"><span class="admin-metric__label">Sorularım</span><span class="admin-metric__value">{{ workspace.myQuestions }}</span></li>
+                <li class="admin-metric"><span class="admin-metric__label">Testlerim</span><span class="admin-metric__value">{{ workspace.myTests }}</span></li>
+            </ul>
+            <p>
+                {% if learning_contents_href %}
+                    <a class="btn btn--cta" href="{{ learning_contents_href }}">İçerikler</a>
+                {% endif %}
+                {% if questions_href %}
+                    <a class="btn btn--ghost" href="{{ questions_href }}">Sorular</a>
+                {% endif %}
+                {% if tests_href %}
+                    <a class="btn btn--ghost" href="{{ tests_href }}">Testler</a>
+                {% endif %}
+                {% if workspace.canCreateContent %}
+                    <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                {% endif %}
+            </p>
+        </section>
+    {% else %}
+        {% if learning_contents_href %}
+            <p><a class="btn" href="{{ learning_contents_href }}">İçerikler</a></p>
+        {% endif %}
+        {% if questions_href %}
+            <p><a class="btn" href="{{ questions_href }}">Sorular</a></p>
+        {% endif %}
+        {% if tests_href %}
+            <p><a class="btn" href="{{ tests_href }}">Testler</a></p>
+        {% endif %}
     {% endif %}
 </section>
 </div>

@@ -10,6 +10,41 @@
     </nav>
     <h1 class="panel-greeting">Yönetim özeti</h1>
 
+    {% if workspace %}
+        <section class="admin-section" aria-labelledby="workspace-heading">
+            <h2 id="workspace-heading">İçerik çalışma alanı</h2>
+            <div class="admin-metric-grid" aria-label="Görebildiğiniz kayıtlar">
+                <div class="admin-metric">
+                    <p class="admin-metric__label">{% if workspace.ownContentCounts %}Taslak içeriklerim{% else %}Taslak içerikler{% endif %}</p>
+                    <p class="admin-metric__value">{{ workspace.draftContents }}</p>
+                </div>
+                <div class="admin-metric">
+                    <p class="admin-metric__label">İnceleme bekleyenler</p>
+                    <p class="admin-metric__value">{{ workspace.reviewContents }}</p>
+                </div>
+                <div class="admin-metric">
+                    <p class="admin-metric__label">Sorularım</p>
+                    <p class="admin-metric__value">{{ workspace.myQuestions }}</p>
+                </div>
+                <div class="admin-metric">
+                    <p class="admin-metric__label">Testlerim</p>
+                    <p class="admin-metric__value">{{ workspace.myTests }}</p>
+                </div>
+            </div>
+            <p class="admin-actions">
+                {% if workspace.canCreateContent %}
+                    <a class="btn btn--cta" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                {% endif %}
+                {% if workspace.canCreateQuestion %}
+                    <a class="btn btn--ghost" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
+                {% endif %}
+                {% if workspace.canCreateTest %}
+                    <a class="btn btn--ghost" href="{{ path('app_admin_test_new') }}">Yeni test</a>
+                {% endif %}
+            </p>
+        </section>
+    {% endif %}
+
     {% if dashboard.canViewPaymentMetrics %}
         <section class="admin-metric-grid" aria-label="Operasyon metrikleri">
             {% for item in dashboard.highlights %}

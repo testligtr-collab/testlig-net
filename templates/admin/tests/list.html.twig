@@ -9,32 +9,30 @@
     <div class="admin-page-header">
         <h1 class="panel-greeting">Testler</h1>
         {% if can_author %}
-            <a class="btn btn--primary" href="{{ path('app_admin_test_new') }}">Yeni test</a>
+            <a class="btn btn--cta" href="{{ path('app_admin_test_new') }}">Yeni test</a>
         {% endif %}
     </div>
 
     {% if assessments is empty %}
-        <p>Henüz test yok.</p>
+        {% include 'components/empty_state.html.twig' with { title: 'Test yok', body: 'Henüz görebildiğiniz bir test yok.' } %}
     {% else %}
-        <div class="table-wrap">
-            <table>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Kod</th>
-                        <th>Başlık</th>
-                        <th>Tür</th>
+                        <th>Test</th>
                         <th>Sınıf</th>
                         <th>Durum</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for assessment in assessments %}
                         <tr>
-                            <td><a href="{{ path('app_admin_test_show', {id: assessment.id.toRfc4122}) }}">{{ assessment.code }}</a></td>
-                            <td>{{ assessment.currentRevision ? assessment.currentRevision.title : '' }}</td>
-                            <td>{{ type_labels[assessment.type.value] }}</td>
+                            <td>{{ assessment.currentRevision ? assessment.currentRevision.title : 'Adsız test' }}</td>
                             <td>{{ assessment.gradeLevel.value }}. sınıf</td>
-                            <td>{{ status_labels[assessment.status.value] }}</td>
+                            <td><span class="ws-badge">{{ status_labels[assessment.status.value] }}</span></td>
+                            <td><a href="{{ path('app_admin_test_show', {id: assessment.id.toRfc4122}) }}">{% if assessment.status.value == 'draft' and can_author %}Düzenle{% elseif assessment.status.value == 'in_review' %}İncele{% else %}Görüntüle{% endif %}</a></td>
                         </tr>
                     {% endfor %}
                 </tbody>

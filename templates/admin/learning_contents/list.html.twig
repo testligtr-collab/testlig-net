@@ -11,7 +11,7 @@
     <div class="admin-page-header">
         <h1 class="panel-greeting">İçerikler</h1>
         {% if can_manage %}
-            <a class="btn btn--primary" href="{{ path('app_admin_learning_content_new') }}">Yeni taslak</a>
+            <a class="btn btn--cta" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
         {% endif %}
         {% if can_create_subject %}
             <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
@@ -24,15 +24,15 @@
         </label>
         <label>Durum
             <select name="status">
-                <option value="">—</option>
+                <option value="">Tümü</option>
                 {% for s in ['draft','in_review','published','archived'] %}
                     <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s|workflow_label('status') }}</option>
                 {% endfor %}
             </select>
         </label>
-        <label>Konu alanı
+        <label>Ders
             <select name="subject_id">
-                <option value="">—</option>
+                <option value="">Tümü</option>
                 {% for s in subjects %}
                     <option value="{{ s.id.toRfc4122 }}" {% if filters.subject_id|default('') == s.id.toRfc4122 %}selected{% endif %}>{{ s.name }}</option>
                 {% endfor %}
@@ -40,13 +40,13 @@
         </label>
         <label>Sınıf
             <select name="grade">
-                <option value="">—</option>
+                <option value="">Tümü</option>
                 {% for g in 1..12 %}
                     <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
                 {% endfor %}
             </select>
         </label>
-        <button type="submit" class="btn btn--primary">Filtrele</button>
+        <button type="submit" class="btn btn--ghost">Filtrele</button>
     </form>
 
     {% if result.items is empty %}
@@ -60,28 +60,29 @@
                 <thead>
                     <tr>
                         <th>Başlık</th>
-                        <th>Kod</th>
                         <th>Tür</th>
+                        <th>Kapsam</th>
                         <th>Durum</th>
-                        <th>Konu</th>
-                        <th>Sınıf</th>
-                        <th>Yazar</th>
-                        <th>Erişim</th>
-                        <th></th>
+                        <th>Güncelleme</th>
+                        {% set show_author = is_granted('ROLE_ADMIN') or is_granted('ROLE_SUPER_ADMIN') or is_granted('ROLE_HEAD_TEACHER') or is_granted('ROLE_EXPERT_TEACHER') or is_granted('ROLE_MODERATOR') %}
+                        {% if show_author %}<th>Yazar</th>{% endif %}
+                        <th>Sıradaki işlem</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in result.items %}
                         <tr>
                             <td>{{ row.title }}</td>
-                            <td><code>{{ row.code }}</code></td>
                             <td>{{ row.contentType.value|workflow_label('type') }}</td>
-                            <td>{{ row.status.value|workflow_label('status') }}</td>
-                            <td>{{ row.subjectName }}</td>
-                            <td>{{ row.gradeLevel.value }}</td>
-                            <td>{{ row.authorName }}</td>
-                            <td>{% if row.accessClass %}{{ row.accessClass|workflow_label('access') }}{% else %}—{% endif %}</td>
-                            <td><a href="{{ path('app_admin_learning_content', { id: row.id.toRfc4122 }) }}">Detay</a></td>
+                            <td>{{ row.subjectName }} · {{ row.gradeLevel.value }}. sınıf</td>
+                            <td><span class="ws-badge">{{ row.status.value|workflow_label('status') }}</span></td>
+                            <td>{{ row.updatedAt|date('d.m.Y') }}</td>
+                            {% if show_author %}<td>{{ row.authorName }}</td>{% endif %}
+                            <td>
+                                <a href="{{ path('app_admin_learning_content', { id: row.id.toRfc4122 }) }}">
+                                    {% if row.status.value == 'draft' and can_manage %}Düzenle{% elseif row.status.value == 'in_review' %}İncele{% else %}Görüntüle{% endif %}
+                                </a>
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

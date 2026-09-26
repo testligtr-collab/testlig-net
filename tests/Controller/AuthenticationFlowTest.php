@@ -304,7 +304,11 @@ final class AuthenticationFlowTest extends WebTestCase
         ]));
         $client->followRedirect();
         self::assertResponseIsSuccessful();
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/yonetim/icerikler"]');
+        self::assertSelectorTextContains('body', 'Taslak içeriklerim');
+        self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
 
         $client->request('GET', '/yonetim/icerikler/yeni');
         self::assertResponseIsSuccessful();

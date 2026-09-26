@@ -51,6 +51,18 @@ class AssessmentRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    public function countCreatedBy(User $actor): int
+    {
+        return (int) $this->createQueryBuilder('a')
+            ->select('COUNT(a.id)')
+            ->andWhere('a.scope = :scope')
+            ->andWhere('IDENTITY(a.createdBy) = :actor')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->setParameter('actor', $actor->getId(), 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
      * @return list<Assessment>
      */
