@@ -158,6 +158,7 @@ final class InstitutionWorkspaceControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Yönetici', (string) $client->getResponse()->getContent());
 
+        self::ensureKernelShutdown();
         $staff = static::createClient();
         $this->login($staff, 'staff-user@example.com');
         $staff->request('GET', '/kurum');
@@ -178,6 +179,7 @@ final class InstitutionWorkspaceControllerTest extends WebTestCase
         $client->request('GET', '/kurum');
         self::assertResponseStatusCodeSame(403);
 
+        self::ensureKernelShutdown();
         $pending = static::createClient();
         $this->login($pending, 'pending-owner@example.com');
         $pending->request('GET', '/kurum');
