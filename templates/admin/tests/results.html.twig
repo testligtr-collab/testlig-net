@@ -25,16 +25,14 @@
             <p>{% if search %}Aramanla eşleşen sonuç yok.{% else %}Bu test için henüz sonuç yok.{% endif %}</p>
         </div>
     {% else %}
-        <ul class="student-test-facts">
-            <li>Katılımcı: {{ summary.participants }}</li>
-            <li>Tamamlanan: {{ summary.completed }}</li>
-            <li>Devam eden: {{ summary.inProgress }}</li>
-            {% if summary.averagePercentage %}
-                <li>Ortalama yüzde: {{ summary.averagePercentage }}</li>
-                <li>En yüksek: {{ summary.highestPercentage }}</li>
-                <li>En düşük: {{ summary.lowestPercentage }}</li>
-            {% endif %}
-        </ul>
+    <section class="admin-metric-grid" aria-label="Sonuç özeti">
+        <div class="admin-metric"><p class="admin-metric__label">Katılımcı</p><p class="admin-metric__value">{{ summary.participants }}</p></div>
+        <div class="admin-metric"><p class="admin-metric__label">Tamamlanan</p><p class="admin-metric__value">{{ summary.completed }}</p></div>
+        <div class="admin-metric"><p class="admin-metric__label">Devam eden</p><p class="admin-metric__value">{{ summary.inProgress }}</p></div>
+        {% if summary.averagePercentage %}
+            <div class="admin-metric"><p class="admin-metric__label">Ortalama yüzde</p><p class="admin-metric__value">{{ summary.averagePercentage }}</p></div>
+        {% endif %}
+    </section>
         {% if result.items is empty %}
             <p role="status">Bu sayfada sonuç yok.</p>
         {% endif %}

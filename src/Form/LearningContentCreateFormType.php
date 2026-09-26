@@ -7,6 +7,7 @@ namespace App\Form;
 use App\Dto\LearningContentCreateRequest;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentType;
+use App\Presentation\ContentWorkflowLabels;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
@@ -20,6 +21,11 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 final class LearningContentCreateFormType extends AbstractType
 {
+    public function __construct(
+        private readonly ContentWorkflowLabels $labels,
+    ) {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var array<string, string> $subjectChoices */
@@ -29,7 +35,8 @@ final class LearningContentCreateFormType extends AbstractType
 
         $builder
             ->add('code', TextType::class, [
-                'label' => 'Kod',
+                'label' => 'Kısa kod',
+                'help' => 'Öğrenci bu kodu görmez. Kısa ve anlaşılır bir kod yazın.',
                 'attr' => ['maxlength' => 64],
             ])
             ->add('title', TextType::class, [
@@ -44,7 +51,7 @@ final class LearningContentCreateFormType extends AbstractType
             ->add('contentType', EnumType::class, [
                 'class' => LearningContentType::class,
                 'label' => 'İçerik türü',
-                'choice_label' => static fn (LearningContentType $t): string => $t->value,
+                'choice_label' => fn (LearningContentType $type): string => $this->labels->label('type', $type->value),
             ])
             ->add('gradeLevel', EnumType::class, [
                 'class' => GradeLevel::class,
@@ -52,7 +59,7 @@ final class LearningContentCreateFormType extends AbstractType
                 'choice_label' => static fn (GradeLevel $g): string => \sprintf('%d. sınıf', $g->value),
             ])
             ->add('subjectId', ChoiceType::class, [
-                'label' => 'Canonical konu alanı',
+                'label' => 'Ders',
                 'choices' => $subjectChoices,
                 'placeholder' => 'Seçin…',
             ])

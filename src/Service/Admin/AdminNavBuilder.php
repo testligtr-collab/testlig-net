@@ -42,8 +42,10 @@ final class AdminNavBuilder
 
         $items = [];
         if ($canShell) {
-            $items[] = $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath);
+            $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_admin_dashboard', $currentPath);
             $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
+        } elseif ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
+            $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_account', $currentPath);
         }
 
         if ($canUsers) {
@@ -77,6 +79,8 @@ final class AdminNavBuilder
         if ($canAudit) {
             $items[] = $this->item('audit', 'Denetim', 'app_admin_audit', $currentPath);
         }
+
+        $items[] = $this->item('account', 'Hesabım', 'app_account', $currentPath);
 
         return [
             'nav_items' => $items,

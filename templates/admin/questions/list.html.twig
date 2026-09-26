@@ -9,30 +9,30 @@
     <div class="admin-page-header">
         <h1 class="panel-greeting">Sorular</h1>
         {% if can_author %}
-            <a class="btn btn--primary" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
+            <a class="btn btn--cta" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
         {% endif %}
     </div>
 
     {% if questions is empty %}
-        <p>Henüz soru yok.</p>
+        {% include 'components/empty_state.html.twig' with { title: 'Soru yok', body: 'Henüz görebildiğiniz bir soru yok.' } %}
     {% else %}
-        <div class="table-wrap">
-            <table>
+        <div class="admin-table-wrap">
+            <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Kod</th>
                         <th>Ders</th>
                         <th>Sınıf</th>
                         <th>Durum</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for question in questions %}
                         <tr>
-                            <td><a href="{{ path('app_admin_question_show', {id: question.id.toRfc4122}) }}">{{ question.code }}</a></td>
                             <td>{{ question.subject.name }}</td>
                             <td>{{ question.gradeLevel.value }}. sınıf</td>
-                            <td>{{ status_labels[question.status.value] }}</td>
+                            <td><span class="ws-badge">{{ status_labels[question.status.value] }}</span></td>
+                            <td><a href="{{ path('app_admin_question_show', {id: question.id.toRfc4122}) }}">Görüntüle</a></td>
                         </tr>
                     {% endfor %}
                 </tbody>
