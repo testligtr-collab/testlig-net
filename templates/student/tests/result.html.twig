@@ -1,10 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Sonuç — Testlig{% endblock %}
-{% block body_class %}is-student-surface{% endblock %}
 
-{% block body %}
-<section class="page student-catalog">
+{% block student_content %}
+<section class="student-catalog">
     <nav class="student-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_student_tests') }}">Testler</a>
         <span aria-hidden="true">/</span>
@@ -15,18 +14,25 @@
         <p role="status">Sonuç gösterilemiyor.</p>
     {% else %}
         <h1>{{ result.title }}</h1>
-        <ul class="student-test-facts">
-            <li>Toplam soru: {{ result.questions|length }}</li>
-            <li>Doğru: {{ result.correct }}</li>
-            <li>Yanlış: {{ result.incorrect }}</li>
-            <li>Boş: {{ result.unanswered }}</li>
-            <li>Kazanılan puan: {{ result.earned }}</li>
-            <li>Toplam puan: {{ result.total }}</li>
-            <li>Yüzde: {{ result.percentage }}</li>
+        <p class="student-score">{{ result.earned }} / {{ result.total }}</p>
+        <p class="student-score__note">Yüzde: {{ result.percentage }}</p>
+        <ul class="student-metrics">
+            <li>
+                <span>Doğru</span>
+                <strong>{{ result.correct }}</strong>
+            </li>
+            <li>
+                <span>Yanlış</span>
+                <strong>{{ result.incorrect }}</strong>
+            </li>
+            <li>
+                <span>Boş</span>
+                <strong>{{ result.unanswered }}</strong>
+            </li>
         </ul>
         <ol class="student-test-review">
             {% for question in result.questions %}
-                <li>
+                <li class="student-review-item">
                     <h2>Soru {{ question.position }}</h2>
                     {% for line in question.stem %}
                         <p>{{ line }}</p>

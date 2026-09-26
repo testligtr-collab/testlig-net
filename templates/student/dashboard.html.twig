@@ -1,20 +1,19 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Öğrenci Paneli — Testlig{% endblock %}
 
-{% block body_class %}is-student-surface{% endblock %}
-
-{% block body %}
-<section class="page student-dashboard">
+{% block student_content %}
+<section class="student-dashboard">
     <header class="student-dashboard__header">
         <h1 class="panel-greeting">Merhaba, {{ user.firstName }}</h1>
-        <p class="muted">{{ profile.gradeLevel.value }}. sınıf</p>
+        <p class="student-grade">{{ profile.gradeLevel.value }}. sınıf</p>
     </header>
 
     <section class="student-section" aria-labelledby="continue-heading">
         <h2 id="continue-heading">Öğrenmeye devam et</h2>
         <div class="empty-state" role="status">
             <p>Henüz başladığın bir çalışma yok.</p>
+            <p class="muted">Yayımlanan ders ve testler burada görünecek.</p>
         </div>
     </section>
 
@@ -22,20 +21,20 @@
         <h2 id="quick-heading">Hızlı erişim</h2>
         <ul class="student-quick-links">
             {% for link in quickLinks %}
-                <li>
-                    {% if link.soon or link.href is null %}
-                        <span class="student-quick-card student-quick-card--soon" aria-disabled="true">
-                            <span class="student-quick-card__label">{{ link.label }}</span>
-                            <span class="student-badge">Yakında</span>
-                        </span>
-                    {% else %}
+                {% if not link.soon and link.href %}
+                    <li>
                         <a class="student-quick-card" href="{{ link.href }}">
                             <span class="student-quick-card__label">{{ link.label }}</span>
                         </a>
-                    {% endif %}
-                </li>
+                    </li>
+                {% endif %}
             {% endfor %}
         </ul>
+        {% for link in quickLinks %}
+            {% if link.soon or link.href is null %}
+                <p class="student-soon">{{ link.label }} · <span class="student-badge">Yakında</span></p>
+            {% endif %}
+        {% endfor %}
     </section>
 
     <p class="student-dashboard__actions">

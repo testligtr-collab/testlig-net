@@ -1,11 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Kurulum — Öğrenci — Testlig{% endblock %}
 
-{% block body_class %}is-student-surface{% endblock %}
-
-{% block body %}
-<section class="page student-setup">
+{% block student_content %}
+<section class="student-form-card">
     <h1>Seni biraz tanıyalım</h1>
     <p class="muted">İçerikleri sana uygun hazırlayabilmemiz için birkaç bilgi seç.</p>
 
@@ -36,7 +34,7 @@
             {{ form_errors(form.learningGoal) }}
         </div>
 
-        <button type="submit" class="btn btn--primary">Profilimi tamamla</button>
+        <button type="submit" class="btn btn--cta">Profilimi tamamla</button>
     {{ form_end(form) }}
 </section>
 {% endblock %}

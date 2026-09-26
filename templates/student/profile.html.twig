@@ -1,12 +1,14 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Profilim — Öğrenci — Testlig{% endblock %}
 
-{% block body_class %}is-student-surface{% endblock %}
-
-{% block body %}
-<section class="page student-setup">
-    <p class="eyebrow"><a href="{{ path('app_student_dashboard') }}">← Öğrenci paneli</a></p>
+{% block student_content %}
+<section class="student-form-card">
+    <nav class="student-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_student_dashboard') }}">Panel</a>
+        <span aria-hidden="true">/</span>
+        <span>Profil</span>
+    </nav>
     <h1>Profilim</h1>
     <p class="muted">Sınıf ve öğrenme bilgilerini buradan güncelleyebilirsin. E-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
 
@@ -37,7 +39,7 @@
             {{ form_errors(form.learningGoal) }}
         </div>
 
-        <button type="submit" class="btn btn--primary">Kaydet</button>
+        <button type="submit" class="btn btn--cta">Kaydet</button>
     {{ form_end(form) }}
 </section>
 {% endblock %}

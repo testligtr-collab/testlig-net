@@ -55,6 +55,13 @@ final class StudentOnboardingFlowTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Yakında');
         self::assertSelectorNotExists('body:contains("%")');
         self::assertSelectorNotExists('body:contains("rozet")');
+        self::assertSelectorExists('a[href="/ogrenci"][aria-current="page"]');
+        self::assertSelectorExists('a[href="/ogrenci/dersler"]');
+        self::assertSelectorExists('a[href="/ogrenci/testler"]');
+        self::assertSelectorExists('a[href="/ogrenci/testler/gecmisim"]');
+        self::assertSelectorExists('a[href="/ogrenci/profil"]');
+        self::assertSelectorExists('a[href="/hesabim"]');
+        self::assertSelectorExists('form[action="/cikis"] input[name="_csrf_token"]');
 
         $client->request('GET', '/ogrenci/kurulum');
         self::assertResponseRedirects('/ogrenci');

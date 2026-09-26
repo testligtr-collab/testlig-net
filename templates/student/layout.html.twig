@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block site_chrome %}
+    {% include 'student/_header.html.twig' %}
+{% endblock %}
+
+{% block site_footer %}
+    {% include 'student/_footer.html.twig' %}
+{% endblock %}
+
+{% block body %}
+    <div class="student-page">
+        {% block student_content %}{% endblock %}
+    </div>
+{% endblock %}

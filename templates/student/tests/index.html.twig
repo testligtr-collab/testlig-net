@@ -1,10 +1,9 @@
-{% extends 'base.html.twig' %}
+{% extends 'student/layout.html.twig' %}
 
 {% block title %}Testler — Testlig{% endblock %}
-{% block body_class %}is-student-surface{% endblock %}
 
-{% block body %}
-<section class="page student-catalog">
+{% block student_content %}
+<section class="student-catalog">
     <nav class="student-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_student_dashboard') }}">Panel</a>
         <span aria-hidden="true">/</span>
@@ -21,14 +20,22 @@
     {% else %}
         <ul class="student-catalog-grid">
             {% for test in tests %}
+                {% if test.state == 'done' %}
+                    {% set testHref = path('app_student_test_result', {code: test.code}) %}
+                    {% set testCta = 'Sonucu gör' %}
+                {% elseif test.state == 'resume' %}
+                    {% set testHref = path('app_student_test_solve', {code: test.code}) %}
+                    {% set testCta = 'Devam et' %}
+                {% else %}
+                    {% set testHref = path('app_student_test_show', {code: test.code}) %}
+                    {% set testCta = 'Teste başla' %}
+                {% endif %}
                 <li>
-                    <a class="student-catalog-card" href="{{ path('app_student_test_show', {code: test.code}) }}">
+                    <a class="student-catalog-card" href="{{ testHref }}">
                         <span class="student-catalog-card__title">{{ test.title }}</span>
                         <span class="student-catalog-card__meta muted">{{ test.subject }}</span>
                         <span class="student-catalog-card__meta">{{ test.question_count }} soru · {{ test.duration_label }}</span>
-                        <span class="student-test-state">
-                            {% if test.state == 'resume' %}Devam et{% elseif test.state == 'done' %}Tamamlandı{% else %}Başla{% endif %}
-                        </span>
+                        <span class="student-test-state">{{ testCta }}</span>
                     </a>
                 </li>
             {% endfor %}
