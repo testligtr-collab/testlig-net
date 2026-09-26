@@ -119,18 +119,21 @@ final class StudentTestHistoryQuery
         if ([] === $attempts) {
             return [];
         }
-        $runs = $this->entityManager->createQueryBuilder()
+        $qb = $this->entityManager->createQueryBuilder()
             ->select('run', 'attempt')
             ->from(AssessmentScoringRun::class, 'run')
             ->innerJoin('run.attempt', 'attempt')
-            ->andWhere('attempt.id IN (:attemptIds)')
             ->andWhere('run.status = :completed')
-            ->setParameter('attemptIds', array_map(
-                static fn (AssessmentAttempt $attempt): \Symfony\Component\Uid\Uuid => $attempt->getId(),
-                $attempts,
-            ), 'uuid')
             ->setParameter('completed', ScoringRunStatus::Completed)
-            ->orderBy('run.runNumber', 'DESC')
+            ->orderBy('run.runNumber', 'DESC');
+        $clauses = [];
+        foreach ($attempts as $index => $attempt) {
+            $name = 'attemptId'.$index;
+            $clauses[] = 'attempt.id = :'.$name;
+            $qb->setParameter($name, $attempt->getId(), 'uuid');
+        }
+        $runs = $qb
+            ->andWhere(implode(' OR ', $clauses))
             ->getQuery()
             ->getResult();
 
