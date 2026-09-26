@@ -9,6 +9,7 @@ use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
+use App\Enum\InstitutionStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -85,6 +86,43 @@ class InstitutionMembershipRepository extends ServiceEntityRepository
             ->getResult();
 
         return $rows;
+    }
+
+    /**
+     * Active owner/manager rows on active institutions for one user.
+     *
+     * @return list<InstitutionMembership>
+     */
+    public function findActiveLeadership(User $user): array
+    {
+        /** @var list<InstitutionMembership> $rows */
+        $rows = $this->createQueryBuilder('m')
+            ->addSelect('i')
+            ->innerJoin('m.institution', 'i')
+            ->andWhere('m.user = :user')
+            ->andWhere('m.status = :membershipStatus')
+            ->andWhere('m.role IN (:roles)')
+            ->andWhere('i.status = :institutionStatus')
+            ->setParameter('user', $user->getId(), 'uuid')
+            ->setParameter('membershipStatus', InstitutionMembershipStatus::Active)
+            ->setParameter('roles', [InstitutionMembershipRole::Owner, InstitutionMembershipRole::Manager])
+            ->setParameter('institutionStatus', InstitutionStatus::Active)
+            ->orderBy('i.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    public function hasAnyMembership(User $user): bool
+    {
+        return null !== $this->createQueryBuilder('m')
+            ->select('1')
+            ->andWhere('m.user = :user')
+            ->setParameter('user', $user->getId(), 'uuid')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 
     public function save(InstitutionMembership $membership, bool $flush = true): void

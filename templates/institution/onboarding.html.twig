@@ -1,0 +1,25 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Kurum erişimi — Testlig{% endblock %}
+
+{% block body_class %}is-student-surface{% endblock %}
+
+{% block stylesheets %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block body %}
+<div class="student-page">
+    <section class="student-form-card">
+        <h1>Kurum erişiminiz bulunmuyor</h1>
+        {% if application_message %}
+            <p>{{ application_message }}</p>
+        {% else %}
+            <p>Aktif bir kurum üyeliği açıldığında burası kendi kurumunuzun çalışma alanı olur.</p>
+        {% endif %}
+        <p><a class="btn btn--cta" href="{{ path('app_institution_application') }}">Kurum başvurusu</a></p>
+        <p><a href="{{ path('app_home') }}">Ana sayfa</a></p>
+    </section>
+</div>
+{% endblock %}

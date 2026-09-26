@@ -1,0 +1,14 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Kurum testi — Testlig{% endblock %}
+
+{% block institution_content %}
+<article class="student-form-card">
+    <h1>{{ test.title }}</h1>
+    <p>{{ test.gradeLabel }} · {{ test.statusLabel }}</p>
+    <p>Soru sayısı: {{ test.itemCount }}</p>
+    <p>Yayın: {{ test.publishedAtLabel|default('—') }}</p>
+    <p>Teslimat: {{ test.deliveryLabel|default('—') }}</p>
+    <p><a href="{{ path('app_institution_tests') }}">Test listesine dön</a></p>
+</article>
+{% endblock %}

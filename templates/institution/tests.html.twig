@@ -1,0 +1,39 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Kurum testleri — Testlig{% endblock %}
+
+{% block institution_content %}
+<section>
+    <h1>Kurum testleri</h1>
+    {% if tests is empty %}
+        <p class="student-form-card">Henüz kurum testi yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Seviye</th>
+                        <th>Durum</th>
+                        <th>Soru</th>
+                        <th>Yayın</th>
+                        <th>Teslimat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for test in tests %}
+                        <tr>
+                            <td data-label="Test"><a href="{{ path('app_institution_test', {reference: test.reference}) }}">{{ test.title }}</a></td>
+                            <td data-label="Seviye">{{ test.gradeLabel }}</td>
+                            <td data-label="Durum">{{ test.statusLabel }}</td>
+                            <td data-label="Soru">{{ test.itemCount }}</td>
+                            <td data-label="Yayın">{{ test.publishedAtLabel|default('—') }}</td>
+                            <td data-label="Teslimat">{{ test.deliveryLabel|default('—') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Kurum — Testlig{% endblock %}
+
+{% block institution_content %}
+<section class="student-form-card">
+    <h1>{{ overview.institutionName }}</h1>
+    <p>{{ role_label }} · {{ overview.statusLabel }}</p>
+    <p class="muted">{{ overview.typeLabel }} · Oluşturulma {{ overview.createdAtLabel }}</p>
+    {% if overview.canSwitch %}
+        <h2>Kurum değiştir</h2>
+        {% for option in options %}
+            <form method="post" action="{{ path('app_institution_context') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_context') }}">
+                <input type="hidden" name="reference" value="{{ option.reference }}">
+                <button type="submit" class="btn">{{ option.institutionName }} · {{ option.roleLabel }}</button>
+            </form>
+        {% endfor %}
+    {% endif %}
+</section>
+<section aria-labelledby="institution-summary-title">
+    <h2 id="institution-summary-title">Özet</h2>
+    <div class="student-card-grid">
+        <article class="student-form-card"><h3>Aktif öğretmen</h3><p>{{ overview.activeTeacherCount }}</p></article>
+        <article class="student-form-card"><h3>Aktif öğrenci</h3><p>{{ overview.activeStudentCount }}</p></article>
+        <article class="student-form-card"><h3>Sınıf</h3><p>{{ overview.classroomCount }}</p></article>
+        <article class="student-form-card"><h3>Yayımlanmış kurum testi</h3><p>{{ overview.publishedTestCount }}</p></article>
+        <article class="student-form-card"><h3>Devam eden teslimat</h3><p>{{ overview.activeDeliveryCount }}</p></article>
+    </div>
+</section>
+{% endblock %}
