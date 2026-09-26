@@ -271,16 +271,20 @@ final class AssessmentResultReportQuery
             ->select('run', 'attempt')
             ->from(AssessmentScoringRun::class, 'run')
             ->innerJoin('run.attempt', 'attempt')
-            ->andWhere('run.attempt IN (:attempts)')
+            ->andWhere('attempt.id IN (:attemptIds)')
             ->andWhere('run.status = :completed')
-            ->setParameter('attempts', $attempts)
+            ->setParameter('attemptIds', array_map(
+                static fn (AssessmentAttempt $attempt): \Symfony\Component\Uid\Uuid => $attempt->getId(),
+                $attempts,
+            ), 'uuid')
             ->setParameter('completed', ScoringRunStatus::Completed)
             ->orderBy('run.runNumber', 'DESC')
             ->getQuery()
             ->getResult();
 
         $latest = [];
-        foreach ($runs as $run) {
+        foreach ($runs as $row) {
+            $run = $this->runFrom($row);
             if (!$run instanceof AssessmentScoringRun) {
                 continue;
             }
@@ -312,6 +316,23 @@ final class AssessmentResultReportQuery
             $scored ? $run->getMaximumPoints() : null,
             $scored ? $run->getPercentage() : null,
         );
+    }
+
+    private function runFrom(mixed $row): ?AssessmentScoringRun
+    {
+        if ($row instanceof AssessmentScoringRun) {
+            return $row;
+        }
+        if (!\is_array($row)) {
+            return null;
+        }
+        foreach ($row as $part) {
+            if ($part instanceof AssessmentScoringRun) {
+                return $part;
+            }
+        }
+
+        return null;
     }
 
     private function statusLabel(AssessmentAttemptStatus $status): string
