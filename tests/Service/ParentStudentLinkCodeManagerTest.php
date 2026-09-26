@@ -227,15 +227,19 @@ final class ParentStudentLinkCodeManagerTest extends KernelTestCase
     private function verifiedUser(string $email, UserRole $role): User
     {
         $unique = str_replace('@', '+'.bin2hex(random_bytes(3)).'@', $email);
+        $initial = $role->isPrivilegedBootstrapRole() ? UserRole::Teacher : $role;
         $user = $this->userFactory->createAndPersist(
             email: $unique,
             plainPassword: 'Password1!',
             firstName: 'Test',
             lastName: 'User',
-            initialRole: $role,
+            initialRole: $initial,
         );
         $user->markEmailVerified();
         $user->transitionTo(UserStatus::Active);
+        if ($initial !== $role) {
+            $user->addGlobalRole($role);
+        }
         $this->em->flush();
 
         return $user;

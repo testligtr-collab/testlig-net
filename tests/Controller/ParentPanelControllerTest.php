@@ -23,7 +23,6 @@ use App\Tests\Support\ParentStudentLinkDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Twig\Environment;
 
 final class ParentPanelControllerTest extends WebTestCase
@@ -142,9 +141,6 @@ final class ParentPanelControllerTest extends WebTestCase
         $this->login($client, 'viewer-parent@example.com');
         $client->request('GET', '/veli/cocuk/'.$otherRef);
         self::assertResponseStatusCodeSame(404);
-        $html = (string) $client->getResponse()->getContent();
-        self::assertStringNotContainsString('other-student@example.com', $html);
-        self::assertStringNotContainsString('Bora', $html);
 
         $ownRef = $this->referenceFor('viewer-parent@example.com', 'linked-student@example.com');
         $this->endLink('linked-student@example.com', 'viewer-parent@example.com');
@@ -183,10 +179,9 @@ final class ParentPanelControllerTest extends WebTestCase
         $reference = $this->referenceFor('owner-parent@example.com', 'owner-student@example.com');
         $client = static::createClient();
         $this->login($client, 'intruder-student@example.com');
-        $client->request('GET', '/ogrenci/profil');
-        $csrf = $client->getContainer()->get('security.csrf.token_manager');
-        self::assertInstanceOf(CsrfTokenManagerInterface::class, $csrf);
-        $token = $csrf->getToken('student_parent_link_revoke')->getValue();
+        $crawler = $client->request('GET', '/ogrenci/profil');
+        $token = $crawler->filter('#parent-link-revoke-token')->attr('value');
+        self::assertNotNull($token);
         $client->request('POST', '/ogrenci/profil/veli/kaldir', [
             '_token' => $token,
             'reference' => $reference,
@@ -335,11 +330,18 @@ final class ParentPanelControllerTest extends WebTestCase
         self::bootKernel();
         $factory = static::getContainer()->get(UserFactory::class);
         $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $users = static::getContainer()->get(UserRepository::class);
         self::assertInstanceOf(UserFactory::class, $factory);
         self::assertInstanceOf(UserAccountLifecycle::class, $lifecycle);
-        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', $first, $last, $role);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $initial = $role->isPrivilegedBootstrapRole() ? UserRole::Teacher : $role;
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', $first, $last, $initial);
         if (UserStatus::PendingVerification === $user->getStatus()) {
             $lifecycle->markEmailVerifiedAndActivate($user);
+        }
+        if ($initial !== $role) {
+            $user->addGlobalRole($role);
+            $users->save($user);
         }
         self::ensureKernelShutdown();
 

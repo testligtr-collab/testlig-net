@@ -208,13 +208,13 @@ final class ParentStudentLinkCodeManager
                 throw ParentStudentLinkException::codeRejected();
             }
 
-            if ($this->links->countVerifiedForStudent($studentId) >= self::MAX_ACTIVE_PARENTS) {
-                throw ParentStudentLinkException::parentLimitReached();
-            }
             if (null !== $this->guards->findForPair($parentId, $studentId)) {
                 $code->consume($now);
 
                 return 'duplicate';
+            }
+            if ($this->links->countVerifiedForStudent($studentId) >= self::MAX_ACTIVE_PARENTS) {
+                throw ParentStudentLinkException::parentLimitReached();
             }
 
             $link = ParentStudentLink::createPending(

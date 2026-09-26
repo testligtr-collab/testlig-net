@@ -46,6 +46,7 @@
 <section class="student-form-card" id="velilerim">
     <h2>Velilerim</h2>
     <p class="muted">Bağlantı kodu 15 dakika geçerlidir ve yalnız bir kez kullanılabilir. Kodu veliye uygulama dışında ilet. E-posta gösterilmez.</p>
+    <input type="hidden" id="parent-link-revoke-token" value="{{ csrf_token('student_parent_link_revoke') }}">
 
     {% if issued_parent_code %}
         <div class="form-row">
