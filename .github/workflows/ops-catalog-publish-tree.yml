@@ -93,6 +93,15 @@ jobs:
             echo "mat_grade1_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1 AND t.status = 'published'")"
             echo "catalog_topic_lessons=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topic_lessons")"
             echo "learning_contents=$(sql_count "SELECT COUNT(*) AS c FROM learning_contents")"
+            echo "questions=$(sql_count "SELECT COUNT(*) AS c FROM questions")"
+            echo "assessments=$(sql_count "SELECT COUNT(*) AS c FROM assessments")"
+            echo "assessment_items=$(sql_count "SELECT COUNT(*) AS c FROM assessment_items")"
+            echo "attempts=$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempts")"
+            echo "attempt_answers=$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempt_answers")"
+            echo "users=$(sql_count "SELECT COUNT(*) AS c FROM users")"
+            echo "parent_student_links=$(sql_count "SELECT COUNT(*) AS c FROM parent_student_links")"
+            echo "parent_student_link_codes=$(sql_count "SELECT COUNT(*) AS c FROM parent_student_link_codes")"
+            echo "parent_link_guards=$(sql_count "SELECT COUNT(*) AS c FROM parent_student_link_active_guards")"
             # Local health (OpenLiteSpeed / virtual host). Prefer Host header; fall back to plain loopback.
             set +e
             hl=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/health 2>/dev/null)
@@ -103,6 +112,7 @@ jobs:
             set -e
             echo "health_local=${hl}"
             echo "dersler_anon=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/ogrenci/dersler 2>/dev/null || echo err)"
+            echo "veli_anon=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/veli 2>/dev/null || echo err)"
             exit 0
           fi
 
@@ -131,7 +141,16 @@ jobs:
           set -euo pipefail
           health=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/health || echo err)
           dersler=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/ogrenci/dersler || echo err)
+          veli=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/veli || echo err)
+          home=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/ || echo err)
+          giris=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/giris || echo err)
           echo "health_external=${health}"
           echo "dersler_external=${dersler}"
+          echo "veli_external=${veli}"
+          echo "home=${home}"
+          echo "giris=${giris}"
           test "${health}" = "403"
           test "${dersler}" = "302"
+          test "${veli}" = "302"
+          test "${home}" = "200"
+          test "${giris}" = "200"
