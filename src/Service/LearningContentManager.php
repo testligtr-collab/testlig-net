@@ -87,6 +87,7 @@ final class LearningContentManager
         private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly LearningDocumentManager $learningDocuments,
     ) {
     }
 
@@ -593,6 +594,7 @@ final class LearningContentManager
                 $this->assertContentHashMatchesRevision($revision);
                 $this->assertPublishableAlignments($revision, $lockedContent);
                 $this->assertPublishableReferencedAssets($revision, $lockedContent);
+                $this->learningDocuments->assertReadyAssets($revision);
 
                 $userIds = $this->uniqueSortedIds([
                     $actorId,

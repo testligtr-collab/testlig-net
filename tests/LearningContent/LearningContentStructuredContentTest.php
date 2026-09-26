@@ -105,4 +105,47 @@ final class LearningContentStructuredContentTest extends TestCase
         self::assertNotSame($hashA, $hashB);
         self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $hashA);
     }
+
+    public function testAcceptsVideoAndDocumentBlocks(): void
+    {
+        $doc = LearningContentDocument::fromArray([
+            'schemaVersion' => 1,
+            'blocks' => [
+                [
+                    'type' => 'video',
+                    'provider' => 'youtube',
+                    'providerVideoId' => 'dQw4w9WgXcQ',
+                    'title' => 'Video',
+                    'description' => '',
+                ],
+                [
+                    'type' => 'document',
+                    'assetId' => '018f0000-0000-7000-8000-000000000099',
+                    'label' => 'PDF ac',
+                ],
+            ],
+        ]);
+
+        $this->validator->validate($doc);
+        self::assertCount(2, $doc->blocks);
+    }
+
+    public function testRejectsVideoInsideCalloutAndHtmlVideo(): void
+    {
+        $this->expectException(LearningContentException::class);
+        $this->validator->validate(LearningContentDocument::fromArray([
+            'schemaVersion' => 1,
+            'blocks' => [[
+                'type' => 'callout',
+                'variant' => 'info',
+                'blocks' => [[
+                    'type' => 'video',
+                    'provider' => 'youtube',
+                    'providerVideoId' => 'dQw4w9WgXcQ',
+                    'title' => '',
+                    'description' => '',
+                ]],
+            ]],
+        ]));
+    }
 }

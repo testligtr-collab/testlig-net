@@ -241,7 +241,8 @@ docker compose exec -e ALLOW_SUPER_ADMIN_BOOTSTRAP=1 app php bin/console app:use
 - Platform auth: Admin publish; Moderator return-draft only; Teacher no publish. Free access only via explicit `LearningContentAccessPolicy` (gate remains fail-closed by default).
 - Catalog bridge: `CatalogTopicLesson` placements + nullable `CatalogSubject.canonical_subject_id` (UUID FK; no name/slug inference).
 - AccessGate fail-closed: published içerik entitlement gate’e delege eder (free policy veya lisans). Review separation zorunlu.
-- Gerçek upload/storage SDK/ödeme/AI yok. Öğrenci topic sayfası typed block renderer (Twig autoescape). Admin revision editor: typed block form (heading/paragraph/list/callout/quote/math). Migration: `Version20260912120000`. Detay: `docs/architecture-learning-content.md`.
+- Gerçek CDN/S3 upload SDK, ödeme ve AI yok. Öğrenci topic sayfası typed block renderer (Twig autoescape). Admin revision editor: typed block form (heading/paragraph/list/callout/quote/math) plus YouTube/Vimeo URL blocks and PDF documents. Migration: `Version20260912120000` (content) and `Version20260926153000` (`learning_document_assets`).
+- Video V1 stores only an allowlisted provider and video id (YouTube, Vimeo). The server does not fetch the URL. PDF files stay outside the public web root and start as `pending`. There is no antivirus scanner, so a file is not treated as scanned. Only SuperAdmin or Admin can mark a PDF `ready`. A teacher can upload a pending PDF on their own draft and cannot approve it. Unpublished files cannot be attached or published. `StoredMediaAsset` remains the older metadata registry and is not used for these blocks. Detay: `docs/architecture-learning-content.md`.
 
 ### Access package / license / entitlement (Aşama 2.16)
 

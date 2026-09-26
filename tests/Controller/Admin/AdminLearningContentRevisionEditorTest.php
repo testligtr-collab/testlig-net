@@ -29,6 +29,7 @@ use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
 final class AdminLearningContentRevisionEditorTest extends WebTestCase
@@ -296,6 +297,156 @@ final class AdminLearningContentRevisionEditorTest extends WebTestCase
             self::assertStringNotContainsString('"schemaVersion"', $html);
             self::assertStringNotContainsString('structured_content', $html);
         }
+    }
+
+    public function testTeacherCannotApprovePdfAndAdminCanAttachVideoWithoutEmbed(): void
+    {
+        $contentId = $this->createDraftContent('lc_pdf', 'PDF Video', 'lc-teacher-pdf@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'lc-teacher-pdf@example.com');
+        $base = '/yonetim/icerikler/'.$contentId->toRfc4122();
+        [$token, $revisionId, $hash] = $this->revisionFields($client, $contentId);
+
+        $client->request('POST', $base.'/revision/pdf', ['_token' => $token], [
+            'pdf' => $this->uploadedFile('<html>nope</html>', 'notes.pdf'),
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Yalnız PDF doküman kabul edilir.');
+
+        [$token, $revisionId, $hash] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/pdf', ['_token' => $token], [
+            'pdf' => $this->uploadedFile("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n", 'Notlar.pdf'),
+        ]);
+        self::assertResponseRedirects();
+        $crawler = $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Onay bekliyor');
+        $preview = $crawler->filter('a[href*="dokuman-onizleme"]')->attr('href');
+        self::assertNotNull($preview);
+        $handle = basename($preview);
+        self::assertSame(64, \strlen($handle));
+
+        $client->request('GET', $preview);
+        self::assertResponseIsSuccessful();
+        self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        $cache = $client->getResponse()->headers->get('Cache-Control') ?? '';
+        self::assertStringContainsString('no-store', $cache);
+        self::assertStringContainsString('private', $cache);
+
+        [$token] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/pdf-onay', [
+            '_token' => $token,
+            'handle' => $handle,
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'PDF onayını yalnız yönetici verebilir.');
+
+        [$token, $revisionId, $hash] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/video', [
+            '_token' => $token,
+            'expected_revision_id' => $revisionId,
+            'expected_content_hash' => $hash,
+            'video_url' => '<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"></iframe>',
+            'title' => 'Kotu',
+            'description' => '',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'YouTube veya Vimeo');
+
+        [$token, $revisionId, $hash] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/video', [
+            '_token' => $token,
+            'expected_revision_id' => $revisionId,
+            'expected_content_hash' => $hash,
+            'video_url' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'title' => 'Konu videosu',
+            'description' => 'Kisa aciklama',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $html = $client->getResponse()->getContent() ?: '';
+        self::assertStringContainsString('Konu videosu', $html);
+        self::assertStringNotContainsString('watch?v=', $html);
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString('learning-documents', $html);
+
+        $this->createPrivileged('lc-admin-pdf@example.com', UserRole::Admin);
+        $client = $this->newClient();
+        $this->login($client, 'lc-admin-pdf@example.com');
+        [$token] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/pdf-onay', [
+            '_token' => $token,
+            'handle' => $handle,
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'PDF kullanıma hazır');
+
+        [$token, $revisionId, $hash] = $this->revisionFields($client, $contentId);
+        $client->request('POST', $base.'/revision/pdf-ekle', [
+            '_token' => $token,
+            'expected_revision_id' => $revisionId,
+            'expected_content_hash' => $hash,
+            'handle' => $handle,
+            'label' => 'Calisma kagidi',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Calisma kagidi');
+        self::assertStringNotContainsString('storageKey', $client->getResponse()->getContent() ?: '');
+
+        $client->request('GET', $base.'/dokuman/2');
+        self::assertResponseIsSuccessful();
+        self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+
+        $this->sealCurrent($contentId, 'lc-teacher-pdf@example.com');
+        $client = $this->newClient();
+        $this->login($client, 'lc-teacher-pdf@example.com');
+        $crawler = $client->request('GET', $base.'/revision');
+        self::assertResponseIsSuccessful();
+        $sealedToken = $crawler->filter('input[name="_token"]')->attr('value');
+        self::assertNotNull($sealedToken);
+        $client->request('POST', $base.'/revision/video', [
+            '_token' => $sealedToken,
+            'expected_revision_id' => $revisionId,
+            'expected_content_hash' => $hash,
+            'video_url' => 'https://vimeo.com/123456789',
+            'title' => 'Yeni',
+            'description' => '',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Mühürlü sürüm değiştirilemez');
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: string}
+     */
+    private function revisionFields(KernelBrowser $client, Uuid $contentId): array
+    {
+        $crawler = $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122().'/revision');
+        self::assertResponseIsSuccessful();
+        $token = $crawler->filter('input[name="_token"]')->attr('value');
+        $revisionId = $crawler->filter('input[name="expected_revision_id"]')->attr('value');
+        $hash = $crawler->filter('input[name="expected_content_hash"]')->attr('value');
+        self::assertNotNull($token);
+        self::assertNotNull($revisionId);
+        self::assertNotNull($hash);
+
+        return [$token, $revisionId, $hash];
+    }
+
+    private function uploadedFile(string $bytes, string $name): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pdf');
+        self::assertNotFalse($path);
+        file_put_contents($path, $bytes);
+
+        return new UploadedFile($path, $name, 'application/pdf', \UPLOAD_ERR_OK, true);
     }
 
     private function createDraftContent(string $code, string $title, string $email, UserRole $role = UserRole::Admin): Uuid

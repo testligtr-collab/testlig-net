@@ -28,6 +28,9 @@ final class LearningContentDbCleanup
         if ($schema->tablesExist(['stored_media_assets'])) {
             $connection->executeStatement('DELETE FROM stored_media_assets');
         }
+        if ($schema->tablesExist(['learning_document_assets'])) {
+            $connection->executeStatement('DELETE FROM learning_document_assets');
+        }
 
         self::assertEmpty($connection);
     }
@@ -43,6 +46,7 @@ final class LearningContentDbCleanup
             'learning_content_revisions',
             'learning_contents',
             'stored_media_assets',
+            'learning_document_assets',
         ] as $table) {
             if (!$schema->tablesExist([$table])) {
                 continue;

@@ -32,6 +32,14 @@ services:
     App\:
         resource: '../src/'
 
+    App\LearningContent\Document\LearningDocumentStorage:
+        arguments:
+            $directory: '%kernel.project_dir%/var/learning-documents'
+
+    App\Service\LearningDocumentManager:
+        arguments:
+            $appSecret: '%kernel.secret%'
+
     App\Service\CatalogPublish\CatalogPublishTreeService:
         arguments:
             $afterTopicsHook: null

@@ -15,6 +15,7 @@ use App\Enum\LearningContentType;
 use App\Enum\ResourceAccessClass;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Exception\LearningContentException;
 use App\LearningContent\Content\LearningContentDocument;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\CatalogTopicRepository;
@@ -32,6 +33,7 @@ use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\LearningContentManager;
+use App\Service\LearningDocumentManager;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
 use App\Service\UserAccountLifecycle;
@@ -42,6 +44,8 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Uid\Uuid;
 
 final class StudentTopicPageControllerTest extends WebTestCase
@@ -345,6 +349,168 @@ final class StudentTopicPageControllerTest extends WebTestCase
         self::assertStringNotContainsString('storageKey', $html);
         self::assertStringNotContainsString(self::SECRET_BODY, $html);
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $html);
+    }
+
+    public function testAnonymousDocumentRouteRedirectsToLogin(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/ogrenci/dersler/matematik/nesnelerin-geometrisi-1/uzamsal-iliskiler/adim/pdf/0');
+        self::assertResponseRedirects('/giris');
+    }
+
+    public function testPublishedVideoAndDocumentRespectAccessGateAndHeaders(): void
+    {
+        [$subjectSlug, $unitSlug, $topicSlug, $topicId] = $this->seedPublishedTopicHierarchy('med');
+        self::ensureKernelShutdown();
+        self::bootKernel();
+
+        /** @var LearningDocumentManager $documents */
+        $documents = static::getContainer()->get(LearningDocumentManager::class);
+        /** @var CatalogTopicLessonManager $placements */
+        $placements = static::getContainer()->get(CatalogTopicLessonManager::class);
+        /** @var AccessPackageManager $packages */
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+
+        $topic = $em->find(CatalogTopic::class, $topicId);
+        self::assertInstanceOf(CatalogTopic::class, $topic);
+        $canonical = $topic->getUnit()->getSubject()->getCanonicalSubject();
+        self::assertInstanceOf(Subject::class, $canonical);
+
+        $admin = $this->activeStaff('med-admin@example.com', UserRole::Admin);
+        $teacher = $this->activeStaff('med-teacher@example.com', UserRole::Teacher);
+        $sa = $this->activeStaff('med-sa@example.com', UserRole::SuperAdmin);
+
+        $open = $this->receivePdf($documents, $teacher, 'Notlar.pdf');
+        try {
+            $documents->markReady($teacher, $this->handle($open->getId()->toRfc4122()));
+            self::fail('Teacher must not approve a PDF.');
+        } catch (LearningContentException $e) {
+            self::assertStringContainsString('yalnız yönetici', $e->getMessage());
+        }
+        $documents->markReady($admin, $this->handle($open->getId()->toRfc4122()));
+
+        $closed = $this->receivePdf($documents, $teacher, 'Kapali.pdf');
+        $documents->markReady($sa, $this->handle($closed->getId()->toRfc4122()));
+
+        $visible = $this->createAndPublishContentWithDocument(
+            $admin,
+            $canonical,
+            'med_open',
+            'Acik ders',
+            LearningContentDocument::fromArray([
+                'schemaVersion' => 1,
+                'blocks' => [[
+                    'type' => 'video',
+                    'provider' => 'youtube',
+                    'providerVideoId' => 'dQw4w9WgXcQ',
+                    'title' => 'Konu videosu',
+                    'description' => 'Kisa aciklama',
+                ], [
+                    'type' => 'document',
+                    'assetId' => $open->getId()->toRfc4122(),
+                    'label' => 'Calisma kagidi',
+                ]],
+            ]),
+        );
+        $packages->setLearningContentAccessPolicy($visible, $sa, ResourceAccessClass::Free, 'set_free_med');
+        $visibleLesson = $placements->create($admin, $topic->getId(), $visible->getId(), 'Medya Adim', null, 0, 'create_med', 'medya-adim');
+        $placements->publish($admin, $visibleLesson->getId(), 'pub_med');
+
+        $hidden = $this->createAndPublishContentWithDocument(
+            $admin,
+            $canonical,
+            'med_closed',
+            'Kapali ders',
+            LearningContentDocument::fromArray([
+                'schemaVersion' => 1,
+                'blocks' => [[
+                    'type' => 'document',
+                    'assetId' => $closed->getId()->toRfc4122(),
+                    'label' => 'Kapali dokuman',
+                ], [
+                    'type' => 'video',
+                    'provider' => 'vimeo',
+                    'providerVideoId' => '123456789',
+                    'title' => 'Kapali video',
+                    'description' => '',
+                ]],
+            ]),
+        );
+        $packages->setLearningContentAccessPolicy($hidden, $sa, ResourceAccessClass::EntitlementRequired, 'set_ent_med');
+        $hiddenLesson = $placements->create($admin, $topic->getId(), $hidden->getId(), 'Kapali Adim', null, 1, 'create_closed', 'kapali-medya');
+        $placements->publish($admin, $hiddenLesson->getId(), 'pub_closed');
+        self::ensureKernelShutdown();
+
+        $student = $this->createActive('med-student@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+        $other = $this->createActive('med-other@example.com', UserRole::Student);
+        $this->completeOnboarding($other, GradeLevel::Grade5);
+
+        $client = static::createClient();
+        $this->login($client, 'med-student@example.com');
+        $topicPath = \sprintf('/ogrenci/dersler/%s/%s/%s', $subjectSlug, $unitSlug, $topicSlug);
+        $crawler = $client->request('GET', $topicPath);
+        self::assertResponseIsSuccessful();
+        $html = $client->getResponse()->getContent() ?: '';
+        self::assertStringContainsString('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', $html);
+        self::assertStringContainsString('Konu videosu', $html);
+        self::assertStringContainsString('Notlar.pdf', $html);
+        self::assertStringContainsString('PDF’yi aç', $html);
+        self::assertStringContainsString('noopener', $html);
+        self::assertStringNotContainsString('www.youtube.com/watch', $html);
+        self::assertStringNotContainsString('Kapali.pdf', $html);
+        self::assertStringNotContainsString('Kapali video', $html);
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString('learning-documents', $html);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $html);
+
+        $openLink = $crawler->filter('.student-content-document a')->attr('href');
+        self::assertNotNull($openLink);
+        $client->request('GET', $openLink);
+        self::assertResponseIsSuccessful();
+        self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        $cache = $client->getResponse()->headers->get('Cache-Control') ?? '';
+        self::assertStringContainsString('no-store', $cache);
+        self::assertStringContainsString('private', $cache);
+        $pdfResponse = $client->getResponse();
+        self::assertInstanceOf(BinaryFileResponse::class, $pdfResponse);
+        ob_start();
+        $pdfResponse->sendContent();
+        $pdfBytes = ob_get_clean();
+        self::assertIsString($pdfBytes);
+        self::assertStringStartsWith('%PDF-', $pdfBytes);
+
+        $client->request('GET', $topicPath.'/kapali-medya/pdf/0');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', $topicPath.'/medya-adim/pdf/9');
+        self::assertResponseStatusCodeSame(404);
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->login($client, 'med-other@example.com');
+        $client->request('GET', $openLink);
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    private function receivePdf(LearningDocumentManager $documents, User $actor, string $name): \App\Entity\LearningDocumentAsset
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pdf');
+        self::assertNotFalse($path);
+        file_put_contents($path, "%PDF-1.4\n".$name."\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
+        $file = new UploadedFile($path, $name, 'application/pdf', \UPLOAD_ERR_OK, true);
+
+        return $documents->receive($actor, $file);
+    }
+
+    private function handle(string $uuid): string
+    {
+        $secret = static::getContainer()->getParameter('kernel.secret');
+        self::assertIsString($secret);
+
+        return hash_hmac('sha256', $uuid, $secret);
     }
 
     /**

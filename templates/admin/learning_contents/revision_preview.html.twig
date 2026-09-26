@@ -43,6 +43,14 @@
                 </ul>
             {% elseif type == 'math' %}
                 <p><code>{{ block.latex|default('') }}</code></p>
+            {% elseif type == 'video' %}
+                <p>{{ block.title|default('Video') }}</p>
+                {% if block.description|default('') %}
+                    <p>{{ block.description }}</p>
+                {% endif %}
+            {% elseif type == 'document' %}
+                <p>{{ block.label|default('') }}</p>
+                <a href="{{ path('app_admin_learning_document', {id: content.id.toRfc4122, index: loop.index0}) }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
             {% elseif type == 'callout' %}
                 <aside class="admin-flash admin-flash--info" role="note">
                     <strong>{{ block.variant|default('info') }}</strong>

@@ -15,6 +15,8 @@ final class StudentContentBlockView
     public const TYPE_QUOTE = 'quote';
     public const TYPE_MATH = 'math';
     public const TYPE_CALLOUT = 'callout';
+    public const TYPE_VIDEO = 'video';
+    public const TYPE_DOCUMENT = 'document';
 
     public const LIST_UNORDERED = 'unordered';
     public const LIST_ORDERED = 'ordered';
@@ -32,6 +34,11 @@ final class StudentContentBlockView
         public readonly ?string $latex = null,
         public readonly ?string $variant = null,
         public readonly ?array $children = null,
+        public readonly ?string $description = null,
+        public readonly ?string $embedSrc = null,
+        public readonly ?string $fileName = null,
+        public readonly ?string $fileSizeLabel = null,
+        public readonly ?string $openPath = null,
     ) {
     }
 
@@ -69,5 +76,15 @@ final class StudentContentBlockView
     public static function callout(array $children, string $variant = 'info'): self
     {
         return new self(self::TYPE_CALLOUT, variant: $variant, children: $children);
+    }
+
+    public static function video(string $title, string $embedSrc, string $description): self
+    {
+        return new self(self::TYPE_VIDEO, text: $title, description: $description, embedSrc: $embedSrc);
+    }
+
+    public static function document(string $label, string $fileName, string $fileSizeLabel, string $openPath): self
+    {
+        return new self(self::TYPE_DOCUMENT, text: $label, fileName: $fileName, fileSizeLabel: $fileSizeLabel, openPath: $openPath);
     }
 }

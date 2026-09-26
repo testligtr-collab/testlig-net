@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\LearningContent\Content;
 
 use App\Exception\LearningContentException;
+use App\LearningContent\Document\VideoUrlParser;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -24,6 +25,8 @@ final class LearningContentDocumentValidator
         'document_reference',
         'callout',
         'interactive_reference',
+        'video',
+        'document',
     ];
 
     private const MEDIA_REFERENCE_TYPES = [
@@ -89,6 +92,8 @@ final class LearningContentDocumentValidator
             'audio_reference',
             'document_reference',
             'interactive_reference' => $this->assertMediaReference($type, $block, $keys),
+            'video' => $this->assertVideo($block, $keys, $depth, $totalChars),
+            'document' => $this->assertDocument($block, $keys, $depth, $totalChars),
         };
     }
 
@@ -238,6 +243,63 @@ final class LearningContentDocumentValidator
         if (str_contains($mediaId, '://') || str_contains($mediaId, '/')) {
             throw LearningContentException::contentInvalid('External URL embeds are forbidden.');
         }
+    }
+
+    /**
+     * @param array<string, mixed> $block
+     * @param list<string|int>     $keys
+     */
+    private function assertVideo(array $block, array $keys, int $depth, int &$totalChars): void
+    {
+        if ($depth > 1) {
+            throw LearningContentException::contentInvalid('Video yalnız üst blok olabilir.');
+        }
+        if ($keys !== ['description', 'provider', 'providerVideoId', 'title', 'type']) {
+            throw LearningContentException::contentInvalid('Geçersiz video bloğu.');
+        }
+        $provider = $block['provider'] ?? null;
+        $id = $block['providerVideoId'] ?? null;
+        if (!\is_string($provider) || !\is_string($id) || !VideoUrlParser::isProviderId($provider, $id)) {
+            throw LearningContentException::contentInvalid(VideoUrlParser::MESSAGE);
+        }
+        $this->assertOptionalPlain($block['title'] ?? null, $totalChars);
+        $this->assertOptionalPlain($block['description'] ?? null, $totalChars);
+    }
+
+    /**
+     * @param array<string, mixed> $block
+     * @param list<string|int>     $keys
+     */
+    private function assertDocument(array $block, array $keys, int $depth, int &$totalChars): void
+    {
+        if ($depth > 1) {
+            throw LearningContentException::contentInvalid('Doküman yalnız üst blok olabilir.');
+        }
+        if ($keys !== ['assetId', 'label', 'type']) {
+            throw LearningContentException::contentInvalid('Geçersiz doküman bloğu.');
+        }
+        $assetId = $block['assetId'] ?? null;
+        $label = $block['label'] ?? null;
+        if (!\is_string($assetId) || !Uuid::isValid($assetId)) {
+            throw LearningContentException::contentInvalid('Doküman kaydı geçersiz.');
+        }
+        if (!\is_string($label) || '' === trim($label)) {
+            throw LearningContentException::contentInvalid('Doküman bağlantı metni zorunludur.');
+        }
+        $this->assertSafeText($label);
+        $totalChars += mb_strlen($label);
+    }
+
+    private function assertOptionalPlain(mixed $value, int &$totalChars): void
+    {
+        if (!\is_string($value)) {
+            throw LearningContentException::contentInvalid('Video metni geçersiz.');
+        }
+        if ('' === trim($value)) {
+            return;
+        }
+        $this->assertSafeText($value);
+        $totalChars += mb_strlen($value);
     }
 
     private function assertSafeText(string $text): void

@@ -26,6 +26,7 @@ use App\Exception\SubjectException;
 use App\Form\LearningContentCreateFormType;
 use App\Form\SubjectCreateFormType;
 use App\LearningContent\Content\LearningContentDocument;
+use App\LearningContent\Document\VideoUrlParser;
 use App\Presentation\ContentWorkflowProgress;
 use App\Presentation\ContentWorkflowReason;
 use App\Presentation\PlacementPosition;
@@ -43,7 +44,9 @@ use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\LearningContentRevisionFormMapper;
 use App\Service\CatalogTopicLessonManager;
 use App\Service\LearningContentManager;
+use App\Service\LearningDocumentManager;
 use App\Service\SubjectManager;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -67,6 +70,8 @@ final class AdminLearningContentController extends AdminBaseController
         private readonly CatalogTopicRepository $catalogTopics,
         private readonly ContentWorkflowReason $workflowReason,
         private readonly ContentWorkflowProgress $workflowProgress,
+        private readonly LearningDocumentManager $documents,
+        private readonly VideoUrlParser $videoUrls,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -547,6 +552,7 @@ final class AdminLearningContentController extends AdminBaseController
             'revision' => $revision,
             'editor_blocks' => $editorBlocks,
             'type_choices' => $this->revisionFormMapper->typeChoices(),
+            'documents' => $this->documents->cardsFor($this->requireActorUser()),
             'csrf_id' => 'learning_content_revision_'.$id,
         ]);
     }
@@ -589,7 +595,11 @@ final class AdminLearningContentController extends AdminBaseController
         $postedBlocks = $request->request->all('blocks');
 
         try {
-            $document = $this->revisionFormMapper->documentFromPostedBlocks($postedBlocks);
+            $stored = $revision->getStructuredContent()['blocks'] ?? [];
+            if (!\is_array($stored)) {
+                $stored = [];
+            }
+            $document = $this->revisionFormMapper->documentFromPostedBlocks($postedBlocks, $stored);
             $this->contents->updateUnsealedRevision(
                 $revision,
                 $this->requireActorUser(),
@@ -742,6 +752,130 @@ final class AdminLearningContentController extends AdminBaseController
             'preview_blocks' => $blocks,
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
         ]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/video', name: 'app_admin_learning_content_revision_video', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionAddVideo(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+        if ($this->sealedResponse($revision, $id) instanceof Response || !$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        try {
+            $embed = $this->videoUrls->parse((string) $request->request->get('video_url', ''));
+            $this->appendRevisionBlock($revision, [
+                'type' => 'video',
+                'provider' => $embed->provider,
+                'providerVideoId' => $embed->providerVideoId,
+                'title' => trim((string) $request->request->get('title', '')),
+                'description' => trim((string) $request->request->get('description', '')),
+            ], 'admin_revision_add_video');
+            $this->addFlash('success', 'Video eklendi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/pdf', name: 'app_admin_learning_content_revision_pdf', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionUploadPdf(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+        if ($this->sealedResponse($revision, $id) instanceof Response) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+        $file = $request->files->get('pdf');
+        if (!$file instanceof UploadedFile) {
+            $this->addFlash('error', 'PDF dosyası seçin.');
+
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        try {
+            $this->documents->receive($this->requireActorUser(), $file);
+            $this->addFlash('success', 'PDF yüklendi. Sürüme bağlamak için yönetici onayı gerekir.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/pdf-onay', name: 'app_admin_learning_content_revision_pdf_ready', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionApprovePdf(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $this->requireContent($id);
+
+        try {
+            $this->documents->markReady($this->requireActorUser(), (string) $request->request->get('handle', ''));
+            $this->addFlash('success', 'PDF kullanıma hazır.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/icerikler/{id}/revision/pdf-ekle', name: 'app_admin_learning_content_revision_pdf_attach', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)]
+    public function revisionAttachPdf(Request $request, string $id): Response
+    {
+        $this->assertRevisionCsrf($request, $id);
+        $content = $this->requireContent($id);
+        $revision = $this->requireCurrentRevision($content);
+        if ($this->sealedResponse($revision, $id) instanceof Response || !$this->assertOptimisticRevision($request, $revision)) {
+            return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+        }
+
+        try {
+            $asset = $this->documents->requireAttachable($this->requireActorUser(), (string) $request->request->get('handle', ''));
+            $label = trim((string) $request->request->get('label', ''));
+            $this->appendRevisionBlock($revision, [
+                'type' => 'document',
+                'assetId' => $asset->getId()->toRfc4122(),
+                'label' => $label,
+            ], 'admin_revision_add_document');
+            $this->addFlash('success', 'PDF doküman eklendi.');
+        } catch (LearningContentException $e) {
+            $this->flashLearningContentException($e);
+        }
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    private function sealedResponse(LearningContentRevision $revision, string $id): ?Response
+    {
+        if (!$revision->isSealed()) {
+            return null;
+        }
+        $this->addFlash('error', 'Mühürlü sürüm değiştirilemez.');
+
+        return $this->redirectToRoute('app_admin_learning_content_revision', ['id' => $id]);
+    }
+
+    /**
+     * @param array<string, mixed> $block
+     */
+    private function appendRevisionBlock(LearningContentRevision $revision, array $block, string $reason): void
+    {
+        $structured = $revision->getStructuredContent();
+        $blocks = $structured['blocks'] ?? [];
+        if (!\is_array($blocks)) {
+            throw LearningContentException::contentInvalid('Geçersiz içerik gövdesi.');
+        }
+        $blocks[] = $block;
+        $document = $this->revisionFormMapper->documentFromDomainBlocks($blocks);
+        $this->contents->updateUnsealedRevision($revision, $this->requireActorUser(), $document, $reason);
     }
 
     private function requireContent(string $id): LearningContent

@@ -1,8 +1,9 @@
 # Stage 2.15 — Learning Content + Stored Media foundation
 
 Domain / application / security / persistence, plus admin workspace list/detail/create,
-a safe typed revision block editor, and a student typed-block body renderer on the
-topic page (Twig autoescape; no `|raw`). No REST API, real upload, storage SDK, payment, or AI.
+a safe typed revision block editor, student typed-block rendering, YouTube/Vimeo
+URL blocks, and local PDF documents (Twig autoescape; no `|raw`). No REST API,
+CDN/S3, payment, or AI. `StoredMediaAsset` stays metadata-only.
 
 ## Model
 
@@ -98,9 +99,9 @@ Admin-only draft editor under `/yonetim/icerikler/{id}/revision`:
 
 - Reuses `LearningContentDocument` + `LearningContentDocumentValidator` +
   `LearningContentManager::updateUnsealedRevision` / `cloneAsNewRevision`
-- UI allowlist (stricter than domain): `heading`, `paragraph`, `list`, `callout`, `quote`, `math`
-  — media / interactive types are not exposed; unknown types rejected in
-  `LearningContentRevisionFormMapper` before the manager runs
+- UI allowlist: `heading`, `paragraph`, `list`, `callout`, `quote`, `math`, plus
+  `video` and `document` added from dedicated forms (not empty generic blocks).
+  Older media/interactive JSON types are still rejected by this editor.
 - Optimistic concurrency via hidden `expected_revision_id` (+ optional `expected_content_hash`);
   stale / sealed / non-current → conflict flash, no silent overwrite
 - Mutations are POST + CSRF (`learning_content_revision_{id}`) + PRG
@@ -124,9 +125,31 @@ irreversible. Duplicate slug/position/content → flash.
 
 Student topic page (`StudentTopicContentQuery`) keeps the AND visibility chain, then
 normalizes sealed published revision bodies via `StudentContentBlockNormalizer` into
-immutable `StudentContentBlockView` DTOs (heading/paragraph/list/quote/math/callout).
-Unknown/malformed/media blocks are skipped. No revision UUID, `storageKey`, audit notes,
-or raw JSON reach Twig. `/ogrenci/*` responses use `Cache-Control: no-store, private`.
+immutable `StudentContentBlockView` DTOs (heading/paragraph/list/quote/math/callout/video/document).
+Unknown/malformed/media blocks are skipped. Video iframes use the generated
+`youtube-nocookie.com` or `player.vimeo.com` URL, not the pasted address. PDFs open
+through the student route only after the same visibility AND gate. No revision UUID,
+`storageKey`, audit notes, or raw JSON reach Twig. `/ogrenci/*` and PDF responses
+use `Cache-Control: no-store, private`.
+
+## Video and PDF (V1)
+
+- `video` block keys: `provider`, `providerVideoId`, `title`, `description`.
+  Hosts must match exactly: `youtube.com`, `www.youtube.com`, `youtu.be`,
+  `youtube-nocookie.com`, `vimeo.com`, `www.vimeo.com`. No HTTP fetch, no embed HTML.
+- `document` block keys: `assetId`, `label`. The asset is `LearningDocumentAsset`,
+  not `StoredMediaAsset` (that model requires a clean scan status and this app has
+  no antivirus scanner, so it must not be marked scanned).
+- Upload writes the file first, then inserts `pending`. A failed insert deletes the file.
+  A failed write never leaves a `ready` row. Ready status is an explicit SuperAdmin/Admin
+  action after SHA-256 recheck. Teacher upload cannot self-approve. Archived, quarantined,
+  and pending assets are not served to students.
+- Bytes live in `var/learning-documents` (mode 0700, random 32-hex key). Display names
+  are normalized metadata. Max 25 MB, `%PDF-` signature, `application/pdf` finfo.
+- Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
+  `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
+  `Cache-Control: no-store, private`. No new site-wide CSP.
+- `Version20260926153000` `down()` drops the table only. It does not delete files.
 
 ## Curriculum primary-outcome dependency
 
@@ -142,7 +165,7 @@ eligibility but does not create LearningContent or placements.
 
 ## Limitations
 
-- No real file upload or storage SDK integration
+- No CDN/S3 or antivirus. PDF approval is a manual admin ready mark, not a scan result.
 - Entitlement / student delivery policy pending
 - No multi-process concurrency harness claim
 - No public content REST API / CDN math renderer (math is plain escaped text)
