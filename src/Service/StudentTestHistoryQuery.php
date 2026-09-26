@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Dto\StudentTestHistoryCard;
-use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
 use App\Entity\AssessmentPlatformPractice;
-use App\Entity\AssessmentRevision;
 use App\Entity\AssessmentScoringRun;
 use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
@@ -34,22 +32,44 @@ final class StudentTestHistoryQuery
      */
     public function listFor(User $student): array
     {
-        /** @var list<array<int, mixed>> $rows */
-        $rows = $this->base($student)
-            ->select('a', 'rev', 'ass', 'subj', 'run')
+        /** @var list<AssessmentAttempt> $attempts */
+        $attempts = $this->base($student)
+            ->select('a', 'rev', 'ass', 'subj')
             ->addSelect('COALESCE(a.submittedAt, a.expiredAt, a.startedAt) AS HIDDEN sortAt')
             ->orderBy('sortAt', 'DESC')
             ->addOrderBy('a.id', 'DESC')
             ->setMaxResults(self::LIMIT)
             ->getQuery()
             ->getResult();
+        $loaded = [];
+        foreach ($attempts as $row) {
+            $attempt = $this->attemptFrom($row);
+            if ($attempt instanceof AssessmentAttempt) {
+                $loaded[] = $attempt;
+            }
+        }
+        $runs = $this->latestRuns($loaded);
 
         $cards = [];
-        foreach ($rows as $row) {
-            $card = $this->card($row);
-            if ($card instanceof StudentTestHistoryCard) {
-                $cards[] = $card;
-            }
+        foreach ($loaded as $attempt) {
+            $run = $runs[$attempt->getId()->toRfc4122()] ?? null;
+            $scored = $run instanceof AssessmentScoringRun;
+            $inProgress = AssessmentAttemptStatus::InProgress === $attempt->getStatus();
+            $assessment = $attempt->getAssessment();
+            $cards[] = new StudentTestHistoryCard(
+                $assessment->getCode(),
+                $attempt->getAssessmentRevision()->getTitle(),
+                $assessment->getSubject()?->getName() ?? '',
+                $inProgress ? 'resume' : 'done',
+                $inProgress ? 'Devam ediyor' : 'Tamamlandı',
+                $this->stamp($attempt->getSubmittedAt() ?? $attempt->getExpiredAt()),
+                $scored ? $run->getCorrectCount() : null,
+                $scored ? $run->getIncorrectCount() : null,
+                $scored ? $run->getUnansweredCount() : null,
+                $scored ? $run->getFinalPoints() : null,
+                $scored ? $run->getMaximumPoints() : null,
+                $scored ? $run->getPercentage() : null,
+            );
         }
 
         return $cards;
@@ -68,63 +88,61 @@ final class StudentTestHistoryQuery
                 'WITH',
                 'practice.delivery = a.delivery AND practice.user = a.user',
             )
-            ->leftJoin(
-                AssessmentScoringRun::class,
-                'run',
-                'WITH',
-                'run.attempt = a AND run.status = :completed AND run.runNumber = (
-                    SELECT MAX(runMax.runNumber) FROM '.AssessmentScoringRun::class.' runMax
-                    WHERE runMax.attempt = a AND runMax.status = :completed
-                )',
-            )
             ->andWhere('a.user = :student')
-            ->setParameter('student', $student->getId(), 'uuid')
-            ->setParameter('completed', ScoringRunStatus::Completed);
+            ->setParameter('student', $student->getId(), 'uuid');
+    }
+
+    private function attemptFrom(mixed $row): ?AssessmentAttempt
+    {
+        if ($row instanceof AssessmentAttempt) {
+            return $row;
+        }
+        if (!\is_array($row)) {
+            return null;
+        }
+        foreach ($row as $part) {
+            if ($part instanceof AssessmentAttempt) {
+                return $part;
+            }
+        }
+
+        return null;
     }
 
     /**
-     * @param array<int, mixed> $row
+     * @param list<AssessmentAttempt> $attempts
+     *
+     * @return array<string, AssessmentScoringRun>
      */
-    private function card(array $row): ?StudentTestHistoryCard
+    private function latestRuns(array $attempts): array
     {
-        $attempt = null;
-        $revision = null;
-        $assessment = null;
-        $run = null;
-        foreach ($row as $part) {
-            if ($part instanceof AssessmentAttempt) {
-                $attempt = $part;
-            } elseif ($part instanceof AssessmentRevision) {
-                $revision = $part;
-            } elseif ($part instanceof Assessment) {
-                $assessment = $part;
-            } elseif ($part instanceof AssessmentScoringRun) {
-                $run = $part;
+        if ([] === $attempts) {
+            return [];
+        }
+        $runs = $this->entityManager->createQueryBuilder()
+            ->select('run', 'attempt')
+            ->from(AssessmentScoringRun::class, 'run')
+            ->innerJoin('run.attempt', 'attempt')
+            ->andWhere('run.attempt IN (:attempts)')
+            ->andWhere('run.status = :completed')
+            ->setParameter('attempts', $attempts)
+            ->setParameter('completed', ScoringRunStatus::Completed)
+            ->orderBy('run.runNumber', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $latest = [];
+        foreach ($runs as $run) {
+            if (!$run instanceof AssessmentScoringRun) {
+                continue;
+            }
+            $key = $run->getAttempt()->getId()->toRfc4122();
+            if (!isset($latest[$key])) {
+                $latest[$key] = $run;
             }
         }
-        if (!$attempt instanceof AssessmentAttempt
-            || !$revision instanceof AssessmentRevision
-            || !$assessment instanceof Assessment
-        ) {
-            return null;
-        }
-        $scored = $run instanceof AssessmentScoringRun;
-        $inProgress = AssessmentAttemptStatus::InProgress === $attempt->getStatus();
 
-        return new StudentTestHistoryCard(
-            $assessment->getCode(),
-            $revision->getTitle(),
-            $assessment->getSubject()?->getName() ?? '',
-            $inProgress ? 'resume' : 'done',
-            $inProgress ? 'Devam ediyor' : 'Tamamlandı',
-            $this->stamp($attempt->getSubmittedAt() ?? $attempt->getExpiredAt()),
-            $scored ? $run->getCorrectCount() : null,
-            $scored ? $run->getIncorrectCount() : null,
-            $scored ? $run->getUnansweredCount() : null,
-            $scored ? $run->getFinalPoints() : null,
-            $scored ? $run->getMaximumPoints() : null,
-            $scored ? $run->getPercentage() : null,
-        );
+        return $latest;
     }
 
     private function stamp(?\DateTimeImmutable $at): ?string

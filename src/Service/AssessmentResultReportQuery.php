@@ -11,9 +11,7 @@ use App\Dto\AssessmentResultRowView;
 use App\Dto\AssessmentResultSummary;
 use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
-use App\Entity\AssessmentRevision;
 use App\Entity\AssessmentScoringRun;
-use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
 use App\Enum\ScoringRunStatus;
 use App\Service\Admin\AdminLikeEscape;
@@ -44,25 +42,26 @@ final class AssessmentResultReportQuery
     {
         $page = AdminPagination::normalizePage($page);
         $total = $this->countAttempts($assessment, $search);
-        /** @var list<array<int, mixed>> $rows */
-        $rows = $this->base($assessment, $search)
-            ->select('a', 'u', 'rev', 'run')
-            ->addSelect('COALESCE(a.submittedAt, a.expiredAt, a.startedAt) AS HIDDEN sortAt')
-            ->orderBy('sortAt', 'DESC')
-            ->addOrderBy('a.id', 'DESC')
+        /** @var list<AssessmentAttempt> $attempts */
+        $attempts = $this->ordered($assessment, $search)
             ->setFirstResult(AdminPagination::offset($page, self::PAGE_SIZE))
             ->setMaxResults(self::PAGE_SIZE)
             ->getQuery()
             ->getResult();
+        $loaded = [];
+        foreach ($attempts as $row) {
+            $attempt = $this->attemptFrom($row);
+            if ($attempt instanceof AssessmentAttempt) {
+                $loaded[] = $attempt;
+            }
+        }
+        $runs = $this->latestRuns($loaded);
 
         $items = [];
         $rank = AdminPagination::offset($page, self::PAGE_SIZE) + 1;
-        foreach ($rows as $row) {
-            $view = $this->row($row, $rank);
-            if ($view instanceof AssessmentResultRowView) {
-                $items[] = $view;
-                ++$rank;
-            }
+        foreach ($loaded as $attempt) {
+            $items[] = $this->row($attempt, $runs[$attempt->getId()->toRfc4122()] ?? null, $rank);
+            ++$rank;
         }
 
         return new AdminPagedResult($items, $page, self::PAGE_SIZE, $total);
@@ -132,40 +131,20 @@ final class AssessmentResultReportQuery
         if ($rank < 1) {
             return null;
         }
-        /** @var list<array<int, mixed>> $rows */
-        $rows = $this->base($assessment, $search)
-            ->select('a', 'u', 'rev', 'run')
-            ->addSelect('COALESCE(a.submittedAt, a.expiredAt, a.startedAt) AS HIDDEN sortAt')
-            ->orderBy('sortAt', 'DESC')
-            ->addOrderBy('a.id', 'DESC')
+        /** @var list<AssessmentAttempt> $attempts */
+        $attempts = $this->ordered($assessment, $search)
             ->setFirstResult($rank - 1)
             ->setMaxResults(1)
             ->getQuery()
             ->getResult();
-        $row = $rows[0] ?? null;
-        if (!\is_array($row)) {
-            return null;
-        }
-        $attempt = null;
-        $student = null;
-        $revision = null;
-        foreach ($row as $part) {
-            if ($part instanceof AssessmentAttempt) {
-                $attempt = $part;
-            } elseif ($part instanceof User) {
-                $student = $part;
-            } elseif ($part instanceof AssessmentRevision) {
-                $revision = $part;
-            }
-        }
+        $attempt = $this->attemptFrom($attempts[0] ?? null);
         if (!$attempt instanceof AssessmentAttempt
-            || !$student instanceof User
-            || !$revision instanceof AssessmentRevision
             || !$attempt->getAssessment()->getId()->equals($assessment->getId())
-            || !$attempt->getUser()->getId()->equals($student->getId())
         ) {
             return null;
         }
+        $student = $attempt->getUser();
+        $revision = $attempt->getAssessmentRevision();
 
         $scored = $this->results->readScored($attempt);
         $questions = [];
@@ -252,38 +231,76 @@ final class AssessmentResultReportQuery
         return $qb;
     }
 
-    /**
-     * @param array<int, mixed> $row
-     */
-    private function row(array $row, int $rank): ?AssessmentResultRowView
+    private function attemptFrom(mixed $row): ?AssessmentAttempt
     {
-        $attempt = null;
-        $student = null;
-        $revision = null;
-        $run = null;
-        foreach ($row as $part) {
-            if ($part instanceof AssessmentAttempt) {
-                $attempt = $part;
-            } elseif ($part instanceof User) {
-                $student = $part;
-            } elseif ($part instanceof AssessmentRevision) {
-                $revision = $part;
-            } elseif ($part instanceof AssessmentScoringRun) {
-                $run = $part;
-            }
+        if ($row instanceof AssessmentAttempt) {
+            return $row;
         }
-        if (!$attempt instanceof AssessmentAttempt
-            || !$student instanceof User
-            || !$revision instanceof AssessmentRevision
-        ) {
+        if (!\is_array($row)) {
             return null;
         }
+        foreach ($row as $part) {
+            if ($part instanceof AssessmentAttempt) {
+                return $part;
+            }
+        }
+
+        return null;
+    }
+
+    private function ordered(Assessment $assessment, ?string $search): QueryBuilder
+    {
+        return $this->base($assessment, $search)
+            ->select('a', 'u', 'rev')
+            ->addSelect('COALESCE(a.submittedAt, a.expiredAt, a.startedAt) AS HIDDEN sortAt')
+            ->orderBy('sortAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC');
+    }
+
+    /**
+     * @param list<AssessmentAttempt> $attempts
+     *
+     * @return array<string, AssessmentScoringRun>
+     */
+    private function latestRuns(array $attempts): array
+    {
+        if ([] === $attempts) {
+            return [];
+        }
+        $runs = $this->entityManager->createQueryBuilder()
+            ->select('run', 'attempt')
+            ->from(AssessmentScoringRun::class, 'run')
+            ->innerJoin('run.attempt', 'attempt')
+            ->andWhere('run.attempt IN (:attempts)')
+            ->andWhere('run.status = :completed')
+            ->setParameter('attempts', $attempts)
+            ->setParameter('completed', ScoringRunStatus::Completed)
+            ->orderBy('run.runNumber', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        $latest = [];
+        foreach ($runs as $run) {
+            if (!$run instanceof AssessmentScoringRun) {
+                continue;
+            }
+            $key = $run->getAttempt()->getId()->toRfc4122();
+            if (!isset($latest[$key])) {
+                $latest[$key] = $run;
+            }
+        }
+
+        return $latest;
+    }
+
+    private function row(AssessmentAttempt $attempt, ?AssessmentScoringRun $run, int $rank): AssessmentResultRowView
+    {
         $scored = $run instanceof AssessmentScoringRun;
 
         return new AssessmentResultRowView(
             $rank,
-            trim($student->getFirstName().' '.$student->getLastName()),
-            $revision->getTitle(),
+            trim($attempt->getUser()->getFirstName().' '.$attempt->getUser()->getLastName()),
+            $attempt->getAssessmentRevision()->getTitle(),
             $this->statusLabel($attempt->getStatus()),
             $this->stamp($attempt->getStartedAt()) ?? '',
             $this->stamp($attempt->getSubmittedAt() ?? $attempt->getExpiredAt()),
