@@ -539,6 +539,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         ]);
         $client->request('POST', '/ogrenci/testler/'.$code.'/bitir', [
             '_token' => (string) $crawler->filter('#student-test-finish input[name="_token"]')->attr('value'),
+            'confirm' => '1',
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
