@@ -8,7 +8,6 @@ use App\Entity\Institution;
 use App\Entity\InstitutionTeacherInvitePendingGuard;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\LockMode;
-use Doctrine\ORM\Query;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -31,15 +30,11 @@ class InstitutionTeacherInvitePendingGuardRepository extends ServiceEntityReposi
 
     public function findOneForUpdate(Institution $institution, string $normalizedEmail): ?InstitutionTeacherInvitePendingGuard
     {
-        $query = $this->createQueryBuilder('g')
-            ->andWhere('g.institution = :institution')
-            ->andWhere('g.normalizedEmail = :email')
-            ->setParameter('institution', $institution->getId(), 'uuid')
-            ->setParameter('email', $normalizedEmail)
-            ->getQuery();
-        $query->setHint(Query::HINT_REFRESH, true);
-        $query->setLockMode(LockMode::PESSIMISTIC_WRITE);
-        $guard = $query->getOneOrNullResult();
+        $guard = $this->getEntityManager()->find(
+            InstitutionTeacherInvitePendingGuard::class,
+            ['institution' => $institution, 'normalizedEmail' => $normalizedEmail],
+            LockMode::PESSIMISTIC_WRITE,
+        );
 
         return $guard instanceof InstitutionTeacherInvitePendingGuard ? $guard : null;
     }

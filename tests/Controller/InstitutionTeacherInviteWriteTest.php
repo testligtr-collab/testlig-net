@@ -152,6 +152,8 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
             'email' => 'gizli.ogretmen@example.com',
             'note' => 'gizli not buraya yazildi',
         ]));
+        $repeatBody = trim(preg_replace('/\s+/', ' ', strip_tags((string) $client->getResponse()->getContent())) ?? '');
+        self::assertSame(302, $client->getResponse()->getStatusCode(), substr($repeatBody, 0, 500));
         self::assertEmailCount(1);
         $second = self::getMailerMessage();
         self::assertInstanceOf(Email::class, $second);
@@ -344,6 +346,14 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
             } catch (InstitutionTeacherInviteException $exception) {
                 self::assertSame(InstitutionTeacherInviteFailureReason::AccountNotReady, $exception->getReason());
             }
+        });
+        $this->withKernel(static function (): void {
+            $users = static::getContainer()->get(UserRepository::class);
+            $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+            self::assertInstanceOf(UserRepository::class, $users);
+            self::assertInstanceOf(UserAccountLifecycle::class, $lifecycle);
+            $user = $users->findOneByNormalizedEmail('yeni.kayit@example.com');
+            self::assertInstanceOf(User::class, $user);
             $lifecycle->markEmailVerifiedAndActivate($user);
         });
 
