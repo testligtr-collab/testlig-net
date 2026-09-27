@@ -95,6 +95,7 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         $this->bootSchool();
         $this->addMember('ada-owner@example.com', 'mina-manager@example.com', InstitutionMembershipRole::Manager, 'Ada Okulu');
         $classroom = $this->classroomReference('Bes A');
+        $otherClassroom = $this->classroomReference('Bes B');
 
         $client = static::createClient();
         $this->login($client, 'mina-manager@example.com');
@@ -165,7 +166,7 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         self::assertStringContainsString('Hesabınız varsa giriş yapın', $review);
         self::assertStringContainsString('Hesabınız yoksa öğrenci kaydı oluşturun', $review);
         self::assertStringNotContainsString($token, $review);
-        self::assertSame($before, $this->countTable('classroom_student_enrollments'));
+        self::assertSame($before, $this->clientCount($anon, 'classroom_student_enrollments'));
 
         $register = $anon->request('GET', '/kayit/ogrenci');
         $anon->submit($register->selectButton('Kayıt ol')->form([
@@ -190,8 +191,8 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         self::assertResponseRedirects('/davet/ogrenci');
         $anon->followRedirect();
         self::assertStringContainsString('profil kurulumunun tamamlanmış', (string) $anon->getResponse()->getContent());
-        self::assertSame(0, $this->countTable('classroom_student_enrollments'));
-        self::assertNull($this->scalar('SELECT consumed_at FROM institution_student_invitations WHERE normalized_email = ?', ['yeni.ogrenci@example.com']));
+        self::assertSame(0, $this->clientCount($anon, 'classroom_student_enrollments'));
+        self::assertNull($this->clientScalar($anon, 'SELECT consumed_at FROM institution_student_invitations WHERE normalized_email = ?', ['yeni.ogrenci@example.com']));
 
         $setup = $anon->request('GET', '/ogrenci/kurulum');
         $anon->submit($setup->selectButton('Profilimi tamamla')->form([
@@ -226,20 +227,19 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         $html = (string) $owner->getResponse()->getContent();
         self::assertStringContainsString('Ece Ak', $html);
         self::assertStringNotContainsString('yeni.ogrenci@example.com', $html);
-        $attemptsBefore = $this->countTable('assessment_attempts');
+        $attemptsBefore = $this->clientCount($owner, 'assessment_attempts');
         $owner->submit($page->selectButton('Aktar')->form());
         self::assertResponseRedirects('/kurum/siniflar/'.$classroom);
         $owner->followRedirect();
         self::assertStringContainsString('başka sınıfa aktarıldı', (string) $owner->getResponse()->getContent());
-        self::assertSame(2, $this->countTable('classroom_student_enrollments'));
-        self::assertSame(1, (int) $this->scalar("SELECT COUNT(*) FROM classroom_student_enrollments WHERE status = 'active'"));
-        self::assertSame(1, (int) $this->scalar('SELECT COUNT(*) FROM classroom_student_enrollments WHERE transferred_at IS NOT NULL'));
+        self::assertSame(2, $this->clientCount($owner, 'classroom_student_enrollments'));
+        self::assertSame(1, (int) $this->clientScalar($owner, "SELECT COUNT(*) FROM classroom_student_enrollments WHERE status = 'active'"));
+        self::assertSame(1, (int) $this->clientScalar($owner, 'SELECT COUNT(*) FROM classroom_student_enrollments WHERE transferred_at IS NOT NULL'));
 
-        $target = $this->classroomReference('Bes B');
-        $moved = $owner->request('GET', '/kurum/siniflar/'.$target);
+        $moved = $owner->request('GET', '/kurum/siniflar/'.$otherClassroom);
         self::assertStringContainsString('Ece Ak', (string) $owner->getResponse()->getContent());
         $owner->submit($moved->selectButton('Kaydı sonlandır')->form());
-        self::assertResponseRedirects('/kurum/siniflar/'.$target);
+        self::assertResponseRedirects('/kurum/siniflar/'.$otherClassroom);
         $owner->followRedirect();
         self::assertStringNotContainsString('Ece Ak', (string) $owner->getResponse()->getContent());
         self::assertSame(2, $this->countTable('classroom_student_enrollments'));
@@ -335,7 +335,7 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         self::assertSame(0, $this->countTable('classroom_student_enrollments'));
         self::ensureKernelShutdown();
 
-        $this->withKernel(function () use ($token): void {
+        $this->withKernel(function () use ($reference): void {
             $users = static::getContainer()->get(UserRepository::class);
             $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
             $factory = static::getContainer()->get(UserFactory::class);
@@ -347,7 +347,7 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
             $manager = static::getContainer()->get(InstitutionStudentInvitationManager::class);
             self::assertInstanceOf(InstitutionStudentInvitationManager::class, $manager);
             $owner = $this->user('ada-owner@example.com');
-            $dispatch = $manager->issue($owner, $this->institution('Ada Okulu'), $this->classroomReference('Bes A'), 'beklemede@example.com', '');
+            $dispatch = $manager->issue($owner, $this->institution('Ada Okulu'), $reference, 'beklemede@example.com', '');
             $caught = false;
             try {
                 $manager->accept($pending, $dispatch->plainToken);
@@ -356,7 +356,6 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
                 self::assertSame(\App\Enum\InstitutionStudentInviteFailureReason::AccountNotReady, $exception->getReason());
             }
             self::assertTrue($caught);
-            unset($token);
         });
         self::assertSame(0, $this->countTable('classroom_student_enrollments'));
     }
@@ -597,6 +596,22 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
     private function countTable(string $table): int
     {
         return (int) $this->scalar('SELECT COUNT(*) FROM '.$table);
+    }
+
+    /**
+     * @param list<mixed> $params
+     */
+    private function clientScalar(KernelBrowser $client, string $sql, array $params = []): mixed
+    {
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return $em->getConnection()->fetchOne($sql, $params);
+    }
+
+    private function clientCount(KernelBrowser $client, string $table): int
+    {
+        return (int) $this->clientScalar($client, 'SELECT COUNT(*) FROM '.$table);
     }
 
     private function seedClassroom(string $ownerEmail, string $yearName, string $classroomName, GradeLevel $grade, int $capacity): void
