@@ -8,9 +8,12 @@ use App\Dto\InstitutionAccountMembership;
 use App\Dto\InstitutionAssignedTeacher;
 use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
+use App\Dto\InstitutionEnrolledStudent;
 use App\Dto\InstitutionPersonRow;
+use App\Dto\InstitutionStudentInviteRow;
 use App\Dto\InstitutionTeacherInviteRow;
 use App\Dto\InstitutionTestRow;
+use App\Dto\InstitutionTransferTarget;
 use App\Dto\InstitutionWorkspaceOverview;
 use App\Entity\Assessment;
 use App\Entity\AssessmentDelivery;
@@ -20,6 +23,7 @@ use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
+use App\Entity\InstitutionStudentInvitation;
 use App\Entity\InstitutionTeacherInvitation;
 use App\Entity\StudentProfile;
 use App\Entity\User;
@@ -117,6 +121,7 @@ final class InstitutionWorkspaceQuery
             $this->mapClassroom($classroom, $teacherCounts[$key] ?? 0, $studentCounts[$key] ?? 0),
             $this->classroomTeachers($institution, $classroom),
             $this->classroomStudents($institution, $classroom),
+            $this->studentInvites($classroom),
         );
     }
 
@@ -239,6 +244,25 @@ final class InstitutionWorkspaceQuery
                     ->setParameter('membership', $membership->getId(), 'uuid')
                     ->setParameter('institution', $membership->getInstitution()->getId(), 'uuid')
                     ->setParameter('status', TeacherAssignmentStatus::Active)
+                    ->orderBy('c.name', 'ASC')
+                    ->getQuery()
+                    ->getArrayResult();
+                foreach ($rooms as $room) {
+                    $names[] = $room['name'];
+                }
+            }
+            if (InstitutionMembershipRole::Student === $membership->getRole()) {
+                /** @var list<array{name: string}> $rooms */
+                $rooms = $this->entityManager->createQueryBuilder()
+                    ->select('c.name AS name')
+                    ->from(ClassroomStudentEnrollment::class, 'e')
+                    ->innerJoin('e.classroom', 'c')
+                    ->andWhere('e.studentMembership = :membership')
+                    ->andWhere('e.institution = :institution')
+                    ->andWhere('e.status = :status')
+                    ->setParameter('membership', $membership->getId(), 'uuid')
+                    ->setParameter('institution', $membership->getInstitution()->getId(), 'uuid')
+                    ->setParameter('status', StudentEnrollmentStatus::Active)
                     ->orderBy('c.name', 'ASC')
                     ->getQuery()
                     ->getArrayResult();
@@ -671,13 +695,13 @@ final class InstitutionWorkspaceQuery
     }
 
     /**
-     * @return list<InstitutionPersonRow>
+     * @return list<InstitutionEnrolledStudent>
      */
     private function classroomStudents(Institution $institution, Classroom $classroom): array
     {
-        /** @var list<array{firstName: string, lastName: string, gradeLevel: mixed}> $rows */
+        /** @var list<array{enrollmentId: mixed, firstName: string, lastName: string, gradeLevel: mixed}> $rows */
         $rows = $this->entityManager->createQueryBuilder()
-            ->select('u.firstName AS firstName', 'u.lastName AS lastName', 'p.gradeLevel AS gradeLevel')
+            ->select('e.id AS enrollmentId', 'u.firstName AS firstName', 'u.lastName AS lastName', 'p.gradeLevel AS gradeLevel')
             ->from(ClassroomStudentEnrollment::class, 'e')
             ->innerJoin('e.studentMembership', 'm')
             ->innerJoin('m.user', 'u')
@@ -691,20 +715,115 @@ final class InstitutionWorkspaceQuery
             ->orderBy('u.lastName', 'ASC')
             ->getQuery()
             ->getArrayResult();
+        $targets = $this->transferTargets($institution, $classroom);
         $list = [];
         foreach ($rows as $row) {
+            $id = self::uuid($row['enrollmentId']);
+            if (!$id instanceof Uuid) {
+                continue;
+            }
             $grade = self::scalarEnum($row['gradeLevel']);
-            $list[] = new InstitutionPersonRow(
+            $gradeValue = '' === $grade ? null : (int) $grade;
+            $eligible = [];
+            foreach ($targets as $target) {
+                if ($target['grade'] === $gradeValue && $target['open']) {
+                    $eligible[] = new InstitutionTransferTarget($target['reference'], $target['name']);
+                }
+            }
+            $list[] = new InstitutionEnrolledStudent(
                 trim($row['firstName'].' '.$row['lastName']),
-                'Öğrenci',
-                'Aktif',
-                '' === $grade ? null : $grade.'. sınıf',
-                $classroom->getName(),
-                null,
+                null === $gradeValue ? null : $gradeValue.'. sınıf',
+                $this->hasher->workspaceReference('student_enrollment', $id),
+                $eligible,
             );
         }
 
         return $list;
+    }
+
+    /**
+     * @return list<InstitutionStudentInviteRow>
+     */
+    private function studentInvites(Classroom $classroom): array
+    {
+        $now = new \DateTimeImmutable();
+        /** @var list<InstitutionStudentInvitation> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('i')
+            ->from(InstitutionStudentInvitation::class, 'i')
+            ->andWhere('i.classroom = :classroom')
+            ->andWhere('i.consumedAt IS NULL')
+            ->andWhere('i.revokedAt IS NULL')
+            ->andWhere('i.expiresAt > :now')
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
+            ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
+            ->orderBy('i.createdAt', 'DESC')
+            ->setMaxResults(self::PAGE_SIZE)
+            ->getQuery()
+            ->getResult();
+        $zone = new \DateTimeZone('Europe/Istanbul');
+        $list = [];
+        foreach ($rows as $invitation) {
+            $list[] = new InstitutionStudentInviteRow(
+                $this->hasher->workspaceReference('student_invite', $invitation->getId()),
+                self::maskEmail($invitation->getNormalizedEmail()),
+                'Bekliyor',
+                $invitation->getCreatedAt()->setTimezone($zone)->format('d.m.Y H:i'),
+                $invitation->getExpiresAt()->setTimezone($zone)->format('d.m.Y H:i'),
+                true,
+                true,
+            );
+        }
+
+        return $list;
+    }
+
+    /**
+     * @return list<array{reference: string, name: string, grade: int, open: bool}>
+     */
+    private function transferTargets(Institution $institution, Classroom $source): array
+    {
+        /** @var list<Classroom> $rooms */
+        $rooms = $this->entityManager->createQueryBuilder()
+            ->select('c')
+            ->from(Classroom::class, 'c')
+            ->andWhere('c.institution = :institution')
+            ->andWhere('c.academicYear = :year')
+            ->andWhere('c.status = :status')
+            ->andWhere('c.id != :source')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('year', $source->getAcademicYear()->getId(), 'uuid')
+            ->setParameter('status', ClassroomStatus::Active)
+            ->setParameter('source', $source->getId(), 'uuid')
+            ->orderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+        $list = [];
+        foreach ($rooms as $room) {
+            $capacity = $room->getCapacity();
+            $open = null === $capacity || $this->activeEnrollmentCount($room) < $capacity;
+            $list[] = [
+                'reference' => $this->hasher->workspaceReference('classroom', $room->getId()),
+                'name' => $room->getName(),
+                'grade' => $room->getGradeLevel()->value,
+                'open' => $open,
+            ];
+        }
+
+        return $list;
+    }
+
+    private function activeEnrollmentCount(Classroom $classroom): int
+    {
+        return (int) $this->entityManager->createQueryBuilder()
+            ->select('COUNT(e.id)')
+            ->from(ClassroomStudentEnrollment::class, 'e')
+            ->andWhere('e.classroom = :classroom')
+            ->andWhere('e.status = :status')
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
+            ->setParameter('status', StudentEnrollmentStatus::Active)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     private static function uuid(mixed $value): ?Uuid

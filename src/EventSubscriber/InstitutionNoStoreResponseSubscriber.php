@@ -25,7 +25,7 @@ final class InstitutionNoStoreResponseSubscriber implements EventSubscriberInter
         }
 
         $path = $event->getRequest()->getPathInfo();
-        if ('/kurum' !== $path && !str_starts_with($path, '/kurum/') && '/davet/ogretmen' !== $path && !str_starts_with($path, '/davet/ogretmen/')) {
+        if ('/kurum' !== $path && !str_starts_with($path, '/kurum/') && '/davet/ogretmen' !== $path && !str_starts_with($path, '/davet/ogretmen/') && '/davet/ogrenci' !== $path && !str_starts_with($path, '/davet/ogrenci/')) {
             return;
         }
 

@@ -7,13 +7,15 @@ namespace App\Dto;
 final readonly class InstitutionClassroomDetail
 {
     /**
-     * @param list<InstitutionAssignedTeacher> $teachers
-     * @param list<InstitutionPersonRow>       $students
+     * @param list<InstitutionAssignedTeacher>  $teachers
+     * @param list<InstitutionEnrolledStudent>  $students
+     * @param list<InstitutionStudentInviteRow> $studentInvites
      */
     public function __construct(
         public InstitutionClassroomRow $classroom,
         public array $teachers,
         public array $students,
+        public array $studentInvites = [],
     ) {
     }
 }

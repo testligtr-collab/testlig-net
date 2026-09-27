@@ -525,7 +525,7 @@ final class InstitutionTeacherInvitationManager
 
     private function newToken(): string
     {
-        return rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+        return InstitutionInviteToken::generate();
     }
 
     private function now(): \DateTimeImmutable

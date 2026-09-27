@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\InstitutionWorkspaceQuery;
 use App\Service\StudentProfileManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,6 +18,7 @@ final class StudentDashboardController extends AbstractController
 {
     public function __construct(
         private readonly StudentProfileManager $profiles,
+        private readonly InstitutionWorkspaceQuery $institutions,
     ) {
     }
 
@@ -58,6 +60,7 @@ final class StudentDashboardController extends AbstractController
                     'soon' => true,
                 ],
             ],
+            'institution_memberships' => $this->institutions->accountMemberships($user),
         ]);
     }
 }

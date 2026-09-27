@@ -36,7 +36,7 @@ final class QuestionBankDbCleanup
         LearningContentDbCleanup::deleteLearningContents($connection);
 
         // Teacher invites RESTRICT institutions and users. Remove them before those deletes.
-        foreach (['institution_teacher_invite_pending_guards', 'institution_teacher_invitations'] as $inviteTable) {
+        foreach (['institution_student_invite_pending_guards', 'institution_student_invitations', 'institution_teacher_invite_pending_guards', 'institution_teacher_invitations'] as $inviteTable) {
             if ($schema->tablesExist([$inviteTable])) {
                 $connection->executeStatement('DELETE FROM '.$inviteTable);
             }
