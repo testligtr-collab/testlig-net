@@ -22,38 +22,48 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: ops-catalog-import
-  cancel-in-progress: false
-
 jobs:
-  vds:
-    name: VDS catalog import
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
     runs-on: ubuntu-latest
     steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+
+  vds:
+    name: VDS catalog import
+    if: vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
 
-      - name: Trust host key
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.VDS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Run remote catalog ops
+      - name: Configure SSH client
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote catalog ops
+        env:
           MODE: ${{ inputs.mode }}
           UPDATE_EXISTING: ${{ inputs.update_existing }}
         run: |
           set -euo pipefail
-          REMOTE="${VDS_USER}@${VDS_HOST}"
-          ssh "$REMOTE" "export MODE=$(printf %q "$MODE"); export UPDATE_EXISTING=$(printf %q "$UPDATE_EXISTING"); bash -s" <<'EOS'
+          set +e
+          ssh testlig-vds "export MODE=$(printf %q "$MODE"); export UPDATE_EXISTING=$(printf %q "$UPDATE_EXISTING"); bash -s" <<'EOS'
           set -euo pipefail
           APP_ROOT=/home/testlig.net/app
           PHP_BIN=/usr/local/lsws/lsphp83/bin/php
@@ -109,3 +119,12 @@ jobs:
 
           run_app "$PHP_BIN" "${ARGS[@]}"
           EOS
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi

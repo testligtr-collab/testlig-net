@@ -4,8 +4,9 @@ description: >-
   Enforces Testlig production, deployment, migration, database, secret, and
   operations safety. Use when the task touches security, production writes,
   VDS deploy, migrations, MariaDB/Redis, users/roles, secrets, SMTP/DNS,
-  catalog/curriculum imports, ops workflows, or any destructive/data-changing
-  command. Do not use for pure code explanation or unrelated local edits.
+  catalog/curriculum imports, ops workflows, VDS SSH, or any
+  destructive/data-changing command. Do not use for pure code explanation or
+  unrelated local edits.
 ---
 
 # Testlig Safety
@@ -48,6 +49,22 @@ When production or shared-state writes are in scope:
 - Keep authorization fail-closed.
 - For state-changing HTTP: CSRF + PRG, audit where the domain audits, and object-level authorization (no IDOR).
 - Do not relax security invariants for test convenience.
+
+## VDS SSH
+
+Production SSH is a ban risk. Hosting treats repeated connections as brute force.
+
+- Do not open production SSH, SCP, rsync, or SFTP from a local Cursor terminal unless the user explicitly asks for that operation in the current task.
+- No background SSH watcher or SSH status polling.
+- No parallel SSH, SCP, or rsync. One operation uses one session. Batch the remote commands in that session.
+- On authentication failure, timeout, connection refused, or host-key failure: stop immediately. Do not retry. Do not ask for another attempt unless the user explicitly allows it.
+- After a failed connection, wait at least 15 minutes and do not try again without user approval.
+- Watch GitHub workflow status with the GitHub API or `gh`, not over SSH.
+- Check external health with HTTPS. Run localhost health or database counters only inside the one deploy or ops session.
+- Never write a password, private key, or other secret into chat, logs, commits, or workflow output.
+- If a ban is suspected, repository variable `VDS_SSH_PAUSED` must be `true`. Do not set it back to false until the user says the ban is lifted and asks for a connection.
+- While that variable is `true`, do not deploy and do not run production verify. A skipped deploy is not a successful deploy. Report `Deploy skipped because SSH paused`.
+- Workflows must use `ConnectionAttempts=1`, public-key only, no password fallback, and the shared concurrency group `testlig-vds-ssh` with `cancel-in-progress: false`.
 
 ## Reporting
 

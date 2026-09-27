@@ -10,6 +10,10 @@ Project skills live under `.cursor/skills/*/SKILL.md` (Cursor discovers them aut
 
 `testlig-safety` owns production and secret safety. `testlig-delivery` owns branch, PR, CI, and deploy. `testlig-content` owns the content domain. None of them copies the others. A task that matches more than one uses all of those skills together.
 
+## VDS SSH
+
+Production SSH, SCP, and rsync are limited by `testlig-safety` and `docs/ops-vds-ssh.md`. One operation uses one session. Workflows share the concurrency group `testlig-vds-ssh`. While `VDS_SSH_PAUSED=true`, do not connect and do not report a skipped deploy as success. Watch Actions with `gh` or the GitHub API. Use external HTTPS for smoke checks.
+
 ## Auto vs manual
 
 - **Auto:** Cursor may load a skill when the agent judges the `description` relevant. None of the three skills sets `disable-model-invocation`.

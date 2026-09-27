@@ -41,8 +41,9 @@ If the local environment cannot run PHP/DB checks, do **not** open Docker unless
 1. Open a focused PR: changed files, architecture decisions, security impact, and test results.
 2. Never merge while CI is red.
 3. When CI is green and the task authorizes it: merge, then follow the deploy path used by this repo.
-4. After deploy, confirm revision/commit match and safe HTTP/health smoke (`/`, auth entry, admin anon redirect, external `/health` deny, local health allow when ops verify is in scope).
-5. Deploy code only; do not write production data unless the user separately and explicitly approved that write.
+4. If repository variable `VDS_SSH_PAUSED` is `true`, stop before deploy and production verify. Do not open SSH. Report `Deploy skipped because SSH paused`. A skipped deploy is not a successful deploy.
+5. After a real deploy, confirm revision/commit match and safe HTTP/health smoke (`/`, auth entry, admin anon redirect, external `/health` deny, local health allow when ops verify is in scope).
+6. Deploy code only; do not write production data unless the user separately and explicitly approved that write.
 
 ## Final report
 

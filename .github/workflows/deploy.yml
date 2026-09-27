@@ -8,7 +8,7 @@ on:
         required: false
         type: string
         default: ""
-  # Auto-deploy only after CI succeeds on main (enabled via repo variable VDS_AUTO_DEPLOY=true).
+  # Auto-deploy only after CI succeeds on main, and only when SSH is not paused.
   workflow_run:
     workflows: ["CI"]
     types: [completed]
@@ -17,21 +17,36 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-vds
-  cancel-in-progress: false
-
 jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "Deploy skipped because SSH paused"
+          {
+            echo "## Deploy skipped because SSH paused"
+            echo "VDS SSH operations are paused. No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     name: Deploy to VDS
     runs-on: ubuntu-latest
-    # Manual always; auto only when CI succeeded and VDS_AUTO_DEPLOY=true.
-    if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push' &&
-       vars.VDS_AUTO_DEPLOY == 'true')
+    # Manual or auto. Both require the pause to be off. Auto also requires CI success and VDS_AUTO_DEPLOY.
+    if: >-
+      vars.VDS_SSH_PAUSED != 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        vars.VDS_AUTO_DEPLOY == 'true'))
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
     steps:
       - name: Resolve deploy SHA
         id: meta
@@ -50,14 +65,22 @@ jobs:
           echo "ref=${REF}" >> "$GITHUB_OUTPUT"
           echo "sha_hint=${SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout
+      - name: Checkout workflow helpers
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          path: workflow-src
+
+      - name: Checkout release
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.meta.outputs.ref }}
           fetch-depth: 1
+          path: release-src
 
       - name: Record SHA
         id: rev
+        working-directory: release-src
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
@@ -81,7 +104,7 @@ jobs:
             --exclude='./public/assets' \
             --exclude='./.phpunit.cache' \
             --exclude='./.php-cs-fixer.cache' \
-            -C "$GITHUB_WORKSPACE" .
+            -C release-src .
           ls -lh /tmp/testlig-release/release.tgz
 
       - name: Setup SSH
@@ -89,37 +112,23 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
 
-      - name: Trust host key
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.VDS_SSH_KNOWN_HOSTS }}" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
-
-      - name: Upload tarball + deploy scripts
+      - name: Configure SSH client
         env:
           VDS_HOST: ${{ secrets.VDS_HOST }}
           VDS_USER: ${{ secrets.VDS_USER }}
-        run: |
-          set -euo pipefail
-          REMOTE="${VDS_USER}@${VDS_HOST}"
-          scp /tmp/testlig-release/release.tgz "$REMOTE:/tmp/testlig-release.tgz"
-          scp deploy/vds/release-deploy.sh deploy/vds/rollback.sh "$REMOTE:/tmp/"
-          ssh "$REMOTE" \
-            'install -m 750 /tmp/release-deploy.sh /usr/local/sbin/testlig-release-deploy.sh &&
-             install -m 750 /tmp/rollback.sh /usr/local/sbin/testlig-rollback.sh &&
-             rm -f /tmp/release-deploy.sh /tmp/rollback.sh'
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash workflow-src/deploy/vds/gha-ssh-config.sh
 
-      - name: Activate release on VDS
+      - name: Upload bundle and activate release
         env:
-          VDS_HOST: ${{ secrets.VDS_HOST }}
-          VDS_USER: ${{ secrets.VDS_USER }}
           DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
         run: |
           set -euo pipefail
-          ssh "${VDS_USER}@${VDS_HOST}" \
-            "/usr/local/sbin/testlig-release-deploy.sh '${DEPLOY_SHA}' /tmp/testlig-release.tgz"
+          bash workflow-src/deploy/vds/gha-deploy-once.sh \
+            "${DEPLOY_SHA}" \
+            /tmp/testlig-release/release.tgz \
+            release-src/deploy/vds/release-deploy.sh \
+            release-src/deploy/vds/rollback.sh
 
       - name: External smoke (apex + auth pages)
         run: |
@@ -132,11 +141,3 @@ jobs:
           www=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://www.testlig.net/")
           echo "https://www.testlig.net/ -> ${www}"
           test "$www" = "200"
-
-      - name: Cleanup remote tarball
-        if: always()
-        env:
-          VDS_HOST: ${{ secrets.VDS_HOST }}
-          VDS_USER: ${{ secrets.VDS_USER }}
-        run: |
-          ssh "${VDS_USER}@${VDS_HOST}" 'rm -f /tmp/testlig-release.tgz' || true
