@@ -185,8 +185,9 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
         $anon->request('GET', $verifyPath);
         self::assertResponseRedirects('/giris');
         $this->login($anon, 'yeni.ogrenci@example.com');
-
-        $reviewPage = $anon->request('GET', '/davet/ogrenci');
+        $anon->request('GET', '/davet/ogrenci/'.$token);
+        self::assertResponseRedirects('/davet/ogrenci');
+        $reviewPage = $anon->followRedirect();
         $anon->submit($reviewPage->selectButton('Daveti kabul et')->form());
         self::assertResponseRedirects('/davet/ogrenci');
         $anon->followRedirect();
