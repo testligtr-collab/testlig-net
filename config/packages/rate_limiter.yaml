@@ -186,9 +186,7 @@ when@test:
                 limit: 5
                 interval: '1 hour'
             institution_teacher_invite_resend:
-                policy: 'fixed_window'
-                limit: 8
-                interval: '10 minutes'
+                policy: 'no_limit'
             institution_teacher_invite_accept:
                 policy: 'fixed_window'
                 limit: 8

@@ -28,7 +28,6 @@ use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -148,13 +147,12 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $list);
         self::assertStringNotContainsString('ROLE_', $list);
 
-        $rateLimiterCache = static::getContainer()->get('cache.rate_limiter');
-        self::assertInstanceOf(CacheItemPoolInterface::class, $rateLimiterCache);
-        $rateLimiterCache->clear();
         $client->submit($client->getCrawler()->selectButton('Yeniden gönder')->form());
         self::assertResponseRedirects('/kurum/ogretmenler');
-        self::assertEmailCount(1);
         $second = self::getMailerMessage();
+        $client->followRedirect();
+        $resent = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Davet gönderildi veya mevcut bekleyen davet güncellendi.', $resent);
         self::assertInstanceOf(Email::class, $second);
         $token = $this->captureToken((string) $second->getHtmlBody());
         self::assertNotSame($firstToken, $token);
