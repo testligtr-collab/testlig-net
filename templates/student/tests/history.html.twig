@@ -22,7 +22,7 @@
             {% for test in tests %}
                 <li class="student-catalog-card">
                     <span class="student-catalog-card__title">{{ test.title }}</span>
-                    <span class="student-catalog-card__meta muted">{{ test.subject }}</span>
+                    <span class="student-catalog-card__meta muted">{{ test.subject }}{% if test.institutionName %} · {{ test.institutionName }}{% endif %}</span>
                     <span class="student-test-state">{{ test.stateLabel }}</span>
                     {% if test.completedAt %}
                         <span class="student-catalog-card__meta">{{ test.completedAt }}</span>

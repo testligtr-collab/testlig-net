@@ -26,6 +26,9 @@
                 {% elseif test.state == 'resume' %}
                     {% set testHref = path('app_student_test_solve', {code: test.code}) %}
                     {% set testCta = 'Devam et' %}
+                {% elseif test.state == 'soon' or test.state == 'expired' %}
+                    {% set testHref = path('app_student_test_show', {code: test.code}) %}
+                    {% set testCta = test.status_label|default('Kapalı') %}
                 {% else %}
                     {% set testHref = path('app_student_test_show', {code: test.code}) %}
                     {% set testCta = 'Teste başla' %}
@@ -33,8 +36,11 @@
                 <li>
                     <a class="student-catalog-card" href="{{ testHref }}">
                         <span class="student-catalog-card__title">{{ test.title }}</span>
-                        <span class="student-catalog-card__meta muted">{{ test.subject }}</span>
+                        <span class="student-catalog-card__meta muted">{{ test.subject }}{% if test.institution|default(null) %} · {{ test.institution }}{% if test.classroom|default(null) %} · {{ test.classroom }}{% endif %}{% endif %}</span>
                         <span class="student-catalog-card__meta">{{ test.question_count }} soru · {{ test.duration_label }}</span>
+                        {% if test.status_label|default(null) %}
+                            <span class="student-test-state">{{ test.status_label }}</span>
+                        {% endif %}
                         <span class="student-test-state">{{ testCta }}</span>
                     </a>
                 </li>

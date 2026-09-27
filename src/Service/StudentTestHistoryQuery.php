@@ -10,6 +10,8 @@ use App\Entity\AssessmentPlatformPractice;
 use App\Entity\AssessmentScoringRun;
 use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
+use App\Enum\AssessmentDeliveryAudienceType;
+use App\Enum\AssessmentScope;
 use App\Enum\ScoringRunStatus;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +26,7 @@ final class StudentTestHistoryQuery
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
+        private readonly InvitationCodeDigestHasher $hasher,
     ) {
     }
 
@@ -56,8 +59,11 @@ final class StudentTestHistoryQuery
             $scored = $run instanceof AssessmentScoringRun;
             $inProgress = AssessmentAttemptStatus::InProgress === $attempt->getStatus();
             $assessment = $attempt->getAssessment();
+            $delivery = $attempt->getDelivery();
+            $institutionTest = AssessmentDeliveryAudienceType::Classroom === $delivery->getAudienceType()
+                && AssessmentScope::Institution === $assessment->getScope();
             $cards[] = new StudentTestHistoryCard(
-                $assessment->getCode(),
+                $institutionTest ? $this->hasher->studentAssignmentCode($delivery->getId()) : $assessment->getCode(),
                 $attempt->getAssessmentRevision()->getTitle(),
                 $assessment->getSubject()?->getName() ?? '',
                 $inProgress ? 'resume' : 'done',
@@ -69,6 +75,7 @@ final class StudentTestHistoryQuery
                 $scored ? $run->getFinalPoints() : null,
                 $scored ? $run->getMaximumPoints() : null,
                 $scored ? $run->getPercentage() : null,
+                $institutionTest ? $delivery->getInstitution()->getName() : null,
             );
         }
 
@@ -82,14 +89,18 @@ final class StudentTestHistoryQuery
             ->innerJoin('a.assessmentRevision', 'rev')
             ->innerJoin('a.assessment', 'ass')
             ->leftJoin('ass.subject', 'subj')
-            ->innerJoin(
+            ->innerJoin('a.delivery', 'delivery')
+            ->leftJoin(
                 AssessmentPlatformPractice::class,
                 'practice',
                 'WITH',
-                'practice.delivery = a.delivery AND practice.user = a.user',
+                'practice.delivery = delivery AND practice.user = a.user',
             )
             ->andWhere('a.user = :student')
-            ->setParameter('student', $student->getId(), 'uuid');
+            ->andWhere('practice.id IS NOT NULL OR (delivery.audienceType = :classroomAudience AND ass.scope = :institutionScope)')
+            ->setParameter('student', $student->getId(), 'uuid')
+            ->setParameter('classroomAudience', AssessmentDeliveryAudienceType::Classroom)
+            ->setParameter('institutionScope', AssessmentScope::Institution);
     }
 
     private function attemptFrom(mixed $row): ?AssessmentAttempt

@@ -121,6 +121,14 @@ final class InvitationCodeDigestHasher
         return substr(hash_hmac('sha256', 'workspace_v1:'.$scope.':'.$id->toRfc4122(), $this->pepper), 0, 20);
     }
 
+    /**
+     * Opaque 32-hex student test code. Not the delivery UUID.
+     */
+    public function studentAssignmentCode(Uuid $deliveryId): string
+    {
+        return substr(hash_hmac('sha256', 'student_assignment_v1:'.$deliveryId->toRfc4122(), $this->pepper), 0, 32);
+    }
+
     public function hash(InvitationCodeKind $kind, Uuid $recordId, string $purposeOrScope, string $plainCode): string
     {
         return hash_hmac('sha256', $this->canonicalMessage($kind, $recordId, $purposeOrScope, $plainCode), $this->pepper);

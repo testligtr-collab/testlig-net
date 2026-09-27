@@ -1,0 +1,69 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Test sonuçları — Testlig{% endblock %}
+
+{% block institution_content %}
+<article class="student-form-card">
+    <h1>{{ report.title }}</h1>
+    <p>{{ report.classroomName }}</p>
+    <p>{{ report.windowLabel }}</p>
+    <ul>
+        <li>Öğrenci sayısı: {{ report.recipientCount }}</li>
+        <li>Başlamadı: {{ report.notStarted }}</li>
+        <li>Devam ediyor: {{ report.inProgress }}</li>
+        <li>Tamamlandı: {{ report.completed }}</li>
+        <li>Süresi doldu: {{ report.expired }}</li>
+        <li>Tamamlanma oranı: {{ report.completionRate }}%</li>
+        <li>Ortalama yüzde: {{ report.averagePercentage|default('—') }}</li>
+        <li>En yüksek: {{ report.highestPercentage|default('—') }}</li>
+        <li>En düşük: {{ report.lowestPercentage|default('—') }}</li>
+    </ul>
+    {% if report.students is empty %}
+        <p>Gösterilecek öğrenci yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Öğrenci</th>
+                        <th>Durum</th>
+                        <th>Başlangıç</th>
+                        <th>Bitiş</th>
+                        <th>Doğru</th>
+                        <th>Yanlış</th>
+                        <th>Boş</th>
+                        <th>Puan</th>
+                        <th>Yüzde</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in report.students %}
+                        <tr>
+                            <td data-label="Öğrenci">{{ student.name }}</td>
+                            <td data-label="Durum">{{ student.statusLabel }}</td>
+                            <td data-label="Başlangıç">{{ student.startedAt|default('—') }}</td>
+                            <td data-label="Bitiş">{{ student.completedAt|default('—') }}</td>
+                            <td data-label="Doğru">{{ student.correct is null ? '—' : student.correct }}</td>
+                            <td data-label="Yanlış">{{ student.incorrect is null ? '—' : student.incorrect }}</td>
+                            <td data-label="Boş">{{ student.unanswered is null ? '—' : student.unanswered }}</td>
+                            <td data-label="Puan">{{ student.earned is null ? '—' : student.earned ~ ' / ' ~ student.maximum }}</td>
+                            <td data-label="Yüzde">{{ student.percentage|default('—') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+    {% if report.pageCount > 1 %}
+        <p>
+            Sayfa {{ report.page }} / {{ report.pageCount }}
+            {% if report.page > 1 %}
+                <a href="{{ path('app_institution_test_results', {reference: reference, page: report.page - 1}) }}">Önceki</a>
+            {% endif %}
+            {% if report.page < report.pageCount %}
+                <a href="{{ path('app_institution_test_results', {reference: reference, page: report.page + 1}) }}">Sonraki</a>
+            {% endif %}
+        </p>
+    {% endif %}
+</article>
+{% endblock %}

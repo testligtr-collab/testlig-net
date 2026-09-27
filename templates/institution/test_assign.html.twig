@@ -1,0 +1,60 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Sınıfa ata — Testlig{% endblock %}
+
+{% block institution_content %}
+<article class="student-form-card">
+    <h1>{{ test.title }}</h1>
+    <p>{{ test.gradeLabel }} · {{ test.statusLabel }}</p>
+    <p>Maksimum deneme: 1</p>
+
+    <form method="post" action="{{ path('app_institution_test_assign', {reference: test.reference}) }}" class="stack-sm">
+        <input type="hidden" name="_token" value="{{ csrf_token('institution_test_assign') }}">
+        <label>Sınıf
+            <select name="classroom" required>
+                <option value="">Seçin</option>
+                {% for classroom in classrooms %}
+                    <option value="{{ classroom.reference }}">{{ classroom.label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Başlangıç (isteğe bağlı, boşsa hemen)
+            <input type="datetime-local" name="opens_at">
+        </label>
+        <label>Bitiş (isteğe bağlı)
+            <input type="datetime-local" name="closes_at">
+        </label>
+        <label>Öğrenciye yönerge (isteğe bağlı)
+            <textarea name="instructions" maxlength="1000"></textarea>
+        </label>
+        <button class="btn btn--cta" type="submit">Sınıfa ata</button>
+    </form>
+
+    {% if assignments is not empty %}
+        <h2>Atamalar</h2>
+        <ul>
+            {% for assignment in assignments %}
+                <li>
+                    {{ assignment.classroomName }} · {{ assignment.statusLabel }}
+                    · {{ assignment.opensLabel }} — {{ assignment.closesLabel }}
+                    · {{ assignment.recipientCount }} öğrenci
+                    {% if assignment.canActivate %}
+                        <form method="post" action="{{ path('app_institution_test_activate', {reference: assignment.reference}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('institution_test_activate') }}">
+                            <button class="btn" type="submit">Etkinleştir</button>
+                        </form>
+                    {% endif %}
+                    {% if assignment.canClose %}
+                        <form method="post" action="{{ path('app_institution_test_close', {reference: assignment.reference}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('institution_test_close') }}">
+                            <button class="btn" type="submit">Kapat</button>
+                        </form>
+                    {% endif %}
+                    <a href="{{ path('app_institution_test_results', {reference: assignment.reference}) }}">Sonuçlar</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <p><a href="{{ path('app_institution_test', {reference: test.reference}) }}">Teste dön</a></p>
+</article>
+{% endblock %}

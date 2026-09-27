@@ -85,6 +85,7 @@ final class StudentAssessmentPractice
         private readonly ActiveVerifiedUserPolicy $activeUsers,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly StudentAssignedTestCatalog $assignedTests,
     ) {
     }
 
@@ -111,14 +112,30 @@ final class StudentAssessmentPractice
             ];
         }
 
-        return $rows;
+        return array_merge($rows, $this->assignedTests->listFor($student));
     }
 
     /**
-     * @return array{code: string, title: string, instructions: ?string, question_count: int, duration_label: string, total_points: string, state: string}
+     * @return array{
+     *     code: string,
+     *     title: string,
+     *     instructions: ?string,
+     *     question_count: int,
+     *     duration_label: string,
+     *     total_points: string,
+     *     state: string,
+     *     institution?: string,
+     *     classroom?: string,
+     *     window?: string,
+     *     status_label?: string,
+     *     can_start?: bool
+     * }
      */
     public function detail(User $student, GradeLevel $grade, string $code): array
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            return $this->assignedDetail($student, $code);
+        }
         $assessment = $this->visible($student, $grade, $code);
         $revision = $this->publishedRevision($assessment);
         $attempt = $this->attemptFor($student, $assessment);
@@ -136,6 +153,9 @@ final class StudentAssessmentPractice
 
     public function start(User $student, GradeLevel $grade, string $code): AssessmentAttempt
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            return $this->startAssigned($student, $code);
+        }
         $assessment = $this->visible($student, $grade, $code);
         $existing = $this->attemptFor($student, $assessment);
         if ($existing instanceof AssessmentAttempt) {
@@ -177,6 +197,12 @@ final class StudentAssessmentPractice
      */
     public function solve(User $student, GradeLevel $grade, string $code, int $requestedPosition): array
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            $delivery = $this->requireAssigned($student, $code);
+            $attempt = $this->requireAssignedInProgress($student, $delivery);
+
+            return $this->solveView($student, $code, $attempt, $requestedPosition);
+        }
         $assessment = $this->visible($student, $grade, $code);
         $attempt = $this->requireAttempt($student, $assessment);
         if (AssessmentAttemptStatus::InProgress !== $attempt->getStatus()) {
@@ -188,44 +214,17 @@ final class StudentAssessmentPractice
             throw StudentPracticeException::rejected('finished');
         }
 
-        $items = $this->attemptItems->findItemsForAttemptOrdered($attempt->getId());
-        if ([] === $items) {
-            throw StudentPracticeException::notFound();
-        }
-        $position = min(max(1, $requestedPosition), \count($items));
-        $current = $items[$position - 1];
-        $answer = $this->answers->findAnswer($attempt->getId(), $current->getId());
-        $selectedKey = $this->selectedKey($student, $answer);
-        $revision = $attempt->getAssessmentRevision();
-
-        $progress = [];
-        foreach ($items as $item) {
-            $saved = $this->answers->findAnswer($attempt->getId(), $item->getId());
-            $progress[] = [
-                'position' => $item->getPresentationPosition(),
-                'answered' => $saved instanceof AssessmentAttemptAnswer,
-                'current' => $item->getPresentationPosition() === $position,
-            ];
-        }
-
-        return [
-            'code' => $assessment->getCode(),
-            'title' => $revision->getTitle(),
-            'instructions' => $revision->getInstructions(),
-            'deadline' => null === $revision->getDurationSeconds() ? null : $attempt->getExpiresAt()->format('d.m.Y H:i').' UTC',
-            'deadline_iso' => null === $revision->getDurationSeconds() ? null : $attempt->getExpiresAt()->format(\DateTimeInterface::ATOM),
-            'position' => $position,
-            'count' => \count($items),
-            'progress' => $progress,
-            'stem' => QuestionPlainText::lines($current->getQuestionRevision()->getStemContent()),
-            'options' => $this->choiceRows($current, $selectedKey),
-            'answered' => $answer instanceof AssessmentAttemptAnswer,
-            'expected_version' => $answer instanceof AssessmentAttemptAnswer ? $answer->getClientRevision() : 0,
-        ];
+        return $this->solveView($student, $assessment->getCode(), $attempt, $requestedPosition);
     }
 
     public function saveChoice(User $student, GradeLevel $grade, string $code, int $position, int $choice, int $expectedVersion): void
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            $delivery = $this->requireAssigned($student, $code);
+            $this->saveAssigned($student, $delivery, $position, $choice, $expectedVersion);
+
+            return;
+        }
         $assessment = $this->visible($student, $grade, $code);
         $attempt = $this->requireInProgress($student, $assessment);
         $item = $this->itemAt($attempt, $position);
@@ -258,19 +257,22 @@ final class StudentAssessmentPractice
 
     public function finish(User $student, GradeLevel $grade, string $code): void
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            $delivery = $this->requireAssigned($student, $code);
+            $attempt = $this->assignedAttempt($student, $delivery);
+            if (!$attempt instanceof AssessmentAttempt) {
+                throw StudentPracticeException::notFound();
+            }
+            $this->finishAttempt($student, $attempt, 'assignment_submit', 'assignment_score');
+
+            return;
+        }
         $assessment = $this->visible($student, $grade, $code);
         $attempt = $this->requireAttempt($student, $assessment);
         if (AssessmentAttemptStatus::InProgress === $attempt->getStatus()) {
-            try {
-                $this->attemptManager->submit($attempt, $student, 'practice_submit');
-            } catch (AssessmentAttemptException $exception) {
-                if (!\in_array($exception->getReason(), [
-                    AssessmentAttemptFailureReason::AttemptExpired,
-                    AssessmentAttemptFailureReason::AttemptTerminal,
-                ], true)) {
-                    throw $exception;
-                }
-            }
+            $this->finishAttempt($student, $attempt, 'practice_submit', 'practice_score');
+
+            return;
         }
         $this->score($attempt);
     }
@@ -280,6 +282,15 @@ final class StudentAssessmentPractice
      */
     public function result(User $student, GradeLevel $grade, string $code): ?array
     {
+        if (!$this->isPlatform($student, $grade, $code)) {
+            $delivery = $this->requireAssigned($student, $code);
+            $attempt = $this->assignedAttempt($student, $delivery);
+            if (!$attempt instanceof AssessmentAttempt || AssessmentAttemptStatus::InProgress === $attempt->getStatus()) {
+                throw StudentPracticeException::rejected('in_progress');
+            }
+
+            return $this->results->read($student, $attempt);
+        }
         $assessment = $this->visible($student, $grade, $code);
         $attempt = $this->requireAttempt($student, $assessment);
         if (AssessmentAttemptStatus::InProgress === $attempt->getStatus()) {
@@ -623,5 +634,218 @@ final class StudentAssessmentPractice
         }
 
         return $total;
+    }
+
+    private function isPlatform(User $student, GradeLevel $grade, string $code): bool
+    {
+        try {
+            $this->visible($student, $grade, $code);
+
+            return true;
+        } catch (StudentPracticeException $exception) {
+            if ('not_found' !== $exception->getReason()) {
+                throw $exception;
+            }
+
+            return false;
+        }
+    }
+
+    private function requireAssigned(User $student, string $code): AssessmentDelivery
+    {
+        $delivery = $this->assignedTests->deliveryFor($student, $code);
+        if (!$delivery instanceof AssessmentDelivery) {
+            throw StudentPracticeException::notFound();
+        }
+        if (AssessmentScope::Institution !== $delivery->getAssessment()->getScope()) {
+            throw StudentPracticeException::notFound();
+        }
+
+        return $delivery;
+    }
+
+    private function assignedAttempt(User $student, AssessmentDelivery $delivery): ?AssessmentAttempt
+    {
+        return $this->attempts->findOwnedForDelivery($delivery->getId(), $student->getId());
+    }
+
+    private function startAssigned(User $student, string $code): AssessmentAttempt
+    {
+        $delivery = $this->requireAssigned($student, $code);
+        $existing = $this->assignedAttempt($student, $delivery);
+        if ($existing instanceof AssessmentAttempt) {
+            return $existing;
+        }
+        $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+        $this->assertPracticeItems($revision);
+
+        return $this->attemptManager->startAttempt($delivery, $student, 'assignment_start');
+    }
+
+    /**
+     * @return array{
+     *     code: string,
+     *     title: string,
+     *     instructions: ?string,
+     *     question_count: int,
+     *     duration_label: string,
+     *     total_points: string,
+     *     state: string,
+     *     institution?: string,
+     *     classroom?: string,
+     *     window?: string,
+     *     status_label?: string,
+     *     can_start?: bool
+     * }
+     */
+    private function assignedDetail(User $student, string $code): array
+    {
+        $delivery = $this->requireAssigned($student, $code);
+        foreach ($this->assignedTests->listFor($student) as $card) {
+            if (!hash_equals($card['code'], strtolower($code))) {
+                continue;
+            }
+            $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+
+            return [
+                'code' => $card['code'],
+                'title' => $card['title'],
+                'instructions' => $delivery->getInstructionsOverride() ?? $revision->getInstructions(),
+                'question_count' => $card['question_count'],
+                'duration_label' => $card['duration_label'],
+                'total_points' => $this->totalPoints($revision),
+                'state' => $card['state'],
+                'institution' => $card['institution'],
+                'classroom' => $card['classroom'],
+                'window' => $card['window'],
+                'status_label' => $card['status_label'],
+                'can_start' => $card['can_start'],
+            ];
+        }
+
+        throw StudentPracticeException::notFound();
+    }
+
+    private function requireAssignedInProgress(User $student, AssessmentDelivery $delivery): AssessmentAttempt
+    {
+        $attempt = $this->assignedAttempt($student, $delivery);
+        if (!$attempt instanceof AssessmentAttempt) {
+            throw StudentPracticeException::notFound();
+        }
+        if (AssessmentAttemptStatus::InProgress !== $attempt->getStatus()) {
+            throw StudentPracticeException::rejected('finished');
+        }
+        $this->finalizeIfDeadlinePassed($student, $attempt);
+        $attempt = $this->assignedAttempt($student, $delivery);
+        if (!$attempt instanceof AssessmentAttempt || AssessmentAttemptStatus::InProgress !== $attempt->getStatus()) {
+            throw StudentPracticeException::rejected('finished');
+        }
+
+        return $attempt;
+    }
+
+    /**
+     * @return array{
+     *     code: string,
+     *     title: string,
+     *     instructions: ?string,
+     *     deadline: ?string,
+     *     deadline_iso: ?string,
+     *     position: int,
+     *     count: int,
+     *     progress: list<array{position: int, answered: bool, current: bool}>,
+     *     stem: list<string>,
+     *     options: list<array{index: int, text: string, selected: bool}>,
+     *     answered: bool,
+     *     expected_version: int
+     * }
+     */
+    private function solveView(User $student, string $code, AssessmentAttempt $attempt, int $requestedPosition): array
+    {
+        $items = $this->attemptItems->findItemsForAttemptOrdered($attempt->getId());
+        if ([] === $items) {
+            throw StudentPracticeException::notFound();
+        }
+        $position = min(max(1, $requestedPosition), \count($items));
+        $current = $items[$position - 1];
+        $answer = $this->answers->findAnswer($attempt->getId(), $current->getId());
+        $selectedKey = $this->selectedKey($student, $answer);
+        $revision = $attempt->getAssessmentRevision();
+        $progress = [];
+        foreach ($items as $item) {
+            $saved = $this->answers->findAnswer($attempt->getId(), $item->getId());
+            $progress[] = [
+                'position' => $item->getPresentationPosition(),
+                'answered' => $saved instanceof AssessmentAttemptAnswer,
+                'current' => $item->getPresentationPosition() === $position,
+            ];
+        }
+
+        return [
+            'code' => $code,
+            'title' => $revision->getTitle(),
+            'instructions' => $revision->getInstructions(),
+            'deadline' => null === $revision->getDurationSeconds() ? null : $attempt->getExpiresAt()->format('d.m.Y H:i').' UTC',
+            'deadline_iso' => null === $revision->getDurationSeconds() ? null : $attempt->getExpiresAt()->format(\DateTimeInterface::ATOM),
+            'position' => $position,
+            'count' => \count($items),
+            'progress' => $progress,
+            'stem' => QuestionPlainText::lines($current->getQuestionRevision()->getStemContent()),
+            'options' => $this->choiceRows($current, $selectedKey),
+            'answered' => $answer instanceof AssessmentAttemptAnswer,
+            'expected_version' => $answer instanceof AssessmentAttemptAnswer ? $answer->getClientRevision() : 0,
+        ];
+    }
+
+    private function saveAssigned(User $student, AssessmentDelivery $delivery, int $position, int $choice, int $expectedVersion): void
+    {
+        $attempt = $this->requireAssignedInProgress($student, $delivery);
+        $item = $this->itemAt($attempt, $position);
+        $keys = $this->orderedKeys($item);
+        $index = $choice - 1;
+        if (!isset($keys[$index])) {
+            throw StudentPracticeException::rejected('choice');
+        }
+        try {
+            $this->attemptManager->saveAnswer(
+                $attempt,
+                $item,
+                $student,
+                [
+                    'version' => AttemptStudentAnswerValidator::PAYLOAD_VERSION,
+                    'answerType' => QuestionType::SingleChoice->value,
+                    'selectedStableKey' => $keys[$index],
+                ],
+                $expectedVersion,
+                'assignment_save',
+            );
+        } catch (AssessmentAttemptException $exception) {
+            if (AssessmentAttemptFailureReason::AttemptExpired === $exception->getReason()) {
+                $this->score($attempt);
+                throw StudentPracticeException::rejected('finished');
+            }
+            throw $exception;
+        }
+    }
+
+    private function finishAttempt(User $student, AssessmentAttempt $attempt, string $submitReason, string $scoreReason): void
+    {
+        if (AssessmentAttemptStatus::InProgress === $attempt->getStatus()) {
+            try {
+                $this->attemptManager->submit($attempt, $student, $submitReason);
+            } catch (AssessmentAttemptException $exception) {
+                if (!\in_array($exception->getReason(), [
+                    AssessmentAttemptFailureReason::AttemptExpired,
+                    AssessmentAttemptFailureReason::AttemptTerminal,
+                ], true)) {
+                    throw $exception;
+                }
+            }
+        }
+        try {
+            $this->scoring->scoreAttempt($attempt, null, $scoreReason);
+        } catch (AssessmentScoringException) {
+            throw StudentPracticeException::rejected('score');
+        }
     }
 }

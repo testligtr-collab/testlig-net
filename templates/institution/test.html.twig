@@ -9,6 +9,9 @@
     <p>Soru sayısı: {{ test.itemCount }}</p>
     <p>Yayın: {{ test.publishedAtLabel|default('—') }}</p>
     <p>Teslimat: {{ test.deliveryLabel|default('—') }}</p>
+    {% if test.statusLabel == 'Yayında' %}
+        <p><a class="btn btn--cta" href="{{ path('app_institution_test_assign', {reference: test.reference}) }}">Sınıfa ata</a></p>
+    {% endif %}
     <p><a href="{{ path('app_institution_tests') }}">Test listesine dön</a></p>
 </article>
 {% endblock %}
