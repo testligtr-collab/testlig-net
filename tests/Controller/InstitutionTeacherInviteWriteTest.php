@@ -28,6 +28,7 @@ use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -147,13 +148,11 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $list);
         self::assertStringNotContainsString('ROLE_', $list);
 
-        $crawler = $client->request('GET', '/kurum/ogretmenler/davet');
-        $client->submit($crawler->selectButton('Davet gönder')->form([
-            'email' => 'gizli.ogretmen@example.com',
-            'note' => 'gizli not buraya yazildi',
-        ]));
-        $repeatBody = trim(preg_replace('/\s+/', ' ', strip_tags((string) $client->getResponse()->getContent())) ?? '');
-        self::assertSame(302, $client->getResponse()->getStatusCode(), substr($repeatBody, 0, 500));
+        $rateLimiterCache = static::getContainer()->get('cache.rate_limiter');
+        self::assertInstanceOf(CacheItemPoolInterface::class, $rateLimiterCache);
+        $rateLimiterCache->clear();
+        $client->submit($client->getCrawler()->selectButton('Yeniden gönder')->form());
+        self::assertResponseRedirects('/kurum/ogretmenler');
         self::assertEmailCount(1);
         $second = self::getMailerMessage();
         self::assertInstanceOf(Email::class, $second);
