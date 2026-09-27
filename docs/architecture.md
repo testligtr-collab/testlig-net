@@ -226,7 +226,7 @@
 
 ## Kurum çalışma alanı
 
-`/kurum` yeni bir kurum şeması açmaz. Erişim `institutions` + `institution_memberships` üzerinden, aktif kurum ve aktif owner/manager üyeliği ister. Global Student, Parent, Moderator, Teacher, Admin ve SuperAdmin rolleri üyelik olmadan kurum verisi açmaz; mevcut `InstitutionVoter` içindeki SuperAdmin kısa yolu bu yüzeye bağlanmaz. Birden fazla üyelikte seçim POST + CSRF ile session’da sunucuda doğrulanmış UUID olarak durur ve her istekte üyelik yeniden okunur. Listeler ve sayılar yalnız seçili kurumun SQL filtresindendir. Platform testleri kurum testi gibi listelenmez. E-posta, UUID, vergi ve audit alanları şablona verilmez. Bu dilimde sınıf, üyelik, davet ve kurum yazma işlemi yoktur. Tüm `/kurum` yanıtları `no-store, private` ve `noindex` taşır.
+`/kurum` yeni bir kurum şeması açmaz. Erişim `institutions` + `institution_memberships` üzerinden, aktif kurum ve aktif owner/manager üyeliği ister. Global Student, Parent, Moderator, Teacher, Admin ve SuperAdmin rolleri üyelik olmadan kurum verisi açmaz; mevcut `InstitutionVoter` ve `ClassroomVoter` içindeki SuperAdmin kısa yolları bu yüzeye bağlanmaz. Birden fazla üyelikte seçim POST + CSRF ile session’da sunucuda doğrulanmış UUID olarak durur ve her istekte üyelik yeniden okunur. Listeler ve sayılar yalnız seçili kurumun SQL filtresindendir. Sınıf oluşturma, ad/kontenjan güncelleme ve arşivleme mevcut `ClassroomManager` üzerinden yapılır. Arşiv geri açılamaz, satırı silmez ve mevcut atama veya teslimat kayıtlarını silmez. Kapalı eğitim döneminde sınıf yazılamaz. E-posta, UUID ve audit alanları şablona verilmez. Tüm `/kurum` yanıtları `no-store, private` ve `noindex` taşır.
 
 ## Sonraki aşamalar
 

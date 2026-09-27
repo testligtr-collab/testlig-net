@@ -31,6 +31,7 @@ final class SecurityAuditMetadataSanitizer
         'operator_note',
         'academic_year_id',
         'classroom_id',
+        'changed_fields',
         'membership_id',
         'source_classroom_id',
         'target_classroom_id',

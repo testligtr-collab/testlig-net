@@ -5,8 +5,16 @@
 {% block institution_content %}
 <section>
     <h1>Sınıflar</h1>
+    <p>
+        <a class="btn btn--cta" href="{{ path('app_institution_classroom_new') }}">Yeni sınıf</a>
+        {% if archive_view %}
+            <a href="{{ path('app_institution_classrooms') }}">Aktif sınıflar</a>
+        {% else %}
+            <a href="{{ path('app_institution_classrooms', {durum: 'arsiv'}) }}">Arşivlenenler</a>
+        {% endif %}
+    </p>
     {% if classrooms is empty %}
-        <p class="student-form-card">Henüz sınıf oluşturulmamış.</p>
+        <p class="student-form-card">{% if archive_view %}Arşivlenmiş sınıf yok.{% else %}Henüz sınıf oluşturulmamış.{% endif %}</p>
     {% else %}
         <div class="table-scroll">
             <table class="institution-table">
@@ -15,9 +23,12 @@
                         <th>Sınıf</th>
                         <th>Seviye</th>
                         <th>Dönem</th>
+                        <th>Şube</th>
                         <th>Öğretmen</th>
                         <th>Öğrenci</th>
                         <th>Durum</th>
+                        <th>Güncellendi</th>
+                        <th>İşlem</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -26,9 +37,17 @@
                             <td data-label="Sınıf"><a href="{{ path('app_institution_classroom', {reference: classroom.reference}) }}">{{ classroom.name }}</a></td>
                             <td data-label="Seviye">{{ classroom.gradeLabel }}</td>
                             <td data-label="Dönem">{{ classroom.academicYearName }}</td>
+                            <td data-label="Şube">{{ classroom.sectionCode|default('—') }}</td>
                             <td data-label="Öğretmen">{{ classroom.teacherCount }}</td>
                             <td data-label="Öğrenci">{{ classroom.studentCount }}</td>
                             <td data-label="Durum">{{ classroom.statusLabel }}</td>
+                            <td data-label="Güncellendi">{{ classroom.updatedAtLabel }}</td>
+                            <td data-label="İşlem">
+                                <a href="{{ path('app_institution_classroom', {reference: classroom.reference}) }}">Detay</a>
+                                {% if classroom.canEdit %}
+                                    <a href="{{ path('app_institution_classroom_edit', {reference: classroom.reference}) }}">Düzenle</a>
+                                {% endif %}
+                            </td>
                         </tr>
                     {% endfor %}
                 </tbody>

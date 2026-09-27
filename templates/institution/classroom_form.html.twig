@@ -1,0 +1,62 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}{% if mode == 'create' %}Yeni sınıf{% else %}Sınıfı düzenle{% endif %} — Testlig{% endblock %}
+
+{% block institution_content %}
+<section class="student-form-card">
+    <h1>{% if mode == 'create' %}Yeni sınıf{% else %}Sınıfı düzenle{% endif %}</h1>
+    {% if error %}
+        <p class="form-errors" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if mode == 'create' and years is empty %}
+        <p>Sınıf oluşturmak için bu kurumda açık bir eğitim dönemi gerekir. Dönem oluşturma bu ekranda yok.</p>
+    {% else %}
+        <form method="post">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_classroom') }}">
+            {% if mode == 'edit' %}
+                <input type="hidden" name="updated_at" value="{{ values.updated_at }}">
+            {% endif %}
+            <p>
+                <label for="classroom-name">Sınıf adı</label>
+                <input id="classroom-name" name="name" value="{{ values.name }}" required maxlength="180">
+            </p>
+            {% if mode == 'create' %}
+                <p>
+                    <label for="classroom-year">Eğitim dönemi</label>
+                    <select id="classroom-year" name="year_reference" required>
+                        <option value="">Seçin</option>
+                        {% for year in years %}
+                            <option value="{{ year.reference }}" {% if values.year_reference == year.reference %}selected{% endif %}>{{ year.name }} · {{ year.statusLabel }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label for="classroom-grade">Sınıf seviyesi</label>
+                    <select id="classroom-grade" name="grade_level" required>
+                        <option value="">Seçin</option>
+                        {% for grade in grades %}
+                            <option value="{{ grade.value }}" {% if values.grade_level == grade.value ~ '' %}selected{% endif %}>{{ grade.label }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <p>
+                    <label for="classroom-section">Şube</label>
+                    <input id="classroom-section" name="section_code" value="{{ values.section_code }}" maxlength="32">
+                    <span class="muted">İsteğe bağlı. Aynı dönemde sınıf adı benzersiz olmalıdır.</span>
+                </p>
+            {% else %}
+                <p>Seviye: {{ classroom.gradeLabel }}</p>
+                <p>Dönem: {{ classroom.academicYearName }}</p>
+                <p>Şube: {{ classroom.sectionCode|default('—') }}</p>
+            {% endif %}
+            <p>
+                <label for="classroom-capacity">Kontenjan</label>
+                <input id="classroom-capacity" name="capacity" inputmode="numeric" value="{{ values.capacity }}">
+                <span class="muted">Boş bırakılabilir. Doluysa 1 ile 500 arasındadır.</span>
+            </p>
+            <p><button type="submit" class="btn btn--cta">{% if mode == 'create' %}Sınıfı oluştur{% else %}Kaydet{% endif %}</button></p>
+        </form>
+    {% endif %}
+    <p><a href="{{ path('app_institution_classrooms') }}">Sınıf listesine dön</a></p>
+</section>
+{% endblock %}

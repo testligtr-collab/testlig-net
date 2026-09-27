@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\AcademicYear;
 use App\Entity\Institution;
+use App\Enum\AcademicYearStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -63,6 +64,26 @@ class AcademicYearRepository extends ServiceEntityRepository
         }
 
         return null !== $qb->getQuery()->getOneOrNullResult();
+    }
+
+    /**
+     * Planned and active years of one institution. Closed years cannot accept classroom writes.
+     *
+     * @return list<AcademicYear>
+     */
+    public function findOperableForInstitution(Institution $institution): array
+    {
+        /** @var list<AcademicYear> $rows */
+        $rows = $this->createQueryBuilder('y')
+            ->andWhere('y.institution = :institution')
+            ->andWhere('y.status != :closed')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('closed', AcademicYearStatus::Closed)
+            ->orderBy('y.startsAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
     }
 
     public function save(AcademicYear $year, bool $flush = true): void

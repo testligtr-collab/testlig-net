@@ -238,6 +238,78 @@ final class ClassroomManager
         });
     }
 
+    public function revise(
+        Classroom $classroom,
+        User $actor,
+        string $name,
+        ?int $capacity,
+        int $expectedUpdatedAt,
+        string $reasonCode,
+    ): void {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $names = $this->normalizeName($name);
+        Classroom::assertValidCapacity($capacity);
+
+        $this->mutate($classroom, $actor, $reasonCode, function (
+            Institution $lockedInstitution,
+            AcademicYear $lockedYear,
+            Classroom $locked,
+            User $freshActor,
+            string $reasonCode,
+        ) use ($names, $capacity, $expectedUpdatedAt): void {
+            if (ClassroomStatus::Archived === $locked->getStatus()) {
+                throw ClassroomException::classroomNotOperable();
+            }
+            if (AcademicYearStatus::Closed === $lockedYear->getStatus()) {
+                throw ClassroomException::yearNotOperable();
+            }
+            if ($locked->getUpdatedAt()->getTimestamp() !== $expectedUpdatedAt) {
+                throw ClassroomException::conflict();
+            }
+            if ($this->classrooms->existsWithNormalizedName($lockedYear, $names['normalizedName'])
+                && $locked->getNormalizedName() !== $names['normalizedName']) {
+                throw ClassroomException::conflict();
+            }
+
+            $changed = [];
+            $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+            if ($locked->getName() !== $names['name'] || $locked->getNormalizedName() !== $names['normalizedName']) {
+                $locked->rename($names['name'], $names['normalizedName'], $now);
+                $changed[] = 'name';
+            }
+            if ($locked->getCapacity() !== $capacity) {
+                $activeCount = $this->classrooms->countActiveEnrollments($locked);
+                $this->assertEnrollmentGuardConsistencyForClassroom($locked, $activeCount);
+                if (null !== $capacity && $capacity < $activeCount) {
+                    throw ClassroomException::capacityBelowEnrollment();
+                }
+                $locked->changeCapacity($capacity, $now);
+                $changed[] = 'capacity';
+            }
+            if ([] === $changed) {
+                return;
+            }
+
+            $this->classrooms->save($locked, false);
+            $this->auditRecorder->record(new SecurityAuditContext(
+                action: SecurityAuditAction::ClassroomUpdated,
+                actorType: SecurityAuditActorType::User,
+                outcome: SecurityAuditOutcome::Success,
+                actorUser: $freshActor,
+                metadata: [
+                    'source' => 'classroom_manager',
+                    'reason_code' => $reasonCode,
+                    'institution_id' => $lockedInstitution->getId()->toRfc4122(),
+                    'academic_year_id' => $lockedYear->getId()->toRfc4122(),
+                    'classroom_id' => $locked->getId()->toRfc4122(),
+                    'changed_fields' => $changed,
+                    'new_status' => $locked->getStatus()->value,
+                ],
+                captureRequestHashes: false,
+            ), false);
+        });
+    }
+
     public function archive(Classroom $classroom, User $actor, string $reasonCode): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);

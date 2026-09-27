@@ -3189,6 +3189,25 @@ ul.admin-metric-grid {
     }
 }
 
+.archive-panel {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: var(--tl-danger-soft);
+    color: var(--tl-ink, #1b2836);
+    border-radius: 12px;
+}
+
+.btn--danger {
+    background: var(--tl-danger);
+    color: #fff;
+}
+
+.student-form-card label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
 .student-card-grid {
     display: grid;
     gap: 1rem;

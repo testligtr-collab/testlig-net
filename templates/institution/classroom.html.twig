@@ -4,10 +4,53 @@
 
 {% block institution_content %}
 <article class="student-form-card">
-    <h1>{{ classroom.name }}</h1>
-    <p>{{ classroom.gradeLabel }} · {{ classroom.academicYearName }}</p>
-    <p>Durum: {{ classroom.statusLabel }}</p>
-    <p>Öğretmen {{ classroom.teacherCount }} · Öğrenci {{ classroom.studentCount }}</p>
+    <h1>{{ detail.classroom.name }}</h1>
+    <p>{{ detail.classroom.gradeLabel }} · {{ detail.classroom.academicYearName }}</p>
+    <p>Şube: {{ detail.classroom.sectionCode|default('—') }}</p>
+    <p>Durum: {{ detail.classroom.statusLabel }}</p>
+    <p>Kontenjan: {{ detail.classroom.capacityLabel|default('Belirtilmedi') }}</p>
+    <p>Oluşturulma {{ detail.classroom.createdAtLabel }} · Güncellenme {{ detail.classroom.updatedAtLabel }}</p>
+    <p>Öğretmen {{ detail.classroom.teacherCount }} · Öğrenci {{ detail.classroom.studentCount }}</p>
+    {% if detail.classroom.canEdit %}
+        <p><a class="btn" href="{{ path('app_institution_classroom_edit', {reference: detail.classroom.reference}) }}">Düzenle</a></p>
+    {% endif %}
     <p><a href="{{ path('app_institution_classrooms') }}">Sınıf listesine dön</a></p>
 </article>
+
+<section>
+    <h2>Öğretmenler</h2>
+    {% if detail.teachers is empty %}
+        <p>Bu sınıfta öğretmen yok.</p>
+    {% else %}
+        <ul>
+            {% for person in detail.teachers %}
+                <li>{{ person.name }} · {{ person.statusLabel }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+
+<section>
+    <h2>Öğrenciler</h2>
+    {% if detail.students is empty %}
+        <p>Bu sınıfta öğrenci yok.</p>
+    {% else %}
+        <ul>
+            {% for person in detail.students %}
+                <li>{{ person.name }}{% if person.gradeLabel %} · {{ person.gradeLabel }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>
+
+{% if detail.classroom.canEdit %}
+<section class="archive-panel" aria-labelledby="archive-title">
+    <h2 id="archive-title">Sınıfı arşivle</h2>
+    <p>Arşivleme geri alınamaz. Sınıf listede arşiv görünümüne geçer. Mevcut öğretmen ve öğrenci kayıtları silinmez, ancak bu sınıfa yeni atama yapılamaz.</p>
+    <form method="post" action="{{ path('app_institution_classroom_archive', {reference: detail.classroom.reference}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('institution_classroom_archive') }}">
+        <button type="submit" class="btn btn--danger">Sınıfı arşivle</button>
+    </form>
+</section>
+{% endif %}
 {% endblock %}
