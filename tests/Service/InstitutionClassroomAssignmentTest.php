@@ -494,6 +494,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $client->request('GET', '/ogretmen/siniflarim');
         self::assertResponseStatusCodeSame(404);
 
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->login($client, $teacherEmail);
         $client->request('GET', '/ogretmen/siniflarim');
@@ -502,6 +503,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertStringContainsString('Sınıflarım', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString($studentEmail, (string) $client->getResponse()->getContent());
 
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->login($client, $studentEmail);
         $crawler = $client->request('GET', '/ogrenci/testler');
