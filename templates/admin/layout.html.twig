@@ -17,20 +17,29 @@
     <div class="panel-main">
         <header class="panel-topbar">
             <div class="panel-topbar__meta">
+                <button
+                    type="button"
+                    class="admin-menu-btn"
+                    data-action="panel-shell#menu"
+                    aria-expanded="false"
+                    aria-controls="panel-sidebar"
+                >Menü</button>
                 {% include 'components/avatar.html.twig' with { initials: avatar_initials, name: display_name } %}
                 <div>
                     <p class="panel-topbar__title">{{ display_name }}</p>
-                    <p class="muted" style="margin:0;font-size:0.85rem;">{{ panel_role_label }}</p>
+                    <p class="muted panel-role" style="margin:0;">{{ panel_role_label }}</p>
                 </div>
             </div>
             <div class="admin-topbar-actions">
                 <a class="btn btn--ghost" href="{{ path('app_home') }}">Ana sayfa</a>
+                <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
                 <form method="post" action="{{ path('app_logout') }}" class="admin-logout-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
                     <button type="submit" class="btn btn--ghost">Çıkış</button>
                 </form>
             </div>
         </header>
+        <button type="button" class="admin-nav-backdrop" data-action="panel-shell#closeMenu"><span class="sr-only">Menüyü kapat</span></button>
 
         <div class="panel-content">
             {% for label, messages in app.flashes %}

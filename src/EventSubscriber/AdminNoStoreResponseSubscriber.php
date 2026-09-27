@@ -31,5 +31,6 @@ final class AdminNoStoreResponseSubscriber implements EventSubscriberInterface
 
         $event->getResponse()->headers->set('Cache-Control', 'no-store, private');
         $event->getResponse()->headers->set('Pragma', 'no-cache');
+        $event->getResponse()->headers->set('X-Robots-Tag', 'noindex, nofollow');
     }
 }

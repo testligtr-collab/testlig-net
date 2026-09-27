@@ -18,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
 final class AdminSystemHealthReadModel
 {
     private const UNAVAILABLE = 'Kullanılamıyor';
-    private const OK = 'Tamam';
+    private const OK = 'Çalışıyor';
     private const CURRENT = 'Güncel';
     private const NOT_CURRENT = 'Güncel değil';
 
@@ -39,7 +39,7 @@ final class AdminSystemHealthReadModel
 
         $app = match ($probe['status']) {
             'ok' => self::OK,
-            'degraded' => 'Kısmi',
+            'degraded' => 'Uyarı',
             default => self::UNAVAILABLE,
         };
         $database = 'ok' === $probe['checks']['database'] ? self::OK : self::UNAVAILABLE;
