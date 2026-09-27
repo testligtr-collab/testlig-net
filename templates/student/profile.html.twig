@@ -11,6 +11,16 @@
     </nav>
     <h1>Profilim</h1>
     <p class="muted">Sınıf ve öğrenme bilgilerini buradan güncelleyebilirsin. E-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
+    {% if institution_memberships is not empty %}
+        <section aria-labelledby="institution-heading">
+            <h2 id="institution-heading">Kurum ve sınıf</h2>
+            <ul>
+                {% for membership in institution_memberships %}
+                    <li>{{ membership.institutionName }} · {{ membership.roleLabel }} · {{ membership.statusLabel }}{% if membership.classroomNames is not empty %} · {{ membership.classroomNames|join(', ') }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
 
     {{ form_start(form, {attr: {novalidate: 'novalidate', class: 'student-setup__form'}}) }}
         {{ form_errors(form) }}

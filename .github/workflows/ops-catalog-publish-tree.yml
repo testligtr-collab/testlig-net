@@ -98,6 +98,8 @@ jobs:
             echo "classrooms=$(sql_count "SELECT COUNT(*) AS c FROM classrooms")"
             echo "institution_teacher_invitations=$(sql_count "SELECT COUNT(*) AS c FROM institution_teacher_invitations")"
             echo "classroom_teacher_assignments=$(sql_count "SELECT COUNT(*) AS c FROM classroom_teacher_assignments")"
+            echo "institution_student_invitations=$(sql_count "SELECT COUNT(*) AS c FROM institution_student_invitations")"
+            echo "classroom_student_enrollments=$(sql_count "SELECT COUNT(*) AS c FROM classroom_student_enrollments")"
             echo "questions=$(sql_count "SELECT COUNT(*) AS c FROM questions")"
             echo "assessments=$(sql_count "SELECT COUNT(*) AS c FROM assessments")"
             echo "assessment_items=$(sql_count "SELECT COUNT(*) AS c FROM assessment_items")"
@@ -120,7 +122,9 @@ jobs:
             echo "home_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/ 2>/dev/null || echo err)"
             echo "giris_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/giris 2>/dev/null || echo err)"
             echo "kurum_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/kurum/ogretmenler 2>/dev/null || echo err)"
+            echo "kurum_ogrenci_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/kurum/ogrenciler 2>/dev/null || echo err)"
             echo "davet_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/davet/ogretmen 2>/dev/null || echo err)"
+            echo "davet_ogrenci_local=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 8 -H 'Host: testlig.net' http://127.0.0.1/davet/ogrenci 2>/dev/null || echo err)"
             exit 0
           fi
 
@@ -150,9 +154,17 @@ jobs:
           health=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/health || echo err)
           dersler=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/ogrenci/dersler || echo err)
           kurum=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/kurum/ogretmenler || echo err)
+          kurum_ogrenci=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/kurum/ogrenciler || echo err)
+          davet=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/davet/ogretmen || echo err)
+          davet_ogrenci=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 https://testlig.net/davet/ogrenci || echo err)
           echo "health_external=${health}"
           echo "dersler_external=${dersler}"
           echo "kurum_ogretmenler_external=${kurum}"
+          echo "kurum_ogrenciler_external=${kurum_ogrenci}"
+          echo "davet_external=${davet}"
+          echo "davet_ogrenci_external=${davet_ogrenci}"
           test "${health}" = "403"
           test "${dersler}" = "302"
           test "${kurum}" = "302"
+          test "${kurum_ogrenci}" = "302"
+          test "${davet_ogrenci}" = "200"

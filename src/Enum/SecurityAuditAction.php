@@ -28,6 +28,10 @@ enum SecurityAuditAction: string
     case InstitutionTeacherInviteResent = 'institution_teacher_invite_resent';
     case InstitutionTeacherInviteRevoked = 'institution_teacher_invite_revoked';
     case InstitutionTeacherInviteAccepted = 'institution_teacher_invite_accepted';
+    case InstitutionStudentInvited = 'institution_student_invited';
+    case InstitutionStudentInviteResent = 'institution_student_invite_resent';
+    case InstitutionStudentInviteRevoked = 'institution_student_invite_revoked';
+    case InstitutionStudentInviteAccepted = 'institution_student_invite_accepted';
     case AcademicYearCreated = 'academic_year_created';
     case AcademicYearActivated = 'academic_year_activated';
     case AcademicYearClosed = 'academic_year_closed';

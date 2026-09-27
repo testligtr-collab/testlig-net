@@ -55,12 +55,58 @@
 
 <section>
     <h2>Öğrenciler</h2>
+    <p>Kayıtlı {{ detail.classroom.studentCount }}{% if detail.classroom.capacityLabel %} / {{ detail.classroom.capacityLabel }}{% endif %}</p>
+    {% if detail.classroom.canEdit %}
+        <p><a class="btn" href="{{ path('app_institution_student_invite', {reference: detail.classroom.reference}) }}">Öğrenci davet et</a></p>
+    {% endif %}
     {% if detail.students is empty %}
         <p>Bu sınıfta öğrenci yok.</p>
     {% else %}
         <ul>
             {% for person in detail.students %}
-                <li>{{ person.name }}{% if person.gradeLabel %} · {{ person.gradeLabel }}{% endif %}</li>
+                <li>
+                    {{ person.name }}{% if person.gradeLabel %} · {{ person.gradeLabel }}{% endif %}
+                    <form method="post" action="{{ path('app_institution_student_enrollment_end', {reference: detail.classroom.reference, enrollment: person.enrollmentReference}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('institution_student_enrollment_end') }}">
+                        <button type="submit" class="btn btn--ghost">Kaydı sonlandır</button>
+                    </form>
+                    {% if person.transferTargets is not empty %}
+                        <form method="post" action="{{ path('app_institution_student_enrollment_transfer', {reference: detail.classroom.reference, enrollment: person.enrollmentReference}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('institution_student_enrollment_transfer') }}">
+                            <label for="transfer-{{ person.enrollmentReference }}">Sınıf değiştir</label>
+                            <select id="transfer-{{ person.enrollmentReference }}" name="target_reference" required>
+                                {% for target in person.transferTargets %}
+                                    <option value="{{ target.reference }}">{{ target.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn">Aktar</button>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <h3>Bekleyen öğrenci davetleri</h3>
+    {% if detail.studentInvites is empty %}
+        <p>Bekleyen davet yok.</p>
+    {% else %}
+        <ul class="institution-table">
+            {% for invite in detail.studentInvites %}
+                <li>
+                    {{ invite.maskedEmail }} · {{ invite.createdAtLabel }} · {{ invite.expiresAtLabel }} · {{ invite.statusLabel }}
+                    {% if invite.canResend %}
+                        <form method="post" action="{{ path('app_institution_student_invite_resend', {reference: detail.classroom.reference, invite: invite.reference}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('institution_student_invite_resend') }}">
+                            <button type="submit" class="btn btn--ghost">Yeniden gönder</button>
+                        </form>
+                    {% endif %}
+                    {% if invite.canRevoke %}
+                        <form method="post" action="{{ path('app_institution_student_invite_revoke', {reference: detail.classroom.reference, invite: invite.reference}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('institution_student_invite_revoke') }}">
+                            <button type="submit" class="btn btn--ghost">İptal et</button>
+                        </form>
+                    {% endif %}
+                </li>
             {% endfor %}
         </ul>
     {% endif %}

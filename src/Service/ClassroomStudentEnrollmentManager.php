@@ -156,6 +156,94 @@ final class ClassroomStudentEnrollmentManager
         return $enrollment;
     }
 
+    /**
+     * Enrollment created by a redeemed student invite. The accepting student is the audit actor.
+     * Leadership is not re-checked here; the invitation manager already required an owner or manager to issue it.
+     */
+    public function enrollAcceptedStudent(
+        Classroom $classroom,
+        InstitutionMembership $studentMembership,
+    ): ClassroomStudentEnrollment {
+        $classroomId = $classroom->getId();
+        $institutionId = $classroom->getInstitution()->getId();
+        $yearId = $classroom->getAcademicYear()->getId();
+        $membershipId = $studentMembership->getId();
+        $subjectUserId = $studentMembership->getUser()->getId();
+
+        try {
+            $enrollment = $this->entityManager->wrapInTransaction(function () use (
+                $classroomId,
+                $institutionId,
+                $yearId,
+                $membershipId,
+                $subjectUserId,
+            ): ClassroomStudentEnrollment {
+                [$lockedInstitution, $lockedYear, $lockedClassroom] = $this->lockHierarchy(
+                    $institutionId,
+                    $yearId,
+                    $classroomId,
+                );
+                $this->assertOperable($lockedInstitution, $lockedYear, $lockedClassroom);
+
+                $users = $this->freshEntities->findFreshLockedUsers([$subjectUserId]);
+                $freshSubject = $users[$subjectUserId->toRfc4122()] ?? null;
+                if (!$freshSubject instanceof User) {
+                    throw ClassroomStudentEnrollmentException::userNotFound();
+                }
+                $lockedMembership = $this->freshEntities->findFreshLockedMembership($membershipId, LockMode::PESSIMISTIC_WRITE);
+                if (!$lockedMembership instanceof InstitutionMembership) {
+                    throw ClassroomStudentEnrollmentException::notFound();
+                }
+                $this->assertEligibleStudent($lockedMembership, $lockedInstitution, $freshSubject);
+                if ($this->enrollmentGuardExists($lockedYear->getId(), $lockedMembership->getId())) {
+                    throw ClassroomStudentEnrollmentException::conflict();
+                }
+                $this->assertCapacityAvailable($lockedClassroom);
+
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $enrollment = ClassroomStudentEnrollment::enroll(
+                    $lockedClassroom,
+                    $lockedYear,
+                    $lockedMembership,
+                    $now,
+                );
+                $this->enrollments->save($enrollment, false);
+                $this->enrollmentGuards->save(
+                    AcademicYearStudentEnrollmentGuard::bind($lockedYear, $lockedMembership, $enrollment),
+                    false,
+                );
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::ClassroomStudentEnrolled,
+                    actorType: SecurityAuditActorType::User,
+                    outcome: SecurityAuditOutcome::Success,
+                    actorUser: $freshSubject,
+                    subjectUser: $freshSubject,
+                    metadata: [
+                        'source' => 'classroom_student_enrollment_manager',
+                        'reason_code' => 'student_invite_accept',
+                        'institution_id' => $lockedInstitution->getId()->toRfc4122(),
+                        'academic_year_id' => $lockedYear->getId()->toRfc4122(),
+                        'classroom_id' => $lockedClassroom->getId()->toRfc4122(),
+                        'membership_id' => $lockedMembership->getId()->toRfc4122(),
+                        'enrollment_id' => $enrollment->getId()->toRfc4122(),
+                        'new_status' => $enrollment->getStatus()->value,
+                    ],
+                    captureRequestHashes: false,
+                ), false);
+                $this->entityManager->flush();
+
+                return $enrollment;
+            });
+        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
+            throw ClassroomStudentEnrollmentException::conflict();
+        }
+
+        $this->authCache->invalidateClassroom($classroomId);
+        $this->authCache->invalidateStudentEnrollment($subjectUserId, $classroomId);
+
+        return $enrollment;
+    }
+
     public function transfer(
         ClassroomStudentEnrollment $enrollment,
         User $actor,

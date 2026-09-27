@@ -40,5 +40,15 @@
     <p class="student-dashboard__actions">
         <a href="{{ path('app_student_profile') }}">Profil bilgilerini düzenle</a>
     </p>
+    {% if institution_memberships is not empty %}
+        <section class="student-section" aria-labelledby="institution-heading">
+            <h2 id="institution-heading">Kurum ve sınıf</h2>
+            <ul>
+                {% for membership in institution_memberships %}
+                    <li>{{ membership.institutionName }} · {{ membership.roleLabel }} · {{ membership.statusLabel }}{% if membership.classroomNames is not empty %} · {{ membership.classroomNames|join(', ') }}{% endif %}</li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
 </section>
 {% endblock %}

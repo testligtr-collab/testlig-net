@@ -94,6 +94,17 @@ final class InvitationCodeDigestHasher
     }
 
     /**
+     * Digest of an unbound student-invite token. The context string is distinct from teacher invites
+     * so a teacher token cannot be redeemed on the student accept endpoint, and the reverse.
+     */
+    public function hashInstitutionStudentInvite(string $plainToken): string
+    {
+        $plainToken = $this->assertPlainCode($plainToken);
+
+        return hash_hmac('sha256', "institution_student_invite_v1\n".$plainToken, $this->pepper);
+    }
+
+    /**
      * Opaque panel reference. Not a user id and not reversible to the link row by itself.
      */
     public function parentPanelReference(Uuid $linkId): string

@@ -204,6 +204,7 @@ final class SecurityAuditMetadataSanitizer
         'link_id',
         'link_code_id',
         'invitation_id',
+        'enrollment_id',
         'grants_child_data_access',
     ];
 

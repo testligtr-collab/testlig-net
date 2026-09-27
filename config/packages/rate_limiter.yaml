@@ -108,6 +108,20 @@ framework:
             limit: 10
             interval: '15 minutes'
 
+        # Institution student invites. Cache-backed so a rolled-back write still counts.
+        institution_student_invite:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '1 hour'
+        institution_student_invite_resend:
+            policy: 'sliding_window'
+            limit: 1
+            interval: '2 minutes'
+        institution_student_invite_accept:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '15 minutes'
+
 when@test:
     framework:
         rate_limiter:
@@ -190,4 +204,14 @@ when@test:
             institution_teacher_invite_accept:
                 policy: 'fixed_window'
                 limit: 8
+                interval: '15 minutes'
+            institution_student_invite:
+                policy: 'fixed_window'
+                limit: 40
+                interval: '1 hour'
+            institution_student_invite_resend:
+                policy: 'no_limit'
+            institution_student_invite_accept:
+                policy: 'fixed_window'
+                limit: 40
                 interval: '15 minutes'
