@@ -25,6 +25,8 @@ The group name is repository-wide, so deploy and ops cannot open SSH at the same
 
 `deploy/vds/gha-ssh-config.sh` is the only client profile: public-key only, `BatchMode yes`, `ConnectionAttempts 1`, `StrictHostKeyChecking yes`, known hosts from the existing secret, no host-key scan, no password or keyboard-interactive fallback. The private key stays in `ssh-agent`. Workflows do not retry a failed connection.
 
+The GitHub runner loads that one key through `webfactory/ssh-agent`. Before the client config is written, the runner checks its own agent and continues only when `ssh_agent_identity_count=1`. It does not connect to the VDS and it does not print the fingerprint or the public key. `IdentitiesOnly yes` is not set: without an explicit `IdentityFile` that option can hide the agent key. The private key is not written to disk. Password, keyboard-interactive, and every other method stay off. This is not a password fallback and not a loosening of host-key checks.
+
 ## After a ban
 
 Leave `VDS_SSH_PAUSED=true` until the ban is lifted and a human asks for the next connection. Then one manual hardened deploy, its in-session local health, and an external HTTPS smoke are enough. A separate manual verify is a later, separate run.

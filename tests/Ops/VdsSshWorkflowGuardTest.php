@@ -86,6 +86,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('PasswordAuthentication no', $config);
         self::assertStringContainsString('KbdInteractiveAuthentication no', $config);
         self::assertStringContainsString('PreferredAuthentications publickey', $config);
+        self::assertStringContainsString('PubkeyAuthentication yes', $config);
         self::assertStringContainsString('NumberOfPasswordPrompts 0', $config);
         self::assertStringContainsString('ConnectionAttempts 1', $config);
         self::assertStringContainsString('ConnectTimeout 15', $config);
@@ -104,12 +105,26 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/StrictHostKeyChecking\s+no/', $config);
         self::assertDoesNotMatchRegularExpression('/PasswordAuthentication\s+yes/', $config);
         self::assertDoesNotMatchRegularExpression('/ConnectionAttempts\s+(?!1\b)\d+/', $config);
+        self::assertStringNotContainsString('IdentitiesOnly', $config);
+        self::assertStringNotContainsString('IdentityFile', $config);
+        self::assertStringContainsString('SSH_AUTH_SOCK', $config);
+        self::assertStringContainsString('ssh-add -l', $config);
+        self::assertStringContainsString('ssh_agent_identity_count=1', $config);
+        self::assertLessThan(
+            strpos($config, 'cat > "${HOME}/.ssh/config"') ?: \PHP_INT_MAX,
+            strpos($config, 'require_one_agent_identity') ?: 0,
+        );
+        self::assertDoesNotMatchRegularExpression('/ssh-add\s+-L\b/', $config);
+        self::assertDoesNotMatchRegularExpression('/printf[^\n]*identity_list/', $config);
+        self::assertDoesNotMatchRegularExpression('/echo[^\n]*identity_list/', $config);
 
         foreach ($this->sshWorkflowFiles() as $path) {
             $text = (string) file_get_contents($path);
             self::assertStringContainsString('bash', $text, $path);
             self::assertStringContainsString('gha-ssh-config.sh', $text, $path);
             self::assertStringNotContainsString('ssh-keyscan', $text, $path);
+            self::assertStringNotContainsString('IdentityFile', $text, $path);
+            self::assertDoesNotMatchRegularExpression('/ssh-add\s+-L\b/', $text, $path);
             self::assertDoesNotMatchRegularExpression('/StrictHostKeyChecking\s*[:=]\s*no/', $text, $path);
         }
     }
