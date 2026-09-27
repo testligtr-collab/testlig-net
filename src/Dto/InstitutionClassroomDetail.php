@@ -7,8 +7,8 @@ namespace App\Dto;
 final readonly class InstitutionClassroomDetail
 {
     /**
-     * @param list<InstitutionPersonRow> $teachers
-     * @param list<InstitutionPersonRow> $students
+     * @param list<InstitutionAssignedTeacher> $teachers
+     * @param list<InstitutionPersonRow>       $students
      */
     public function __construct(
         public InstitutionClassroomRow $classroom,

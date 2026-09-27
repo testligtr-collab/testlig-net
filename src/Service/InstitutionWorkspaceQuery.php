@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\InstitutionAccountMembership;
+use App\Dto\InstitutionAssignedTeacher;
 use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
 use App\Dto\InstitutionPersonRow;
+use App\Dto\InstitutionTeacherInviteRow;
 use App\Dto\InstitutionTestRow;
 use App\Dto\InstitutionWorkspaceOverview;
 use App\Entity\Assessment;
@@ -17,6 +20,7 @@ use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
+use App\Entity\InstitutionTeacherInvitation;
 use App\Entity\StudentProfile;
 use App\Entity\User;
 use App\Enum\AssessmentDeliveryStatus;
@@ -28,8 +32,10 @@ use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
 use App\Enum\StudentEnrollmentStatus;
+use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
 use App\Repository\InstitutionApplicationRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -126,8 +132,10 @@ final class InstitutionWorkspaceQuery
             ->innerJoin('m.user', 'u')
             ->andWhere('m.institution = :institution')
             ->andWhere('m.role = :role')
+            ->andWhere('m.status = :memberStatus')
             ->setParameter('institution', $institution->getId(), 'uuid')
             ->setParameter('role', InstitutionMembershipRole::Teacher)
+            ->setParameter('memberStatus', InstitutionMembershipStatus::Active)
             ->orderBy('u.lastName', 'ASC')
             ->addOrderBy('u.firstName', 'ASC')
             ->setFirstResult(max(0, $page - 1) * self::PAGE_SIZE)
@@ -145,6 +153,104 @@ final class InstitutionWorkspaceQuery
                 null,
                 null,
                 $assigned[$key] ?? 0,
+            );
+        }
+
+        return $list;
+    }
+
+    /**
+     * @return list<InstitutionTeacherInviteRow>
+     */
+    public function teacherInvites(Institution $institution, bool $history): array
+    {
+        $now = new \DateTimeImmutable();
+        $qb = $this->entityManager->createQueryBuilder()
+            ->select('i')
+            ->from(InstitutionTeacherInvitation::class, 'i')
+            ->andWhere('i.institution = :institution')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('now', $now, Types::DATETIME_IMMUTABLE)
+            ->orderBy('i.createdAt', 'DESC')
+            ->setMaxResults(self::PAGE_SIZE);
+        if ($history) {
+            $qb->andWhere('i.consumedAt IS NOT NULL OR i.revokedAt IS NOT NULL OR i.expiresAt <= :now');
+        } else {
+            $qb->andWhere('i.consumedAt IS NULL AND i.revokedAt IS NULL AND i.expiresAt > :now');
+        }
+        /** @var list<InstitutionTeacherInvitation> $rows */
+        $rows = $qb->getQuery()->getResult();
+        $zone = new \DateTimeZone('Europe/Istanbul');
+        $list = [];
+        foreach ($rows as $invitation) {
+            $usable = $invitation->isUsable($now);
+            $status = 'Süresi doldu';
+            if ($invitation->isConsumed()) {
+                $status = 'Kabul edildi';
+            } elseif ($invitation->isRevoked()) {
+                $status = 'İptal edildi';
+            } elseif ($usable) {
+                $status = 'Bekliyor';
+            }
+            $list[] = new InstitutionTeacherInviteRow(
+                $this->hasher->workspaceReference('teacher_invite', $invitation->getId()),
+                self::maskEmail($invitation->getNormalizedEmail()),
+                $status,
+                $invitation->getCreatedAt()->setTimezone($zone)->format('d.m.Y H:i'),
+                $invitation->getExpiresAt()->setTimezone($zone)->format('d.m.Y H:i'),
+                $invitation->getOperatorNote(),
+                $usable,
+                $usable,
+            );
+        }
+
+        return $list;
+    }
+
+    /**
+     * @return list<InstitutionAccountMembership>
+     */
+    public function accountMemberships(User $user): array
+    {
+        /** @var list<InstitutionMembership> $memberships */
+        $memberships = $this->entityManager->createQueryBuilder()
+            ->select('m', 'i')
+            ->from(InstitutionMembership::class, 'm')
+            ->innerJoin('m.institution', 'i')
+            ->andWhere('m.user = :user')
+            ->andWhere('m.status = :status')
+            ->setParameter('user', $user->getId(), 'uuid')
+            ->setParameter('status', InstitutionMembershipStatus::Active)
+            ->orderBy('i.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+        $list = [];
+        foreach ($memberships as $membership) {
+            $names = [];
+            if (InstitutionMembershipRole::Teacher === $membership->getRole()) {
+                /** @var list<array{name: string}> $rooms */
+                $rooms = $this->entityManager->createQueryBuilder()
+                    ->select('c.name AS name')
+                    ->from(ClassroomTeacherAssignment::class, 'a')
+                    ->innerJoin('a.classroom', 'c')
+                    ->andWhere('a.teacherMembership = :membership')
+                    ->andWhere('a.institution = :institution')
+                    ->andWhere('a.status = :status')
+                    ->setParameter('membership', $membership->getId(), 'uuid')
+                    ->setParameter('institution', $membership->getInstitution()->getId(), 'uuid')
+                    ->setParameter('status', TeacherAssignmentStatus::Active)
+                    ->orderBy('c.name', 'ASC')
+                    ->getQuery()
+                    ->getArrayResult();
+                foreach ($rooms as $room) {
+                    $names[] = $room['name'];
+                }
+            }
+            $list[] = new InstitutionAccountMembership(
+                $membership->getInstitution()->getName(),
+                InstitutionWorkspaceGate::roleLabel($membership->getRole()->value),
+                self::membershipStatusLabel($membership->getStatus()->value),
+                $names,
             );
         }
 
@@ -525,13 +631,13 @@ final class InstitutionWorkspaceQuery
     }
 
     /**
-     * @return list<InstitutionPersonRow>
+     * @return list<InstitutionAssignedTeacher>
      */
     private function classroomTeachers(Institution $institution, Classroom $classroom): array
     {
-        /** @var list<array{firstName: string, lastName: string, status: mixed}> $rows */
+        /** @var list<array{assignmentId: mixed, firstName: string, lastName: string, role: mixed}> $rows */
         $rows = $this->entityManager->createQueryBuilder()
-            ->select('u.firstName AS firstName', 'u.lastName AS lastName')
+            ->select('a.id AS assignmentId', 'u.firstName AS firstName', 'u.lastName AS lastName', 'a.role AS role')
             ->from(ClassroomTeacherAssignment::class, 'a')
             ->innerJoin('a.teacherMembership', 'm')
             ->innerJoin('m.user', 'u')
@@ -546,13 +652,18 @@ final class InstitutionWorkspaceQuery
             ->getArrayResult();
         $list = [];
         foreach ($rows as $row) {
-            $list[] = new InstitutionPersonRow(
+            $id = $row['assignmentId'] instanceof Uuid
+                ? $row['assignmentId']
+                : (\is_string($row['assignmentId']) && Uuid::isValid($row['assignmentId']) ? Uuid::fromString($row['assignmentId']) : null);
+            if (!$id instanceof Uuid) {
+                continue;
+            }
+            $roleValue = $row['role'] instanceof TeacherAssignmentRole ? $row['role']->value : (\is_string($row['role']) ? $row['role'] : '');
+            $role = TeacherAssignmentRole::tryFrom($roleValue);
+            $list[] = new InstitutionAssignedTeacher(
                 trim($row['firstName'].' '.$row['lastName']),
-                'Öğretmen',
-                'Aktif',
-                null,
-                null,
-                null,
+                TeacherAssignmentRole::HomeroomTeacher === $role ? 'Sınıf öğretmeni' : 'Yardımcı öğretmen',
+                $this->hasher->workspaceReference('teacher_assignment', $id),
             );
         }
 
@@ -630,6 +741,16 @@ final class InstitutionWorkspaceQuery
         }
 
         return '';
+    }
+
+    private static function maskEmail(string $normalized): string
+    {
+        $at = strpos($normalized, '@');
+        if (false === $at || $at < 1) {
+            return '***';
+        }
+
+        return substr($normalized, 0, 1).'***@'.substr($normalized, $at + 1);
     }
 
     private static function typeLabel(InstitutionType $type): string

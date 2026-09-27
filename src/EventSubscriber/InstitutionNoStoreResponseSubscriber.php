@@ -25,7 +25,7 @@ final class InstitutionNoStoreResponseSubscriber implements EventSubscriberInter
         }
 
         $path = $event->getRequest()->getPathInfo();
-        if ('/kurum' !== $path && !str_starts_with($path, '/kurum/')) {
+        if ('/kurum' !== $path && !str_starts_with($path, '/kurum/') && '/davet/ogretmen' !== $path && !str_starts_with($path, '/davet/ogretmen/')) {
             return;
         }
 
@@ -33,5 +33,6 @@ final class InstitutionNoStoreResponseSubscriber implements EventSubscriberInter
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
     }
 }

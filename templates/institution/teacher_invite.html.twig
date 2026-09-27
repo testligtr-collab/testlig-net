@@ -1,0 +1,21 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Öğretmen davet et — Testlig{% endblock %}
+
+{% block institution_content %}
+<section class="student-form-card">
+    <h1>Öğretmen davet et</h1>
+    <p>Davet yalnızca öğretmen üyeliği oluşturur. 72 saat geçerlidir ve tek kullanımlıktır.</p>
+    {% if error %}<p class="form-error">{{ error }}</p>{% endif %}
+    <form method="post">
+        <input type="hidden" name="_token" value="{{ csrf_token('institution_teacher_invite') }}">
+        <label for="invite-email">Öğretmen e-postası</label>
+        <input id="invite-email" name="email" type="email" autocomplete="off" required maxlength="180" value="{{ values.email }}">
+        <label for="invite-note">Davet notu (isteğe bağlı)</label>
+        <textarea id="invite-note" name="note" maxlength="280" rows="3">{{ values.note }}</textarea>
+        <p>Not yalnız bu listede görünür, e-postaya yazılmaz.</p>
+        <button type="submit" class="btn">Davet gönder</button>
+    </form>
+    <p><a href="{{ path('app_institution_teachers') }}">Öğretmen listesine dön</a></p>
+</section>
+{% endblock %}

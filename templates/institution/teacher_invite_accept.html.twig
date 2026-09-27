@@ -1,0 +1,37 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Öğretmen daveti — Testlig{% endblock %}
+
+{% block stylesheets %}
+    <meta name="robots" content="noindex, nofollow">
+    {{ parent() }}
+{% endblock %}
+
+{% block body %}
+<section class="page student-form-card">
+    {% if preview is null %}
+        <h1>Davet kullanılamıyor</h1>
+        <p>Bağlantı geçersiz, süresi dolmuş veya iptal edilmiş olabilir.</p>
+    {% else %}
+        <h1>Öğretmen daveti</h1>
+        <p>{{ preview.institutionName }} sizi öğretmen olarak davet etti.</p>
+        <p>Son geçerlilik: {{ preview.expiresAtLabel }}. Daveti beklemiyorsanız işlem yapmayın.</p>
+        {% if not authenticated %}
+            {% if preview.accountExists %}
+                <p><a class="btn" href="{{ path('app_login') }}">Giriş yapın</a></p>
+            {% else %}
+                <p><a class="btn" href="{{ path('app_register_flow', {flow: 'ogretmen'}) }}">Hesap oluşturun</a></p>
+            {% endif %}
+        {% else %}
+            <form method="post" action="{{ path('app_teacher_invite_accept') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_teacher_invite_accept') }}">
+                <button type="submit" class="btn">Daveti kabul et</button>
+            </form>
+            <form method="post" action="{{ path('app_teacher_invite_decline') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_teacher_invite_decline') }}">
+                <button type="submit" class="btn btn--ghost">Daveti reddet</button>
+            </form>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}

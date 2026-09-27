@@ -24,6 +24,10 @@ enum SecurityAuditAction: string
     case InstitutionMemberSuspended = 'institution_member_suspended';
     case InstitutionMemberReactivated = 'institution_member_reactivated';
     case InstitutionMemberEnded = 'institution_member_ended';
+    case InstitutionTeacherInvited = 'institution_teacher_invited';
+    case InstitutionTeacherInviteResent = 'institution_teacher_invite_resent';
+    case InstitutionTeacherInviteRevoked = 'institution_teacher_invite_revoked';
+    case InstitutionTeacherInviteAccepted = 'institution_teacher_invite_accepted';
     case AcademicYearCreated = 'academic_year_created';
     case AcademicYearActivated = 'academic_year_activated';
     case AcademicYearClosed = 'academic_year_closed';
