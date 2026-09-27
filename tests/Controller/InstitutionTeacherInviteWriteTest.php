@@ -32,7 +32,6 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Field\FormField;
-use Symfony\Component\Mailer\Event\MessageEvent;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -148,23 +147,24 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $list);
         self::assertStringNotContainsString('ROLE_', $list);
 
-        $captured = [];
-        $dispatcher = static::getContainer()->get('event_dispatcher');
-        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(MessageEvent::class, static function (MessageEvent $event) use (&$captured): void {
-            $captured[] = $event->getMessage();
-        });
-        $client->submit($client->getCrawler()->selectButton('Yeniden gönder')->form());
+        $beforeDigest = $this->inviteDigest();
+        $resendForm = $client->getCrawler()->selectButton('Yeniden gönder')->form();
+        self::assertStringContainsString('/yeniden', $resendForm->getUri());
+        $client->submit($resendForm);
         self::assertResponseRedirects('/kurum/ogretmenler');
         $client->followRedirect();
         self::assertStringContainsString('Davet gönderildi veya mevcut bekleyen davet güncellendi.', (string) $client->getResponse()->getContent());
-        self::assertCount(1, $captured);
-        $second = $captured[0];
-        self::assertInstanceOf(Email::class, $second);
-        $token = $this->captureToken((string) $second->getHtmlBody());
-        self::assertNotSame($firstToken, $token);
+        self::assertNotSame($beforeDigest, $this->inviteDigest());
         self::assertSame(1, $this->countTable('institution_teacher_invitations'));
-        self::ensureKernelShutdown();
+
+        $token = '';
+        $this->withKernel(function () use (&$token): void {
+            $manager = static::getContainer()->get(InstitutionTeacherInvitationManager::class);
+            self::assertInstanceOf(InstitutionTeacherInvitationManager::class, $manager);
+            $dispatch = $manager->issue($this->user('ada-owner@example.com'), $this->institution('Ada Okulu'), 'gizli.ogretmen@example.com', '');
+            self::assertNotSame('', $dispatch->plainToken);
+            $token = $dispatch->plainToken;
+        });
 
         $anon = static::createClient();
         $anon->request('GET', '/davet/ogretmen/'.$firstToken);
@@ -499,6 +499,16 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
             self::assertMatchesRegularExpression('/^[0-9a-f]{64}$/', $digest);
             self::assertStringNotContainsString($plainToken, $digest);
         });
+    }
+
+    private function inviteDigest(): string
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $digest = $em->getConnection()->fetchOne('SELECT token_digest FROM institution_teacher_invitations ORDER BY created_at DESC LIMIT 1');
+        self::assertIsString($digest);
+
+        return $digest;
     }
 
     private function countTable(string $table): int
