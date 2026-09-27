@@ -65,6 +65,7 @@ Production SSH is a ban risk. Hosting treats repeated connections as brute force
 - If a ban is suspected, repository variable `VDS_SSH_PAUSED` must be `true`. Do not set it back to false until the user says the ban is lifted and asks for a connection.
 - While that variable is `true`, do not deploy and do not run production verify. A skipped deploy is not a successful deploy. Report `Deploy skipped because SSH paused`.
 - Workflows must use `ConnectionAttempts=1`, public-key only, no password fallback, and the shared concurrency group `testlig-vds-ssh` with `cancel-in-progress: false`.
+- The runner offers the single key already loaded in ssh-agent. Do not set `IdentitiesOnly` without an `IdentityFile`, do not write the private key to disk, and do not log a fingerprint or public key.
 
 ## Reporting
 

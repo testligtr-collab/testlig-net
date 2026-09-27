@@ -1,7 +1,41 @@
 #!/usr/bin/env bash
 # Write a locked-down OpenSSH client config for one multiplexed VDS session.
 # Does not connect. Does not scan host keys. Does not print secrets.
+# The runner ssh-agent holds the single VDS key.
+# Do not pin a key file here; that would hide the agent key.
 set -euo pipefail
+
+require_one_agent_identity() {
+  if [ -z "${SSH_AUTH_SOCK:-}" ]; then
+    printf '%s\n' "ssh_agent_identity_count=0" >&2
+    printf '%s\n' "ERROR: ssh-agent socket missing" >&2
+    exit 1
+  fi
+  local rc=0
+  local identity_list=""
+  set +e
+  identity_list="$(ssh-add -l 2>/dev/null)"
+  rc=$?
+  set -e
+  local count=0
+  if [ "$rc" -eq 0 ] && [ -n "$identity_list" ]; then
+    count="$(
+      awk 'END { print NR }' <<EOF
+$identity_list
+EOF
+    )"
+    count="$(printf '%s' "$count" | tr -d '[:space:]')"
+  fi
+  unset identity_list
+  if [ "$count" -ne 1 ]; then
+    printf 'ssh_agent_identity_count=%s\n' "$count" >&2
+    printf '%s\n' "ERROR: ssh-agent identity count must be 1" >&2
+    exit 1
+  fi
+  printf '%s\n' "ssh_agent_identity_count=1"
+}
+
+require_one_agent_identity
 
 : "${VDS_HOST:?}"
 : "${VDS_USER:?}"
@@ -31,7 +65,6 @@ Host testlig-vds
   KbdInteractiveAuthentication no
   PreferredAuthentications publickey
   PubkeyAuthentication yes
-  IdentitiesOnly yes
   NumberOfPasswordPrompts 0
   ConnectionAttempts 1
   ConnectTimeout 15
