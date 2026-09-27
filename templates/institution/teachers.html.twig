@@ -1,0 +1,88 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Öğretmenler — Testlig{% endblock %}
+
+{% block institution_content %}
+<section>
+    <h1>Öğretmenler</h1>
+    <p><a class="btn" href="{{ path('app_institution_teacher_invite') }}">Öğretmen davet et</a></p>
+    <p>
+        {% if history_view %}
+            <a href="{{ path('app_institution_teachers') }}">Bekleyen davetler</a>
+        {% else %}
+            <a href="{{ path('app_institution_teachers', {durum: 'gecmis'}) }}">Süresi dolan ve iptal edilenler</a>
+        {% endif %}
+    </p>
+    <h2>Aktif öğretmenler</h2>
+    {% if people is empty %}
+        <p class="student-form-card">Henüz öğretmen yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Ad soyad</th>
+                        <th>Kurum rolü</th>
+                        <th>Durum</th>
+                        <th>Atanmış sınıf</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person in people %}
+                        <tr>
+                            <td data-label="Ad soyad">{{ person.name }}</td>
+                            <td data-label="Kurum rolü">{{ person.roleLabel }}</td>
+                            <td data-label="Durum">{{ person.statusLabel }}</td>
+                            <td data-label="Atanmış sınıf">{{ person.assignedClassroomCount }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <h2>{% if history_view %}Geçmiş davetler{% else %}Bekleyen davetler{% endif %}</h2>
+    {% if invites is empty %}
+        <p class="student-form-card">{% if history_view %}Geçmiş davet yok.{% else %}Bekleyen davet yok.{% endif %}</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>E-posta</th>
+                        <th>Durum</th>
+                        <th>Davet</th>
+                        <th>Son geçerlilik</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invite in invites %}
+                        <tr>
+                            <td data-label="E-posta">{{ invite.maskedEmail }}</td>
+                            <td data-label="Durum">{{ invite.statusLabel }}</td>
+                            <td data-label="Davet">{{ invite.createdAtLabel }}</td>
+                            <td data-label="Son geçerlilik">{{ invite.expiresAtLabel }}</td>
+                            <td>
+                                {% if invite.note %}<p>{{ invite.note }}</p>{% endif %}
+                                {% if invite.canResend %}
+                                    <form method="post" action="{{ path('app_institution_teacher_invite_resend', {reference: invite.reference}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('institution_teacher_invite_resend') }}">
+                                        <button type="submit" class="btn">Yeniden gönder</button>
+                                    </form>
+                                {% endif %}
+                                {% if invite.canRevoke %}
+                                    <form method="post" action="{{ path('app_institution_teacher_invite_revoke', {reference: invite.reference}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('institution_teacher_invite_revoke') }}">
+                                        <button type="submit" class="btn btn--danger">Daveti iptal et</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

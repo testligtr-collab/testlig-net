@@ -24,9 +24,32 @@
     {% else %}
         <ul>
             {% for person in detail.teachers %}
-                <li>{{ person.name }} · {{ person.statusLabel }}</li>
+                <li>
+                    {{ person.name }} · {{ person.roleLabel }}
+                    <form method="post" action="{{ path('app_institution_classroom_teacher_end', {reference: detail.classroom.reference, assignment: person.assignmentReference}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('institution_classroom_teacher_end') }}">
+                        <button type="submit" class="btn btn--ghost">Atamayı sonlandır</button>
+                    </form>
+                </li>
             {% endfor %}
         </ul>
+    {% endif %}
+    {% if assign_teachers is not empty %}
+        <form method="post" action="{{ path('app_institution_classroom_teacher_assign', {reference: detail.classroom.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_classroom_teacher_assign') }}">
+            <label for="assign-teacher">Öğretmen ata</label>
+            <select id="assign-teacher" name="membership_reference" required>
+                {% for teacher in assign_teachers %}
+                    <option value="{{ teacher.reference }}">{{ teacher.name }}</option>
+                {% endfor %}
+            </select>
+            <label for="assign-role">Atama türü</label>
+            <select id="assign-role" name="assignment_role">
+                <option value="assistant_teacher">Yardımcı öğretmen</option>
+                <option value="homeroom_teacher">Sınıf öğretmeni</option>
+            </select>
+            <button type="submit" class="btn">Öğretmen ata</button>
+        </form>
     {% endif %}
 </section>
 

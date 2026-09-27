@@ -83,6 +83,17 @@ final class InvitationCodeDigestHasher
     }
 
     /**
+     * Digest of an unbound teacher-invite token. The invitation id is not part of the
+     * message so the accept URL can be resolved from the token alone. Plaintext is not stored.
+     */
+    public function hashInstitutionTeacherInvite(string $plainToken): string
+    {
+        $plainToken = $this->assertPlainCode($plainToken);
+
+        return hash_hmac('sha256', "institution_teacher_invite_v1\n".$plainToken, $this->pepper);
+    }
+
+    /**
      * Opaque panel reference. Not a user id and not reversible to the link row by itself.
      */
     public function parentPanelReference(Uuid $linkId): string

@@ -9,9 +9,15 @@ use App\Entity\Institution;
 use App\Entity\User;
 use App\Enum\ClassroomFailureReason;
 use App\Enum\ClassroomStatus;
+use App\Enum\ClassroomTeacherFailureReason;
 use App\Enum\GradeLevel;
+use App\Enum\InstitutionTeacherInviteFailureReason;
 use App\Exception\ClassroomException;
+use App\Exception\ClassroomTeacherAssignmentException;
+use App\Exception\InstitutionTeacherInviteException;
 use App\Service\InstitutionClassroomEditor;
+use App\Service\InstitutionClassroomTeacherEditor;
+use App\Service\InstitutionTeacherInvitationManager;
 use App\Service\InstitutionWorkspaceGate;
 use App\Service\InstitutionWorkspaceQuery;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -30,6 +36,8 @@ final class InstitutionWorkspaceController extends AbstractController
         private readonly InstitutionWorkspaceGate $gate,
         private readonly InstitutionWorkspaceQuery $query,
         private readonly InstitutionClassroomEditor $classrooms,
+        private readonly InstitutionClassroomTeacherEditor $teacherAssignments,
+        private readonly InstitutionTeacherInvitationManager $teacherInvites,
     ) {
     }
 
@@ -83,6 +91,7 @@ final class InstitutionWorkspaceController extends AbstractController
 
         return $this->render('institution/classroom.html.twig', $this->frame($this->gate->resolve($this->account()), 'classrooms', [
             'detail' => $detail,
+            'assign_teachers' => $this->teacherAssignments->candidates($this->account(), $institution, strtolower($reference)),
         ]));
     }
 
@@ -234,13 +243,132 @@ final class InstitutionWorkspaceController extends AbstractController
     {
         $institution = $this->institution();
 
-        return $this->render('institution/people.html.twig', $this->frame($this->gate->resolve($this->account()), 'teachers', [
-            'heading' => 'Öğretmenler',
-            'empty_message' => 'Henüz öğretmen yok.',
+        return $this->render('institution/teachers.html.twig', $this->frame($this->gate->resolve($this->account()), 'teachers', [
             'people' => $this->query->teachers($institution, $this->pageNumber($request)),
-            'show_classrooms' => true,
-            'show_grade' => false,
+            'invites' => $this->query->teacherInvites($institution, 'gecmis' === (string) $request->query->get('durum')),
+            'history_view' => 'gecmis' === (string) $request->query->get('durum'),
         ]));
+    }
+
+    #[Route('/ogretmenler/davet', name: 'app_institution_teacher_invite', methods: ['GET', 'POST'])]
+    public function inviteTeacher(Request $request): Response
+    {
+        $institution = $this->institution();
+        $values = ['email' => '', 'note' => ''];
+        $error = null;
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('institution_teacher_invite', (string) $request->request->get('_token'))) {
+                throw new AccessDeniedHttpException('Geçersiz istek.');
+            }
+            $values['email'] = trim((string) $request->request->get('email'));
+            $values['note'] = trim((string) $request->request->get('note'));
+            try {
+                $dispatch = $this->teacherInvites->issue($this->account(), $institution, $values['email'], $values['note']);
+                $this->teacherInvites->deliver($dispatch);
+                $this->addFlash('success', 'Davet gönderildi veya mevcut bekleyen davet güncellendi.');
+
+                return $this->redirectToRoute('app_institution_teachers');
+            } catch (InstitutionTeacherInviteException $exception) {
+                if (InstitutionTeacherInviteFailureReason::NotFound === $exception->getReason()) {
+                    throw new NotFoundHttpException('Not Found');
+                }
+                $error = $this->inviteError($exception);
+            }
+        }
+
+        return $this->render('institution/teacher_invite.html.twig', $this->frame($this->gate->resolve($this->account()), 'teachers', [
+            'values' => $values,
+            'error' => $error,
+        ]));
+    }
+
+    #[Route('/ogretmenler/davetler/{reference}/yeniden', name: 'app_institution_teacher_invite_resend', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
+    public function resendTeacherInvite(Request $request, string $reference): Response
+    {
+        $institution = $this->institution();
+        if (!$this->isCsrfTokenValid('institution_teacher_invite_resend', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        try {
+            $dispatch = $this->teacherInvites->resend($this->account(), $institution, strtolower($reference));
+            $this->teacherInvites->deliver($dispatch);
+            $this->addFlash('success', 'Davet gönderildi veya mevcut bekleyen davet güncellendi.');
+        } catch (InstitutionTeacherInviteException $exception) {
+            if (InstitutionTeacherInviteFailureReason::NotFound === $exception->getReason()) {
+                throw new NotFoundHttpException('Not Found');
+            }
+            $this->addFlash('error', $this->inviteError($exception));
+        }
+
+        return $this->redirectToRoute('app_institution_teachers');
+    }
+
+    #[Route('/ogretmenler/davetler/{reference}/iptal', name: 'app_institution_teacher_invite_revoke', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
+    public function revokeTeacherInvite(Request $request, string $reference): Response
+    {
+        $institution = $this->institution();
+        if (!$this->isCsrfTokenValid('institution_teacher_invite_revoke', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        try {
+            $this->teacherInvites->revoke($this->account(), $institution, strtolower($reference));
+            $this->addFlash('success', 'Davet iptal edildi.');
+        } catch (InstitutionTeacherInviteException $exception) {
+            if (InstitutionTeacherInviteFailureReason::NotFound === $exception->getReason()) {
+                throw new NotFoundHttpException('Not Found');
+            }
+            $this->addFlash('error', $this->inviteError($exception));
+        }
+
+        return $this->redirectToRoute('app_institution_teachers');
+    }
+
+    #[Route('/siniflar/{reference}/ogretmen', name: 'app_institution_classroom_teacher_assign', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
+    public function assignTeacher(Request $request, string $reference): Response
+    {
+        $institution = $this->institution();
+        if (!$this->isCsrfTokenValid('institution_classroom_teacher_assign', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        try {
+            $this->teacherAssignments->assign(
+                $this->account(),
+                $institution,
+                strtolower($reference),
+                strtolower(trim((string) $request->request->get('membership_reference'))),
+                trim((string) $request->request->get('assignment_role')),
+            );
+            $this->addFlash('success', 'Öğretmen sınıfa atandı.');
+        } catch (ClassroomTeacherAssignmentException $exception) {
+            if (ClassroomTeacherFailureReason::NotFound === $exception->getReason()
+                || ClassroomTeacherFailureReason::CrossInstitution === $exception->getReason()) {
+                throw new NotFoundHttpException('Not Found');
+            }
+            $this->addFlash('error', $this->assignmentError($exception));
+        }
+
+        return $this->redirectToRoute('app_institution_classroom', ['reference' => strtolower($reference)]);
+    }
+
+    #[Route('/siniflar/{reference}/ogretmen/{assignment}/sonlandir', name: 'app_institution_classroom_teacher_end', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}', 'assignment' => '[0-9a-f]{20}'])]
+    public function endTeacherAssignment(Request $request, string $reference, string $assignment): Response
+    {
+        $institution = $this->institution();
+        if (!$this->isCsrfTokenValid('institution_classroom_teacher_end', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        try {
+            $this->teacherAssignments->end($this->account(), $institution, strtolower($reference), strtolower($assignment));
+            $this->addFlash('success', 'Öğretmen ataması sonlandırıldı. Kayıt silinmedi.');
+        } catch (ClassroomTeacherAssignmentException $exception) {
+            if (ClassroomTeacherFailureReason::NotFound === $exception->getReason()
+                || ClassroomTeacherFailureReason::CrossInstitution === $exception->getReason()) {
+                throw new NotFoundHttpException('Not Found');
+            }
+            $this->addFlash('error', $this->assignmentError($exception));
+        }
+
+        return $this->redirectToRoute('app_institution_classroom', ['reference' => strtolower($reference)]);
     }
 
     #[Route('/ogrenciler', name: 'app_institution_students', methods: ['GET'])]
@@ -428,6 +556,38 @@ final class InstitutionWorkspaceController extends AbstractController
             ClassroomFailureReason::InvalidInput => 'Girilen sınıf bilgisi geçerli değil.',
             ClassroomFailureReason::Unauthorized => 'Bu işlem için yetkiniz yok.',
             ClassroomFailureReason::NotFound, ClassroomFailureReason::CrossInstitution => 'Not Found',
+        };
+    }
+
+    private function inviteError(InstitutionTeacherInviteException $exception): string
+    {
+        return match ($exception->getReason()) {
+            InstitutionTeacherInviteFailureReason::InvalidInput => 'E-posta veya davet notu geçerli değil.',
+            InstitutionTeacherInviteFailureReason::AlreadyTeacher => 'Bu kurumda bu e-posta ile aktif bir öğretmen üyeliği var.',
+            InstitutionTeacherInviteFailureReason::NotEligible => 'Bu kişi bu kuruma öğretmen olarak davet edilemez.',
+            InstitutionTeacherInviteFailureReason::RateLimited => 'Çok fazla davet denemesi. Bir süre sonra yeniden deneyin.',
+            InstitutionTeacherInviteFailureReason::MailFailed => 'Davet kaydedildi ancak e-posta gönderilemedi. Yeniden gönderebilirsiniz.',
+            InstitutionTeacherInviteFailureReason::Unavailable => 'Bu davet yeniden gönderilemez veya iptal edilemez.',
+            InstitutionTeacherInviteFailureReason::Unauthorized => 'Bu işlem için yetkiniz yok.',
+            InstitutionTeacherInviteFailureReason::Conflict => 'Davet kaydedilemedi. Yeniden deneyin.',
+            InstitutionTeacherInviteFailureReason::NotFound,
+            InstitutionTeacherInviteFailureReason::AccountMismatch,
+            InstitutionTeacherInviteFailureReason::AccountNotReady => 'Davet işlemi tamamlanamadı.',
+        };
+    }
+
+    private function assignmentError(ClassroomTeacherAssignmentException $exception): string
+    {
+        return match ($exception->getReason()) {
+            ClassroomTeacherFailureReason::Conflict => 'Bu atama yapılamadı. Öğretmen zaten atanmış olabilir veya sınıfta bir sınıf öğretmeni vardır.',
+            ClassroomTeacherFailureReason::ClassroomNotOperable => 'Arşivlenmiş sınıfa öğretmen atanamaz.',
+            ClassroomTeacherFailureReason::YearNotOperable => 'Kapalı eğitim döneminde öğretmen atanamaz.',
+            ClassroomTeacherFailureReason::MembershipNotEligible => 'Yalnız bu kurumun aktif öğretmeni atanabilir.',
+            ClassroomTeacherFailureReason::InstitutionNotOperable => 'Bu kurum durumunda atama yapılamaz.',
+            ClassroomTeacherFailureReason::InvalidTransition => 'Bu atama sonlandırılamaz.',
+            ClassroomTeacherFailureReason::InvalidInput => 'Atama bilgisi geçerli değil.',
+            ClassroomTeacherFailureReason::Unauthorized => 'Bu işlem için yetkiniz yok.',
+            ClassroomTeacherFailureReason::NotFound, ClassroomTeacherFailureReason::CrossInstitution => 'Not Found',
         };
     }
 

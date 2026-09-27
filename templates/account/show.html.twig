@@ -37,6 +37,21 @@
         <dd>{{ user.email }}</dd>
     </dl>
     <p><a class="btn" href="{{ path('app_account_change_password') }}">Parola değiştir</a></p>
+    {% if institution_memberships is not empty %}
+        <section>
+            <h2>Kurum üyeliklerim</h2>
+            <ul>
+                {% for membership in institution_memberships %}
+                    <li>
+                        {{ membership.institutionName }} · {{ membership.roleLabel }} · {{ membership.statusLabel }}
+                        {% if membership.classroomNames is not empty %}
+                            · {{ membership.classroomNames|join(', ') }}
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
     {% if workspace %}
         <section class="ws-summary" aria-labelledby="workspace-heading">
             <h2 id="workspace-heading">Çalışma alanı</h2>

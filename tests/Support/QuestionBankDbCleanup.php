@@ -35,6 +35,13 @@ final class QuestionBankDbCleanup
         // Learning content graph before questions/curriculum (RESTRICT FKs on outcomes/media).
         LearningContentDbCleanup::deleteLearningContents($connection);
 
+        // Teacher invites RESTRICT institutions and users. Remove them before those deletes.
+        foreach (['institution_teacher_invite_pending_guards', 'institution_teacher_invitations'] as $inviteTable) {
+            if ($schema->tablesExist([$inviteTable])) {
+                $connection->executeStatement('DELETE FROM '.$inviteTable);
+            }
+        }
+
         // Parent cascade clears revisions/options/answer_keys/alignments/guards.
         if ($schema->tablesExist(['questions'])) {
             $connection->executeStatement('DELETE FROM questions');
