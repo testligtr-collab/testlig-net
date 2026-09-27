@@ -27,19 +27,19 @@ final class InstitutionStudentInviteController extends AbstractController
     ) {
     }
 
-    #[Route('/davet/ogrenci/{token}', name: 'app_student_invite_open', methods: ['GET'], requirements: ['token' => '[A-Za-z0-9_-]{43}'])]
+    #[Route('/davet/ogrenci/{token}', name: 'app_institution_student_invite_open', methods: ['GET'], requirements: ['token' => '[A-Za-z0-9_-]{43}'])]
     public function open(Request $request, string $token): Response
     {
         if (null === $this->invites->preview($token)) {
             throw new NotFoundHttpException('Not Found');
         }
         $request->getSession()->set(self::SESSION_TOKEN, $token);
-        $this->saveTargetPath($request->getSession(), 'main', $this->generateUrl('app_student_invite_review'));
+        $this->saveTargetPath($request->getSession(), 'main', $this->generateUrl('app_institution_student_invite_review'));
 
-        return $this->redirectToRoute('app_student_invite_review');
+        return $this->redirectToRoute('app_institution_student_invite_review');
     }
 
-    #[Route('/davet/ogrenci', name: 'app_student_invite_review', methods: ['GET'])]
+    #[Route('/davet/ogrenci', name: 'app_institution_student_invite_review', methods: ['GET'])]
     public function review(Request $request): Response
     {
         $token = $request->getSession()->get(self::SESSION_TOKEN);
@@ -59,13 +59,13 @@ final class InstitutionStudentInviteController extends AbstractController
         ]);
     }
 
-    #[Route('/davet/ogrenci/kabul', name: 'app_student_invite_accept', methods: ['POST'])]
+    #[Route('/davet/ogrenci/kabul', name: 'app_institution_student_invite_accept', methods: ['POST'])]
     public function accept(Request $request): Response
     {
         return $this->decide($request, true);
     }
 
-    #[Route('/davet/ogrenci/ret', name: 'app_student_invite_decline', methods: ['POST'])]
+    #[Route('/davet/ogrenci/ret', name: 'app_institution_student_invite_decline', methods: ['POST'])]
     public function decline(Request $request): Response
     {
         return $this->decide($request, false);
@@ -115,7 +115,7 @@ final class InstitutionStudentInviteController extends AbstractController
                 InstitutionStudentInviteFailureReason::Conflict => 'Davet kabul edilemedi.',
             });
 
-            return $this->redirectToRoute('app_student_invite_review');
+            return $this->redirectToRoute('app_institution_student_invite_review');
         }
     }
 }

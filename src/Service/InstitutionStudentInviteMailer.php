@@ -36,7 +36,7 @@ final class InstitutionStudentInviteMailer implements InstitutionStudentInviteSe
         \DateTimeImmutable $expiresAt,
         string $plainToken,
     ): void {
-        $path = $this->urls->generate('app_student_invite_open', ['token' => $plainToken]);
+        $path = $this->urls->generate('app_institution_student_invite_open', ['token' => $plainToken]);
         $link = rtrim($this->defaultUri, '/').$path;
         $zone = new \DateTimeZone('Europe/Istanbul');
         $email = (new TemplatedEmail())

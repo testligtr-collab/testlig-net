@@ -20,11 +20,11 @@
             <p><a class="btn" href="{{ path('app_login') }}">Hesabınız varsa giriş yapın</a></p>
             <p><a class="btn btn--ghost" href="{{ path('app_register_flow', {flow: 'ogrenci'}) }}">Hesabınız yoksa öğrenci kaydı oluşturun</a></p>
         {% else %}
-            <form method="post" action="{{ path('app_student_invite_accept') }}">
+            <form method="post" action="{{ path('app_institution_student_invite_accept') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('institution_student_invite_accept') }}">
                 <button type="submit" class="btn">Daveti kabul et</button>
             </form>
-            <form method="post" action="{{ path('app_student_invite_decline') }}">
+            <form method="post" action="{{ path('app_institution_student_invite_decline') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('institution_student_invite_decline') }}">
                 <button type="submit" class="btn btn--ghost">Daveti reddet</button>
             </form>
