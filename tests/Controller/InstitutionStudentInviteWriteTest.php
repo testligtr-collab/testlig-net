@@ -197,7 +197,7 @@ final class InstitutionStudentInviteWriteTest extends WebTestCase
 
         $setup = $anon->request('GET', '/ogrenci/kurulum');
         $anon->submit($setup->selectButton('Profilimi tamamla')->form([
-            'student_profile_form[gradeLevel]' => (string) GradeLevel::Grade5->value,
+            'student_profile[gradeLevel]' => (string) GradeLevel::Grade5->value,
         ]));
         self::assertResponseRedirects('/ogrenci');
 
