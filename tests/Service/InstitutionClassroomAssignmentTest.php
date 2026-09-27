@@ -1,0 +1,890 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Service;
+
+use App\Entity\Assessment;
+use App\Entity\AssessmentAttempt;
+use App\Entity\AssessmentDeliveryRecipient;
+use App\Entity\Classroom;
+use App\Entity\ClassroomStudentEnrollment;
+use App\Entity\Institution;
+use App\Entity\Question;
+use App\Entity\QuestionRevision;
+use App\Entity\SecurityAuditEvent;
+use App\Entity\Subject;
+use App\Entity\User;
+use App\Enum\AssessmentScope;
+use App\Enum\AssessmentType;
+use App\Enum\GradeLevel;
+use App\Enum\InstitutionMembershipRole;
+use App\Enum\NavigationMode;
+use App\Enum\OptionOrderMode;
+use App\Enum\QuestionOrderMode;
+use App\Enum\QuestionType;
+use App\Enum\ResultReleasePolicy;
+use App\Enum\SecurityAuditAction;
+use App\Enum\StudentEnrollmentStatus;
+use App\Enum\UserRole;
+use App\Exception\InstitutionTestAssignmentException;
+use App\Exception\StudentPracticeException;
+use App\Repository\QuestionRevisionRepository;
+use App\Service\InstitutionClassroomTestAssigner;
+use App\Service\InstitutionDeliveryReport;
+use App\Service\InvitationCodeDigestHasher;
+use App\Service\StudentAssessmentPractice;
+use App\Service\StudentAssignedTestCatalog;
+use App\Service\StudentTestHistoryQuery;
+use App\Tests\Support\AssessmentDeliveryTestFixtures;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\NativeClock;
+
+final class InstitutionClassroomAssignmentTest extends WebTestCase
+{
+    use AssessmentDeliveryTestFixtures;
+
+    protected function setUp(): void
+    {
+        self::bootKernel();
+        $this->rebindDeliveryFixtures();
+        $this->cleanupDeliveryFixtures();
+    }
+
+    protected function tearDown(): void
+    {
+        Clock::set(new NativeClock());
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->rebindDeliveryFixtures();
+        $this->cleanupDeliveryFixtures();
+        self::ensureKernelShutdown();
+        parent::tearDown();
+    }
+
+    public function testOwnerAssignsAndStudentSolvesOnce(): void
+    {
+        $ctx = $this->institutionClass('solve');
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft(
+            $ctx['owner'],
+            $ctx['institution'],
+            $refs['assessment'],
+            $refs['classroom'],
+            null,
+            null,
+            'Kalem getirin',
+        );
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+
+        $report = $this->report()->result($ctx['owner'], $this->requireDelivery($ctx['institution'], $deliveryReference), 1);
+        self::assertNotNull($report);
+        self::assertSame(1, $report->recipientCount);
+        self::assertSame(1, $report->notStarted);
+        self::assertSame('0.00', $report->completionRate);
+
+        $student = $this->fresh($ctx['student']);
+        $cards = $this->catalog()->listFor($student);
+        self::assertCount(1, $cards);
+        self::assertSame('Başlayabilir', $cards[0]['status_label']);
+        self::assertSame($ctx['institution']->getName(), $cards[0]['institution']);
+        $code = $cards[0]['code'];
+        self::assertSame(32, \strlen($code));
+        self::assertNotSame(str_replace('-', '', $this->requireDelivery($ctx['institution'], $deliveryReference)->getId()->toRfc4122()), $code);
+
+        $practice = $this->practice();
+        $practice->start($student, GradeLevel::Grade9, $code);
+        $view = $practice->solve($student, GradeLevel::Grade9, $code, 1);
+        $encoded = json_encode($view, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('correctStableKey', $encoded);
+        self::assertStringNotContainsString('ciphertext', $encoded);
+        self::assertStringNotContainsString('nonce', $encoded);
+
+        $practice->saveChoice($student, GradeLevel::Grade9, $code, 1, 2, 0);
+        $practice->finish($student, GradeLevel::Grade9, $code);
+        $result = $practice->result($student, GradeLevel::Grade9, $code);
+        self::assertIsArray($result);
+        $again = $practice->start($student, GradeLevel::Grade9, $code);
+        self::assertSame(1, $this->attemptCount($again->getDelivery()->getId()));
+
+        $history = $this->history()->listFor($student);
+        self::assertNotSame([], $history);
+        self::assertSame($ctx['institution']->getName(), $history[0]->institutionName);
+
+        $scored = $this->report()->result($ctx['owner'], $this->requireDelivery($ctx['institution'], $deliveryReference), 1);
+        self::assertNotNull($scored);
+        self::assertSame(1, $scored->completed);
+        self::assertSame('100.00', $scored->completionRate);
+        self::assertNotNull($scored->averagePercentage);
+        self::assertSame('2.50', $scored->students[0]->earned);
+        self::assertStringNotContainsString('@', $scored->students[0]->name);
+
+        $other = $this->activeUser('solve-other@example.com', UserRole::Student);
+        self::assertNull($this->catalog()->deliveryFor($other, $code));
+        try {
+            $practice->detail($other, GradeLevel::Grade9, $code);
+            self::fail('Foreign student must not open the delivery.');
+        } catch (StudentPracticeException $exception) {
+            self::assertSame('not_found', $exception->getReason());
+        }
+
+        $audit = $this->latestAudit(SecurityAuditAction::AssessmentDeliveryCreated);
+        self::assertSame(1, $audit->getMetadata()['max_attempts'] ?? null);
+        $auditJson = json_encode($audit->getMetadata(), \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('@', $auditJson);
+        self::assertStringNotContainsString('Kalem', $auditJson);
+    }
+
+    public function testAssignmentRulesAndRoles(): void
+    {
+        $ctx = $this->institutionClass('rules');
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $assigner = $this->assigner();
+
+        $manager = $this->activeUser('rules-manager@example.com');
+        $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $manager, InstitutionMembershipRole::Manager, 'add_manager');
+        $managerDraft = $assigner->createDraft($manager, $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $assigner->close($ctx['owner'], $ctx['institution'], $managerDraft);
+
+        $teacherDraft = $assigner->createDraft($ctx['teacher'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $otherClass = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'rules other',
+            GradeLevel::Grade9,
+            'cls2',
+            'B',
+            40,
+        );
+        $otherRef = $this->hasher()->workspaceReference('classroom', $otherClass->getId());
+        $this->expectReason(static fn () => $assigner->createDraft($ctx['teacher'], $ctx['institution'], $refs['assessment'], $otherRef, null, null, null), 'forbidden');
+
+        $staff = $this->activeUser('rules-staff@example.com');
+        $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $staff, InstitutionMembershipRole::Staff, 'add_staff');
+        $this->expectReason(static fn () => $assigner->createDraft($staff, $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null), 'forbidden');
+        foreach ([
+            [$ctx['student'], 'student'],
+            [$ctx['sa'], 'sa'],
+            [$this->activeUser('rules-parent@example.com', UserRole::Parent), 'parent'],
+            [$this->activeUser('rules-mod@example.com', UserRole::Moderator), 'mod'],
+            [$this->activeUser('rules-admin@example.com', UserRole::Admin), 'admin'],
+            [$this->activeUser('rules-role-teacher@example.com', UserRole::Teacher), 'global-teacher'],
+        ] as [$actor, $label]) {
+            $this->expectReason(
+                static fn () => $assigner->createDraft($actor, $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null),
+                'forbidden',
+                $label,
+            );
+        }
+
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $ctx['platform']->getCode(), $refs['classroom'], null, null, null),
+            'not_found',
+        );
+        $foreign = $this->institutionClass('foreign');
+        $foreignRef = $this->hasher()->workspaceReference('assessment', $foreign['assessment']->getId());
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $foreignRef, $refs['classroom'], null, null, null),
+            'not_found',
+        );
+
+        $owned = [
+            'owner' => $ctx['owner'],
+            'sa' => $ctx['sa'],
+            'institution' => $ctx['institution'],
+        ];
+        $gradeMismatch = $this->publishInstitutionAssessment($owned, 'mismatch', GradeLevel::Grade10, '0.00');
+        $this->expectReason(
+            fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $this->hasher()->workspaceReference('assessment', $gradeMismatch->getId()), $refs['classroom'], null, null, null),
+            'not_assignable',
+        );
+        $penalized = $this->publishInstitutionAssessment($owned, 'penalty', GradeLevel::Grade9, '0.50');
+        $this->expectReason(
+            fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $this->hasher()->workspaceReference('assessment', $penalized->getId()), $refs['classroom'], null, null, null),
+            'not_assignable',
+        );
+        $draft = $this->draftInstitutionAssessment($ctx, 'draft');
+        $this->expectReason(
+            fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $this->hasher()->workspaceReference('assessment', $draft->getId()), $refs['classroom'], null, null, null),
+            'not_assignable',
+        );
+        $archived = $this->publishInstitutionAssessment($owned, 'archived', GradeLevel::Grade9, '0.00');
+        $this->assessments()->archive($archived, $ctx['sa'], 'archive_a');
+        $archived = $this->em->find(Assessment::class, $archived->getId());
+        self::assertInstanceOf(Assessment::class, $archived);
+        $this->expectReason(
+            fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $this->hasher()->workspaceReference('assessment', $archived->getId()), $refs['classroom'], null, null, null),
+            'not_assignable',
+        );
+
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], '2026-09-28T18:00', '2026-09-28T09:00', null),
+            'window',
+        );
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], 'not-a-date', null, null),
+            'window',
+        );
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null),
+            'overlap',
+        );
+
+        $emptyRoom = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'empty room',
+            GradeLevel::Grade9,
+            'empty',
+            'C',
+            20,
+        );
+        $this->expectReason(
+            fn () => $assigner->createDraft(
+                $ctx['owner'],
+                $ctx['institution'],
+                $refs['assessment'],
+                $this->hasher()->workspaceReference('classroom', $emptyRoom->getId()),
+                null,
+                null,
+                null,
+            ),
+            'empty_class',
+        );
+
+        $this->subjects()->archive($ctx['subject'], $ctx['sa'], 'archive_subject');
+        $this->expectReason(
+            static fn () => $assigner->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null),
+            'not_assignable',
+        );
+
+        unset($teacherDraft);
+    }
+
+    public function testUnsupportedTypeEmptyItemsInactiveClassAndClosedYear(): void
+    {
+        $ctx = $this->institutionClass('shape');
+        $assigner = $this->assigner();
+        $typed = $this->publishInstitutionAssessment([
+            'owner' => $ctx['owner'],
+            'sa' => $ctx['sa'],
+            'institution' => $ctx['institution'],
+        ], 'typed', GradeLevel::Grade9, '0.00');
+        $revision = $typed->getPublishedRevision();
+        self::assertNotNull($revision);
+        $item = $this->em->createQueryBuilder()
+            ->select('item', 'questionRevision')
+            ->from(\App\Entity\AssessmentItem::class, 'item')
+            ->innerJoin('item.questionRevision', 'questionRevision')
+            ->andWhere('item.assessmentRevision = :revision')
+            ->setParameter('revision', $revision->getId(), 'uuid')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(\App\Entity\AssessmentItem::class, $item);
+        $this->em->getConnection()->executeStatement(
+            'UPDATE question_revisions SET `type` = :type WHERE id = :id',
+            ['type' => QuestionType::MultipleChoice->value, 'id' => $item->getQuestionRevision()->getId()->toBinary()],
+        );
+        $this->em->clear();
+        $ctx = $this->reloadContext($ctx);
+        $this->expectReason(
+            fn () => $assigner->createDraft(
+                $ctx['owner'],
+                $ctx['institution'],
+                $this->hasher()->workspaceReference('assessment', $typed->getId()),
+                $this->hasher()->workspaceReference('classroom', $ctx['classroom']->getId()),
+                null,
+                null,
+                null,
+            ),
+            'not_assignable',
+        );
+
+        $empty = $this->publishInstitutionAssessment([
+            'owner' => $ctx['owner'],
+            'sa' => $ctx['sa'],
+            'institution' => $ctx['institution'],
+        ], 'empty', GradeLevel::Grade9, '0.00');
+        $emptyRevision = $empty->getPublishedRevision();
+        self::assertNotNull($emptyRevision);
+        $this->em->createQuery('DELETE FROM App\Entity\AssessmentItem item WHERE item.assessmentRevision = :revision')
+            ->setParameter('revision', $emptyRevision->getId(), 'uuid')
+            ->execute();
+        $this->expectReason(
+            fn () => $assigner->createDraft(
+                $ctx['owner'],
+                $ctx['institution'],
+                $this->hasher()->workspaceReference('assessment', $empty->getId()),
+                $this->hasher()->workspaceReference('classroom', $ctx['classroom']->getId()),
+                null,
+                null,
+                null,
+            ),
+            'not_assignable',
+        );
+
+        $archivedClass = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'archived class',
+            GradeLevel::Grade9,
+            'archcls',
+            'D',
+            20,
+        );
+        $this->classroomManager()->archive($archivedClass, $ctx['owner'], 'archive_cls');
+        $this->expectReason(
+            fn () => $assigner->createDraft(
+                $ctx['owner'],
+                $ctx['institution'],
+                $this->hasher()->workspaceReference('assessment', $ctx['assessment']->getId()),
+                $this->hasher()->workspaceReference('classroom', $archivedClass->getId()),
+                null,
+                null,
+                null,
+            ),
+            'not_assignable',
+        );
+
+        $closedYearClass = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'closing class',
+            GradeLevel::Grade9,
+            'closey',
+            'E',
+            20,
+        );
+        $this->yearManager()->close($ctx['classroom']->getAcademicYear(), $ctx['owner'], 'close_year');
+        $this->expectReason(
+            fn () => $assigner->createDraft(
+                $ctx['owner'],
+                $ctx['institution'],
+                $this->hasher()->workspaceReference('assessment', $ctx['assessment']->getId()),
+                $this->hasher()->workspaceReference('classroom', $closedYearClass->getId()),
+                null,
+                null,
+                null,
+            ),
+            'not_assignable',
+        );
+    }
+
+    public function testRecipientSnapshotStaysHistorical(): void
+    {
+        $ctx = $this->institutionClass('snap');
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+        $delivery = $this->requireDelivery($ctx['institution'], $deliveryReference);
+        self::assertSame(1, $this->recipientCount($delivery->getId()));
+
+        $next = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'snap next',
+            GradeLevel::Grade9,
+            'next',
+            'N',
+            30,
+        );
+        $enrollment = $this->em->getRepository(ClassroomStudentEnrollment::class)->findOneBy([
+            'classroom' => $ctx['classroom'],
+            'status' => StudentEnrollmentStatus::Active,
+        ]);
+        self::assertInstanceOf(ClassroomStudentEnrollment::class, $enrollment);
+        $this->enrollmentManager()->transfer($enrollment, $ctx['owner'], $next, 'transfer_s');
+        self::assertSame(1, $this->recipientCount($delivery->getId()));
+        self::assertNotNull($this->catalog()->deliveryFor($this->fresh($ctx['student']), $this->hasher()->studentAssignmentCode($delivery->getId())));
+
+        $late = $this->activeUser('snap-late@example.com', UserRole::Student);
+        $lateMembership = $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $late, InstitutionMembershipRole::Student, 'add_late');
+        $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $lateMembership, 'enroll_late');
+        self::assertSame(1, $this->recipientCount($delivery->getId()));
+        self::assertSame([], $this->catalog()->listFor($this->fresh($late)));
+    }
+
+    public function testAttemptExpiresAndReportHidesOtherClasses(): void
+    {
+        $clock = new MockClock(new \DateTimeImmutable('2026-09-27 10:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+        $ctx = $this->institutionClass('clock', 60);
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+        $student = $this->fresh($ctx['student']);
+        $code = $this->catalog()->listFor($student)[0]['code'];
+        $this->practice()->start($student, GradeLevel::Grade9, $code);
+        $clock->modify('+3 minutes');
+        try {
+            $this->practice()->saveChoice($student, GradeLevel::Grade9, $code, 1, 1, 0);
+            self::fail('Expired attempt must not accept an answer.');
+        } catch (StudentPracticeException $exception) {
+            self::assertSame('finished', $exception->getReason());
+        }
+
+        $teacherPage = $this->report()->result($ctx['teacher'], $this->requireDelivery($ctx['institution'], $deliveryReference), 1);
+        self::assertNotNull($teacherPage);
+        $outsider = $this->activeUser('clock-stranger-teacher@example.com');
+        $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $outsider, InstitutionMembershipRole::Teacher, 'add_outsider');
+        self::assertNull($this->report()->result($outsider, $this->requireDelivery($ctx['institution'], $deliveryReference), 1));
+        self::assertNull($this->report()->result($ctx['sa'], $this->requireDelivery($ctx['institution'], $deliveryReference), 1));
+        self::assertNull($this->report()->deliveryForInstitution($ctx['institution'], 'aaaaaaaaaaaaaaaaaaaa'));
+    }
+
+    public function testReportPaginatesWithoutAnswerPayload(): void
+    {
+        $ctx = $this->institutionClass('page');
+        for ($i = 2; $i <= 21; ++$i) {
+            $student = $this->activeUser(\sprintf('page-s%02d@example.com', $i), UserRole::Student);
+            $membership = $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $student, InstitutionMembershipRole::Student, 'add_s'.$i);
+            $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $membership, 'enroll_'.$i);
+        }
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+        $page = $this->report()->result($ctx['owner'], $this->requireDelivery($ctx['institution'], $deliveryReference), 2);
+        self::assertNotNull($page);
+        self::assertSame(21, $page->recipientCount);
+        self::assertSame(2, $page->page);
+        self::assertSame(2, $page->pageCount);
+        self::assertCount(1, $page->students);
+        $encoded = json_encode($page, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('@', $encoded);
+        self::assertStringNotContainsString('ciphertext', $encoded);
+        self::assertStringNotContainsString('correctStableKey', $encoded);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $encoded);
+    }
+
+    public function testHttpAssignSolveAndLimitedReport(): void
+    {
+        $ctx = $this->institutionClass('http');
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $ownerEmail = $ctx['owner']->getEmail();
+        $studentEmail = $ctx['student']->getEmail();
+        $teacherEmail = $ctx['teacher']->getEmail();
+        $profile = new \App\Dto\StudentProfileRequest();
+        $profile->gradeLevel = GradeLevel::Grade9;
+        $profiles = static::getContainer()->get(\App\Service\StudentProfileManager::class);
+        self::assertInstanceOf(\App\Service\StudentProfileManager::class, $profiles);
+        $profiles->completeOnboarding($this->fresh($ctx['student']), $profile);
+        $institutionName = $ctx['institution']->getName();
+        self::ensureKernelShutdown();
+
+        $client = static::createClient();
+        $this->login($client, $ownerEmail);
+        $client->request('POST', '/kurum/testler/'.$refs['assessment'].'/ata', [
+            'classroom' => $refs['classroom'],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+
+        $crawler = $client->request('GET', '/kurum/testler/'.$refs['assessment'].'/ata');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
+        self::assertResponseHeaderSame('Referrer-Policy', 'no-referrer');
+        self::assertStringContainsString('Maksimum deneme: 1', (string) $client->getResponse()->getContent());
+        $client->submit($crawler->filter('form')->form([
+            'classroom' => $refs['classroom'],
+        ]));
+        self::assertResponseRedirects();
+        $crawler = $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        $client->submit($crawler->selectButton('Etkinleştir')->form());
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Öğrenci sayısı: 1', $html);
+        self::assertStringNotContainsString($studentEmail, $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('ciphertext', $html);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $html);
+
+        $client->request('GET', '/ogretmen/siniflarim');
+        self::assertResponseStatusCodeSame(404);
+
+        $client = static::createClient();
+        $this->login($client, $teacherEmail);
+        $client->request('GET', '/ogretmen/siniflarim');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertStringContainsString('Sınıflarım', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString($studentEmail, (string) $client->getResponse()->getContent());
+
+        $client = static::createClient();
+        $this->login($client, $studentEmail);
+        $crawler = $client->request('GET', '/ogrenci/testler');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
+        self::assertStringContainsString($institutionName, (string) $client->getResponse()->getContent());
+        $href = '';
+        foreach ($crawler->filter('.student-catalog-card') as $card) {
+            if ($card instanceof \DOMElement && str_contains($card->textContent ?? '', $institutionName) && $card->hasAttribute('href')) {
+                $href = $card->getAttribute('href');
+                break;
+            }
+        }
+        self::assertNotSame('', $href);
+        $code = basename($href);
+        $client->request('GET', '/ogrenci/testler/'.str_repeat('a', 32));
+        self::assertResponseStatusCodeSame(404);
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz');
+        self::assertResponseStatusCodeSame(404);
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $solve = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('correctStableKey', $solve);
+        self::assertStringNotContainsString('ciphertext', $solve);
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/cevap', [
+            '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
+            'position' => '1',
+            'choice' => '2',
+            'expected_version' => (string) $crawler->filter('input[name="expected_version"]')->attr('value'),
+        ]);
+        $client->request('POST', '/ogrenci/testler/'.$code.'/bitir', [
+            '_token' => (string) $crawler->filter('#student-test-finish input[name="_token"]')->attr('value'),
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        self::assertStringContainsString('2.50', (string) $client->getResponse()->getContent());
+    }
+
+    private function login(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $email): void
+    {
+        $crawler = $client->request('GET', '/giris');
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => $email,
+            '_password' => 'Guclu-Parola-123!',
+        ]));
+        $client->followRedirect();
+    }
+
+    /**
+     * @return array{
+     *     owner: User,
+     *     sa: User,
+     *     institution: Institution,
+     *     classroom: Classroom,
+     *     teacher: User,
+     *     student: User,
+     *     assessment: Assessment,
+     *     platform: Assessment,
+     *     subject: Subject
+     * }
+     */
+    private function institutionClass(string $prefix, ?int $duration = 3600): array
+    {
+        $base = $this->publishedDeliveryContext($prefix);
+        $assessment = $this->publishInstitutionAssessment([
+            'owner' => $base['owner'],
+            'sa' => $base['sa'],
+            'institution' => $base['institution'],
+        ], $prefix.'_inst', GradeLevel::Grade9, '0.00', $duration);
+
+        return [
+            'owner' => $base['owner'],
+            'sa' => $base['sa'],
+            'institution' => $base['institution'],
+            'classroom' => $base['classroom'],
+            'teacher' => $base['teacher'],
+            'student' => $base['student'],
+            'assessment' => $assessment,
+            'platform' => $base['assessment'],
+            'subject' => $this->subjectFor($assessment),
+        ];
+    }
+
+    /**
+     * @param array{owner: User, sa: User, institution: Institution, subject?: Subject} $ctx
+     */
+    private function publishInstitutionAssessment(array $ctx, string $suffix, GradeLevel $grade, string $penalty, ?int $duration = 3600): Assessment
+    {
+        $subject = $ctx['subject'] ?? $this->subjects()->create($ctx['sa'], 'math_'.$suffix, 'Math '.$suffix, 'create_subj_'.$suffix);
+        $draftProgram = $this->programs()->createDraft($subject, $ctx['sa'], $grade, 'math_'.$suffix, 'Math', '1.0', 'prog_'.$suffix);
+        $unit = $this->units()->create($draftProgram, $ctx['sa'], 'u1', 'Unit', 1, 'create_u_'.$suffix);
+        $topic = $this->topics()->createRoot($unit, $ctx['sa'], 't1', 'Topic', 1, 'create_t_'.$suffix);
+        $lo = $this->outcomes()->create($topic, $ctx['sa'], 'lo_'.$suffix, 'Outcome', 1, 'create_lo_'.$suffix);
+        $this->programs()->publish($draftProgram, $ctx['sa'], 'pub_curr_'.$suffix);
+        $reviewer = $this->activeUser($suffix.'-qrev@example.com', UserRole::HeadTeacher);
+        $question = $this->createPublishedPlatformQuestion($ctx['sa'], $reviewer, $subject, $lo, $suffix, $grade);
+        $revisions = static::getContainer()->get(QuestionRevisionRepository::class);
+        self::assertInstanceOf(QuestionRevisionRepository::class, $revisions);
+        $revision = $revisions->findForQuestionNumber($question, 1);
+        self::assertInstanceOf(QuestionRevision::class, $revision);
+        $section = $this->sectionWithPenalty($question, $revision, $penalty);
+        $assessment = $this->assessments()->createDraftAssessment(
+            $ctx['owner'],
+            AssessmentScope::Institution,
+            $ctx['institution'],
+            AssessmentType::Quiz,
+            $grade,
+            'Kurum testi '.$suffix,
+            null,
+            null,
+            $duration,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Immediate,
+            null,
+            [$section],
+            'create_inst_'.$suffix,
+            $subject,
+        );
+        $this->assessments()->submitForReview($assessment, $ctx['owner'], 'submit_inst_'.$suffix);
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+        $publisher = $this->users->find($ctx['sa']->getId());
+        self::assertInstanceOf(User::class, $publisher);
+        $this->assessments()->publish($assessment, $publisher, 'publish_inst_'.$suffix);
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+
+        return $assessment;
+    }
+
+    /**
+     * @param array{owner: User, institution: Institution, assessment: Assessment, subject: Subject} $ctx
+     */
+    private function draftInstitutionAssessment(array $ctx, string $suffix): Assessment
+    {
+        $revision = $ctx['assessment']->getPublishedRevision();
+        self::assertNotNull($revision);
+        $item = $this->em->createQueryBuilder()
+            ->select('item', 'questionRevision', 'question')
+            ->from(\App\Entity\AssessmentItem::class, 'item')
+            ->innerJoin('item.questionRevision', 'questionRevision')
+            ->innerJoin('questionRevision.question', 'question')
+            ->andWhere('item.assessmentRevision = :revision')
+            ->setParameter('revision', $revision->getId(), 'uuid')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(\App\Entity\AssessmentItem::class, $item);
+        $section = $this->sectionWithPenalty($item->getQuestionRevision()->getQuestion(), $item->getQuestionRevision(), '0.00');
+
+        return $this->assessments()->createDraftAssessment(
+            $ctx['owner'],
+            AssessmentScope::Institution,
+            $ctx['institution'],
+            AssessmentType::Quiz,
+            GradeLevel::Grade9,
+            'Taslak '.$suffix,
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Immediate,
+            null,
+            [$section],
+            'create_draft_'.$suffix,
+            $ctx['subject'],
+        );
+    }
+
+    /**
+     * @param array{owner: User, sa: User, institution: Institution, classroom: Classroom, teacher: User, student: User, assessment: Assessment, platform: Assessment, subject: Subject} $ctx
+     *
+     * @return array{owner: User, sa: User, institution: Institution, classroom: Classroom, teacher: User, student: User, assessment: Assessment, platform: Assessment, subject: Subject}
+     */
+    private function reloadContext(array $ctx): array
+    {
+        $ctx['owner'] = $this->fresh($ctx['owner']);
+        $ctx['sa'] = $this->fresh($ctx['sa']);
+        $institution = $this->em->find(Institution::class, $ctx['institution']->getId());
+        $classroom = $this->em->find(Classroom::class, $ctx['classroom']->getId());
+        $assessment = $this->em->find(Assessment::class, $ctx['assessment']->getId());
+        $platform = $this->em->find(Assessment::class, $ctx['platform']->getId());
+        $subject = $this->em->find(Subject::class, $ctx['subject']->getId());
+        self::assertInstanceOf(Institution::class, $institution);
+        self::assertInstanceOf(Classroom::class, $classroom);
+        self::assertInstanceOf(Assessment::class, $assessment);
+        self::assertInstanceOf(Assessment::class, $platform);
+        self::assertInstanceOf(Subject::class, $subject);
+        $ctx['institution'] = $institution;
+        $ctx['classroom'] = $classroom;
+        $ctx['teacher'] = $this->fresh($ctx['teacher']);
+        $ctx['student'] = $this->fresh($ctx['student']);
+        $ctx['assessment'] = $assessment;
+        $ctx['platform'] = $platform;
+        $ctx['subject'] = $subject;
+
+        return $ctx;
+    }
+
+    private function subjectFor(Assessment $assessment): Subject
+    {
+        $subject = $assessment->getSubject();
+        self::assertInstanceOf(Subject::class, $subject);
+
+        return $subject;
+    }
+
+    /**
+     * @return array{assessment: string, classroom: string}
+     */
+    private function references(Assessment $assessment, Classroom $classroom): array
+    {
+        return [
+            'assessment' => $this->hasher()->workspaceReference('assessment', $assessment->getId()),
+            'classroom' => $this->hasher()->workspaceReference('classroom', $classroom->getId()),
+        ];
+    }
+
+    private function requireDelivery(Institution $institution, string $reference): \App\Entity\AssessmentDelivery
+    {
+        $delivery = $this->report()->deliveryForInstitution($institution, $reference);
+        self::assertNotNull($delivery);
+
+        return $delivery;
+    }
+
+    private function recipientCount(\Symfony\Component\Uid\Uuid $deliveryId): int
+    {
+        return (int) $this->em->createQueryBuilder()
+            ->select('COUNT(recipient.id)')
+            ->from(AssessmentDeliveryRecipient::class, 'recipient')
+            ->andWhere('recipient.delivery = :delivery')
+            ->setParameter('delivery', $deliveryId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function attemptCount(\Symfony\Component\Uid\Uuid $deliveryId): int
+    {
+        return (int) $this->em->createQueryBuilder()
+            ->select('COUNT(attempt.id)')
+            ->from(AssessmentAttempt::class, 'attempt')
+            ->andWhere('attempt.delivery = :delivery')
+            ->setParameter('delivery', $deliveryId, 'uuid')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    private function latestAudit(SecurityAuditAction $action): SecurityAuditEvent
+    {
+        $event = $this->em->createQueryBuilder()
+            ->select('event')
+            ->from(SecurityAuditEvent::class, 'event')
+            ->andWhere('event.action = :action')
+            ->setParameter('action', $action)
+            ->orderBy('event.occurredAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(SecurityAuditEvent::class, $event);
+
+        return $event;
+    }
+
+    private function fresh(User $user): User
+    {
+        $fresh = $this->users->find($user->getId());
+        self::assertInstanceOf(User::class, $fresh);
+
+        return $fresh;
+    }
+
+    /**
+     * @param callable(): mixed $action
+     */
+    private function expectReason(callable $action, string $reason, string $label = ''): void
+    {
+        try {
+            $action();
+            self::fail($label.' expected '.$reason);
+        } catch (InstitutionTestAssignmentException $exception) {
+            self::assertSame($reason, $exception->getReason(), $label);
+        }
+    }
+
+    private function assigner(): InstitutionClassroomTestAssigner
+    {
+        $service = static::getContainer()->get(InstitutionClassroomTestAssigner::class);
+        self::assertInstanceOf(InstitutionClassroomTestAssigner::class, $service);
+
+        return $service;
+    }
+
+    private function report(): InstitutionDeliveryReport
+    {
+        $service = static::getContainer()->get(InstitutionDeliveryReport::class);
+        self::assertInstanceOf(InstitutionDeliveryReport::class, $service);
+
+        return $service;
+    }
+
+    private function catalog(): StudentAssignedTestCatalog
+    {
+        $service = static::getContainer()->get(StudentAssignedTestCatalog::class);
+        self::assertInstanceOf(StudentAssignedTestCatalog::class, $service);
+
+        return $service;
+    }
+
+    private function practice(): StudentAssessmentPractice
+    {
+        $service = static::getContainer()->get(StudentAssessmentPractice::class);
+        self::assertInstanceOf(StudentAssessmentPractice::class, $service);
+
+        return $service;
+    }
+
+    private function history(): StudentTestHistoryQuery
+    {
+        $service = static::getContainer()->get(StudentTestHistoryQuery::class);
+        self::assertInstanceOf(StudentTestHistoryQuery::class, $service);
+
+        return $service;
+    }
+
+    /**
+     * @return array{
+     *     title: string,
+     *     position: int,
+     *     questionOrderMode: QuestionOrderMode,
+     *     items: list<array{
+     *         questionId: \Symfony\Component\Uid\Uuid,
+     *         questionRevisionId: \Symfony\Component\Uid\Uuid,
+     *         position: int,
+     *         points: string,
+     *         penaltyPoints: string,
+     *         required: bool
+     *     }>
+     * }
+     */
+    private function sectionWithPenalty(Question $question, QuestionRevision $revision, string $penalty): array
+    {
+        $section = $this->sectionWithItem($question, $revision);
+
+        return [
+            'title' => $section['title'],
+            'position' => $section['position'],
+            'questionOrderMode' => $section['questionOrderMode'],
+            'items' => [[
+                'questionId' => $section['items'][0]['questionId'],
+                'questionRevisionId' => $section['items'][0]['questionRevisionId'],
+                'position' => $section['items'][0]['position'],
+                'points' => $section['items'][0]['points'],
+                'penaltyPoints' => $penalty,
+                'required' => $section['items'][0]['required'],
+            ]],
+        ];
+    }
+
+    private function hasher(): InvitationCodeDigestHasher
+    {
+        $service = static::getContainer()->get(InvitationCodeDigestHasher::class);
+        self::assertInstanceOf(InvitationCodeDigestHasher::class, $service);
+
+        return $service;
+    }
+}

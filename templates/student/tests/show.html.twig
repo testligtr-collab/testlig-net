@@ -19,13 +19,19 @@
         <li>{{ test.question_count }} soru</li>
         <li>{{ test.duration_label }}</li>
         <li>Toplam {{ test.total_points }} puan</li>
+        {% if test.institution|default(null) %}
+            <li>{{ test.institution }}{% if test.classroom|default(null) %} · {{ test.classroom }}{% endif %}</li>
+            <li>{{ test.window|default('') }}</li>
+            <li>{{ test.status_label|default('') }}</li>
+            <li>1 deneme</li>
+        {% endif %}
     </ul>
 
     {% if test.state == 'done' %}
         <a class="btn btn--cta" href="{{ path('app_student_test_result', {code: test.code}) }}">Sonucu gör</a>
     {% elseif test.state == 'resume' %}
         <a class="btn btn--cta" href="{{ path('app_student_test_solve', {code: test.code}) }}">Devam et</a>
-    {% else %}
+    {% elseif test.can_start|default(true) %}
         <form id="student-test-start" method="post" action="{{ path('app_student_test_start', {code: test.code}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
             <button class="btn btn--cta" type="submit">Teste başla</button>

@@ -302,13 +302,14 @@ trait AssessmentDeliveryTestFixtures
         Subject $subject,
         CurriculumLearningOutcome $lo,
         string $suffix,
+        GradeLevel $grade = GradeLevel::Grade9,
     ): Question {
         $question = $this->questions()->createDraftQuestion(
             $author,
             QuestionScope::Platform,
             null,
             $subject,
-            GradeLevel::Grade9,
+            $grade,
             QuestionType::SingleChoice,
             QuestionContentDocument::paragraph('Q '.$suffix.'?'),
             null,

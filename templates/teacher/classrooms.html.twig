@@ -1,0 +1,61 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sınıflarım — Testlig{% endblock %}
+
+{% block body %}
+<section class="student-page">
+    <h1>Sınıflarım</h1>
+    {% for classroom in classrooms %}
+        <article class="student-form-card">
+            <h2>{{ classroom.label }}</h2>
+            <p>{{ classroom.institutionName }}</p>
+            {% if classroom.assignments is empty %}
+                <p>Bu sınıfa atanmış test yok.</p>
+            {% else %}
+                <ul>
+                    {% for assignment in classroom.assignments %}
+                        <li>
+                            {{ assignment.title }} · {{ assignment.statusLabel }}
+                            · {{ assignment.recipientCount }} öğrenci
+                            {% if assignment.canActivate %}
+                                <form method="post" action="{{ path('app_teacher_test_activate', {reference: assignment.reference}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('teacher_test_activate') }}">
+                                    <button class="btn" type="submit">Etkinleştir</button>
+                                </form>
+                            {% endif %}
+                            {% if assignment.canClose %}
+                                <form method="post" action="{{ path('app_teacher_test_close', {reference: assignment.reference}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('teacher_test_close') }}">
+                                    <button class="btn" type="submit">Kapat</button>
+                                </form>
+                            {% endif %}
+                            <a href="{{ path('app_teacher_test_results', {reference: assignment.reference}) }}">Sonuçlar</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% if classroom.tests is not empty %}
+                <form method="post" action="{{ path('app_teacher_test_assign', {reference: classroom.reference}) }}" class="stack-sm">
+                    <input type="hidden" name="_token" value="{{ csrf_token('teacher_test_assign') }}">
+                    <label>Yayımlanmış test
+                        <select name="assessment" required>
+                            {% for test in classroom.tests %}
+                                <option value="{{ test.reference }}">{{ test.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Başlangıç
+                        <input type="datetime-local" name="opens_at">
+                    </label>
+                    <label>Bitiş
+                        <input type="datetime-local" name="closes_at">
+                    </label>
+                    <p>Maksimum deneme: 1</p>
+                    <button class="btn btn--cta" type="submit">Sınıfa ata</button>
+                </form>
+            {% endif %}
+        </article>
+    {% endfor %}
+    <p><a href="{{ path('app_account') }}">Hesabım</a></p>
+</section>
+{% endblock %}

@@ -22,6 +22,7 @@ final readonly class StudentTestHistoryCard
         public ?string $earned,
         public ?string $total,
         public ?string $percentage,
+        public ?string $institutionName = null,
     ) {
     }
 }

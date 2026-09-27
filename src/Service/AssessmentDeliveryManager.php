@@ -225,6 +225,9 @@ final class AssessmentDeliveryManager
                         'audience_type' => $audienceType->value,
                         'classroom_id' => $classroom?->getId()->toRfc4122(),
                         'membership_id' => $studentMembership?->getId()->toRfc4122(),
+                        'max_attempts' => $maxAttempts,
+                        'opens_at' => $opensAt->format(\DateTimeInterface::ATOM),
+                        'closes_at' => $closesAt->format(\DateTimeInterface::ATOM),
                         'new_status' => AssessmentDeliveryStatus::Draft->value,
                     ],
                     captureRequestHashes: false,
@@ -381,6 +384,7 @@ final class AssessmentDeliveryManager
                         'old_status' => AssessmentDeliveryStatus::Draft->value,
                         'new_status' => AssessmentDeliveryStatus::Active->value,
                         'recipient_count' => \count($materialized),
+                        'max_attempts' => $lockedDelivery->getMaxAttempts(),
                     ],
                     captureRequestHashes: false,
                 ), false);

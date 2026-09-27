@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Security\AdminAuthorization;
 use App\Service\Admin\ContentWorkspaceSummary;
+use App\Service\InstitutionDeliveryReport;
 use App\Service\InstitutionWorkspaceQuery;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,6 +20,7 @@ final class AccountController extends AbstractController
         private readonly AdminAuthorization $adminAuthorization,
         private readonly ContentWorkspaceSummary $workspaceSummary,
         private readonly InstitutionWorkspaceQuery $institutionQuery,
+        private readonly InstitutionDeliveryReport $teacherReport,
     ) {
     }
 
@@ -44,6 +46,9 @@ final class AccountController extends AbstractController
                 : null,
             'workspace' => $this->workspaceSummary->forActor($user),
             'institution_memberships' => $this->institutionQuery->accountMemberships($user),
+            'teacher_classrooms_href' => [] !== $this->teacherReport->teacherClassrooms($user)
+                ? $this->generateUrl('app_teacher_classrooms')
+                : null,
         ]);
     }
 }

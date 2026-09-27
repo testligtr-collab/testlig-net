@@ -1,0 +1,43 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Sınıf test sonuçları — Testlig{% endblock %}
+
+{% block body %}
+<article class="student-page student-form-card">
+    <h1>{{ report.title }}</h1>
+    <p>{{ report.classroomName }}</p>
+    <p>{{ report.windowLabel }}</p>
+    <ul>
+        <li>Öğrenci sayısı: {{ report.recipientCount }}</li>
+        <li>Başlamadı: {{ report.notStarted }}</li>
+        <li>Devam ediyor: {{ report.inProgress }}</li>
+        <li>Tamamlandı: {{ report.completed }}</li>
+        <li>Süresi doldu: {{ report.expired }}</li>
+        <li>Tamamlanma: {{ report.completionRate }}%</li>
+        <li>Ortalama: {{ report.averagePercentage|default('—') }}</li>
+    </ul>
+    <div class="table-scroll">
+        <table class="institution-table">
+            <thead>
+                <tr>
+                    <th>Öğrenci</th>
+                    <th>Durum</th>
+                    <th>Puan</th>
+                    <th>Yüzde</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in report.students %}
+                    <tr>
+                        <td data-label="Öğrenci">{{ student.name }}</td>
+                        <td data-label="Durum">{{ student.statusLabel }}</td>
+                        <td data-label="Puan">{{ student.earned is null ? '—' : student.earned ~ ' / ' ~ student.maximum }}</td>
+                        <td data-label="Yüzde">{{ student.percentage|default('—') }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <p><a href="{{ path('app_teacher_classrooms') }}">Sınıflarım</a></p>
+</article>
+{% endblock %}
