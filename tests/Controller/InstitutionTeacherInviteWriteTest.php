@@ -147,14 +147,6 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $list);
         self::assertStringNotContainsString('ROLE_', $list);
 
-        $anon = static::createClient();
-        $anon->request('GET', '/davet/ogretmen/'.$firstToken);
-        self::assertResponseRedirects('/davet/ogretmen');
-        $anon->followRedirect();
-        self::assertStringContainsString('Hesap oluşturun', (string) $anon->getResponse()->getContent());
-        self::assertSame(0, $this->countTable('institution_memberships') - 2);
-        self::ensureKernelShutdown();
-
         $crawler = $client->request('GET', '/kurum/ogretmenler/davet');
         $client->submit($crawler->selectButton('Davet gönder')->form([
             'email' => 'gizli.ogretmen@example.com',
@@ -166,9 +158,18 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         $token = $this->captureToken((string) $second->getHtmlBody());
         self::assertNotSame($firstToken, $token);
         self::assertSame(1, $this->countTable('institution_teacher_invitations'));
+        self::ensureKernelShutdown();
 
-        $client->request('GET', '/davet/ogretmen/'.$firstToken);
+        $anon = static::createClient();
+        $anon->request('GET', '/davet/ogretmen/'.$firstToken);
         self::assertResponseStatusCodeSame(404);
+        $anon->request('GET', '/davet/ogretmen/'.$token);
+        self::assertResponseRedirects('/davet/ogretmen');
+        $anon->followRedirect();
+        self::assertStringContainsString('Hesap oluşturun', (string) $anon->getResponse()->getContent());
+        self::assertStringNotContainsString($token, (string) $anon->getResponse()->getContent());
+        self::assertSame(0, $this->countTable('institution_memberships') - 2);
+        self::ensureKernelShutdown();
 
         $this->createActive('gizli.ogretmen@example.com', UserRole::Student, 'Deniz', 'Kaya');
         $wrong = static::createClient();
@@ -312,7 +313,7 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
 
         $guest = static::createClient();
         $crawler = $guest->request('GET', '/kayit/ogretmen');
-        $guest->submit($crawler->selectButton('Kayıt ol')->form([
+        $guest->submit($crawler->selectButton('Hesap oluştur')->form([
             'registration_form[firstName]' => 'Ece',
             'registration_form[lastName]' => 'Ak',
             'registration_form[email]' => 'yeni.kayit@example.com',

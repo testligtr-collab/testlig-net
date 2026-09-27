@@ -262,7 +262,7 @@ final class InstitutionClassroomWriteTest extends WebTestCase
         self::assertStringContainsString('Ece Ak', $html);
         self::assertStringNotContainsString('secret-teacher@example.com', $html);
         self::assertStringNotContainsString('other-student@example.com', $html);
-        $token = (string) $page->filter('input[name="_token"]')->attr('value');
+        $token = (string) $page->filter('form[action*="/arsivle"] input[name="_token"]')->attr('value');
         $action = (string) $page->filter('form[action*="/arsivle"]')->attr('action');
         $client->request('POST', $action, ['_token' => $token]);
         self::assertResponseRedirects();

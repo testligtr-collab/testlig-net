@@ -12,6 +12,7 @@ use App\Service\InstitutionStatusManager;
 use App\Service\InstitutionTeacherInvitationManager;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
+use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
@@ -82,6 +83,25 @@ final class InstitutionTeacherInviteConcurrencyTest extends KernelTestCase
             ->getQuery()
             ->getSingleScalarResult();
         self::assertSame(1, $count);
+    }
+
+    protected function tearDown(): void
+    {
+        try {
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $em = static::getContainer()->get(EntityManagerInterface::class);
+            if ($em instanceof EntityManagerInterface) {
+                QuestionBankDbCleanup::deleteTables($em->getConnection(), [
+                    'institution_memberships',
+                    'institutions',
+                    'security_audit_events',
+                    'users',
+                ]);
+            }
+        } catch (\Throwable) {
+        }
+        parent::tearDown();
     }
 
     private function user(string $email, UserRole $role, string $first = 'Ada', string $last = 'Yılmaz'): \App\Entity\User
