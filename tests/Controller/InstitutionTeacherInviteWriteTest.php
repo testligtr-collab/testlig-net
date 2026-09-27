@@ -32,6 +32,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\MailerAssertionsTrait;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Field\FormField;
+use Symfony\Component\Mailer\Event\MessageEvent;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
@@ -147,12 +148,18 @@ final class InstitutionTeacherInviteWriteTest extends WebTestCase
         self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $list);
         self::assertStringNotContainsString('ROLE_', $list);
 
+        $captured = [];
+        $dispatcher = static::getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(MessageEvent::class, static function (MessageEvent $event) use (&$captured): void {
+            $captured[] = $event->getMessage();
+        });
         $client->submit($client->getCrawler()->selectButton('Yeniden gönder')->form());
         self::assertResponseRedirects('/kurum/ogretmenler');
-        $second = self::getMailerMessage();
         $client->followRedirect();
-        $resent = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('Davet gönderildi veya mevcut bekleyen davet güncellendi.', $resent);
+        self::assertStringContainsString('Davet gönderildi veya mevcut bekleyen davet güncellendi.', (string) $client->getResponse()->getContent());
+        self::assertCount(1, $captured);
+        $second = $captured[0];
         self::assertInstanceOf(Email::class, $second);
         $token = $this->captureToken((string) $second->getHtmlBody());
         self::assertNotSame($firstToken, $token);
