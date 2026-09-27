@@ -164,12 +164,15 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $staff = $this->activeUser('rules-staff@example.com');
         $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $staff, InstitutionMembershipRole::Staff, 'add_staff');
         $this->expectReason(static fn () => $assigner->createDraft($staff, $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null), 'forbidden');
+        $admin = $this->activeUser('rules-admin@example.com');
+        $admin->addGlobalRole(UserRole::Admin);
+        $this->users->save($admin);
         foreach ([
             [$ctx['student'], 'student'],
             [$ctx['sa'], 'sa'],
             [$this->activeUser('rules-parent@example.com', UserRole::Parent), 'parent'],
             [$this->activeUser('rules-mod@example.com', UserRole::Moderator), 'mod'],
-            [$this->activeUser('rules-admin@example.com', UserRole::Admin), 'admin'],
+            [$admin, 'admin'],
             [$this->activeUser('rules-role-teacher@example.com', UserRole::Teacher), 'global-teacher'],
         ] as [$actor, $label]) {
             $this->expectReason(
@@ -271,25 +274,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             'owner' => $ctx['owner'],
             'sa' => $ctx['sa'],
             'institution' => $ctx['institution'],
-        ], 'typed', GradeLevel::Grade9, '0.00');
-        $revision = $typed->getPublishedRevision();
-        self::assertNotNull($revision);
-        $item = $this->em->createQueryBuilder()
-            ->select('item', 'questionRevision')
-            ->from(\App\Entity\AssessmentItem::class, 'item')
-            ->innerJoin('item.questionRevision', 'questionRevision')
-            ->andWhere('item.assessmentRevision = :revision')
-            ->setParameter('revision', $revision->getId(), 'uuid')
-            ->setMaxResults(1)
-            ->getQuery()
-            ->getOneOrNullResult();
-        self::assertInstanceOf(\App\Entity\AssessmentItem::class, $item);
-        $this->em->getConnection()->executeStatement(
-            'UPDATE question_revisions SET `type` = :type WHERE id = :id',
-            ['type' => QuestionType::MultipleChoice->value, 'id' => $item->getQuestionRevision()->getId()->toBinary()],
-        );
-        $this->em->clear();
-        $ctx = $this->reloadContext($ctx);
+        ], 'typed', GradeLevel::Grade9, '0.00', 3600, QuestionType::MultipleChoice);
         $this->expectReason(
             fn () => $assigner->createDraft(
                 $ctx['owner'],
@@ -303,28 +288,31 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             'not_assignable',
         );
 
-        $empty = $this->publishInstitutionAssessment([
-            'owner' => $ctx['owner'],
-            'sa' => $ctx['sa'],
-            'institution' => $ctx['institution'],
-        ], 'empty', GradeLevel::Grade9, '0.00');
-        $emptyRevision = $empty->getPublishedRevision();
-        self::assertNotNull($emptyRevision);
-        $this->em->createQuery('DELETE FROM App\Entity\AssessmentItem item WHERE item.assessmentRevision = :revision')
-            ->setParameter('revision', $emptyRevision->getId(), 'uuid')
-            ->execute();
-        $this->expectReason(
-            fn () => $assigner->createDraft(
+        $rejected = false;
+        try {
+            $this->assessments()->createDraftAssessment(
                 $ctx['owner'],
+                AssessmentScope::Institution,
                 $ctx['institution'],
-                $this->hasher()->workspaceReference('assessment', $empty->getId()),
-                $this->hasher()->workspaceReference('classroom', $ctx['classroom']->getId()),
+                AssessmentType::Quiz,
+                GradeLevel::Grade9,
+                'Bos test',
                 null,
                 null,
                 null,
-            ),
-            'not_assignable',
-        );
+                NavigationMode::Free,
+                QuestionOrderMode::Fixed,
+                OptionOrderMode::Fixed,
+                ResultReleasePolicy::Immediate,
+                null,
+                [],
+                'create_empty',
+                $ctx['subject'],
+            );
+        } catch (\App\Exception\AssessmentException) {
+            $rejected = true;
+        }
+        self::assertTrue($rejected);
 
         $archivedClass = $this->classroomManager()->create(
             $ctx['classroom']->getAcademicYear(),
@@ -487,7 +475,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
         self::assertResponseHeaderSame('Referrer-Policy', 'no-referrer');
         self::assertStringContainsString('Maksimum deneme: 1', (string) $client->getResponse()->getContent());
-        $client->submit($crawler->filter('form')->form([
+        $client->submit($crawler->filter('form[action*="/ata"]')->form([
             'classroom' => $refs['classroom'],
         ]));
         self::assertResponseRedirects();
@@ -603,7 +591,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
     /**
      * @param array{owner: User, sa: User, institution: Institution, subject?: Subject} $ctx
      */
-    private function publishInstitutionAssessment(array $ctx, string $suffix, GradeLevel $grade, string $penalty, ?int $duration = 3600): Assessment
+    private function publishInstitutionAssessment(array $ctx, string $suffix, GradeLevel $grade, string $penalty, ?int $duration = 3600, QuestionType $questionType = QuestionType::SingleChoice): Assessment
     {
         $subject = $ctx['subject'] ?? $this->subjects()->create($ctx['sa'], 'math_'.$suffix, 'Math '.$suffix, 'create_subj_'.$suffix);
         $draftProgram = $this->programs()->createDraft($subject, $ctx['sa'], $grade, 'math_'.$suffix, 'Math', '1.0', 'prog_'.$suffix);
@@ -612,7 +600,9 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $lo = $this->outcomes()->create($topic, $ctx['sa'], 'lo_'.$suffix, 'Outcome', 1, 'create_lo_'.$suffix);
         $this->programs()->publish($draftProgram, $ctx['sa'], 'pub_curr_'.$suffix);
         $reviewer = $this->activeUser($suffix.'-qrev@example.com', UserRole::HeadTeacher);
-        $question = $this->createPublishedPlatformQuestion($ctx['sa'], $reviewer, $subject, $lo, $suffix, $grade);
+        $question = QuestionType::MultipleChoice === $questionType
+            ? $this->publishChoiceQuestion($ctx['sa'], $reviewer, $subject, $lo, $suffix, $grade, $questionType)
+            : $this->createPublishedPlatformQuestion($ctx['sa'], $reviewer, $subject, $lo, $suffix, $grade);
         $revisions = static::getContainer()->get(QuestionRevisionRepository::class);
         self::assertInstanceOf(QuestionRevisionRepository::class, $revisions);
         $revision = $revisions->findForQuestionNumber($question, 1);
@@ -647,6 +637,46 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertInstanceOf(Assessment::class, $assessment);
 
         return $assessment;
+    }
+
+    private function publishChoiceQuestion(
+        User $author,
+        User $publisher,
+        Subject $subject,
+        \App\Entity\CurriculumLearningOutcome $lo,
+        string $suffix,
+        GradeLevel $grade,
+        QuestionType $type,
+    ): Question {
+        $question = $this->questions()->createDraftQuestion(
+            $author,
+            \App\Enum\QuestionScope::Platform,
+            null,
+            $subject,
+            $grade,
+            $type,
+            \App\Question\Content\QuestionContentDocument::paragraph('Q '.$suffix.'?'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => \App\Question\Content\QuestionContentDocument::paragraph('A'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => \App\Question\Content\QuestionContentDocument::paragraph('B'), 'position' => 2],
+                ['stableKey' => 'opt_c', 'content' => \App\Question\Content\QuestionContentDocument::paragraph('C'), 'position' => 3],
+            ],
+            ['correctStableKeys' => ['opt_a', 'opt_c']],
+            [['learningOutcome' => $lo, 'isPrimary' => true]],
+            \App\Enum\QuestionDifficulty::Easy,
+            'create_q_'.$suffix,
+        );
+        $this->questions()->submitForReview($question, $author, 'submit_q');
+        $question = $this->em->find(Question::class, $question->getId());
+        self::assertInstanceOf(Question::class, $question);
+        $publisher = $this->users->find($publisher->getId());
+        self::assertInstanceOf(User::class, $publisher);
+        $this->questions()->publish($question, $publisher, 'pub_q');
+        $question = $this->em->find(Question::class, $question->getId());
+        self::assertInstanceOf(Question::class, $question);
+
+        return $question;
     }
 
     /**
@@ -688,36 +718,6 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             'create_draft_'.$suffix,
             $ctx['subject'],
         );
-    }
-
-    /**
-     * @param array{owner: User, sa: User, institution: Institution, classroom: Classroom, teacher: User, student: User, assessment: Assessment, platform: Assessment, subject: Subject} $ctx
-     *
-     * @return array{owner: User, sa: User, institution: Institution, classroom: Classroom, teacher: User, student: User, assessment: Assessment, platform: Assessment, subject: Subject}
-     */
-    private function reloadContext(array $ctx): array
-    {
-        $ctx['owner'] = $this->fresh($ctx['owner']);
-        $ctx['sa'] = $this->fresh($ctx['sa']);
-        $institution = $this->em->find(Institution::class, $ctx['institution']->getId());
-        $classroom = $this->em->find(Classroom::class, $ctx['classroom']->getId());
-        $assessment = $this->em->find(Assessment::class, $ctx['assessment']->getId());
-        $platform = $this->em->find(Assessment::class, $ctx['platform']->getId());
-        $subject = $this->em->find(Subject::class, $ctx['subject']->getId());
-        self::assertInstanceOf(Institution::class, $institution);
-        self::assertInstanceOf(Classroom::class, $classroom);
-        self::assertInstanceOf(Assessment::class, $assessment);
-        self::assertInstanceOf(Assessment::class, $platform);
-        self::assertInstanceOf(Subject::class, $subject);
-        $ctx['institution'] = $institution;
-        $ctx['classroom'] = $classroom;
-        $ctx['teacher'] = $this->fresh($ctx['teacher']);
-        $ctx['student'] = $this->fresh($ctx['student']);
-        $ctx['assessment'] = $assessment;
-        $ctx['platform'] = $platform;
-        $ctx['subject'] = $subject;
-
-        return $ctx;
     }
 
     private function subjectFor(Assessment $assessment): Subject
