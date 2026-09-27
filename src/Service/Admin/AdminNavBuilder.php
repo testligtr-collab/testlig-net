@@ -11,6 +11,9 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 /**
  * Builds permission-filtered admin sidebar / mobile nav items.
+ *
+ * Group labels are presentation only. An item appears only when the existing
+ * AdminAuthorization gate already allows that surface.
  */
 final class AdminNavBuilder
 {
@@ -24,6 +27,7 @@ final class AdminNavBuilder
     /**
      * @return array{
      *     nav_items: list<array{id: string, label: string, href: string, current: bool}>,
+     *     nav_sections: list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool}>}>,
      *     mobile_nav: list<array{id: string, label: string, href: string, current: bool}>,
      *     panel_role_label: string,
      *     display_name: string,
@@ -42,7 +46,7 @@ final class AdminNavBuilder
 
         $items = [];
         if ($canShell) {
-            $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_admin_dashboard', $currentPath);
+            $items[] = $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath);
             $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
         } elseif ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
             $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_account', $currentPath);
@@ -84,12 +88,55 @@ final class AdminNavBuilder
 
         return [
             'nav_items' => $items,
-            // Admin SA surfaces exceed the generic 4-slot panel budget; CSS uses auto-fit.
+            'nav_sections' => $this->sections($items),
             'mobile_nav' => $items,
             'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : 'İçerik'),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
             'avatar_initials' => $this->initials($actor),
         ];
+    }
+
+    /**
+     * @param list<array{id: string, label: string, href: string, current: bool}> $items
+     *
+     * @return list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool}>}>
+     */
+    private function sections(array $items): array
+    {
+        $byId = [];
+        foreach ($items as $item) {
+            if ('account' === $item['id']) {
+                continue;
+            }
+            $byId[$item['id']] = $item;
+        }
+
+        $groups = [
+            ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
+            ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'institutions']],
+            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests']],
+            ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
+        ];
+
+        $sections = [];
+        foreach ($groups as $group) {
+            $grouped = [];
+            foreach ($group['ids'] as $id) {
+                if (isset($byId[$id])) {
+                    $grouped[] = $byId[$id];
+                }
+            }
+            if ([] === $grouped) {
+                continue;
+            }
+            $sections[] = [
+                'id' => $group['id'],
+                'label' => $group['label'],
+                'items' => $grouped,
+            ];
+        }
+
+        return $sections;
     }
 
     /**

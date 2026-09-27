@@ -9,6 +9,7 @@ use App\Exception\CommerceException;
 use App\Security\AdminPermission;
 use App\Service\Admin\AdminDashboardReadModel;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\Admin\AdminShellMetrics;
 use App\Service\Admin\ContentWorkspaceSummary;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -20,6 +21,7 @@ final class AdminDashboardController extends AdminBaseController
         AdminNavBuilder $adminNavBuilder,
         private readonly AdminDashboardReadModel $dashboardReadModel,
         private readonly ContentWorkspaceSummary $workspaceSummary,
+        private readonly AdminShellMetrics $shellMetrics,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -39,6 +41,7 @@ final class AdminDashboardController extends AdminBaseController
         return $this->renderAdmin('admin/dashboard.html.twig', [
             'dashboard' => $view,
             'workspace' => $user instanceof User ? $this->workspaceSummary->forActor($user) : null,
+            'shell_metrics' => $user instanceof User ? $this->shellMetrics->forActor($user) : [],
         ]);
     }
 }

@@ -1,21 +1,43 @@
 {# @var string panel_role_label #}
 {# @var iterable nav_items #}
-<aside class="panel-sidebar" aria-label="Panel menüsü">
+<aside id="panel-sidebar" class="panel-sidebar" aria-label="Panel menüsü">
     {% include 'components/brand.html.twig' with { href: path('app_home') } %}
     <p class="panel-sidebar__label muted" style="margin:0;font-size:0.8rem;">{{ panel_role_label }}</p>
     <nav class="panel-sidebar__nav">
-        {% for item in nav_items %}
-            <a
-                class="panel-nav-link"
-                href="{{ item.href|default('#' ~ item.id) }}"
-                {% if item.current %}aria-current="page"{% endif %}
-            >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <span>{{ item.label }}</span>
-            </a>
-        {% endfor %}
+        {% if nav_sections is defined and nav_sections is not empty %}
+            {% for section in nav_sections %}
+                <div class="panel-nav-group">
+                    <p class="panel-nav-group__label" id="nav-group-{{ section.id }}">{{ section.label }}</p>
+                    <div role="group" aria-labelledby="nav-group-{{ section.id }}">
+                        {% for item in section['items'] %}
+                            <a
+                                class="panel-nav-link"
+                                href="{{ item.href }}"
+                                {% if item.current %}aria-current="page"{% endif %}
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                                <span>{{ item.label }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            {% for item in nav_items %}
+                <a
+                    class="panel-nav-link"
+                    href="{{ item.href|default('#' ~ item.id) }}"
+                    {% if item.current %}aria-current="page"{% endif %}
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    <span>{{ item.label }}</span>
+                </a>
+            {% endfor %}
+        {% endif %}
     </nav>
     <button
         type="button"

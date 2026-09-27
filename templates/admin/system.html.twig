@@ -23,11 +23,11 @@
         <section class="surface stack-md" aria-labelledby="whq-heading">
             <h2 id="whq-heading" style="margin:0;font-size:1.1rem;">Webhook kuyruğu</h2>
             <ul class="list-plain">
-                <li>Due: {{ system.webhookQueueSummary.due }}</li>
-                <li>Retry pending: {{ system.webhookQueueSummary.retry_pending }}</li>
-                <li>Processing: {{ system.webhookQueueSummary.processing }}</li>
-                <li>Stale lease: {{ system.webhookQueueSummary.stale_lease }}</li>
-                <li>Dead letter: {{ system.webhookQueueSummary.dead_letter }}</li>
+                <li>Zamanı gelen: {{ system.webhookQueueSummary.due }}</li>
+                <li>Yeniden denenecek: {{ system.webhookQueueSummary.retry_pending }}</li>
+                <li>İşleniyor: {{ system.webhookQueueSummary.processing }}</li>
+                <li>Süresi geçmiş işlem: {{ system.webhookQueueSummary.stale_lease }}</li>
+                <li>Teslim edilemeyen: {{ system.webhookQueueSummary.dead_letter }}</li>
             </ul>
         </section>
     {% endif %}

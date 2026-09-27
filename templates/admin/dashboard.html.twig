@@ -9,6 +9,28 @@
         <span>Özet</span>
     </nav>
     <h1 class="panel-greeting">Yönetim özeti</h1>
+    <p class="muted" style="margin-top:-0.75rem;">{{ panel_role_label }} oturumu. Rakamlar yetkinizin açtığı kayıtlardan gelir.</p>
+
+    {% if shell_metrics is defined and shell_metrics is not empty %}
+        <section class="admin-section" aria-labelledby="scope-heading">
+            <h2 id="scope-heading">Kapsam</h2>
+            <div class="admin-metric-grid" aria-label="Yetkili kayıt sayıları">
+                {% for card in shell_metrics %}
+                    {% if card.href %}
+                        <a class="admin-metric admin-metric--link" href="{{ card.href }}">
+                            <p class="admin-metric__label">{{ card.label }}</p>
+                            <p class="admin-metric__value">{{ card.value }}</p>
+                        </a>
+                    {% else %}
+                        <div class="admin-metric">
+                            <p class="admin-metric__label">{{ card.label }}</p>
+                            <p class="admin-metric__value">{{ card.value }}</p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 
     {% if workspace %}
         <section class="admin-section" aria-labelledby="workspace-heading">

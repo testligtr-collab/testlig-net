@@ -3,6 +3,18 @@
 {% block title %}Kurumlar — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set type_labels = {
+        'school': 'Okul',
+        'course_center': 'Kurs',
+        'tutoring_center': 'Etüt merkezi',
+        'other': 'Diğer'
+    } %}
+    {% set status_labels = {
+        'pending': 'Beklemede',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
         <span aria-hidden="true">/</span>
@@ -23,7 +35,7 @@
             <select name="type">
                 <option value="">—</option>
                 {% for t in ['school','course_center','tutoring_center','other'] %}
-                    <option value="{{ t }}" {% if filters.type|default('') == t %}selected{% endif %}>{{ t }}</option>
+                    <option value="{{ t }}" {% if filters.type|default('') == t %}selected{% endif %}>{{ type_labels[t] }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -31,7 +43,7 @@
             <select name="status">
                 <option value="">—</option>
                 {% for s in ['pending','active','suspended','archived'] %}
-                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status_labels[s] }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -64,8 +76,8 @@
                             <td><code>{{ row.shortRef }}</code></td>
                             <td>{{ row.name }}</td>
                             <td><code>{{ row.slug }}</code></td>
-                            <td>{{ row.type.value }}</td>
-                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
+                            <td data-label="Tür">{{ type_labels[row.type.value]|default(row.type.value) }}</td>
+                            <td data-label="Durum">{% include 'components/status_chip.html.twig' with { label: status_labels[row.status.value]|default(row.status.value), variant: 'accent' } %}</td>
                             <td>{{ row.activeMemberCount }}</td>
                             <td>{{ row.createdAt|utc_present }}</td>
                             <td><a href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay</a></td>

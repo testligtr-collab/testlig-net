@@ -3,6 +3,24 @@
 {% block title %}Kullanıcılar — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set status_labels = {
+        'pending_verification': 'Doğrulama bekliyor',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
+    {% set role_labels = {
+        'ROLE_USER': 'Kullanıcı',
+        'ROLE_STUDENT': 'Öğrenci',
+        'ROLE_PARENT': 'Veli',
+        'ROLE_TEACHER': 'Öğretmen',
+        'ROLE_EXPERT_TEACHER': 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER': 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER': 'Kurum yöneticisi',
+        'ROLE_MODERATOR': 'Moderatör',
+        'ROLE_ADMIN': 'Yönetici',
+        'ROLE_SUPER_ADMIN': 'Süper Yönetici'
+    } %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
         <span aria-hidden="true">/</span>
@@ -18,7 +36,7 @@
             <select name="status">
                 <option value="">—</option>
                 {% for s in ['pending_verification','active','suspended','archived'] %}
-                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s }}</option>
+                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status_labels[s] }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -26,7 +44,7 @@
             <select name="role">
                 <option value="">—</option>
                 {% for role in role_choices %}
-                    <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role.value }}</option>
+                    <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role_labels[role.value]|default(role.value) }}</option>
                 {% endfor %}
             </select>
         </label>
@@ -66,10 +84,10 @@
                             <td><code>{{ row.shortRef }}</code></td>
                             <td>{{ row.displayName() }}</td>
                             <td>{{ row.email }}</td>
-                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
-                            <td>
+                            <td data-label="Durum">{% include 'components/status_chip.html.twig' with { label: status_labels[row.status.value]|default(row.status.value), variant: 'accent' } %}</td>
+                            <td data-label="Roller">
                                 {% for role in row.globalRoles %}
-                                    {% include 'components/status_chip.html.twig' with { label: role, variant: 'neutral' } %}
+                                    {% include 'components/status_chip.html.twig' with { label: role_labels[role]|default(role), variant: 'neutral' } %}
                                 {% endfor %}
                             </td>
                             <td>{{ row.emailVerified ? 'Evet' : 'Hayır' }}</td>
