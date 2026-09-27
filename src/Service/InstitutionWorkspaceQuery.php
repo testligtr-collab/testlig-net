@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
 use App\Dto\InstitutionPersonRow;
 use App\Dto\InstitutionTestRow;
@@ -69,7 +70,7 @@ final class InstitutionWorkspaceQuery
     /**
      * @return list<InstitutionClassroomRow>
      */
-    public function classrooms(Institution $institution, int $page): array
+    public function classrooms(Institution $institution, int $page, ClassroomStatus $status = ClassroomStatus::Active): array
     {
         /** @var list<Classroom> $rows */
         $rows = $this->entityManager->createQueryBuilder()
@@ -77,7 +78,9 @@ final class InstitutionWorkspaceQuery
             ->from(Classroom::class, 'c')
             ->innerJoin('c.academicYear', 'y')
             ->andWhere('c.institution = :institution')
+            ->andWhere('c.status = :status')
             ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('status', $status)
             ->orderBy('c.name', 'ASC')
             ->setFirstResult(max(0, $page - 1) * self::PAGE_SIZE)
             ->setMaxResults(self::PAGE_SIZE)
@@ -88,38 +91,27 @@ final class InstitutionWorkspaceQuery
         $list = [];
         foreach ($rows as $classroom) {
             $key = $classroom->getId()->toRfc4122();
-            $list[] = new InstitutionClassroomRow(
-                $this->hasher->workspaceReference('classroom', $classroom->getId()),
-                $classroom->getName(),
-                $classroom->getGradeLevel()->value.'. sınıf',
-                $classroom->getAcademicYear()->getName(),
-                ClassroomStatus::Active === $classroom->getStatus() ? 'Aktif' : 'Arşiv',
-                $teacherCounts[$key] ?? 0,
-                $studentCounts[$key] ?? 0,
-            );
+            $list[] = $this->mapClassroom($classroom, $teacherCounts[$key] ?? 0, $studentCounts[$key] ?? 0);
         }
 
         return $list;
     }
 
-    public function classroom(Institution $institution, string $reference): ?InstitutionClassroomRow
+    public function classroom(Institution $institution, string $reference): ?InstitutionClassroomDetail
     {
-        /** @var list<array{id: mixed}> $ids */
-        $ids = $this->entityManager->createQueryBuilder()
-            ->select('c.id AS id')
-            ->from(Classroom::class, 'c')
-            ->andWhere('c.institution = :institution')
-            ->setParameter('institution', $institution->getId(), 'uuid')
-            ->getQuery()
-            ->getArrayResult();
-        foreach ($ids as $row) {
-            $id = self::uuid($row['id']);
-            if ($id instanceof Uuid && hash_equals($this->hasher->workspaceReference('classroom', $id), $reference)) {
-                return $this->classroomRow($institution, $id);
-            }
+        $classroom = $this->classroomEntity($institution, $reference);
+        if (!$classroom instanceof Classroom) {
+            return null;
         }
+        $key = $classroom->getId()->toRfc4122();
+        $teacherCounts = $this->countsByClassroom(ClassroomTeacherAssignment::class, $institution, TeacherAssignmentStatus::Active);
+        $studentCounts = $this->countsByClassroom(ClassroomStudentEnrollment::class, $institution, StudentEnrollmentStatus::Active);
 
-        return null;
+        return new InstitutionClassroomDetail(
+            $this->mapClassroom($classroom, $teacherCounts[$key] ?? 0, $studentCounts[$key] ?? 0),
+            $this->classroomTeachers($institution, $classroom),
+            $this->classroomStudents($institution, $classroom),
+        );
     }
 
     /**
@@ -477,15 +469,131 @@ final class InstitutionWorkspaceQuery
         return $map;
     }
 
-    private function classroomRow(Institution $institution, Uuid $id): ?InstitutionClassroomRow
+    private function classroomEntity(Institution $institution, string $reference): ?Classroom
     {
-        foreach ($this->classrooms($institution, 1) as $row) {
-            if (hash_equals($row->reference, $this->hasher->workspaceReference('classroom', $id))) {
-                return $row;
+        /** @var list<array{id: mixed}> $ids */
+        $ids = $this->entityManager->createQueryBuilder()
+            ->select('c.id AS id')
+            ->from(Classroom::class, 'c')
+            ->andWhere('c.institution = :institution')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($ids as $row) {
+            $id = self::uuid($row['id']);
+            if (!$id instanceof Uuid || !hash_equals($this->hasher->workspaceReference('classroom', $id), $reference)) {
+                continue;
             }
+
+            $classroom = $this->entityManager->createQueryBuilder()
+                ->select('c', 'y')
+                ->from(Classroom::class, 'c')
+                ->innerJoin('c.academicYear', 'y')
+                ->andWhere('c.id = :id')
+                ->andWhere('c.institution = :institution')
+                ->setParameter('id', $id, 'uuid')
+                ->setParameter('institution', $institution->getId(), 'uuid')
+                ->getQuery()
+                ->getOneOrNullResult();
+
+            return $classroom instanceof Classroom ? $classroom : null;
         }
 
         return null;
+    }
+
+    private function mapClassroom(Classroom $classroom, int $teacherCount, int $studentCount): InstitutionClassroomRow
+    {
+        $zone = new \DateTimeZone('Europe/Istanbul');
+        $capacity = $classroom->getCapacity();
+
+        return new InstitutionClassroomRow(
+            $this->hasher->workspaceReference('classroom', $classroom->getId()),
+            $classroom->getName(),
+            $classroom->getGradeLevel()->value.'. sınıf',
+            $classroom->getAcademicYear()->getName(),
+            $classroom->getSectionCode(),
+            null === $capacity ? null : (string) $capacity,
+            ClassroomStatus::Active === $classroom->getStatus() ? 'Aktif' : 'Arşiv',
+            $classroom->getCreatedAt()->setTimezone($zone)->format('d.m.Y'),
+            $classroom->getUpdatedAt()->setTimezone($zone)->format('d.m.Y'),
+            (string) $classroom->getUpdatedAt()->getTimestamp(),
+            ClassroomStatus::Active === $classroom->getStatus(),
+            $teacherCount,
+            $studentCount,
+        );
+    }
+
+    /**
+     * @return list<InstitutionPersonRow>
+     */
+    private function classroomTeachers(Institution $institution, Classroom $classroom): array
+    {
+        /** @var list<array{firstName: string, lastName: string, status: mixed}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('u.firstName AS firstName', 'u.lastName AS lastName')
+            ->from(ClassroomTeacherAssignment::class, 'a')
+            ->innerJoin('a.teacherMembership', 'm')
+            ->innerJoin('m.user', 'u')
+            ->andWhere('a.institution = :institution')
+            ->andWhere('a.classroom = :classroom')
+            ->andWhere('a.status = :status')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
+            ->setParameter('status', TeacherAssignmentStatus::Active)
+            ->orderBy('u.lastName', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+        $list = [];
+        foreach ($rows as $row) {
+            $list[] = new InstitutionPersonRow(
+                trim($row['firstName'].' '.$row['lastName']),
+                'Öğretmen',
+                'Aktif',
+                null,
+                null,
+                null,
+            );
+        }
+
+        return $list;
+    }
+
+    /**
+     * @return list<InstitutionPersonRow>
+     */
+    private function classroomStudents(Institution $institution, Classroom $classroom): array
+    {
+        /** @var list<array{firstName: string, lastName: string, gradeLevel: mixed}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('u.firstName AS firstName', 'u.lastName AS lastName', 'p.gradeLevel AS gradeLevel')
+            ->from(ClassroomStudentEnrollment::class, 'e')
+            ->innerJoin('e.studentMembership', 'm')
+            ->innerJoin('m.user', 'u')
+            ->leftJoin(StudentProfile::class, 'p', 'WITH', 'p.user = u')
+            ->andWhere('e.institution = :institution')
+            ->andWhere('e.classroom = :classroom')
+            ->andWhere('e.status = :status')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
+            ->setParameter('status', StudentEnrollmentStatus::Active)
+            ->orderBy('u.lastName', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+        $list = [];
+        foreach ($rows as $row) {
+            $grade = self::scalarEnum($row['gradeLevel']);
+            $list[] = new InstitutionPersonRow(
+                trim($row['firstName'].' '.$row['lastName']),
+                'Öğrenci',
+                'Aktif',
+                '' === $grade ? null : $grade.'. sınıf',
+                $classroom->getName(),
+                null,
+            );
+        }
+
+        return $list;
     }
 
     private static function uuid(mixed $value): ?Uuid
