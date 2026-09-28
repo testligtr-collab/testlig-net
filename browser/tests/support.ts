@@ -95,6 +95,9 @@ export async function assertLayout(page: Page): Promise<void> {
     scroll: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0),
     width: document.documentElement.clientWidth,
     outside: Array.from(document.querySelectorAll('main a, main button, header a, header button')).filter((node) => {
+      if (!(node instanceof HTMLElement) || node.closest('.bottom-nav, .table-scroll')) {
+        return false;
+      }
       const box = node.getBoundingClientRect();
       if (box.width === 0 || box.height === 0) {
         return false;

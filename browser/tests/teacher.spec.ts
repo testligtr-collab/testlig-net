@@ -8,8 +8,8 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await login(page, data.users.teacher);
   await page.goto('/hesabim');
   await expect(page).toHaveURL(/\/hesabim$/);
-  const shell = await page.goto('/yonetim');
-  expect(shell?.status()).toBe(403);
+  const shell = await page.request.get('/yonetim');
+  expect(shell.status()).toBe(403);
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
