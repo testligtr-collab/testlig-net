@@ -6,13 +6,18 @@
 {% block site_footer %}{% endblock %}
 {% block flashes %}{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ mapped_asset('styles/admin.css') }}">
+{% endblock %}
+
 {% block body %}
 <div
     class="panel-shell"
     data-controller="panel-shell"
     data-panel-shell-collapsed-class="is-collapsed"
 >
-    {% include 'components/panel_sidebar.html.twig' %}
+    {% include 'admin/_sidebar.html.twig' %}
 
     <div class="panel-main">
         <header class="panel-topbar">
@@ -24,20 +29,9 @@
                     aria-expanded="false"
                     aria-controls="panel-sidebar"
                 >Menü</button>
-                {% include 'components/avatar.html.twig' with { initials: avatar_initials, name: display_name } %}
-                <div>
-                    <p class="panel-topbar__title">{{ display_name }}</p>
-                    <p class="muted panel-role u-m0">{{ panel_role_label }}</p>
-                </div>
+                <p class="panel-topbar__title">Yönetim</p>
             </div>
-            <div class="admin-topbar-actions">
-                <a class="btn btn--ghost" href="{{ path('app_home') }}">Ana sayfa</a>
-                <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
-                <form method="post" action="{{ path('app_logout') }}" class="admin-logout-form">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
-                    <button type="submit" class="btn btn--ghost">Çıkış</button>
-                </form>
-            </div>
+            <p class="admin-topbar-initials" aria-hidden="true">{{ avatar_initials }}</p>
         </header>
         <button type="button" class="admin-nav-backdrop" data-action="panel-shell#closeMenu"><span class="sr-only">Menüyü kapat</span></button>
 
@@ -50,7 +44,5 @@
             {% block panel_content %}{% endblock %}
         </div>
     </div>
-
-    {% include 'components/mobile_bottom_nav.html.twig' %}
 </div>
 {% endblock %}

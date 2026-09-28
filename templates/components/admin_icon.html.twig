@@ -1,0 +1,52 @@
+{% set name = icon|default('default') %}
+{% set allowed = ['dashboard', 'system', 'users', 'institutions', 'catalog', 'learning_contents', 'questions', 'tests', 'payments', 'webhooks', 'reconciliations', 'audit', 'account', 'default'] %}
+{% if name not in allowed %}
+    {% set name = 'default' %}
+{% endif %}
+<svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    {% if name == 'dashboard' %}
+        <rect x="4" y="4" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13" y="4" width="7" height="4" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="13" y="10" width="7" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <rect x="4" y="13" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'system' %}
+        <path d="M4 12h3l2-5 3 10 2-5h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    {% elseif name == 'users' %}
+        <circle cx="9" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4.5 18c.6-2.4 2.4-3.6 4.5-3.6s3.9 1.2 4.5 3.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="16" cy="9.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M15 14.4c1.7.2 3 1.2 3.6 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    {% elseif name == 'institutions' %}
+        <path d="M5 19V9l7-4 7 4v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M9 19v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'catalog' %}
+        <path d="M5 6.5h5.5A2.5 2.5 0 0 1 13 9v9.5H7.5A2.5 2.5 0 0 0 5 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M19 6.5h-5.5A2.5 2.5 0 0 0 11 9v9.5h5.5A2.5 2.5 0 0 0 19 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'learning_contents' %}
+        <path d="M7 4.5h7l4 4V19a1.5 1.5 0 0 1-1.5 1.5h-9.5A1.5 1.5 0 0 1 6 19V6A1.5 1.5 0 0 1 7 4.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M14 4.5V9h4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'questions' %}
+        <circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M9.5 10a2.5 2.5 0 1 1 3.2 2.4c-.6.3-1.2.8-1.2 1.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <circle cx="12" cy="16.6" r="0.8" fill="currentColor"/>
+    {% elseif name == 'tests' %}
+        <rect x="5" y="4.5" width="14" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8.5 12l2 2 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    {% elseif name == 'payments' %}
+        <rect x="3.5" y="6.5" width="17" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M3.5 10.5h17" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'webhooks' %}
+        <path d="M9 12a3.5 3.5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M8 8.5A6.5 6.5 0 0 1 16 8.5M8 15.5A6.5 6.5 0 0 0 16 15.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    {% elseif name == 'reconciliations' %}
+        <path d="M12 4.5v15M8 8h8M7 16h10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M6 8l-2 2 2 2M18 8l2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    {% elseif name == 'audit' %}
+        <path d="M12 4l6.5 2.5v5.2c0 3.6-2.6 6.4-6.5 7.8-3.9-1.4-6.5-4.2-6.5-7.8V6.5L12 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    {% elseif name == 'account' %}
+        <circle cx="12" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M6 18.5c.8-2.6 2.8-4 6-4s5.2 1.4 6 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    {% else %}
+        <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% endif %}
+</svg>

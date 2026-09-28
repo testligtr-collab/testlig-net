@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\User;
+use App\Presentation\AdminIconCatalog;
 use App\Security\AdminAuthorization;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -21,14 +22,15 @@ final class AdminNavBuilder
         private readonly AdminAuthorization $adminAuthorization,
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly RequestStack $requestStack,
+        private readonly AdminIconCatalog $icons,
     ) {
     }
 
     /**
      * @return array{
-     *     nav_items: list<array{id: string, label: string, href: string, current: bool}>,
-     *     nav_sections: list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool}>}>,
-     *     mobile_nav: list<array{id: string, label: string, href: string, current: bool}>,
+     *     nav_items: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
+     *     nav_sections: list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool, icon: string}>}>,
+     *     mobile_nav: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
      *     panel_role_label: string,
      *     display_name: string,
      *     avatar_initials: string
@@ -97,9 +99,9 @@ final class AdminNavBuilder
     }
 
     /**
-     * @param list<array{id: string, label: string, href: string, current: bool}> $items
+     * @param list<array{id: string, label: string, href: string, current: bool, icon: string}> $items
      *
-     * @return list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool}>}>
+     * @return list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool, icon: string}>}>
      */
     private function sections(array $items): array
     {
@@ -140,7 +142,7 @@ final class AdminNavBuilder
     }
 
     /**
-     * @return array{id: string, label: string, href: string, current: bool}
+     * @return array{id: string, label: string, href: string, current: bool, icon: string}
      */
     private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null): array
     {
@@ -154,6 +156,7 @@ final class AdminNavBuilder
             'label' => $label,
             'href' => $href,
             'current' => $current,
+            'icon' => $this->icons->resolve($id),
         ];
     }
 

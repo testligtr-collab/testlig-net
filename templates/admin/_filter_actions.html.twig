@@ -1,0 +1,10 @@
+<button type="submit" class="btn btn--primary">Filtrele</button>
+{% set filter_state = namespace(active=false) %}
+{% for value in filters|default({}) %}
+    {% if value is not same as(null) and value is not same as('') %}
+        {% set filter_state.active = true %}
+    {% endif %}
+{% endfor %}
+{% if filter_state.active %}
+    <a class="btn btn--ghost" href="{{ clear_href }}">Temizle</a>
+{% endif %}
