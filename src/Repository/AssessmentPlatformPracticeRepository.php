@@ -53,14 +53,19 @@ class AssessmentPlatformPracticeRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<AssessmentPlatformPractice> $rows */
-        $rows = $this->createQueryBuilder('p')
+        $builder = $this->createQueryBuilder('p')
             ->andWhere('p.user = :user')
-            ->andWhere('p.assessment IN (:assessments)')
-            ->setParameter('user', $user->getId(), 'uuid')
-            ->setParameter('assessments', $assessments)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('user', $user->getId(), 'uuid');
+        $matches = [];
+        foreach ($assessments as $index => $assessment) {
+            $name = 'assessment'.$index;
+            $matches[] = 'p.assessment = :'.$name;
+            $builder->setParameter($name, $assessment->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<AssessmentPlatformPractice> $rows */
+        $rows = $builder->getQuery()->getResult();
 
         return $rows;
     }

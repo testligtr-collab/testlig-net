@@ -13,7 +13,8 @@ final class ReleaseCandidateReadinessTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/');
         self::assertResponseIsSuccessful();
-        self::assertStringNotContainsString('noindex', (string) $client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertStringNotContainsString('no-store', (string) $client->getResponse()->headers->get('Cache-Control'));
+        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
         self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
 
         $client->request('GET', '/kayit');

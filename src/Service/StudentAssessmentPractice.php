@@ -505,16 +505,21 @@ final class StudentAssessmentPractice
             return [];
         }
 
-        /** @var list<array{revisionId: mixed, itemCount: int|string}> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
+        $builder = $this->entityManager->createQueryBuilder()
             ->select('revision.id AS revisionId', 'COUNT(item.id) AS itemCount')
             ->from(AssessmentItem::class, 'item')
             ->innerJoin('item.assessmentRevision', 'revision')
-            ->andWhere('revision IN (:revisions)')
-            ->setParameter('revisions', $revisions)
-            ->groupBy('revision.id')
-            ->getQuery()
-            ->getArrayResult();
+            ->groupBy('revision.id');
+        $matches = [];
+        foreach ($revisions as $index => $revision) {
+            $name = 'revision'.$index;
+            $matches[] = 'revision = :'.$name;
+            $builder->setParameter($name, $revision->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<array{revisionId: mixed, itemCount: int|string}> $rows */
+        $rows = $builder->getQuery()->getArrayResult();
         $counts = [];
         foreach ($rows as $row) {
             $id = $row['revisionId'];
@@ -546,16 +551,21 @@ final class StudentAssessmentPractice
             $deliveries[] = $practice->getDelivery();
         }
 
-        /** @var list<AssessmentAttempt> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
+        $builder = $this->entityManager->createQueryBuilder()
             ->select('attempt')
             ->from(AssessmentAttempt::class, 'attempt')
             ->andWhere('attempt.user = :student')
-            ->andWhere('attempt.delivery IN (:deliveries)')
-            ->setParameter('student', $student->getId(), 'uuid')
-            ->setParameter('deliveries', $deliveries)
-            ->getQuery()
-            ->getResult();
+            ->setParameter('student', $student->getId(), 'uuid');
+        $matches = [];
+        foreach ($deliveries as $index => $delivery) {
+            $name = 'delivery'.$index;
+            $matches[] = 'attempt.delivery = :'.$name;
+            $builder->setParameter($name, $delivery->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<AssessmentAttempt> $rows */
+        $rows = $builder->getQuery()->getResult();
         $byDelivery = [];
         foreach ($rows as $attempt) {
             $key = $attempt->getDelivery()->getId()->toRfc4122();
