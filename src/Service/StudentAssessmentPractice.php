@@ -95,20 +95,30 @@ final class StudentAssessmentPractice
     public function listFor(User $student, GradeLevel $grade): array
     {
         $this->assertStudent($student);
-        $rows = [];
+        /** @var list<array{assessment: Assessment, revision: AssessmentRevision}> $visible */
+        $visible = [];
         foreach ($this->assessments->findPublishedPlatformForGrade($grade) as $assessment) {
             $revision = $assessment->getPublishedRevision();
             if (!$revision instanceof AssessmentRevision) {
                 continue;
             }
-            $attempt = $this->attemptFor($student, $assessment);
+            $visible[] = ['assessment' => $assessment, 'revision' => $revision];
+        }
+        $revisions = array_map(static fn (array $row): AssessmentRevision => $row['revision'], $visible);
+        $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
+        $counts = $this->itemCounts($revisions);
+        $attempts = $this->attemptsByAssessment($student, $assessments);
+        $rows = [];
+        foreach ($visible as $row) {
+            $assessment = $row['assessment'];
+            $revision = $row['revision'];
             $rows[] = [
                 'code' => $assessment->getCode(),
                 'title' => $revision->getTitle(),
                 'subject' => $assessment->getSubject()?->getName() ?? '',
-                'question_count' => \count($this->revisionItems($revision)),
+                'question_count' => $counts[$revision->getId()->toRfc4122()] ?? 0,
                 'duration_label' => $this->durationLabel($revision),
-                'state' => $this->state($attempt),
+                'state' => $this->state($attempts[$assessment->getId()->toRfc4122()] ?? null),
             ];
         }
 
@@ -482,6 +492,91 @@ final class StudentAssessmentPractice
         }
 
         return $publication;
+    }
+
+    /**
+     * @param list<AssessmentRevision> $revisions
+     *
+     * @return array<string, int>
+     */
+    private function itemCounts(array $revisions): array
+    {
+        if ([] === $revisions) {
+            return [];
+        }
+
+        /** @var list<array{revisionId: mixed, itemCount: int|string}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('revision.id AS revisionId', 'COUNT(item.id) AS itemCount')
+            ->from(AssessmentItem::class, 'item')
+            ->innerJoin('item.assessmentRevision', 'revision')
+            ->andWhere('revision IN (:revisions)')
+            ->setParameter('revisions', $revisions)
+            ->groupBy('revision.id')
+            ->getQuery()
+            ->getArrayResult();
+        $counts = [];
+        foreach ($rows as $row) {
+            $id = $row['revisionId'];
+            $key = $id instanceof \Symfony\Component\Uid\Uuid ? $id->toRfc4122() : (string) $id;
+            $counts[$key] = (int) $row['itemCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param list<Assessment> $assessments
+     *
+     * @return array<string, AssessmentAttempt>
+     */
+    private function attemptsByAssessment(User $student, array $assessments): array
+    {
+        if ([] === $assessments) {
+            return [];
+        }
+        $practices = $this->practices->findForUserAndAssessments($student, $assessments);
+        if ([] === $practices) {
+            return [];
+        }
+        $practiceByAssessment = [];
+        $deliveries = [];
+        foreach ($practices as $practice) {
+            $practiceByAssessment[$practice->getAssessment()->getId()->toRfc4122()] = $practice;
+            $deliveries[] = $practice->getDelivery();
+        }
+
+        /** @var list<AssessmentAttempt> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('attempt')
+            ->from(AssessmentAttempt::class, 'attempt')
+            ->andWhere('attempt.user = :student')
+            ->andWhere('attempt.delivery IN (:deliveries)')
+            ->setParameter('student', $student->getId(), 'uuid')
+            ->setParameter('deliveries', $deliveries)
+            ->getQuery()
+            ->getResult();
+        $byDelivery = [];
+        foreach ($rows as $attempt) {
+            $key = $attempt->getDelivery()->getId()->toRfc4122();
+            $current = $byDelivery[$key] ?? null;
+            if (!$current instanceof AssessmentAttempt || $attempt->getAttemptNumber() > $current->getAttemptNumber()) {
+                $byDelivery[$key] = $attempt;
+            }
+        }
+        $owned = [];
+        foreach ($assessments as $assessment) {
+            $practice = $practiceByAssessment[$assessment->getId()->toRfc4122()] ?? null;
+            if (!$practice instanceof AssessmentPlatformPractice) {
+                continue;
+            }
+            $attempt = $byDelivery[$practice->getDelivery()->getId()->toRfc4122()] ?? null;
+            if ($attempt instanceof AssessmentAttempt) {
+                $owned[$assessment->getId()->toRfc4122()] = $attempt;
+            }
+        }
+
+        return $owned;
     }
 
     private function attemptFor(User $student, Assessment $assessment): ?AssessmentAttempt

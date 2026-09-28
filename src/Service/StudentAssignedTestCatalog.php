@@ -16,7 +16,6 @@ use App\Enum\AssessmentDeliveryAudienceType;
 use App\Enum\AssessmentDeliveryRecipientStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
-use App\Repository\AssessmentAttemptRepository;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -29,7 +28,6 @@ final class StudentAssignedTestCatalog
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly AssessmentAttemptRepository $attempts,
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly ClockInterface $clock,
     ) {
@@ -52,15 +50,21 @@ final class StudentAssignedTestCatalog
      */
     public function listFor(User $student): array
     {
+        $recipients = $this->recipients($student);
+        if ([] === $recipients) {
+            return [];
+        }
+        $attempts = $this->ownedAttempts($student, $recipients);
+        $counts = $this->itemCounts($recipients);
         $cards = [];
-        foreach ($this->recipients($student) as $recipient) {
+        foreach ($recipients as $recipient) {
             $delivery = $recipient->getDelivery();
-            if (AssessmentDeliveryStatus::Cancelled === $delivery->getStatus()
-                && !$this->attempts->findOwnedForDelivery($delivery->getId(), $student->getId()) instanceof AssessmentAttempt
-            ) {
+            $attempt = $attempts[$delivery->getId()->toRfc4122()] ?? null;
+            if (AssessmentDeliveryStatus::Cancelled === $delivery->getStatus() && !$attempt instanceof AssessmentAttempt) {
                 continue;
             }
-            $cards[] = $this->card($student, $recipient);
+            $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+            $cards[] = $this->card($recipient, $attempt, $counts[$revision->getId()->toRfc4122()] ?? 0);
         }
 
         return $cards;
@@ -114,6 +118,75 @@ final class StudentAssignedTestCatalog
     }
 
     /**
+     * @param list<AssessmentDeliveryRecipient> $recipients
+     *
+     * @return array<string, AssessmentAttempt>
+     */
+    private function ownedAttempts(User $student, array $recipients): array
+    {
+        $deliveries = [];
+        foreach ($recipients as $recipient) {
+            $deliveries[] = $recipient->getDelivery();
+        }
+        /** @var list<AssessmentAttempt> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('attempt')
+            ->from(AssessmentAttempt::class, 'attempt')
+            ->andWhere('attempt.user = :student')
+            ->andWhere('attempt.delivery IN (:deliveries)')
+            ->setParameter('student', $student->getId(), 'uuid')
+            ->setParameter('deliveries', $deliveries)
+            ->getQuery()
+            ->getResult();
+        $owned = [];
+        foreach ($rows as $attempt) {
+            $key = $attempt->getDelivery()->getId()->toRfc4122();
+            $current = $owned[$key] ?? null;
+            if (!$current instanceof AssessmentAttempt || $attempt->getAttemptNumber() > $current->getAttemptNumber()) {
+                $owned[$key] = $attempt;
+            }
+        }
+
+        return $owned;
+    }
+
+    /**
+     * @param list<AssessmentDeliveryRecipient> $recipients
+     *
+     * @return array<string, int>
+     */
+    private function itemCounts(array $recipients): array
+    {
+        $revisions = [];
+        foreach ($recipients as $recipient) {
+            $revision = $recipient->getDelivery()->getAssessmentPublication()->getAssessmentRevision();
+            $revisions[$revision->getId()->toRfc4122()] = $revision;
+        }
+        if ([] === $revisions) {
+            return [];
+        }
+
+        /** @var list<array{revisionId: mixed, itemCount: int|string}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('revision.id AS revisionId', 'COUNT(item.id) AS itemCount')
+            ->from(AssessmentItem::class, 'item')
+            ->innerJoin('item.assessmentRevision', 'revision')
+            ->andWhere('revision IN (:revisions)')
+            ->setParameter('revisions', array_values($revisions))
+            ->groupBy('revision.id')
+            ->getQuery()
+            ->getArrayResult();
+        $counts = [];
+        foreach ($rows as $row) {
+            $id = $row['revisionId'];
+            $key = $id instanceof \Symfony\Component\Uid\Uuid ? $id->toRfc4122() : (string) $id;
+            $counts[$key] = (int) $row['itemCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * @return array{
      *     code: string,
      *     title: string,
@@ -128,11 +201,10 @@ final class StudentAssignedTestCatalog
      *     can_start: bool
      * }
      */
-    private function card(User $student, AssessmentDeliveryRecipient $recipient): array
+    private function card(AssessmentDeliveryRecipient $recipient, ?AssessmentAttempt $attempt, int $questionCount): array
     {
         $delivery = $recipient->getDelivery();
         $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
-        $attempt = $this->attempts->findOwnedForDelivery($delivery->getId(), $student->getId());
         $state = $this->state($delivery, $attempt);
         $classroom = $delivery->getClassroom();
 
@@ -140,7 +212,7 @@ final class StudentAssignedTestCatalog
             'code' => $this->hasher->studentAssignmentCode($delivery->getId()),
             'title' => $revision->getTitle(),
             'subject' => $delivery->getAssessment()->getSubject()?->getName() ?? '',
-            'question_count' => $this->itemCount($revision),
+            'question_count' => $questionCount,
             'duration_label' => $this->duration($revision),
             'state' => $state,
             'institution' => $delivery->getInstitution()->getName(),
@@ -171,17 +243,6 @@ final class StudentAssignedTestCatalog
         }
 
         return 'available';
-    }
-
-    private function itemCount(AssessmentRevision $revision): int
-    {
-        return (int) $this->entityManager->createQueryBuilder()
-            ->select('COUNT(item.id)')
-            ->from(AssessmentItem::class, 'item')
-            ->andWhere('item.assessmentRevision = :revision')
-            ->setParameter('revision', $revision->getId(), 'uuid')
-            ->getQuery()
-            ->getSingleScalarResult();
     }
 
     private function duration(AssessmentRevision $revision): string

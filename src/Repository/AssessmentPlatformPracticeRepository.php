@@ -41,4 +41,27 @@ class AssessmentPlatformPracticeRepository extends ServiceEntityRepository
 
         return $practice instanceof AssessmentPlatformPractice ? $practice : null;
     }
+
+    /**
+     * @param list<Assessment> $assessments
+     *
+     * @return list<AssessmentPlatformPractice>
+     */
+    public function findForUserAndAssessments(User $user, array $assessments): array
+    {
+        if ([] === $assessments) {
+            return [];
+        }
+
+        /** @var list<AssessmentPlatformPractice> $rows */
+        $rows = $this->createQueryBuilder('p')
+            ->andWhere('p.user = :user')
+            ->andWhere('p.assessment IN (:assessments)')
+            ->setParameter('user', $user->getId(), 'uuid')
+            ->setParameter('assessments', $assessments)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
 }
