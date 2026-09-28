@@ -41,6 +41,10 @@ security:
 
     access_control:
         - { path: ^/health, roles: PUBLIC_ACCESS }
+        - { path: ^/gizlilik$, roles: PUBLIC_ACCESS }
+        - { path: ^/kullanim-kosullari$, roles: PUBLIC_ACCESS }
+        - { path: ^/cerez-politikasi$, roles: PUBLIC_ACCESS }
+        - { path: ^/cocuk-ve-veli-bilgilendirmesi$, roles: PUBLIC_ACCESS }
         - { path: '^/webhook/odeme/[a-z][a-z0-9_]{1,31}$', roles: PUBLIC_ACCESS, methods: [POST] }
         - { path: ^/kayit, roles: PUBLIC_ACCESS }
         - { path: ^/dogrula/eposta, roles: PUBLIC_ACCESS }

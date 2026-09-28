@@ -133,7 +133,7 @@ jobs:
       - name: External smoke (apex + auth pages)
         run: |
           set -euo pipefail
-          for path in / /giris /kayit; do
+          for path in / /giris /kayit /gizlilik /kullanim-kosullari /cerez-politikasi /cocuk-ve-veli-bilgilendirmesi; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://testlig.net${path}")
             echo "https://testlig.net${path} -> ${code}"
             test "$code" = "200"

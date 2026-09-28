@@ -1,0 +1,20 @@
+{% extends 'legal/layout.html.twig' %}
+
+{% block legal_body %}
+    <p>Bu sayfa, Testlig’in bugün tarayıcıda kullandığı saklama tekniklerini anlatır. İsteğe bağlı bir çerez veya üçüncü taraf izleme aracı yoktur. Bu yüzden ayrıca bir kabul bandı gösterilmez. Zorunlu oturum ve form güvenliği için onay kutusu sorulmaz.</p>
+
+    <h2>Oturum</h2>
+    <p>Giriş yapılmış hesap, sunucunun oturum çerezini kullanır. Çerez HttpOnly ve SameSite=Lax olarak tanımlanır. Güvenli bağlantıda Secure bayrağı otomatik uygulanır. Yasal sayfaların kendisi bu çerezi başlatmaz. Beni hatırla özelliği yoktur.</p>
+
+    <h2>Form güvenliği</h2>
+    <p>Giriş, çıkış ve diğer form gönderimlerinde tek kullanımlık bir CSRF değeri hem form alanında hem çerezde bulunur. Çerez, form gönderilirken tarayıcıda oluşur. Kalıcı bir tercih çerezi değildir.</p>
+
+    <h2>Sunucu tarafı sınırlar</h2>
+    <p>Giriş, parola sıfırlama, e-posta doğrulama ve bazı yazma işlemlerinde hız sınırı vardır. Bu sınır tarayıcı çerezi değildir; sunucu önbelleğindeki bir sayaçtır. Sayaç penceresi yapılandırma dosyasındadır. Bu sayaçların kişisel veri olarak ne kadar tutulacağı ayrıca doğrulanacaktır.</p>
+
+    <h2>Yerel depolama ve üçüncü taraflar</h2>
+    <p>Uygulama kodu localStorage veya sessionStorage kullanmaz. Site geneline analitik, reklam, ödeme SDK’sı veya harici font eklenmez. Bir ders sayfasında video bloğu varsa oynatıcı YouTube’un gizlilik adresine veya Vimeo oynatıcısına gider. Oynatıcının kendi çerezlerini bu depo doğrulamaz.</p>
+
+    <h2>İleride eklenecekler</h2>
+    <p>Zorunlu olmayan bir çerez, analitik veya reklam aracı bu metinde önceden açık sayılmaz. Böyle bir araç eklenirse varsayılan kapalı kalır ve ayrı bir açık rıza ister. Aydınlatma metni ile bu rıza aynı onay kutusunda toplanmaz. Eklenmeden içerik güvenliği allowlist’i de bilinçli olarak değiştirilmelidir; aksi halde tarayıcı isteği engeller.</p>
+{% endblock %}

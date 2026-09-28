@@ -230,7 +230,7 @@
 
 ## Yanıt güvenliği
 
-HTML indeks, CSP ve çerçeve kararı `ResponseSecurityPolicySubscriber` içindedir. Indexlenebilir route allowlist’i yalnız `app_home`. Diğer HTML yanıtlar ve yönlendirmeler `X-Robots-Tag: noindex, nofollow` alır. `Content-Security-Policy` enforcing’dir; script nonce’u yalnız import map içindir. `frame-src` yalnız `https://www.youtube-nocookie.com` ve `https://player.vimeo.com` hostlarını açar. `X-Frame-Options: DENY` HTML ve yönlendirmededir. PDF, `/health` ve webhook bu iki header’ı almaz. `disallow_search_engine_index` kapalıdır; debug test istemcisi artık kökü `noindex` damgalamaz. Ayrıntı `docs/release-readiness.md`.
+HTML indeks, CSP ve çerçeve kararı `ResponseSecurityPolicySubscriber` içindedir. Indexlenebilir route allowlist’i `app_home` ile dört yasal sayfadır: `app_legal_privacy`, `app_legal_terms`, `app_legal_cookies`, `app_legal_children`. Giriş, kayıt, davet ve paneller bu listede değildir. Diğer HTML yanıtlar ve yönlendirmeler `X-Robots-Tag: noindex, nofollow` alır. `Content-Security-Policy` enforcing’dir; script nonce’u yalnız import map içindir. `frame-src` yalnız `https://www.youtube-nocookie.com` ve `https://player.vimeo.com` hostlarını açar. `X-Frame-Options: DENY` HTML ve yönlendirmededir. PDF, `/health` ve webhook bu iki header’ı almaz. `disallow_search_engine_index` kapalıdır; debug test istemcisi artık kökü `noindex` damgalamaz. Ayrıntı `docs/release-readiness.md`.
 
 ## Sonraki aşamalar
 

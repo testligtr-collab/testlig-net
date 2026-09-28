@@ -10,10 +10,18 @@ final class ReleaseCandidateStaticGuardTest extends TestCase
 {
     public function testComingSoonLegalItemsAreNotLinks(): void
     {
-        $html = (string) file_get_contents(\dirname(__DIR__, 2).'/templates/components/public_footer.html.twig');
-        self::assertStringNotContainsString('href="#"', $html);
-        self::assertStringContainsString('Gizlilik (yakında)', $html);
-        self::assertStringContainsString('Kullanım koşulları (yakında)', $html);
+        $root = \dirname(__DIR__, 2).'/templates';
+        $public = (string) file_get_contents($root.'/components/public_footer.html.twig');
+        $home = (string) file_get_contents($root.'/homepage/_footer.html.twig');
+        $links = (string) file_get_contents($root.'/legal/_links.html.twig');
+        self::assertStringContainsString("include 'legal/_links.html.twig'", $public);
+        self::assertStringContainsString("include 'legal/_links.html.twig'", $home);
+        self::assertStringContainsString("path('app_legal_privacy')", $links);
+        self::assertStringContainsString("path('app_legal_terms')", $links);
+        self::assertStringContainsString("path('app_legal_cookies')", $links);
+        self::assertStringContainsString("path('app_legal_children')", $links);
+        self::assertStringNotContainsString('href="#"', $public.$home.$links);
+        self::assertStringNotContainsString('Gizlilik (yakında)', $public);
     }
 
     public function testErrorTemplatesDoNotPrintExceptionMessages(): void
