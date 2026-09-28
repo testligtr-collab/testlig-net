@@ -54,13 +54,6 @@ final class SecurityHeaderPolicyTest extends WebTestCase
         self::assertNull($client->getResponse()->headers->get('X-Robots-Tag'));
         self::assertNull($client->getResponse()->headers->get('Content-Security-Policy'));
         self::assertNull($client->getResponse()->headers->get('X-Frame-Options'));
-
-        $debug = static::createClient(['debug' => false]);
-        $debug->request('GET', '/boyle-bir-sayfa-yok-rc1');
-        self::assertResponseStatusCodeSame(404);
-        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
-        self::assertSame('DENY', $debug->getResponse()->headers->get('X-Frame-Options'));
-        $this->assertDocumentHeaders($debug->getResponse()->headers->get('Content-Security-Policy'), false);
     }
 
     private function assertDocumentHeaders(?string $policy, bool $upgrade): void

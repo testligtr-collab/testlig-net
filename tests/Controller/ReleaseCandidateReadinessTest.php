@@ -57,5 +57,11 @@ final class ReleaseCandidateReadinessTest extends WebTestCase
         self::assertStringNotContainsString('SQLSTATE', $html);
         self::assertStringNotContainsString('vendor/symfony', $html);
         self::assertStringNotContainsString('exception.message', $html);
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
+        self::assertSame('DENY', $client->getResponse()->headers->get('X-Frame-Options'));
+        $policy = $client->getResponse()->headers->get('Content-Security-Policy');
+        self::assertIsString($policy);
+        self::assertStringContainsString("frame-ancestors 'none'", $policy);
+        self::assertStringNotContainsString('unsafe-inline', $policy);
     }
 }
