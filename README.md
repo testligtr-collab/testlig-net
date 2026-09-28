@@ -339,7 +339,7 @@ C:\xampp\php\php.exe bin\console app:browser-acceptance:prepare
 C:\xampp\php\php.exe -S 127.0.0.1:8080 -t public browser\router.php
 ```
 
-Ayrı bir terminalde `browser` klasöründe `npm ci` ardından `npm run test:chromium`. Production hesabı ve Docker gerekmez. Ayrıntı `docs/browser-acceptance.md`.
+Ayrı bir terminalde `browser` klasöründe `npm ci` ardından `npm run test:chromium`. Production hesabı ve Docker gerekmez. Yönetim kabuğu kuralları `docs/admin-ui-guidelines.md` içindedir. Ayrıntı `docs/browser-acceptance.md`.
 
 ## PHPStan ve kod biçimi
 

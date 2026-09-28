@@ -8,7 +8,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   installVideoAbort(adminPage);
   await watch(adminPage);
   await login(adminPage, data.users.admin);
-  await adminPage.goto('/yonetim');
+  await adminPage.emulateMedia({ reducedMotion: 'reduce' });
+  const dashboard = await adminPage.goto('/yonetim');
+  expect(dashboard?.headers()['cache-control'] ?? '').toContain('no-store');
+  expect(dashboard?.headers()['x-robots-tag'] ?? '').toContain('noindex');
   await expect(adminPage.locator('.panel-role')).toHaveText('Yönetici');
   for (const label of ['Özet', 'Sistem', 'Kullanıcılar', 'Kurumlar', 'Müfredat', 'İçerikler', 'Sorular', 'Testler']) {
     await expect(adminPage.getByRole('link', { name: label }).first()).toBeVisible();
@@ -21,10 +24,42 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim');
     await assertLayout(adminPage);
+    const primary = adminPage.getByRole('link', { name: 'Yeni içerik' });
+    if (await primary.count()) {
+      const primaryBox = await primary.first().boundingBox();
+      expect(primaryBox).not.toBeNull();
+      expect(primaryBox!.height).toBeGreaterThanOrEqual(44);
+    }
+    if (viewport.width >= 1024) {
+      await expect(adminPage.locator('#panel-sidebar')).toBeVisible();
+    }
     await shot(adminPage, info, 'admin', 'ozet', viewport.name);
     if (viewport.width < 1024) {
       await closeDrawer(adminPage);
     }
+  }
+  await adminPage.setViewportSize({ width: 640, height: 800 });
+  await adminPage.goto('/yonetim');
+  const zoomMenu = adminPage.getByRole('button', { name: 'Menü', exact: true });
+  await expect(zoomMenu).toBeVisible();
+  const zoomBox = await zoomMenu.boundingBox();
+  expect(zoomBox).not.toBeNull();
+  expect(zoomBox!.width).toBeGreaterThanOrEqual(44);
+  expect(zoomBox!.height).toBeGreaterThanOrEqual(44);
+  await expect(adminPage.getByRole('heading', { level: 1, name: 'Yönetim özeti' })).toBeVisible();
+  await adminPage.setViewportSize({ width: 1280, height: 900 });
+  for (const [path, name] of [
+    ['/yonetim/kullanicilar', 'kullanicilar'],
+    ['/yonetim/kurumlar', 'kurumlar'],
+    ['/yonetim/mufredat', 'mufredat'],
+    ['/yonetim/icerikler', 'icerikler'],
+    ['/yonetim/sorular', 'sorular'],
+    ['/yonetim/testler', 'testler'],
+    ['/yonetim/sistem', 'sistem'],
+  ] as const) {
+    await adminPage.goto(path);
+    await assertLayout(adminPage);
+    await shot(adminPage, info, 'admin', name, '1280');
   }
   await adminPage.goto(data.paths.reviewDetail);
   await expect(adminPage.getByRole('button', { name: 'Yayımla' })).toBeVisible();
@@ -51,6 +86,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await saPage.goto('/yonetim');
     await assertLayout(saPage);
     await shot(saPage, info, 'superadmin', 'ozet', viewport.name);
+    if (viewport.width >= 1024) {
+      await expect(saPage.locator('#panel-sidebar')).toBeVisible();
+      await shot(saPage, info, 'superadmin', 'operasyon', viewport.name);
+    }
   }
   await assertClean(saPage);
   await sa.close();
@@ -65,6 +104,11 @@ async function closeDrawer(page: import('@playwright/test').Page): Promise<void>
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Escape');
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await menu.click();
+  await page.locator('#panel-sidebar a.panel-nav-link', { hasText: 'Sistem' }).click();
+  await expect(page).toHaveURL(/\/yonetim\/sistem/);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await page.goto('/yonetim');
   await menu.click();
   const sidebar = await page.locator('#panel-sidebar').boundingBox();
   const backdrop = page.locator('.admin-nav-backdrop');
