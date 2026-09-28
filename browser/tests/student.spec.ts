@@ -26,7 +26,7 @@ test('student lesson, blocked video host, and one test attempt', async ({ page, 
   await expect(page.getByText('2 + 2 = 4')).toBeVisible();
   const frame = page.locator('iframe');
   await expect(frame).toHaveAttribute('src', /youtube-nocookie\.com/);
-  await expect(page.getByRole('link', { name: 'Calisma notu' })).toHaveAttribute('href', /\/pdf\//);
+  await expect(page.getByRole('link', { name: /PDF/ })).toHaveAttribute('href', /\/pdf\//);
   const html = await page.content();
   expect(html).not.toMatch(/storageKey|ciphertext|correctStableKey/i);
   expect(html).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);

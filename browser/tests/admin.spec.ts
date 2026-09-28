@@ -9,7 +9,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await watch(adminPage);
   await login(adminPage, data.users.admin);
   await adminPage.goto('/yonetim');
-  await expect(adminPage.getByText('Yönetici', { exact: true })).toBeVisible();
+  await expect(adminPage.locator('.panel-role')).toHaveText('Yönetici');
   for (const label of ['Özet', 'Sistem', 'Kullanıcılar', 'Kurumlar', 'Müfredat', 'İçerikler', 'Sorular', 'Testler']) {
     await expect(adminPage.getByRole('link', { name: label }).first()).toBeVisible();
   }

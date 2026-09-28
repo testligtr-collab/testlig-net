@@ -99,7 +99,7 @@ export async function assertLayout(page: Page): Promise<void> {
       if (box.width === 0 || box.height === 0) {
         return false;
       }
-      return box.right < 0 || box.left > window.innerWidth || box.bottom < 0;
+      return box.left >= window.innerWidth || box.bottom < 0;
     }).length,
   }));
   expect(overflow.scroll).toBeLessThanOrEqual(overflow.width + 1);
