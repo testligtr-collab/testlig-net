@@ -370,4 +370,4 @@ Parola, bağlantı dizesi veya sunucu yolu döndürmez.
 
 ## Mimari notlar
 
-Ayrıntılar: [docs/architecture.md](docs/architecture.md). HTML yanıt güvenlik başlıkları: [docs/release-readiness.md](docs/release-readiness.md).
+Ayrıntılar: [docs/architecture.md](docs/architecture.md). HTML yanıt güvenlik başlıkları: [docs/release-readiness.md](docs/release-readiness.md). Veri envanteri: [docs/privacy-data-inventory.md](docs/privacy-data-inventory.md). Hukuk kontrol listesi: [docs/legal-review-checklist.md](docs/legal-review-checklist.md).

@@ -30,8 +30,14 @@ final class ContentSecurityPolicyTest extends TestCase
         self::assertStringContainsString('upgrade-insecure-requests', $production);
     }
 
-    public function testOnlyTheHomepageIsIndexableByName(): void
+    public function testIndexableRoutesAreAnExplicitAllowlist(): void
     {
-        self::assertSame(['app_home'], ResponseSecurityPolicySubscriber::INDEXABLE_ROUTES);
+        self::assertSame([
+            'app_home',
+            'app_legal_privacy',
+            'app_legal_terms',
+            'app_legal_cookies',
+            'app_legal_children',
+        ], ResponseSecurityPolicySubscriber::INDEXABLE_ROUTES);
     }
 }

@@ -1,0 +1,27 @@
+{% extends 'legal/layout.html.twig' %}
+
+{% block legal_body %}
+    <p>Bu sayfa, Testlig yazılımının bugünkü sürümünde hangi bilgilerin hangi akışlarda tutulduğunu anlatır. Veri sorumlusunun ticari kimliği, adresi, başvuru kanalı ve saklama süreleri bu sayfada yoktur.</p>
+
+    <h2>Hesap</h2>
+    <p>Herkese açık kayıt formu ad, soyad, e-posta ve parola alır. Parola düz metin olarak saklanmaz. Hesap kaydında ayrıca hesap durumu, roller, e-posta doğrulama zamanı ve son giriş zamanı bulunabilir. Kayıt olmayı bir pazarlama iletisine bağlamaz.</p>
+    <p>Kayıt formunda kullanım koşulları ile gizlilik metnini birlikte işaretleyen bir kutu vardır. Bu işaretin sürümü, zamanı ve kanıtı veritabanında saklanmaz.</p>
+
+    <h2>Öğrenci profili</h2>
+    <p>Öğrenci profilinde sınıf düzeyi tutulur. Okul adı, şehir ve öğrenme hedefi profilde varsa öğrencinin kendisi girmiştir. Doğum tarihi bu profilde yoktur.</p>
+
+    <h2>Kurum ve sınıf</h2>
+    <p>Kurum üyeliği, kurum içindeki rol, sınıf kaydı ve öğretmen ataması ilgili kurum kaydına bağlıdır. Öğretmen ve öğrenci davetlerinde düz metin token saklanmaz; yazılım HMAC özet tutar. Öğrenci daveti veli izni veya çocuk verisi işleme onayı değildir.</p>
+
+    <h2>Veli bağlantısı</h2>
+    <p>Öğrenci tek kullanımlık bir bağlantı kodu üretebilir. Kodun süresi kısadır ve veritabanında yalnız özeti durur. Veli bu kodla bağlandığında, yazılım çocuğun adını, sınıfını, yayımlanmış ders adlarını ve yayımlanmış test sonucunu veli özetinde gösterir. Devam eden deneme yalnız “Devam ediyor” olarak görünür. Parola, e-posta, okul, şehir, öğrenme hedefi, cevap ve soru kimliği bu özette yoktur. Bu bağlantı, çocuğun verisinin işlenmesine verilmiş bir veli izni olarak tanımlanmaz.</p>
+
+    <h2>Öğrenme ve sonuçlar</h2>
+    <p>Yayımlanmış dersler, testler, denemeler, verilen cevaplar ve puanlar hesabın öğrenme kaydında durur. PDF dosyaları içerik sürümüne bağlanır. Video, sayfaya gömülü bir dosya değil, YouTube’un gizlilik oynatıcısı veya Vimeo oynatıcısı için bir adres olabilir. Bu oynatıcıya tarayıcı bağlantısı, kişi o içeriği açtığında kurulur.</p>
+
+    <h2>Güvenlik kayıtları</h2>
+    <p>Giriş, kayıt, e-posta doğrulama, parola sıfırlama, davet ve bazı yönetim işlemleri güvenlik kaydı bırakabilir. E-posta doğrulama ve parola sıfırlama bağlantıları e-posta ile gider. Bu iletilerin sağlayıcısı ve o sağlayıcının sözleşmedeki rolü bu sayfada yer almaz.</p>
+
+    <h2>Bu sürümde olmayanlar</h2>
+    <p>Ödeme, reklam, analitik ve pazarlama çerezi bu sürümde etkin değildir. Ücretli abonelik ve ödeme hükümleri de bu sayfanın konusu değildir.</p>
+{% endblock %}

@@ -53,7 +53,7 @@ PR #76 CI istemcisinin `/` ve `/kayit` üzerinde gördüğü tek başına `X-Rob
 
 ### İndeks
 
-Indexlenebilir route yalnız `app_home` (`/`). Başarılı HTML yanıtta `X-Robots-Tag` silinir; `index, follow` yazılmaz. Diğer HTML yanıtlar ve yönlendirmeler `noindex, nofollow` alır. Hata sayfaları buna dahildir. Header route adı veya token taşımaz. JSON sağlık, webhook ve PDF baytları bu karara girmez. Özel önek subscriber’ları PDF URL’lerinde mevcut noindex’i bırakır.
+Indexlenebilir route’lar `app_home` ve dört yasal sayfadır. Başarılı HTML yanıtta `X-Robots-Tag` silinir; `index, follow` yazılmaz. Giriş, kayıt, davet, paneller, diğer HTML yanıtlar ve yönlendirmeler `noindex, nofollow` alır. Hata sayfaları buna dahildir. Header route adı veya token taşımaz. JSON sağlık, webhook ve PDF baytları bu karara girmez. Özel önek subscriber’ları PDF URL’lerinde mevcut noindex’i bırakır.
 
 ### CSP ve clickjacking
 
@@ -67,13 +67,13 @@ Nonce yalnız AssetMapper import map ve modül girişindedir. Her ana istekte `r
 
 ### Bilinen sınır
 
-CI gerçek tarayıcıda CSP çalıştırmaz. Header, DOM ve şablon taraması bu boşluğu kapatmaz. Gizlilik ve kullanım koşulları metni ayrı içerik işidir.
+CI gerçek tarayıcıda CSP çalıştırmaz. Header, DOM ve şablon taraması bu boşluğu kapatmaz.
 
 ## Ertelenen
 
-### P1 — yasal sayfalar
+### P1 — yasal kimlik ve nihai metin
 
-Gizlilik ve kullanım koşulları metni yok. Eski `href="#"` bağlantıları düz yazıya alındı. Metin uydurulmadı.
+`/gizlilik`, `/kullanim-kosullari`, `/cerez-politikasi` ve `/cocuk-ve-veli-bilgilendirmesi` herkese açıktır ve yalnız kodda doğrulanan davranışı anlatır. Veri sorumlusu kimliği, saklama, aktarım, çocuk modeli ve sözleşme kabul kanıtı `docs/legal-review-checklist.md` içindedir. Envanter `docs/privacy-data-inventory.md` içindedir. Bu kararlar alınmadan sayfalar tamamlanmış aydınlatma veya sözleşme değildir.
 
 ### P1 — tarayıcı piksel turu
 

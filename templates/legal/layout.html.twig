@@ -1,0 +1,19 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ legal_title }} — Testlig{% endblock %}
+
+{% block meta_description %}{{ legal_title }}. Son güncelleme {{ legal_updated_on }}.{% endblock %}
+
+{% block flashes %}{% endblock %}
+
+{% block site_chrome %}
+    {% include 'legal/_chrome.html.twig' %}
+{% endblock %}
+
+{% block body %}
+<article class="page page--wide">
+    <h1>{{ legal_title }}</h1>
+    <p class="muted">Son güncelleme: {{ legal_updated_on }}</p>
+    {% block legal_body %}{% endblock %}
+</article>
+{% endblock %}

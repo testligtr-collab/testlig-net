@@ -26,6 +26,10 @@ final class ResponseSecurityPolicySubscriber implements EventSubscriberInterface
     /** @var list<string> */
     public const INDEXABLE_ROUTES = [
         'app_home',
+        'app_legal_privacy',
+        'app_legal_terms',
+        'app_legal_cookies',
+        'app_legal_children',
     ];
 
     public function __construct(
