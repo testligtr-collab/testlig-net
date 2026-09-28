@@ -142,3 +142,154 @@ jobs:
 
       - name: PHPUnit
         run: vendor/bin/phpunit --colors=always
+
+  browser-acceptance:
+    name: Browser acceptance
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          TZ: UTC
+          MYSQL_DATABASE: testlig_test
+          MYSQL_USER: testlig
+          MYSQL_PASSWORD: testlig_ci
+          MYSQL_ROOT_PASSWORD: root_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=3s
+          --health-retries=5
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: "0"
+      TZ: UTC
+      APP_SECRET: ci_test_secret_not_for_production
+      DATABASE_URL: "mysql://testlig:testlig_ci@127.0.0.1:3306/testlig?serverVersion=10.11.10-MariaDB&charset=utf8mb4"
+      REDIS_URL: redis://127.0.0.1:6379
+      MESSENGER_TRANSPORT_DSN: sync://
+      LOCK_DSN: flock
+      DEFAULT_URI: http://127.0.0.1:8080
+      MAILER_DSN: "null://null"
+      MAILER_FROM_EMAIL: noreply@testlig.ci
+      MAILER_FROM_NAME: Testlig
+      VERIFY_EMAIL_LIFETIME: "3600"
+      RESET_PASSWORD_LIFETIME: "3600"
+      AUDIT_HASH_KEY: "ci_audit_hash_key_not_for_production"
+      QUESTION_ANSWER_INTEGRITY_KEY: "ci_question_answer_integrity_key_not_for_production"
+      ATTEMPT_ANSWER_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      COMMERCE_IDEMPOTENCY_HASH_KEY: "ci_commerce_idempotency_hash_key_not_for_production"
+      PHONE_OTP_PEPPER: "ci_phone_otp_pepper_not_for_production_min_32_chars"
+      PHONE_OTP_PEPPER_KEY_ID: "v1"
+      INVITATION_CODE_PEPPER: "ci_invitation_code_pepper_not_for_production_32ch"
+      INVITATION_CODE_PEPPER_KEY_ID: "v1"
+      ALLOW_SUPER_ADMIN_BOOTSTRAP: "0"
+      BROWSER_BASE_URL: http://127.0.0.1:8080
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, pdo_mysql, zip, opcache, redis
+          coverage: none
+          tools: composer:v2
+          ini-values: date.timezone=UTC
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: browser/package-lock.json
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install browser dependencies
+        working-directory: browser
+        run: npm ci
+
+      - name: npm audit
+        working-directory: browser
+        run: npm audit --audit-level=high
+
+      - name: Cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('browser/package-lock.json') }}
+
+      - name: Install Chromium
+        working-directory: browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Wait for MariaDB
+        run: |
+          for i in $(seq 1 30); do
+            if php -r 'new PDO("mysql:host=127.0.0.1;port=3306;dbname=testlig_test", "testlig", "testlig_ci");' 2>/dev/null; then
+              echo "MariaDB is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MariaDB did not become ready in time"
+          exit 1
+
+      - name: Run Doctrine migrations
+        run: php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
+
+      - name: Compile public assets
+        run: php bin/console asset-map:compile --no-interaction
+
+      - name: Prepare synthetic browser data
+        run: php bin/console app:browser-acceptance:prepare --no-interaction
+
+      - name: Run Chromium suite
+        run: |
+          php -S 127.0.0.1:8080 -t public browser/router.php > var/browser-server.log 2>&1 &
+          echo $! > var/browser-server.pid
+          trap 'kill "$(cat var/browser-server.pid)"' EXIT
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://127.0.0.1:8080/; then
+              break
+            fi
+            sleep 1
+          done
+          curl -sf -o /dev/null http://127.0.0.1:8080/
+          npm --prefix browser run test:chromium
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-screenshots
+          path: browser/artifacts/screenshots
+          if-no-files-found: ignore
+
+      - name: Upload failure trace
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure
+          path: |
+            browser/test-results
+            browser/playwright-report
+          if-no-files-found: ignore

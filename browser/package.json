@@ -1,0 +1,12 @@
+{
+  "name": "testlig-browser-acceptance",
+  "private": true,
+  "description": "CI-only Chromium acceptance checks. Not part of the production asset graph.",
+  "scripts": {
+    "test": "playwright test",
+    "test:chromium": "playwright test --project=chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.55.1"
+  }
+}
