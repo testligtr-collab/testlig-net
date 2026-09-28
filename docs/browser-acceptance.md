@@ -28,9 +28,9 @@ Veli yalnız bağlı öğrencinin sınırlı özetini görür. Başka çocuk adr
 
 ## Viewport ve erişilebilirlik
 
-360×800, 768×1024 ve 1280×900. Ekran görüntüleri ana sayfa, giriş, öğrenci paneli, konu, test listesi, öğretmen çalışma alanı, revision, admin özeti, SuperAdmin özeti, kurum, veli ve gizlilik sayfasındadır. Dosya adı rol, route ve genişlik taşır; e-posta veya UUID taşımaz. Görseller sentetiktir.
+360×800, 768×1024 ve 1280×900. Ekran görüntüleri ana sayfa, giriş, öğrenci paneli, konu, test listesi, öğretmen çalışma alanı, revision, admin özeti, SuperAdmin özeti, kurum, veli ve gizlilik sayfasındadır. Yönetim kabuğu ayrıca kullanıcı, kurum, müfredat, içerik, soru, test ve sistem listelerini ve SuperAdmin operasyon menüsünü 1280 genişliğinde alır. Dosya adı rol, route ve genişlik taşır; e-posta veya UUID taşımaz. Görseller sentetiktir.
 
-Pixel snapshot yoktur. Sabitler: belge yatay taşması, görünür ana eylemlerin viewport içinde kalması, açık mobil menünün `aria-expanded` değeri, kritik menü hedefinin en az 44 px olması, tek `h1` ve `main`. Ücretli erişilebilirlik servisi ve Axe bu turda yoktur; anasayfa kontrastı bir tema turu gerektirirdi. Kontrast kusurları “Admin paneli görsel iyileştirme turu”na bırakıldı.
+Pixel snapshot yoktur. Sabitler: belge yatay taşması, görünür ana eylemlerin viewport içinde kalması, açık mobil menünün `aria-expanded` değeri, kritik menü hedefinin en az 44 px olması, tek `h1` ve `main`. Yatay kaydırma `.bottom-nav`, `.table-scroll` ve `.admin-table-wrap` içindedir. Ücretli erişilebilirlik servisi ve Axe yoktur. Yönetim yüzeyinin rengi `docs/admin-ui-guidelines.md` içindedir.
 
 ## Allowlist
 

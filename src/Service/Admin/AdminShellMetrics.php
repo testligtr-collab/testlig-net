@@ -16,6 +16,7 @@ use App\Enum\InstitutionStatus;
 use App\Enum\LearningContentStatus;
 use App\Enum\OnboardingApplicationStatus;
 use App\Enum\UserStatus;
+use App\Presentation\AdminIconCatalog;
 use App\Security\AdminAuthorization;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -31,11 +32,12 @@ final class AdminShellMetrics
         private readonly AdminAuthorization $adminAuthorization,
         private readonly EntityManagerInterface $entityManager,
         private readonly UrlGeneratorInterface $urlGenerator,
+        private readonly AdminIconCatalog $icons,
     ) {
     }
 
     /**
-     * @return list<array{label: string, value: int, href: string|null}>
+     * @return list<array{label: string, value: int, href: string|null, icon: string}>
      */
     public function forActor(User $actor): array
     {
@@ -47,61 +49,29 @@ final class AdminShellMetrics
 
         if ($this->adminAuthorization->canViewUsers($actor)) {
             $users = $this->urlGenerator->generate('app_admin_users');
-            $cards[] = [
-                'label' => 'Aktif kullanıcı',
-                'value' => $this->countStatus(User::class, UserStatus::Active),
-                'href' => $users,
-            ];
-            $cards[] = [
-                'label' => 'Doğrulama bekleyen',
-                'value' => $this->countStatus(User::class, UserStatus::PendingVerification),
-                'href' => $users,
-            ];
+            $cards[] = $this->card('Aktif kullanıcı', $this->countStatus(User::class, UserStatus::Active), $users, 'users');
+            $cards[] = $this->card('Doğrulama bekleyen', $this->countStatus(User::class, UserStatus::PendingVerification), $users, 'users');
         }
 
         if ($this->adminAuthorization->canViewInstitutions($actor)) {
-            $cards[] = [
-                'label' => 'Aktif kurum',
-                'value' => $this->countStatus(Institution::class, InstitutionStatus::Active),
-                'href' => $this->urlGenerator->generate('app_admin_institutions'),
-            ];
-            $cards[] = [
-                'label' => 'Bekleyen kurum başvurusu',
-                'value' => $this->countStatus(InstitutionApplication::class, OnboardingApplicationStatus::Pending),
-                'href' => null,
-            ];
+            $cards[] = $this->card('Aktif kurum', $this->countStatus(Institution::class, InstitutionStatus::Active), $this->urlGenerator->generate('app_admin_institutions'), 'institutions');
+            $cards[] = $this->card('Bekleyen kurum başvurusu', $this->countStatus(InstitutionApplication::class, OnboardingApplicationStatus::Pending), null, 'institutions');
         }
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
-            $cards[] = [
-                'label' => 'Yayımlanmış katalog dersi',
-                'value' => $this->countStatus(CatalogSubject::class, CatalogPublicationStatus::Published),
-                'href' => $this->urlGenerator->generate('app_admin_catalog'),
-            ];
+            $cards[] = $this->card('Yayımlanmış katalog dersi', $this->countStatus(CatalogSubject::class, CatalogPublicationStatus::Published), $this->urlGenerator->generate('app_admin_catalog'), 'catalog');
         }
 
         if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
-            $cards[] = [
-                'label' => 'İçerik inceleme kuyruğu',
-                'value' => $this->countStatus(LearningContent::class, LearningContentStatus::InReview),
-                'href' => $this->urlGenerator->generate('app_admin_learning_contents'),
-            ];
+            $cards[] = $this->card('İçerik inceleme kuyruğu', $this->countStatus(LearningContent::class, LearningContentStatus::InReview), $this->urlGenerator->generate('app_admin_learning_contents'), 'learning_contents');
         }
 
         if ($this->adminAuthorization->canViewQuestionBank($actor)) {
-            $cards[] = [
-                'label' => 'Soru',
-                'value' => $this->countStatus(Question::class, null),
-                'href' => $this->urlGenerator->generate('app_admin_questions'),
-            ];
+            $cards[] = $this->card('Soru', $this->countStatus(Question::class, null), $this->urlGenerator->generate('app_admin_questions'), 'questions');
         }
 
         if ($this->adminAuthorization->canViewTestBank($actor)) {
-            $cards[] = [
-                'label' => 'Test',
-                'value' => $this->countStatus(Assessment::class, null),
-                'href' => $this->urlGenerator->generate('app_admin_tests'),
-            ];
+            $cards[] = $this->card('Test', $this->countStatus(Assessment::class, null), $this->urlGenerator->generate('app_admin_tests'), 'tests');
         }
 
         return $cards;
@@ -120,5 +90,18 @@ final class AdminShellMetrics
         }
 
         return (int) $qb->getQuery()->getSingleScalarResult();
+    }
+
+    /**
+     * @return array{label: string, value: int, href: string|null, icon: string}
+     */
+    private function card(string $label, int $value, ?string $href, string $icon): array
+    {
+        return [
+            'label' => $label,
+            'value' => $value,
+            'href' => $href,
+            'icon' => $this->icons->resolve($icon),
+        ];
     }
 }

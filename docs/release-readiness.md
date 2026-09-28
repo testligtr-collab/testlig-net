@@ -75,9 +75,9 @@ Gerçek Chromium kabulü `docs/browser-acceptance.md` içindedir. PHPUnit hâlâ
 
 `/gizlilik`, `/kullanim-kosullari`, `/cerez-politikasi` ve `/cocuk-ve-veli-bilgilendirmesi` herkese açıktır ve yalnız kodda doğrulanan davranışı anlatır. Veri sorumlusu kimliği, saklama, aktarım, çocuk modeli ve sözleşme kabul kanıtı `docs/legal-review-checklist.md` içindedir. Envanter `docs/privacy-data-inventory.md` içindedir. Bu kararlar alınmadan sayfalar tamamlanmış aydınlatma veya sözleşme değildir.
 
-### P1 — admin paneli görsel iyileştirme
+### P1 — diğer panellerin görsel ailesi
 
-360, 768 ve 1280 layout sabitleri browser işindedir. Renk, ikon ve kart tasarımı sonraki turdadır. Pixel snapshot yoktur.
+Yönetim kabuğu açık yüzey, mavi vurgu ve gerçek sayım kartlarıyla `docs/admin-ui-guidelines.md` altındadır. Öğrenci, öğretmen, veli ve kurum panellerinin aynı ürün ailesine yaklaştırılması ayrı turdadır. Pixel snapshot yoktur.
 
 ## Bu PR’da yapılmayanlar
 

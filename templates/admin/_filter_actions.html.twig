@@ -1,0 +1,4 @@
+<button type="submit" class="btn btn--primary">Filtrele</button>
+{% if admin_filters_active(filters|default({})) %}
+    <a class="btn btn--ghost" href="{{ clear_href }}">Temizle</a>
+{% endif %}

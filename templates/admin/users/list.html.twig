@@ -55,7 +55,7 @@
                 <option value="0" {% if filters.verified|default('') == '0' %}selected{% endif %}>Doğrulanmamış</option>
             </select>
         </label>
-        <button type="submit" class="btn btn--primary">Filtrele</button>
+        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_users'), filters: filters } only %}
     </form>
 
     {% if result.items is empty %}
@@ -84,7 +84,7 @@
                             <td><code>{{ row.shortRef }}</code></td>
                             <td>{{ row.displayName() }}</td>
                             <td>{{ row.email }}</td>
-                            <td data-label="Durum">{% include 'components/status_chip.html.twig' with { label: status_labels[row.status.value]|default(row.status.value), variant: 'accent' } %}</td>
+                            <td data-label="Durum">{% include 'admin/_status.html.twig' with { code: row.status.value } only %}</td>
                             <td data-label="Roller">
                                 {% for role in row.globalRoles %}
                                     {% include 'components/status_chip.html.twig' with { label: role_labels[role]|default(role), variant: 'neutral' } %}

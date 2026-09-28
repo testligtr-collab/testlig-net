@@ -36,7 +36,7 @@
                 <option value="0" {% if filters.needs_reconciliation is same as(false) %}selected{% endif %}>Hayır</option>
             </select>
         </label>
-        <button type="submit" class="btn btn--primary">Filtrele</button>
+        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_payments'), filters: filters } only %}
     </form>
 
     {% if result.items is empty %}

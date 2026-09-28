@@ -1,0 +1,57 @@
+<aside id="panel-sidebar" class="panel-sidebar" aria-label="Yönetim menüsü">
+    <div class="admin-sidebar__brand">
+        {% include 'components/brand.html.twig' with { href: path('app_home') } only %}
+        <p class="admin-sidebar__context">Yönetim</p>
+    </div>
+    <div class="admin-sidebar__user">
+        {% include 'components/avatar.html.twig' with { initials: avatar_initials } only %}
+        <div>
+            <p class="admin-sidebar__name">{{ display_name }}</p>
+            <p class="panel-role">{{ panel_role_label }}</p>
+        </div>
+    </div>
+    <nav class="panel-sidebar__nav" aria-label="Yönetim bölümleri">
+        {% for section in nav_sections|default([]) %}
+            <div class="panel-nav-group">
+                <p class="panel-nav-group__label" id="nav-group-{{ section.id }}">{{ section.label }}</p>
+                <div role="group" aria-labelledby="nav-group-{{ section.id }}">
+                    {% for item in section['items'] %}
+                        <a
+                            class="panel-nav-link"
+                            href="{{ item.href }}"
+                            data-action="click->panel-shell#closeMenu"
+                            {% if item.current %}aria-current="page"{% endif %}
+                        >
+                            {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
+                            <span>{{ item.label }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </nav>
+    <div class="admin-sidebar__foot">
+        <a class="panel-nav-link" href="{{ path('app_home') }}" data-action="click->panel-shell#closeMenu">
+            {% include 'components/admin_icon.html.twig' with { icon: 'default' } only %}
+            <span>Ana sayfa</span>
+        </a>
+        <a class="panel-nav-link" href="{{ path('app_account') }}" data-action="click->panel-shell#closeMenu">
+            {% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}
+            <span>Hesabım</span>
+        </a>
+        <form method="post" action="{{ path('app_logout') }}" class="admin-logout-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+            <button type="submit" class="panel-nav-link admin-sidebar__logout">
+                {% include 'components/admin_icon.html.twig' with { icon: 'default' } only %}
+                <span>Çıkış</span>
+            </button>
+        </form>
+        <button
+            type="button"
+            class="btn btn--ghost admin-sidebar__collapse"
+            data-action="panel-shell#toggle"
+            data-panel-shell-target="toggle"
+            aria-pressed="false"
+        >Kenar çubuğunu daralt</button>
+    </div>
+</aside>

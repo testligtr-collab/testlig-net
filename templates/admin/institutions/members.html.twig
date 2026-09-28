@@ -34,7 +34,7 @@
                 {% endfor %}
             </select>
         </label>
-        <button type="submit" class="btn btn--primary">Filtrele</button>
+        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_institution_members', { id: institution_id }), filters: filters } only %}
     </form>
 
     {% if result.items is empty %}
