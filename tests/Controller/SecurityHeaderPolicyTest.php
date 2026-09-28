@@ -20,7 +20,7 @@ final class SecurityHeaderPolicyTest extends WebTestCase
         self::assertSame('DENY', $response->headers->get('X-Frame-Options'));
         self::assertSame('strict-origin-when-cross-origin', $response->headers->get('Referrer-Policy'));
         $html = (string) $response->getContent();
-        self::assertStringContainsString('app.css', $html);
+        self::assertStringContainsString('styles/app', $html);
         self::assertStringContainsString('nonce=', $html);
         self::assertStringNotContainsString('ga.jspm.io', $html);
         self::assertStringNotContainsString('onclick=', $html);
