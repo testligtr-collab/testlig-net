@@ -55,7 +55,7 @@
                                 <td>{{ p.visibilityStatus.value|workflow_label('status') }}</td>
                                 <td>
                                     {% if is_granted('CATALOG_TOPIC_LESSON_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
-                                        <form method="post" action="{{ path('app_admin_catalog_placement_publish', {id: p.id.toRfc4122}) }}" class="stack-sm" style="display:inline-block" onsubmit="return confirm('Yerleşimi yayımlamak istediğinize emin misiniz?');">
+                                        <form method="post" action="{{ path('app_admin_catalog_placement_publish', {id: p.id.toRfc4122}) }}" class="stack-sm u-inline-block" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Yerleşimi yayımlamak istediğinize emin misiniz?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_placement_publish_' ~ p.id.toRfc4122) }}">
                                             <input type="hidden" name="note" value="{{ reason_placement_publish }}">
                                             <label>
@@ -66,7 +66,7 @@
                                         </form>
                                     {% endif %}
                                     {% if is_granted('CATALOG_TOPIC_LESSON_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
-                                        <form method="post" action="{{ path('app_admin_catalog_placement_archive', {id: p.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Arşivleme geri alınamaz. Devam?');">
+                                        <form method="post" action="{{ path('app_admin_catalog_placement_archive', {id: p.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Arşivleme geri alınamaz. Devam?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_placement_archive_' ~ p.id.toRfc4122) }}">
                                             <input type="hidden" name="note" value="{{ reason_placement_archive }}">
                                             <button type="submit" class="btn btn--ghost">Arşivle</button>
@@ -87,7 +87,7 @@
             {% elseif published_contents is empty %}
                 <p class="muted">Bu canonical subject için yayımlanmış platform içeriği yok.</p>
             {% else %}
-                <form method="post" action="{{ path('app_admin_catalog_topic_placement_create', {id: topic.id.toRfc4122}) }}" class="stack-sm" id="topic-placement-form">
+                <form method="post" action="{{ path('app_admin_catalog_topic_placement_create', {id: topic.id.toRfc4122}) }}" class="stack-sm" id="topic-placement-form" data-controller="placement-defaults">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_topic_placement_' ~ topic.id.toRfc4122) }}">
                     <input type="hidden" name="note" value="{{ reason_placement_create }}">
                     <label>Yayımlanmış içerik
@@ -113,20 +113,6 @@
                     </label>
                     <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
                 </form>
-                <script>
-                    (function () {
-                        var select = document.getElementById('topic-placement-content');
-                        var title = document.getElementById('topic-placement-title');
-                        var summary = document.getElementById('topic-placement-summary');
-                        if (!select || !title || !summary) return;
-                        select.addEventListener('change', function () {
-                            var option = select.options[select.selectedIndex];
-                            if (!option || !option.value) return;
-                            title.value = option.getAttribute('data-title') || '';
-                            summary.value = option.getAttribute('data-summary') || '';
-                        });
-                    })();
-                </script>
             {% endif %}
         {% endif %}
     </section>

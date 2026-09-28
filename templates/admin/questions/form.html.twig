@@ -28,7 +28,7 @@
         <button class="btn" type="submit">Kazanımları getir</button>
     </form>
 
-    <form method="post" id="question-editor" class="stack-sm" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+    <form method="post" id="question-editor" class="stack-sm" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
         <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
         <input type="hidden" name="grade" value="{{ grade }}">
@@ -80,47 +80,4 @@
 
         <button class="btn btn--primary" type="submit">Taslak kaydet</button>
     </form>
-    <script>
-        (function () {
-            var form = document.getElementById('question-editor');
-            var list = document.getElementById('option-list');
-            var dirty = false;
-            form.addEventListener('input', function () { dirty = true; });
-            window.addEventListener('beforeunload', function (event) {
-                if (!dirty) return;
-                event.preventDefault();
-                event.returnValue = '';
-            });
-            form.addEventListener('submit', function () { dirty = false; });
-            function rows() { return list.querySelectorAll('.option-row'); }
-            function renumber() {
-                rows().forEach(function (row, index) {
-                    var radio = row.querySelector('input[type="radio"]');
-                    radio.value = String(index + 1);
-                    row.querySelector('[data-remove-option]').disabled = rows().length <= 2;
-                });
-            }
-            document.getElementById('add-option').addEventListener('click', function () {
-                if (rows().length >= 6) return;
-                var first = rows()[0];
-                var copy = first.cloneNode(true);
-                copy.querySelector('textarea').value = '';
-                copy.querySelector('input[type="radio"]').checked = false;
-                list.appendChild(copy);
-                dirty = true;
-                renumber();
-            });
-            list.addEventListener('click', function (event) {
-                var button = event.target.closest('[data-remove-option]');
-                if (!button || rows().length <= 2) return;
-                button.closest('.option-row').remove();
-                if (!list.querySelector('input[type="radio"]:checked') && rows()[0]) {
-                    rows()[0].querySelector('input[type="radio"]').checked = true;
-                }
-                dirty = true;
-                renumber();
-            });
-            renumber();
-        })();
-    </script>
 {% endblock %}

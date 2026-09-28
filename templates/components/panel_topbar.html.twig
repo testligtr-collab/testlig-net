@@ -7,10 +7,10 @@
         {% include 'components/avatar.html.twig' with { initials: avatar_initials, name: display_name } %}
         <div>
             <p class="panel-topbar__title">{{ display_name }}</p>
-            <p class="muted" style="margin:0;font-size:0.85rem;">{{ panel_role_label }} önizlemesi</p>
+            <p class="muted u-role">{{ panel_role_label }} önizlemesi</p>
         </div>
     </div>
-    <div style="display:flex;gap:0.5rem;align-items:center;">
+    <div class="u-row">
         {% include 'components/notification_indicator.html.twig' with { hasUnread: true } %}
         <a class="btn btn--ghost" href="{{ path('app_home') }}">Ana sayfa</a>
     </div>
@@ -22,13 +22,13 @@
         role="region"
         aria-label="Demo bildirimler"
     >
-        <p style="margin:0 0 0.75rem;font-weight:600;">Bildirimler</p>
+        <p class="u-strong">Bildirimler</p>
         <ul class="list-plain">
             {% for note in notifications %}
                 <li>
                     <div>
                         <strong>{{ note.title }}</strong>
-                        <p class="muted" style="margin:0.25rem 0 0;">{{ note.body }}</p>
+                        <p class="muted u-note">{{ note.body }}</p>
                     </div>
                 </li>
             {% endfor %}

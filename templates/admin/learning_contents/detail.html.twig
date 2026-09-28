@@ -35,7 +35,7 @@
                 <button type="submit" class="btn btn--cta">İncelemeye gönder</button>
             </form>
         {% elseif workflow.next.kind == 'publish' %}
-            <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('İçeriği yayımlamak istediğinize emin misiniz?');">
+            <form method="post" action="{{ path('app_admin_learning_content_publish', {id: content.id.toRfc4122}) }}" class="stack-sm" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="İçeriği yayımlamak istediğinize emin misiniz?">
                 <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
                 <input type="hidden" name="note" value="{{ reason_publish }}">
                 <label>İşlem notu (opsiyonel)
@@ -104,7 +104,7 @@
                     </form>
                 {% endif %}
                 {% if can_archive %}
-                    <form method="post" action="{{ path('app_admin_learning_content_archive', {id: content.id.toRfc4122}) }}" class="stack-sm" onsubmit="return confirm('Arşivleme geri alınamaz. Devam edilsin mi?');">
+                    <form method="post" action="{{ path('app_admin_learning_content_archive', {id: content.id.toRfc4122}) }}" class="stack-sm" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Arşivleme geri alınamaz. Devam edilsin mi?">
                         <input type="hidden" name="_token" value="{{ csrf_token('learning_content_lifecycle_' ~ content.id.toRfc4122) }}">
                         <input type="hidden" name="note" value="{{ reason_archive }}">
                         <label>İşlem notu (opsiyonel)
@@ -163,7 +163,7 @@
                                 <td>{{ p.visibilityStatus.value|workflow_label('status') }}</td>
                                 <td>
                                     {% if is_granted('CATALOG_TOPIC_LESSON_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
-                                        <form method="post" action="{{ path('app_admin_learning_content_placement_publish', {placementId: p.id.toRfc4122}) }}" class="stack-sm" style="display:inline-block" onsubmit="return confirm('Yerleşimi yayımlamak istediğinize emin misiniz?');">
+                                        <form method="post" action="{{ path('app_admin_learning_content_placement_publish', {placementId: p.id.toRfc4122}) }}" class="stack-sm u-inline-block" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Yerleşimi yayımlamak istediğinize emin misiniz?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_publish_' ~ p.id.toRfc4122) }}">
                                             <input type="hidden" name="note" value="{{ reason_placement_publish }}">
                                             <label>
@@ -174,7 +174,7 @@
                                         </form>
                                     {% endif %}
                                     {% if is_granted('CATALOG_TOPIC_LESSON_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
-                                        <form method="post" action="{{ path('app_admin_learning_content_placement_archive', {placementId: p.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Arşivleme geri alınamaz. Devam?');">
+                                        <form method="post" action="{{ path('app_admin_learning_content_placement_archive', {placementId: p.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Arşivleme geri alınamaz. Devam?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_archive_' ~ p.id.toRfc4122) }}">
                                             <input type="hidden" name="note" value="{{ reason_placement_archive }}">
                                             <button type="submit" class="btn btn--ghost">Arşivle</button>
@@ -193,7 +193,7 @@
             {% if bindable_topics is empty %}
                 <p class="muted">Eşlenmiş katalog konusu yok. Önce müfredatta canonical eşleme yapın.</p>
             {% else %}
-                <form method="post" action="{{ path('app_admin_learning_content_placement_create', {id: content.id.toRfc4122}) }}" class="stack-sm" id="placement-create-form">
+                <form method="post" action="{{ path('app_admin_learning_content_placement_create', {id: content.id.toRfc4122}) }}" class="stack-sm" id="placement-create-form" data-controller="placement-defaults">
                     <input type="hidden" name="_token" value="{{ csrf_token('learning_content_placement_' ~ content.id.toRfc4122) }}">
                     <input type="hidden" name="note" value="{{ reason_placement_create }}">
                     <label>Katalog konusu
@@ -219,20 +219,6 @@
                     </label>
                     <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
                 </form>
-                <script>
-                    (function () {
-                        var select = document.getElementById('placement-topic');
-                        var position = document.getElementById('placement-position');
-                        if (!select || !position) return;
-                        var apply = function () {
-                            var option = select.options[select.selectedIndex];
-                            if (!option || !option.value) return;
-                            var next = option.getAttribute('data-next-position');
-                            if (next !== null && next !== '') position.value = next;
-                        };
-                        select.addEventListener('change', apply);
-                    })();
-                </script>
             {% endif %}
         {% endif %}
     </section>

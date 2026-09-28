@@ -34,7 +34,7 @@
 
     {% if requeue_form %}
         <section class="surface stack-md" aria-labelledby="requeue-heading">
-            <h2 id="requeue-heading" style="margin:0;font-size:1.1rem;">Dead-letter yeniden dene</h2>
+            <h2 id="requeue-heading" class="u-h-sm">Dead-letter yeniden dene</h2>
             {{ form_start(requeue_form) }}
                 {{ form_row(requeue_form.reasonCode) }}
                 {{ form_row(requeue_form.confirm) }}

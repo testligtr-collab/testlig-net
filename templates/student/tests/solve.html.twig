@@ -13,7 +13,7 @@
         <h1>{{ test.title }}</h1>
         <p class="student-progress">Soru {{ test.position }} / {{ test.count }}</p>
         {% if test.deadline %}
-            <p id="test-deadline" class="student-timer" data-deadline="{{ test.deadline_iso }}">Süre bitişi: {{ test.deadline }}</p>
+            <p id="test-deadline" class="student-timer" data-controller="test-deadline" data-deadline="{{ test.deadline_iso }}">Süre bitişi: {{ test.deadline }}</p>
         {% endif %}
     </header>
     {% if saved %}
@@ -73,27 +73,3 @@
 </section>
 {% endblock %}
 
-{% block javascripts %}
-{{ parent() }}
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var node = document.getElementById('test-deadline');
-    if (!node) {
-        return;
-    }
-    var raw = node.getAttribute('data-deadline') || '';
-    var end = Date.parse(raw);
-    if (!end) {
-        return;
-    }
-    var tick = function () {
-        if (Date.now() >= end) {
-            window.location.reload();
-            return;
-        }
-        window.setTimeout(tick, 1000);
-    };
-    tick();
-});
-</script>
-{% endblock %}

@@ -68,13 +68,13 @@
     {% if can_manage %}
         <div class="admin-actions stack-sm">
             {% if subject.status.value == 'draft' %}
-                <form method="post" action="{{ path('app_admin_catalog_subject_publish', {id: subject.id.toRfc4122}) }}" onsubmit="return confirm('Bu dersi yayımlamak istediğinize emin misiniz?');">
+                <form method="post" action="{{ path('app_admin_catalog_subject_publish', {id: subject.id.toRfc4122}) }}" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Bu dersi yayımlamak istediğinize emin misiniz?">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_publish_' ~ subject.id.toRfc4122) }}">
                     <button type="submit" class="btn btn--primary">Yayımla</button>
                 </form>
             {% endif %}
             {% if subject.status.value != 'archived' %}
-                <form method="post" action="{{ path('app_admin_catalog_subject_archive', {id: subject.id.toRfc4122}) }}" onsubmit="return confirm('Bu dersi arşivlemek istediğinize emin misiniz?');">
+                <form method="post" action="{{ path('app_admin_catalog_subject_archive', {id: subject.id.toRfc4122}) }}" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Bu dersi arşivlemek istediğinize emin misiniz?">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_archive_' ~ subject.id.toRfc4122) }}">
                     <button type="submit" class="btn btn--ghost">Arşivle</button>
                 </form>

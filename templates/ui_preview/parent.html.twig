@@ -6,7 +6,7 @@
     <h1 class="panel-greeting" id="overview">{{ view.title }}</h1>
 
     <section class="surface stack-md" aria-labelledby="summary-heading">
-        <h2 id="summary-heading" style="margin:0;font-size:1.15rem;">Haftalık özet</h2>
+        <h2 id="summary-heading" class="u-h">Haftalık özet</h2>
         <div class="stat-row">
             {% for item in view.weekSummary %}
                 {% include 'components/stat_card.html.twig' with { label: item.label, value: item.value } %}
@@ -14,9 +14,9 @@
         </div>
     </section>
 
-    <div class="panel-grid-2" style="margin-top:1rem;">
+    <div class="panel-grid-2 u-mt1">
         <section class="surface stack-md" aria-labelledby="done-heading">
-            <h2 id="done-heading" style="margin:0;font-size:1.15rem;">Tamamlanan çalışma</h2>
+            <h2 id="done-heading" class="u-h">Tamamlanan çalışma</h2>
             <ul class="list-plain">
                 {% for item in view.completed %}
                     <li>
@@ -28,7 +28,7 @@
         </section>
 
         <section class="surface stack-md" aria-labelledby="tasks-heading">
-            <h2 id="tasks-heading" style="margin:0;font-size:1.15rem;">Yaklaşan görevler</h2>
+            <h2 id="tasks-heading" class="u-h">Yaklaşan görevler</h2>
             <ul class="list-plain">
                 {% for item in view.upcoming %}
                     <li>
@@ -40,9 +40,9 @@
         </section>
     </div>
 
-    <div class="panel-grid-2" style="margin-top:1rem;">
+    <div class="panel-grid-2 u-mt1">
         <section class="surface stack-md" aria-labelledby="growth-heading">
-            <h2 id="growth-heading" style="margin:0;font-size:1.15rem;">Ders / kazanım gelişimi</h2>
+            <h2 id="growth-heading" class="u-h">Ders / kazanım gelişimi</h2>
             <ul class="list-plain">
                 {% for item in view.growth %}
                     <li>
@@ -54,10 +54,10 @@
         </section>
 
         <section class="surface stack-md" aria-labelledby="feedback-heading">
-            <h2 id="feedback-heading" style="margin:0;font-size:1.15rem;">Öğretmen geri bildirimi</h2>
-            <p style="margin:0;">{{ view.teacherFeedback }}</p>
-            <h2 style="margin:1rem 0 0.5rem;font-size:1rem;">Destekleyici öneri</h2>
-            <p class="muted" style="margin:0;">{{ view.supportTip }}</p>
+            <h2 id="feedback-heading" class="u-h">Öğretmen geri bildirimi</h2>
+            <p class="u-m0">{{ view.teacherFeedback }}</p>
+            <h2 class="u-subhead">Destekleyici öneri</h2>
+            <p class="muted u-m0">{{ view.supportTip }}</p>
         </section>
     </div>
 {% endblock %}
