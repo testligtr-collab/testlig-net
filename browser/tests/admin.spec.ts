@@ -69,8 +69,12 @@ async function closeDrawer(page: import('@playwright/test').Page): Promise<void>
   const sidebar = await page.locator('#panel-sidebar').boundingBox();
   const backdrop = page.locator('.admin-nav-backdrop');
   const overlay = await backdrop.boundingBox();
-  if (sidebar && overlay && overlay.width - sidebar.width > 12) {
-    await backdrop.click({ position: { x: sidebar.width + 8, y: 24 } });
+  const header = await page.locator('.panel-topbar').boundingBox();
+  if (sidebar && overlay && header && overlay.width - sidebar.width > 12) {
+    await backdrop.click({
+      position: { x: sidebar.width + 8, y: header.y + header.height + 16 },
+      timeout: 5_000,
+    });
   }
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 }

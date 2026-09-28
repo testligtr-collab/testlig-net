@@ -22,7 +22,7 @@ Herkese açık `/`, dört yasal sayfa, `/giris`, `/kayit` ve `/kayit/ogrenci`. T
 
 Öğretmen `/yonetim` kabuğunu açamaz. İçerik, revision, soru ve test listelerini açar. Yayın düğmesini görmez. Admin aynı inceleme kaydında yayın düğmesini görür. Blok ekleme ve kaldırma, kirli form uyarısı, PDF dosya metni ve seçenek ekleme Stimulus ile çalışır.
 
-SuperAdmin gruplu menüyü ve ödeme/denetim bağlantılarını görür. Admin bu bağlantıları görmez. Mobil çekmece Esc, kapatma düğmesi ve dış alan ile kapanır. Global Admin ve SuperAdmin üyeliksiz `/kurum` alamaz. Owner kurum listelerini görür. Atanan öğretmen yalnız kendi sınıfını görür.
+SuperAdmin gruplu menüyü ve ödeme/denetim bağlantılarını görür. Admin bu bağlantıları görmez. Mobil çekmece Esc ile ve çekmecenin yanındaki açık şerit üzerinden kapanır. Kapatma denetimi çekmeceyi örten düğmedir; tıklama üst çubuğun altındaki açık alana yapılır. Global Admin ve SuperAdmin üyeliksiz `/kurum` alamaz. Owner kurum listelerini görür. Atanan öğretmen yalnız kendi sınıfını görür.
 
 Veli yalnız bağlı öğrencinin sınırlı özetini görür. Başka çocuk adresi 404’tür. Veli test başlatamaz.
 
