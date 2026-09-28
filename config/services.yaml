@@ -158,6 +158,10 @@ services:
 
 when@test:
     services:
+        App\Tests\Browser\PrepareBrowserAcceptanceCommand:
+            autowire: true
+            autoconfigure: true
+
         App\Service\UserFactory:
             public: true
             autowire: true
