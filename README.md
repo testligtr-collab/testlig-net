@@ -332,6 +332,15 @@ C:\xampp\php\php.exe bin\console doctrine:migrations:migrate --no-interaction
 C:\xampp\php\php.exe composer.phar test
 ```
 
+Gerçek tarayıcı kabulü CI işindedir. Yerelde, test veritabanı hazırken:
+
+```powershell
+C:\xampp\php\php.exe bin\console app:browser-acceptance:prepare
+C:\xampp\php\php.exe -S 127.0.0.1:8080 -t public browser\router.php
+```
+
+Ayrı bir terminalde `browser` klasöründe `npm ci` ardından `npm run test:chromium`. Production hesabı ve Docker gerekmez. Ayrıntı `docs/browser-acceptance.md`.
+
 ## PHPStan ve kod biçimi
 
 ```powershell

@@ -7,6 +7,10 @@
 /vendor/
 /var/
 /node_modules/
+/browser/node_modules/
+/browser/test-results/
+/browser/playwright-report/
+/browser/artifacts/
 /composer.phar
 /public/bundles/
 /public/assets/

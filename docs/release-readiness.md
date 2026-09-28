@@ -67,7 +67,7 @@ Nonce yalnız AssetMapper import map ve modül girişindedir. Her ana istekte `r
 
 ### Bilinen sınır
 
-CI gerçek tarayıcıda CSP çalıştırmaz. Header, DOM ve şablon taraması bu boşluğu kapatmaz.
+Gerçek Chromium kabulü `docs/browser-acceptance.md` içindedir. PHPUnit hâlâ başlıksız bir tarayıcı çalıştırmaz. Playwright işi CSP’yi kapatmaz, production adresine gitmez ve video host isteklerini keser. Pixel karşılaştırma yoktur.
 
 ## Ertelenen
 
@@ -75,9 +75,9 @@ CI gerçek tarayıcıda CSP çalıştırmaz. Header, DOM ve şablon taraması bu
 
 `/gizlilik`, `/kullanim-kosullari`, `/cerez-politikasi` ve `/cocuk-ve-veli-bilgilendirmesi` herkese açıktır ve yalnız kodda doğrulanan davranışı anlatır. Veri sorumlusu kimliği, saklama, aktarım, çocuk modeli ve sözleşme kabul kanıtı `docs/legal-review-checklist.md` içindedir. Envanter `docs/privacy-data-inventory.md` içindedir. Bu kararlar alınmadan sayfalar tamamlanmış aydınlatma veya sözleşme değildir.
 
-### P1 — tarayıcı piksel turu
+### P1 — admin paneli görsel iyileştirme
 
-Yerel Docker kapalı. 360, 768 ve 1280 görünüm turu bu oturumda yapılmadı.
+360, 768 ve 1280 layout sabitleri browser işindedir. Renk, ikon ve kart tasarımı sonraki turdadır. Pixel snapshot yoktur.
 
 ## Bu PR’da yapılmayanlar
 
