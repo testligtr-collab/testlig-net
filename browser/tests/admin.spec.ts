@@ -40,7 +40,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await watch(saPage);
   await login(saPage, data.users.superadmin);
   await saPage.goto('/yonetim');
-  await expect(saPage.getByText('Süper Yönetici')).toBeVisible();
+  await expect(saPage.locator('.panel-role')).toHaveText('Süper Yönetici');
   for (const label of ['Genel', 'Yönetim', 'Eğitim', 'Operasyon', 'Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
     await expect(saPage.getByText(label).first()).toBeVisible();
   }
