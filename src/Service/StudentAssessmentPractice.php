@@ -95,20 +95,30 @@ final class StudentAssessmentPractice
     public function listFor(User $student, GradeLevel $grade): array
     {
         $this->assertStudent($student);
-        $rows = [];
+        /** @var list<array{assessment: Assessment, revision: AssessmentRevision}> $visible */
+        $visible = [];
         foreach ($this->assessments->findPublishedPlatformForGrade($grade) as $assessment) {
             $revision = $assessment->getPublishedRevision();
             if (!$revision instanceof AssessmentRevision) {
                 continue;
             }
-            $attempt = $this->attemptFor($student, $assessment);
+            $visible[] = ['assessment' => $assessment, 'revision' => $revision];
+        }
+        $revisions = array_map(static fn (array $row): AssessmentRevision => $row['revision'], $visible);
+        $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
+        $counts = $this->itemCounts($revisions);
+        $attempts = $this->attemptsByAssessment($student, $assessments);
+        $rows = [];
+        foreach ($visible as $row) {
+            $assessment = $row['assessment'];
+            $revision = $row['revision'];
             $rows[] = [
                 'code' => $assessment->getCode(),
                 'title' => $revision->getTitle(),
                 'subject' => $assessment->getSubject()?->getName() ?? '',
-                'question_count' => \count($this->revisionItems($revision)),
+                'question_count' => $counts[$revision->getId()->toRfc4122()] ?? 0,
                 'duration_label' => $this->durationLabel($revision),
-                'state' => $this->state($attempt),
+                'state' => $this->state($attempts[$assessment->getId()->toRfc4122()] ?? null),
             ];
         }
 
@@ -482,6 +492,101 @@ final class StudentAssessmentPractice
         }
 
         return $publication;
+    }
+
+    /**
+     * @param list<AssessmentRevision> $revisions
+     *
+     * @return array<string, int>
+     */
+    private function itemCounts(array $revisions): array
+    {
+        if ([] === $revisions) {
+            return [];
+        }
+
+        $builder = $this->entityManager->createQueryBuilder()
+            ->select('revision.id AS revisionId', 'COUNT(item.id) AS itemCount')
+            ->from(AssessmentItem::class, 'item')
+            ->innerJoin('item.assessmentRevision', 'revision')
+            ->groupBy('revision.id');
+        $matches = [];
+        foreach ($revisions as $index => $revision) {
+            $name = 'revision'.$index;
+            $matches[] = 'revision = :'.$name;
+            $builder->setParameter($name, $revision->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<array{revisionId: mixed, itemCount: int|string}> $rows */
+        $rows = $builder->getQuery()->getArrayResult();
+        $counts = [];
+        foreach ($rows as $row) {
+            $id = $row['revisionId'];
+            $key = $id instanceof \Symfony\Component\Uid\Uuid ? $id->toRfc4122() : (string) $id;
+            $counts[$key] = (int) $row['itemCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @param list<Assessment> $assessments
+     *
+     * @return array<string, AssessmentAttempt>
+     */
+    private function attemptsByAssessment(User $student, array $assessments): array
+    {
+        if ([] === $assessments) {
+            return [];
+        }
+        $practices = $this->practices->findForUserAndAssessments($student, $assessments);
+        if ([] === $practices) {
+            return [];
+        }
+        $practiceByAssessment = [];
+        $deliveries = [];
+        foreach ($practices as $practice) {
+            $practiceByAssessment[$practice->getAssessment()->getId()->toRfc4122()] = $practice;
+            $deliveries[] = $practice->getDelivery();
+        }
+
+        $builder = $this->entityManager->createQueryBuilder()
+            ->select('attempt')
+            ->from(AssessmentAttempt::class, 'attempt')
+            ->andWhere('attempt.user = :student')
+            ->setParameter('student', $student->getId(), 'uuid');
+        $matches = [];
+        foreach ($deliveries as $index => $delivery) {
+            $name = 'delivery'.$index;
+            $matches[] = 'attempt.delivery = :'.$name;
+            $builder->setParameter($name, $delivery->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<AssessmentAttempt> $rows */
+        $rows = $builder->getQuery()->getResult();
+        $byDelivery = [];
+        foreach ($rows as $attempt) {
+            $key = $attempt->getDelivery()->getId()->toRfc4122();
+            $current = $byDelivery[$key] ?? null;
+            if (!$current instanceof AssessmentAttempt || $attempt->getAttemptNumber() > $current->getAttemptNumber()) {
+                $byDelivery[$key] = $attempt;
+            }
+        }
+        $owned = [];
+        foreach ($assessments as $assessment) {
+            $practice = $practiceByAssessment[$assessment->getId()->toRfc4122()] ?? null;
+            if (!$practice instanceof AssessmentPlatformPractice) {
+                continue;
+            }
+            $attempt = $byDelivery[$practice->getDelivery()->getId()->toRfc4122()] ?? null;
+            if ($attempt instanceof AssessmentAttempt) {
+                $owned[$assessment->getId()->toRfc4122()] = $attempt;
+            }
+        }
+
+        return $owned;
     }
 
     private function attemptFor(User $student, Assessment $assessment): ?AssessmentAttempt

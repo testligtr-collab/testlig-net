@@ -33,5 +33,6 @@ final class ParentNoStoreResponseSubscriber implements EventSubscriberInterface
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Pragma', 'no-cache');
         $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
     }
 }
