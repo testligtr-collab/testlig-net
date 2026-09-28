@@ -16,7 +16,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   for (const label of ['Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
     await expect(adminPage.getByRole('link', { name: label })).toHaveCount(0);
   }
-  await expect(adminPage.locator('a[aria-current="page"]', { hasText: 'Özet' })).toBeVisible();
+  await expect(adminPage.locator('a.panel-nav-link[aria-current="page"]')).toHaveText('Özet');
   for (const viewport of VIEWPORTS) {
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim');

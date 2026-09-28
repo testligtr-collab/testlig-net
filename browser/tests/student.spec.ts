@@ -61,7 +61,10 @@ test('student lesson, blocked video host, and one test attempt', async ({ page, 
   expect(solveHtml).not.toContain('opt_b');
   await page.getByLabel('Testi bitirmek istiyorum').check();
   await page.getByRole('button', { name: 'Testi bitir' }).click();
-  await expect(page.getByText('Sonuç gösterilemiyor.')).toBeVisible();
+  await page.waitForURL(/\/sonuc$/);
+  const resultHtml = await page.content();
+  expect(resultHtml).not.toContain('correctStableKey');
+  expect(resultHtml).not.toContain('opt_b');
   await page.goto('/ogrenci/testler/gecmisim');
   await expect(page.getByText(data.paths.testTitle)).toBeVisible();
   await assertClean(page);

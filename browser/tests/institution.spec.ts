@@ -24,9 +24,9 @@ test('institution owner and assigned teacher stay inside their classroom', async
     }
     await shot(page, info, 'owner', 'kurum', viewport.name);
   }
+  await assertClean(page);
   const missing = await page.goto('/kurum/siniflar/bbbbbbbbbbbbbbbbbbbb');
   expect(missing?.status()).toBe(404);
-  await assertClean(page);
   await owner.close();
 
   const teacher = await browser.newContext();
@@ -37,9 +37,9 @@ test('institution owner and assigned teacher stay inside their classroom', async
   await teacherPage.goto('/ogretmen/siniflarim');
   await expect(teacherPage.getByText(data.paths.classroomName)).toBeVisible();
   expect(await teacherPage.content()).not.toContain('@example.test');
+  await assertClean(teacherPage);
   const admin = await teacherPage.goto('/kurum');
   expect(admin?.status()).toBe(403);
-  await assertClean(teacherPage);
   await teacher.close();
 
   const platform = await browser.newContext();

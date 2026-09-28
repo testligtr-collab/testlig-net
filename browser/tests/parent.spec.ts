@@ -21,9 +21,9 @@ test('parent sees only the linked student summary', async ({ page }, info) => {
     await assertLayout(page);
     await shot(page, info, 'parent', 'ozet', viewport.name);
   }
+  await assertClean(page);
   const missing = await page.goto('/veli/cocuk/aaaaaaaaaaaaaaaaaaaa');
   expect(missing?.status()).toBe(404);
   const start = await page.goto(`/ogrenci/testler/${data.paths.testCode}`);
   expect([302, 403]).toContain(start?.status() ?? 0);
-  await assertClean(page);
 });

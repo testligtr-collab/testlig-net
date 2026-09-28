@@ -30,13 +30,14 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   }
 
   await page.setViewportSize({ width: 1280, height: 900 });
-  const before = await page.getByText(/Blok \d+/).count();
+  const blocks = page.locator('span.muted', { hasText: /^Blok \d+:$/ });
+  const before = await blocks.count();
   await page.locator('select[name="block_type"]').selectOption('paragraph');
   await page.getByRole('button', { name: 'Yeni blok ekle' }).click();
-  await expect(page.getByText(/Blok \d+/)).toHaveCount(before + 1);
+  await expect(blocks).toHaveCount(before + 1);
   page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Kaldır' }).first().click();
-  await expect(page.getByText(/Blok \d+/)).toHaveCount(before);
+  await expect(blocks).toHaveCount(before);
 
   await page.locator('#revision-save-form textarea').first().fill('Kaydedilmeyen degisiklik');
   const blocked = await page.evaluate(() => {

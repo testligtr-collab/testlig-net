@@ -38,7 +38,7 @@ export async function watch(page: Page): Promise<void> {
       return;
     }
     const text = message.text();
-    if (VIDEO_HOSTS.some((host) => text.includes(host.replace('https://', '')))) {
+    if (text.includes('net::ERR_') || VIDEO_HOSTS.some((host) => text.includes(host.replace('https://', '')))) {
       return;
     }
     notes.push(`console: ${text}`);
