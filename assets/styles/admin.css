@@ -389,6 +389,10 @@ body.is-admin-panel {
 }
 
 @media (max-width: 1023px) {
+    .is-admin-panel .panel-content {
+        padding-bottom: calc(var(--tl-bottom-nav-h) + 1.5rem);
+    }
+
     body.is-admin-panel:has(.panel-shell.is-nav-open) {
         overflow: hidden;
     }

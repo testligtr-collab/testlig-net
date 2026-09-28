@@ -29,6 +29,7 @@ Admin ödeme, webhook, uzlaştırma ve denetim bağlantısını görmez. SuperAd
 - 1024 px: sabit 17.5rem sidebar, çekmece kapalı
 - 1280 px: metrikler dört kolon
 - 1024 px altında çekmece Esc, “Menüyü kapat” ve bağlantı tıklamasıyla kapanır
+- Alt gezinti builder’ın izin verdiği bağlantıları gösterir; Admin’de operasyon öğesi yoktur
 
 ## Durum etiketi
 
