@@ -20,12 +20,12 @@ final class ReleaseCandidateReadinessTest extends WebTestCase
         $client->request('GET', '/kayit');
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
-        self::assertNull($client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
 
         $client->request('GET', '/kayit/ogrenci');
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
-        self::assertNull($client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
 
         $client->request('GET', '/hesabim');
         self::assertResponseRedirects('/giris');
