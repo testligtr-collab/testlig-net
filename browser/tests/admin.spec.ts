@@ -44,8 +44,8 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   for (const label of ['Genel', 'Yönetim', 'Eğitim', 'Operasyon', 'Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
     await expect(saPage.getByText(label).first()).toBeVisible();
   }
-  const kurum = await saPage.goto('/kurum');
-  expect(kurum?.status()).toBe(403);
+  const kurum = await saPage.request.get('/kurum');
+  expect(kurum.status()).toBe(403);
   for (const viewport of VIEWPORTS) {
     await saPage.setViewportSize(viewport);
     await saPage.goto('/yonetim');
@@ -66,6 +66,11 @@ async function closeDrawer(page: import('@playwright/test').Page): Promise<void>
   await page.keyboard.press('Escape');
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await menu.click();
-  await page.getByRole('button', { name: 'Menüyü kapat' }).click();
+  const sidebar = await page.locator('#panel-sidebar').boundingBox();
+  const backdrop = page.locator('.admin-nav-backdrop');
+  const overlay = await backdrop.boundingBox();
+  if (sidebar && overlay && overlay.width - sidebar.width > 12) {
+    await backdrop.click({ position: { x: sidebar.width + 8, y: 24 } });
+  }
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
 }
