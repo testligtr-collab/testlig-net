@@ -21,7 +21,7 @@
 
     {% if system.webhookQueueSummary %}
         <section class="surface stack-md" aria-labelledby="whq-heading">
-            <h2 id="whq-heading" style="margin:0;font-size:1.1rem;">Webhook kuyruğu</h2>
+            <h2 id="whq-heading" class="u-h-sm">Webhook kuyruğu</h2>
             <ul class="list-plain">
                 <li>Zamanı gelen: {{ system.webhookQueueSummary.due }}</li>
                 <li>Yeniden denenecek: {{ system.webhookQueueSummary.retry_pending }}</li>

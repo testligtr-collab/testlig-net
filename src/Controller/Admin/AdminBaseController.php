@@ -62,7 +62,6 @@ abstract class AdminBaseController extends AbstractController
     {
         $response->headers->set('Cache-Control', 'no-store, private');
         $response->headers->set('Pragma', 'no-cache');
-        $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
     }
 
     protected function mapCommerceException(CommerceException $e): never

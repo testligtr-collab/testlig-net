@@ -9,7 +9,7 @@
         <span>Özet</span>
     </nav>
     <h1 class="panel-greeting">Yönetim özeti</h1>
-    <p class="muted" style="margin-top:-0.75rem;">{{ panel_role_label }} oturumu. Rakamlar yetkinizin açtığı kayıtlardan gelir.</p>
+    <p class="muted u-mt-tight">{{ panel_role_label }} oturumu. Rakamlar yetkinizin açtığı kayıtlardan gelir.</p>
 
     {% if shell_metrics is defined and shell_metrics is not empty %}
         <section class="admin-section" aria-labelledby="scope-heading">
@@ -77,9 +77,9 @@
             {% endfor %}
         </section>
         {% if dashboard.operationsSummary %}
-            <section class="surface stack-md" style="margin-top:1rem;" aria-labelledby="recon-heading">
-                <h2 id="recon-heading" style="margin:0;font-size:1.1rem;">Uzlaştırma özeti</h2>
-                <p class="muted" style="margin:0;">
+            <section class="surface stack-md u-mt1" aria-labelledby="recon-heading">
+                <h2 id="recon-heading" class="u-h-sm">Uzlaştırma özeti</h2>
+                <p class="muted u-m0">
                     Eşleşen {{ dashboard.operationsSummary.reconciliationMatchedCount }}
                     · Fark {{ dashboard.operationsSummary.reconciliationDiscrepancyCount }}
                     · Hata {{ dashboard.operationsSummary.reconciliationFailedCount }}
@@ -88,9 +88,9 @@
         {% endif %}
     {% else %}
         <section class="surface stack-md" aria-labelledby="limited-heading">
-            <h2 id="limited-heading" style="margin:0;font-size:1.1rem;">Sınırlı görünüm</h2>
-            <p class="muted" style="margin:0;">Ödeme ve webhook operasyonları Süper Yönetici kapsamındadır. Sistem sağlığına göz atabilirsiniz.</p>
-            <p style="margin:0;"><a href="{{ path('app_admin_system') }}">Sistem durumuna git</a></p>
+            <h2 id="limited-heading" class="u-h-sm">Sınırlı görünüm</h2>
+            <p class="muted u-m0">Ödeme ve webhook operasyonları Süper Yönetici kapsamındadır. Sistem sağlığına göz atabilirsiniz.</p>
+            <p class="u-m0"><a href="{{ path('app_admin_system') }}">Sistem durumuna git</a></p>
         </section>
     {% endif %}
 {% endblock %}

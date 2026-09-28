@@ -330,6 +330,8 @@ final class AdminLearningContentRevisionEditorTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
         self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
+        self::assertNull($client->getResponse()->headers->get('Content-Security-Policy'));
+        self::assertNull($client->getResponse()->headers->get('X-Frame-Options'));
         $cache = $client->getResponse()->headers->get('Cache-Control') ?? '';
         self::assertStringContainsString('no-store', $cache);
         self::assertStringContainsString('private', $cache);

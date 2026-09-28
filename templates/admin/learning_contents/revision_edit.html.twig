@@ -63,7 +63,7 @@
             <h2 id="blocks-heading">Bloklar</h2>
             <p class="muted">Düz metin alanları. Kaydetmeden çıkarsanız yazdıklarınız kaybolur.</p>
 
-            <form method="post" action="{{ path('app_admin_learning_content_revision_save', {id: content.id.toRfc4122}) }}" class="stack-sm" id="revision-save-form">
+            <form method="post" action="{{ path('app_admin_learning_content_revision_save', {id: content.id.toRfc4122}) }}" class="stack-sm" id="revision-save-form" data-controller="dirty-form">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -125,12 +125,12 @@
                 <button type="submit" class="btn btn--primary">Kaydet</button>
             </form>
 
-            <div class="stack-sm" style="margin-top: 1rem;">
+            <div class="stack-sm u-mt1">
                 {% for block in editor_blocks %}
                     <div class="admin-actions">
                         <span class="muted">Blok {{ loop.index }}:</span>
                         {% if not loop.first %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -140,7 +140,7 @@
                             </form>
                         {% endif %}
                         {% if not loop.last %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
@@ -150,12 +150,12 @@
                             </form>
                         {% endif %}
                         {% if editor_blocks|length > 1 %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" style="display:inline" data-warn-unsaved="1">
+                            <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-confirm-submit-message-value="Bu blok kaldırılsın mı?" data-warn-unsaved="1">
                                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                                 <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
                                 <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
                                 <input type="hidden" name="index" value="{{ loop.index0 }}">
-                                <button type="submit" class="btn btn--ghost" onclick="return confirm('Bu blok kaldırılsın mı?');">Kaldır</button>
+                                <button type="submit" class="btn btn--ghost" data-action="confirm-submit#submit">Kaldır</button>
                             </form>
                         {% endif %}
                     </div>
@@ -204,7 +204,7 @@
         <section class="admin-section" aria-labelledby="pdf-heading">
             <h2 id="pdf-heading">PDF doküman ekle</h2>
             <p class="muted">Yalnız PDF, en fazla 25 MB. Dosya onay bekler; yönetici kullanıma hazır demeden sürüme bağlanamaz. Antivirüs taraması yoktur.</p>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-warn-unsaved="1">
+            <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-controller="pdf-meta" data-warn-unsaved="1">
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
                 <label>PDF dosyası
                     <input type="file" name="pdf" accept="application/pdf,.pdf" required id="pdf-file">
@@ -244,51 +244,4 @@
             {% endif %}
         </section>
     {% endif %}
-    <script>
-        (function () {
-            var form = document.getElementById('revision-save-form');
-            if (!form) return;
-            var dirty = false;
-            var mark = function () { dirty = true; };
-            form.addEventListener('input', mark);
-            form.addEventListener('change', mark);
-            form.addEventListener('submit', function () { dirty = false; });
-            window.addEventListener('beforeunload', function (event) {
-                if (!dirty) return;
-                event.preventDefault();
-            });
-            document.querySelectorAll('form[data-warn-unsaved]').forEach(function (other) {
-                other.addEventListener('submit', function (event) {
-                    if (!dirty) return;
-                    if (!window.confirm('Kaydedilmemiş değişiklikler var. Yine de devam edilsin mi?')) {
-                        event.preventDefault();
-                    } else {
-                        dirty = false;
-                    }
-                });
-            });
-            document.querySelectorAll('textarea.revision-text').forEach(function (area) {
-                var grow = function () {
-                    area.style.height = 'auto';
-                    area.style.height = area.scrollHeight + 'px';
-                };
-                area.addEventListener('input', grow);
-                grow();
-            });
-        })();
-        (function () {
-            var input = document.getElementById('pdf-file');
-            var meta = document.getElementById('pdf-file-meta');
-            if (!input || !meta) return;
-            input.addEventListener('change', function () {
-                var file = input.files && input.files[0];
-                if (!file) {
-                    meta.textContent = '';
-                    return;
-                }
-                var kb = Math.max(1, Math.round(file.size / 1024));
-                meta.textContent = file.name + ' · ' + kb + ' KB';
-            });
-        })();
-    </script>
 {% endblock %}

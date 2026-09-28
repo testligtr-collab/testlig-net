@@ -7,7 +7,7 @@
         </header>
         <div class="hp-level-grid">
             {% for card in view.levelCards %}
-                <article id="{{ card.id }}" class="hp-vcard" style="--hp-accent: {{ card.accent }}; --hp-tint: {{ card.tint }}">
+                <article id="{{ card.id }}" class="hp-vcard hp-tone-{{ card.id }}">
                     <div class="hp-vcard__art">
                         <img src="{{ card.image }}" alt="" width="418" height="418" loading="lazy" decoding="async">
                         <span class="hp-vcard__label">EĞİTİM SEVİYESİ</span>

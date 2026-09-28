@@ -20,7 +20,6 @@
                         data-grade-books-target="tab"
                         data-grade="{{ loop.index }}"
                         data-action="click->grade-books#select keydown->grade-books#onKeydown"
-                        style="--hp-book-color: {{ book.color }}"
                     >{{ book.label }}</button>
                 {% endfor %}
             </div>
@@ -38,7 +37,7 @@
                 </div>
                 {% for type in view.gradeLearningTypes %}
                     <article class="hp-grade-type">
-                        <span class="hp-grade-type__symbol" aria-hidden="true"{% if type.accent is defined %} style="color: {{ type.accent }}"{% endif %}>{{ type.symbol }}</span>
+                        <span class="hp-grade-type__symbol{% if type.accent|default('') == '#21b49a' %} hp-grade-type__symbol--mint{% elseif type.accent|default('') == '#f5ac17' %} hp-grade-type__symbol--gold{% endif %}" aria-hidden="true">{{ type.symbol }}</span>
                         <h3>{{ type.title }}</h3>
                         <p>{{ type.body }}</p>
                     </article>

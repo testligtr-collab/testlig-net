@@ -14,18 +14,18 @@ final class ReleaseCandidateReadinessTest extends WebTestCase
         $client->request('GET', '/');
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('no-store', (string) $client->getResponse()->headers->get('Cache-Control'));
-        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertNull($client->getResponse()->headers->get('X-Robots-Tag'));
         self::assertSame('nosniff', $client->getResponse()->headers->get('X-Content-Type-Options'));
 
         $client->request('GET', '/kayit');
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
-        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
 
         $client->request('GET', '/kayit/ogrenci');
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
-        self::assertNotSame('noindex, nofollow', $client->getResponse()->headers->get('X-Robots-Tag'));
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
 
         $client->request('GET', '/hesabim');
         self::assertResponseRedirects('/giris');
@@ -57,5 +57,11 @@ final class ReleaseCandidateReadinessTest extends WebTestCase
         self::assertStringNotContainsString('SQLSTATE', $html);
         self::assertStringNotContainsString('vendor/symfony', $html);
         self::assertStringNotContainsString('exception.message', $html);
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
+        self::assertSame('DENY', $client->getResponse()->headers->get('X-Frame-Options'));
+        $policy = $client->getResponse()->headers->get('Content-Security-Policy');
+        self::assertIsString($policy);
+        self::assertStringContainsString("frame-ancestors 'none'", $policy);
+        self::assertStringNotContainsString('unsafe-inline', $policy);
     }
 }

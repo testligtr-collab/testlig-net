@@ -32,13 +32,13 @@
     {% if can_manage %}
         <div class="admin-actions stack-sm">
             {% if unit.status.value == 'draft' %}
-                <form method="post" action="{{ path('app_admin_catalog_unit_publish', {id: unit.id.toRfc4122}) }}" onsubmit="return confirm('Bu üniteyi yayımlamak istediğinize emin misiniz?');">
+                <form method="post" action="{{ path('app_admin_catalog_unit_publish', {id: unit.id.toRfc4122}) }}" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Bu üniteyi yayımlamak istediğinize emin misiniz?">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_publish_' ~ unit.id.toRfc4122) }}">
                     <button type="submit" class="btn btn--primary">Yayımla</button>
                 </form>
             {% endif %}
             {% if unit.status.value != 'archived' %}
-                <form method="post" action="{{ path('app_admin_catalog_unit_archive', {id: unit.id.toRfc4122}) }}" onsubmit="return confirm('Bu üniteyi arşivlemek istediğinize emin misiniz?');">
+                <form method="post" action="{{ path('app_admin_catalog_unit_archive', {id: unit.id.toRfc4122}) }}" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Bu üniteyi arşivlemek istediğinize emin misiniz?">
                     <input type="hidden" name="_token" value="{{ csrf_token('catalog_archive_' ~ unit.id.toRfc4122) }}">
                     <button type="submit" class="btn btn--ghost">Arşivle</button>
                 </form>
@@ -65,13 +65,13 @@
                                 {% if can_manage %}
                                     <a href="{{ path('app_admin_catalog_topic_edit', {id: t.id.toRfc4122}) }}">Düzenle</a>
                                     {% if t.status.value == 'draft' %}
-                                        <form method="post" action="{{ path('app_admin_catalog_topic_publish', {id: t.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Konuyu yayımlamak istediğinize emin misiniz?');">
+                                        <form method="post" action="{{ path('app_admin_catalog_topic_publish', {id: t.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Konuyu yayımlamak istediğinize emin misiniz?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_publish_' ~ t.id.toRfc4122) }}">
                                             <button type="submit" class="btn btn--ghost">Yayımla</button>
                                         </form>
                                     {% endif %}
                                     {% if t.status.value != 'archived' %}
-                                        <form method="post" action="{{ path('app_admin_catalog_topic_archive', {id: t.id.toRfc4122}) }}" style="display:inline" onsubmit="return confirm('Konuyu arşivlemek istediğinize emin misiniz?');">
+                                        <form method="post" action="{{ path('app_admin_catalog_topic_archive', {id: t.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Konuyu arşivlemek istediğinize emin misiniz?">
                                             <input type="hidden" name="_token" value="{{ csrf_token('catalog_archive_' ~ t.id.toRfc4122) }}">
                                             <button type="submit" class="btn btn--ghost">Arşivle</button>
                                         </form>

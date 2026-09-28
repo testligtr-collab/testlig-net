@@ -4,6 +4,8 @@ framework:
         paths:
             - assets/
         missing_import_mode: strict
+        # Avoid the remote es-module-shims fallback. script-src stays 'self' plus the page nonce.
+        importmap_polyfill: false
 
 when@prod:
     framework:

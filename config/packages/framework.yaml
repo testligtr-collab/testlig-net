@@ -1,6 +1,10 @@
 # see https://symfony.com/doc/current/reference/configuration/framework.html
 framework:
     secret: '%env(APP_SECRET)%'
+    # Symfony otherwise enables DisallowRobotsIndexingListener when debug is on
+    # and stamps every response, including /, with X-Robots-Tag: noindex.
+    # Index policy lives in ResponseSecurityPolicySubscriber for every environment.
+    disallow_search_engine_index: false
     default_locale: tr
     session:
         handler_id: null

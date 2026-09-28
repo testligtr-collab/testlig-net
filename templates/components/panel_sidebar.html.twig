@@ -2,7 +2,7 @@
 {# @var iterable nav_items #}
 <aside id="panel-sidebar" class="panel-sidebar" aria-label="Panel menüsü">
     {% include 'components/brand.html.twig' with { href: path('app_home') } %}
-    <p class="panel-sidebar__label muted" style="margin:0;font-size:0.8rem;">{{ panel_role_label }}</p>
+    <p class="panel-sidebar__label muted u-label">{{ panel_role_label }}</p>
     <nav class="panel-sidebar__nav">
         {% if nav_sections is defined and nav_sections is not empty %}
             {% for section in nav_sections %}

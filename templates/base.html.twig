@@ -5,9 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Testlig{% endblock %}</title>
         <meta name="description" content="{% block meta_description %}Testlig — dersler, testler ve gelişim raporları tek öğrenme alanında.{% endblock %}">
-        {% block stylesheets %}{% endblock %}
+        {% block stylesheets %}
+            <link rel="stylesheet" href="{{ mapped_asset('styles/app.css') }}">
+        {% endblock %}
         {% block javascripts %}
-            {% block importmap %}{{ importmap('app') }}{% endblock %}
+            {% block importmap %}{{ importmap('app', { nonce: csp_nonce() }) }}{% endblock %}
         {% endblock %}
     </head>
     <body class="{% block body_class %}{% endblock %}">
