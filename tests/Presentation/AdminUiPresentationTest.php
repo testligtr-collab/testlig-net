@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Presentation;
 
+use App\Presentation\AdminFilterActivity;
 use App\Presentation\AdminIconCatalog;
 use App\Presentation\AdminStatusLabels;
 use PHPUnit\Framework\TestCase;
@@ -36,6 +37,17 @@ final class AdminUiPresentationTest extends TestCase
         self::assertSame(['label' => 'Kullanılamıyor', 'variant' => 'danger'], $labels->present('unavailable'));
         self::assertSame(['label' => 'Sınırlı görünüm', 'variant' => 'limited'], $labels->present('limited'));
         self::assertSame(['label' => 'Bilinmiyor', 'variant' => 'neutral'], $labels->present('"><script>'));
+    }
+
+    public function testEmptyFiltersStayInactive(): void
+    {
+        $activity = new AdminFilterActivity();
+
+        self::assertFalse($activity->isActive([]));
+        self::assertFalse($activity->isActive(['q' => '', 'status' => null]));
+        self::assertFalse($activity->isActive('q'));
+        self::assertTrue($activity->isActive(['q' => 'deneme']));
+        self::assertTrue($activity->isActive(['needs_reconciliation' => false]));
     }
 
     public function testAdminShellDoesNotTakeIconsOrRolesFromTemplates(): void
