@@ -40,3 +40,35 @@ E-posta ve not forma yazılır. Sonuç mesajı hesap varlığını ayırmaz. Tok
 3. Yazma POST, CSRF ve mevcut voter ile kalır.
 4. E-posta, UUID, storage key, ciphertext ve davet tokenini listeye koyma.
 5. `docs/browser-acceptance.md` listesine sentetik görüntüyü ekle.
+
+## Çalışma alanı özeti
+
+`/calisma-alani` (`app_workspace_dashboard`) öğretmen ve içerik ekibinin köküdür. `/yonetim` (`app_admin_dashboard`) yalnız Admin ve SuperAdmin yönetim özetidir. İkisi birbirinin aliasi veya yönlendirmesi değildir. Teacher `/yonetim` üzerinde 403 kalır. Admin ve SuperAdmin yönetim menüsündeki Özet `/yonetim` olarak kalır. Kurum, öğrenci ve veli menüleri değişmez.
+
+Kök seçimi:
+
+- Teacher, Uzman Öğretmen, Baş Öğretmen ve Moderatör: `/calisma-alani`
+- Admin ve SuperAdmin: `/yonetim`
+- Anonim: `/giris`
+- Student, Parent ve yalnız kurum Owner/Manager: 403
+- Aktif sınıf öğretmeni ataması olan kullanıcı, global içerik rolü olmasa da yalnız kendi sınıf sayısını görür
+
+Sayaçlar:
+
+- Taslak içerikler yalnız `createdBy` olan draft LearningContent kayıtlarıdır
+- İnceleme kuyruğu yalnız review/return yetkisi olan kullanıcılara hesaplanır; Teacher için kart yoktur ve platform toplamı sorgulanmaz
+- Sorular ve testler platform kapsamında ve sahibine göredir; kurum testi bu sayaca girmez
+- Aktif sınıflar yalnız aktif üyelik, aktif atama ve aktif sınıftır; sonlanmış atama ve başka kurum yoktur
+
+Kart sayısı artsa da sorgu sayısı artmaz. Sayılar tekil COUNT veya `GROUP BY status` ile, listeler en fazla 5 kayıt ve `updatedAt DESC, id DESC` ile gelir. `WorkspaceDashboardControllerTest` sorgu sayısının ek satırda sabit kaldığını doğrular.
+
+Yeni kart eklemeden önce:
+
+1. Yetki, mevcut `AdminAuthorization` metodundan gelsin
+2. Sahip kapsamı ile yetki kapsamını ayır
+3. Yetkisiz toplamı sorgulama
+4. Twig entity ve `ROLE_*` kararı almasın
+5. Bağlantı yalnız mevcut liste route’u olsun
+6. Sahte artış, yüzde veya grafik ekleme
+7. Sorgu sayısı kart sayısıyla artmasın
+8. E-posta, UUID, storage key ve cevap gösterme
