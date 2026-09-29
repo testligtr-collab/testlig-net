@@ -16,7 +16,7 @@
         'archived': 'Arşiv'
     } %}
     <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
         <span>Kurumlar</span>
     </nav>

@@ -1,12 +1,13 @@
-{% extends 'base.html.twig' %}
+{% extends 'teacher/layout.html.twig' %}
 
 {% block title %}Sınıflarım — Testlig{% endblock %}
 
-{% block body %}
-<section class="student-page">
+{% block teacher_content %}
+<section>
     <h1>Sınıflarım</h1>
+    <p class="muted">Atandığın sınıflar ve onların test atamaları.</p>
     {% for classroom in classrooms %}
-        <article class="student-form-card">
+        <article class="workspace-card">
             <h2>{{ classroom.label }}</h2>
             <p>{{ classroom.institutionName }}</p>
             {% if classroom.assignments is empty %}
@@ -55,7 +56,8 @@
                 </form>
             {% endif %}
         </article>
+    {% else %}
+        <p class="empty-state" role="status">Atanmış sınıf yok.</p>
     {% endfor %}
-    <p><a href="{{ path('app_account') }}">Hesabım</a></p>
 </section>
 {% endblock %}

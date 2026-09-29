@@ -1,21 +1,26 @@
-{% extends 'base.html.twig' %}
+{% extends 'teacher/layout.html.twig' %}
 
 {% block title %}Sınıf test sonuçları — Testlig{% endblock %}
 
-{% block body %}
-<article class="student-page student-form-card">
+{% block teacher_content %}
+<article class="workspace-card">
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_teacher_classrooms') }}">Sınıflarım</a>
+        <span aria-hidden="true">/</span>
+        <span>Sonuçlar</span>
+    </nav>
     <h1>{{ report.title }}</h1>
     <p>{{ report.classroomName }}</p>
     <p>{{ report.windowLabel }}</p>
-    <ul>
-        <li>Öğrenci sayısı: {{ report.recipientCount }}</li>
-        <li>Başlamadı: {{ report.notStarted }}</li>
-        <li>Devam ediyor: {{ report.inProgress }}</li>
-        <li>Tamamlandı: {{ report.completed }}</li>
-        <li>Süresi doldu: {{ report.expired }}</li>
-        <li>Tamamlanma: {{ report.completionRate }}%</li>
-        <li>Ortalama: {{ report.averagePercentage|default('—') }}</li>
+    <ul class="workspace-metrics">
+        <li class="workspace-metric"><h3>Öğrenci</h3><p>{{ report.recipientCount }}</p></li>
+        <li class="workspace-metric"><h3>Başlamadı</h3><p>{{ report.notStarted }}</p></li>
+        <li class="workspace-metric"><h3>Devam ediyor</h3><p>{{ report.inProgress }}</p></li>
+        <li class="workspace-metric"><h3>Tamamlandı</h3><p>{{ report.completed }}</p></li>
+        <li class="workspace-metric"><h3>Süresi doldu</h3><p>{{ report.expired }}</p></li>
+        <li class="workspace-metric"><h3>Tamamlanma</h3><p>{{ report.completionRate }}%</p></li>
     </ul>
+    <p>Ortalama: {{ report.averagePercentage|default('—') }}</p>
     <div class="table-scroll">
         <table class="institution-table">
             <thead>
@@ -38,6 +43,5 @@
             </tbody>
         </table>
     </div>
-    <p><a href="{{ path('app_teacher_classrooms') }}">Sınıflarım</a></p>
 </article>
 {% endblock %}

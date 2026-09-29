@@ -1,0 +1,42 @@
+{% set route = app.request.attributes.get('_route')|default('') %}
+<header class="site-header workspace-header" data-controller="mobile-nav">
+    <div class="site-header__inner">
+        {% include 'components/brand.html.twig' with {href: path('app_admin_learning_contents')} %}
+        <nav class="site-nav" aria-label="Öğretmen menüsü">
+            <a href="{{ path('app_admin_learning_contents') }}" {% if route starts with 'app_admin_learning_content' %}aria-current="page"{% endif %}>İçerikler</a>
+            <a href="{{ path('app_admin_questions') }}" {% if route starts with 'app_admin_question' %}aria-current="page"{% endif %}>Sorular</a>
+            <a href="{{ path('app_admin_tests') }}" {% if route starts with 'app_admin_test' %}aria-current="page"{% endif %}>Testler</a>
+            <a href="{{ path('app_teacher_classrooms') }}" {% if route starts with 'app_teacher_' %}aria-current="page"{% endif %}>Sınıflarım</a>
+            <a href="{{ path('app_account') }}">Hesabım</a>
+            <a href="{{ path('app_home') }}">Ana sayfa</a>
+        </nav>
+        <div class="site-header__actions">
+            <form method="post" action="{{ path('app_logout') }}" class="logout-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                <button type="submit" class="btn btn--ghost">Çıkış</button>
+            </form>
+        </div>
+        <button type="button" class="nav-toggle" data-mobile-nav-target="button" data-action="mobile-nav#toggle" aria-expanded="false" aria-controls="teacher-mobile-nav">
+            <span class="sr-only">Menüyü aç veya kapat</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M4 7h16v2H4V7zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/>
+            </svg>
+        </button>
+    </div>
+    <div id="teacher-mobile-nav" class="mobile-drawer" data-mobile-nav-target="drawer" data-action="click->mobile-nav#closeOnNavigate" hidden>
+        <nav aria-label="Mobil öğretmen menüsü">
+            <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+            <a href="{{ path('app_admin_questions') }}">Sorular</a>
+            <a href="{{ path('app_admin_tests') }}">Testler</a>
+            <a href="{{ path('app_teacher_classrooms') }}">Sınıflarım</a>
+            <a href="{{ path('app_account') }}">Hesabım</a>
+            <a href="{{ path('app_home') }}">Ana sayfa</a>
+        </nav>
+        <div class="mobile-drawer__actions">
+            <form method="post" action="{{ path('app_logout') }}" class="logout-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+                <button type="submit" class="btn btn--ghost btn--block">Çıkış</button>
+            </form>
+        </div>
+    </div>
+</header>

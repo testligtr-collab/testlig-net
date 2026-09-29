@@ -6,6 +6,7 @@ namespace App\Service\Admin;
 
 use App\Entity\User;
 use App\Presentation\AdminIconCatalog;
+use App\Presentation\WorkspaceRoleLabels;
 use App\Security\AdminAuthorization;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -33,7 +34,8 @@ final class AdminNavBuilder
      *     mobile_nav: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
      *     panel_role_label: string,
      *     display_name: string,
-     *     avatar_initials: string
+     *     avatar_initials: string,
+     *     workspace_shell: bool
      * }
      */
     public function build(User $actor): array
@@ -42,6 +44,7 @@ final class AdminNavBuilder
         $isSa = $this->adminAuthorization->canOperatePayments($actor);
         $canAudit = $this->adminAuthorization->canViewSecurityAudit($actor);
         $canShell = $this->adminAuthorization->canAccessAdminShell($actor);
+        $workspaceShell = !$canShell && $this->adminAuthorization->canViewLearningContentWorkspace($actor);
 
         $canUsers = $this->adminAuthorization->canViewUsers($actor);
         $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
@@ -92,9 +95,10 @@ final class AdminNavBuilder
             'nav_items' => $items,
             'nav_sections' => $this->sections($items),
             'mobile_nav' => $items,
-            'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : 'İçerik'),
+            'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : WorkspaceRoleLabels::content($actor->getRoles())),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
             'avatar_initials' => $this->initials($actor),
+            'workspace_shell' => $workspaceShell,
         ];
     }
 
