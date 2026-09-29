@@ -58,6 +58,7 @@ security:
         - { path: ^/hesabim, roles: ROLE_USER }
         - { path: ^/kurum, roles: ROLE_USER }
         - { path: ^/ogretmen, roles: ROLE_USER }
+        - { path: ^/calisma-alani, roles: ROLE_USER }
         - { path: ^/ogrenci, roles: ROLE_STUDENT }
         - { path: ^/veli, roles: ROLE_PARENT }
         - { path: ^/yonetim(?:/|$), roles: ROLE_USER }

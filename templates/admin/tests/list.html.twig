@@ -4,6 +4,10 @@
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
+        {% if workspace_shell|default(false) %}
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+        {% endif %}
         <span>Testler</span>
     </nav>
     <div class="admin-page-header">
