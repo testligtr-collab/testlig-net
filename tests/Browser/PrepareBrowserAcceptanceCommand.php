@@ -112,6 +112,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $superAdmin = $this->account('browser-sa@example.test', 'Deneme', 'Ust', UserRole::SuperAdmin);
         $admin = $this->account('browser-admin@example.test', 'Deneme', 'Yonetici', UserRole::Admin);
         $teacher = $this->account('browser-teacher@example.test', 'Deneme', 'Ogretmen', UserRole::Teacher);
+        $this->account('browser-moderator@example.test', 'Deneme', 'Moderator', UserRole::Moderator);
+        $this->account('browser-expert@example.test', 'Deneme', 'Uzman', UserRole::ExpertTeacher);
+        $this->account('browser-teacher-empty@example.test', 'Deneme', 'Bosogretmen', UserRole::Teacher);
         $student = $this->account('browser-student@example.test', 'Deneme', 'Ogrenci', UserRole::Student);
         $otherStudent = $this->account('browser-other@example.test', 'Deneme', 'Diger', UserRole::Student);
         $parent = $this->account('browser-parent@example.test', 'Deneme', 'Veli', UserRole::Parent);
@@ -201,6 +204,20 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_create',
         );
         $this->contents->submitForReview($review, $teacher, 'browser_submit');
+        $this->contents->createDraft(
+            $admin,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::TopicExplanation,
+            'browser_secret',
+            'Gizli admin taslagi',
+            null,
+            LearningContentDocument::paragraph('Gizli metin'),
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            'browser_create',
+        );
 
         $publishedQuestion = $this->questions->createDraftQuestion(
             $teacher,
@@ -299,6 +316,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $teacherMembership = $this->memberships->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'browser_create');
         $studentMembership = $this->memberships->addMember($institution, $owner, $student, InstitutionMembershipRole::Student, 'browser_create');
         $this->teacherAssignments->assign($classroom, $owner, $teacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_create');
+        $endedClassroom = $this->classrooms->create($year, $owner, 'Eski Sinif', GradeLevel::Grade1, 'browser_create', 'B', 24);
+        $endedAssignment = $this->teacherAssignments->assign($endedClassroom, $owner, $teacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_create');
+        $this->teacherAssignments->endAssignment($endedAssignment, $owner, 'browser_end');
         $this->enrollments->enroll($classroom, $owner, $studentMembership, 'browser_create');
 
         $issued = $this->parentLinks->issue($student);
@@ -310,6 +330,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'superadmin' => 'browser-sa@example.test',
                 'admin' => 'browser-admin@example.test',
                 'teacher' => 'browser-teacher@example.test',
+                'moderator' => 'browser-moderator@example.test',
+                'expert' => 'browser-expert@example.test',
+                'emptyTeacher' => 'browser-teacher-empty@example.test',
                 'student' => 'browser-student@example.test',
                 'otherStudent' => 'browser-other@example.test',
                 'parent' => 'browser-parent@example.test',
@@ -325,6 +348,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'classroomName' => 'Sinif A',
                 'contentTitle' => 'Toplama anlatimi',
                 'testTitle' => 'Toplama testi',
+                'foreignTitle' => 'Gizli admin taslagi',
+                'endedClassroom' => 'Eski Sinif',
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

@@ -23,6 +23,7 @@ final class AdminIconCatalog
         'learning_contents',
         'questions',
         'tests',
+        'classrooms',
         'payments',
         'webhooks',
         'reconciliations',

@@ -24,6 +24,7 @@ final class AdminNavBuilder
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly RequestStack $requestStack,
         private readonly AdminIconCatalog $icons,
+        private readonly ContentWorkspaceSummary $workspaceSummary,
     ) {
     }
 
@@ -44,7 +45,9 @@ final class AdminNavBuilder
         $isSa = $this->adminAuthorization->canOperatePayments($actor);
         $canAudit = $this->adminAuthorization->canViewSecurityAudit($actor);
         $canShell = $this->adminAuthorization->canAccessAdminShell($actor);
-        $workspaceShell = !$canShell && $this->adminAuthorization->canViewLearningContentWorkspace($actor);
+        $canContent = $this->adminAuthorization->canViewLearningContentWorkspace($actor);
+        $classroomCount = $this->workspaceSummary->activeClassroomCount($actor);
+        $workspaceShell = !$canShell && ($canContent || $classroomCount > 0);
 
         $canUsers = $this->adminAuthorization->canViewUsers($actor);
         $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
@@ -53,8 +56,8 @@ final class AdminNavBuilder
         if ($canShell) {
             $items[] = $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath);
             $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
-        } elseif ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
-            $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_account', $currentPath);
+        } elseif ($workspaceShell) {
+            $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_workspace_dashboard', $currentPath);
         }
 
         if ($canUsers) {
@@ -78,6 +81,9 @@ final class AdminNavBuilder
 
         if ($this->adminAuthorization->canViewTestBank($actor)) {
             $items[] = $this->item('tests', 'Testler', 'app_admin_tests', $currentPath, '/yonetim/testler');
+        }
+        if ($classroomCount > 0) {
+            $items[] = $this->item('classrooms', 'Sınıflarım', 'app_teacher_classrooms', $currentPath, '/ogretmen/siniflarim');
         }
 
         if ($isSa) {
@@ -120,7 +126,7 @@ final class AdminNavBuilder
         $groups = [
             ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
             ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'institutions']],
-            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests']],
+            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms']],
             ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
         ];
 

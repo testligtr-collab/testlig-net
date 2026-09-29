@@ -10,7 +10,7 @@ Sunucu `php -S 127.0.0.1:8080 -t public browser/router.php` ile localhost’a ba
 
 ## Sentetik roller
 
-Bir SuperAdmin, bir platform Admin, bir Teacher, bir Student, bir ikinci Student (opak sonuç), bir Parent, bir Institution Owner. Parola mevcut PHP test parolasıyla aynıdır ve komut çıktısına yazılmaz. Aktif okul, dönem, sınıf, öğretmen ataması ve öğrenci kaydı vardır. Yayımlanmış Matematik katalog zinciri sentetik bir kazanıma bağlıdır; resmi kazanım kodu icat edilmez. Yayımlanmış içerikte başlık, paragraf, liste, callout, alıntı, matematik, YouTube gizlilik videosu ve onaylı PDF vardır. Bir yayımlanmış platform testi ve bir taslak soru vardır.
+Bir SuperAdmin, bir platform Admin, bir Teacher, bir boş Teacher, bir ExpertTeacher, bir Moderator, bir Student, bir ikinci Student (opak sonuç), bir Parent, bir Institution Owner. Parola mevcut PHP test parolasıyla aynıdır ve komut çıktısına yazılmaz. Aktif okul, dönem, sınıf, öğretmen ataması ve öğrenci kaydı vardır. Yayımlanmış Matematik katalog zinciri sentetik bir kazanıma bağlıdır; resmi kazanım kodu icat edilmez. Yayımlanmış içerikte başlık, paragraf, liste, callout, alıntı, matematik, YouTube gizlilik videosu ve onaylı PDF vardır. Bir yayımlanmış platform testi ve bir taslak soru vardır.
 
 Veli bağlantısı komut içinde kurulur. Düz bağlantı kodu manifestte tutulmaz.
 
@@ -18,7 +18,7 @@ Veli bağlantısı komut içinde kurulur. Düz bağlantı kodu manifestte tutulm
 
 Herkese açık `/`, dört yasal sayfa, `/giris`, `/kayit` ve `/kayit/ogrenci`. Teacher, Student ve SuperAdmin girişleri ayrı Chromium context’lerindedir. Placeholder CSRF submit sırasında uzun değere döner. Cookie’siz eski token girişi hesap açmaz. Çıkış POST formudur. `GET /cikis` çıkış yapmaz.
 
-Öğrenci ve veli kabuğu `docs/student-parent-ui-guidelines.md` içindedir. Öğretmen ve kurum kabuğu `docs/teacher-institution-ui-guidelines.md` içindedir. Öğrenci panel, ders listesi, ders, ünite, konu, test listesi, çözme, sonuç, geçmiş ve profil sentetik görüntülerdedir. Veli özeti, kod formu ve bağlantısız veli ekranı da öyledir. Kod görüntüye yazılmaz. Öğretmen çalışma alanı, içerik, sürüm, soru, test ve sınıflar; kurum özeti, sınıf, davet ve test listesi aynı turdadır.
+Öğrenci ve veli kabuğu `docs/student-parent-ui-guidelines.md` içindedir. Öğretmen ve kurum kabuğu `docs/teacher-institution-ui-guidelines.md` içindedir. Öğrenci panel, ders listesi, ders, ünite, konu, test listesi, çözme, sonuç, geçmiş ve profil sentetik görüntülerdedir. Veli özeti, kod formu ve bağlantısız veli ekranı da öyledir. Kod görüntüye yazılmaz. Öğretmen `/calisma-alani` özeti 360, 768 ve 1280 genişliğindedir. Moderator, ExpertTeacher ve boş öğretmen özeti aynı turdadır. İçerik, soru ve test menüsü; kurum özeti, sınıf, davet ve test listesi de öyledir. Sonlanmış sınıf sayılmaz. Başka kullanıcının taslak başlığı görünmez.
 
 Öğrenci panel, ders zinciri, tip bloklar, PDF kartı ve video iframe’i. Video isteği `youtube-nocookie` ve `player.vimeo.com` için kesilir. Öğrenci bir testi başlatır, seçenek işaretler, kaydeder, onay kutusunu işaretler, bitirir, sonuç ve geçmişi görür. Çözmeden önce cevap anahtarı ve teknik anahtar yoktur. Kayıtlı `Manual` yayın politikası skorlu sonuç okuyucusunu henüz kapatmaz; biten denemenin sonuç sayfası ürünün bugünkü skorlu görünümüdür. Başka öğrencinin sonuç adresi 404’tür.
 

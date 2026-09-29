@@ -31,5 +31,11 @@ final class WorkspaceRoleLabelsTest extends TestCase
         $admin = (string) file_get_contents($root.'/templates/admin/layout.html.twig');
         self::assertStringContainsString('styles/workspace.css', $admin);
         self::assertStringNotContainsString('ROLE_', $admin);
+        $home = (string) file_get_contents($root.'/templates/admin/workspace_dashboard.html.twig');
+        self::assertStringNotContainsString('ROLE_', $home);
+        self::assertStringNotContainsString('is_granted', $home);
+        $nav = (string) file_get_contents($root.'/src/Service/Admin/AdminNavBuilder.php');
+        self::assertStringContainsString('app_workspace_dashboard', $nav);
+        self::assertStringContainsString('app_admin_dashboard', $nav);
     }
 }

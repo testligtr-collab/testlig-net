@@ -14,11 +14,22 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    const workspace = await page.goto('/yonetim/icerikler');
+    const workspace = await page.goto('/calisma-alani');
     expect(workspace?.headers()['cache-control'] ?? '').toContain('no-store');
     expect(workspace?.headers()['x-robots-tag'] ?? '').toContain('noindex');
+    expect(workspace?.headers()['x-frame-options'] ?? '').toBe('DENY');
+    expect(workspace?.headers()['x-content-type-options'] ?? '').toBe('nosniff');
+    expect(workspace?.headers()['content-security-policy'] ?? '').toContain("default-src 'self'");
+    expect(workspace?.headers()['referrer-policy'] ?? '').toBe('no-referrer');
     await expect(page.locator('.panel-role')).toHaveText('Öğretmen');
+    await expect(page.getByRole('heading', { level: 1, name: 'Çalışma alanı' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Ödemeler' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Yayımla' })).toHaveCount(0);
+    await expect(page.locator('#review-queue')).toHaveCount(0);
+    await expect(page.locator('[data-metric="drafts"] .workspace-metric__value')).toHaveText('1');
+    await expect(page.locator('[data-metric="classrooms"] .workspace-metric__value')).toHaveText('1');
+    await expect(page.getByText(data.paths.foreignTitle)).toHaveCount(0);
+    await expect(page.getByText(data.paths.endedClassroom)).toHaveCount(0);
     await assertLayout(page);
     await shot(page, info, 'teacher', 'calisma-alani', viewport.name);
     if (viewport.width === 360) {
@@ -78,6 +89,9 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await expect(options).toHaveCount(optionCount);
   await expect(page.getByText('correctStableKey')).toHaveCount(0);
 
+  await page.goto('/yonetim/icerikler');
+  await expect(page.getByRole('link', { name: 'Çalışma alanı' }).first()).toBeVisible();
+  await shot(page, info, 'teacher', 'icerikler', '1280');
   await page.goto('/yonetim/sorular');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await shot(page, info, 'teacher', 'sorular', '1280');

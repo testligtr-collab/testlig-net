@@ -293,6 +293,21 @@ final class AdminAuthorization
             ]);
     }
 
+    /**
+     * Review and return match the learning-content voter. Plain Teacher is excluded.
+     */
+    public function canReviewLearningContent(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+            && $this->hasAnyRole($actor, [
+                UserRole::SuperAdmin,
+                UserRole::Admin,
+                UserRole::HeadTeacher,
+                UserRole::ExpertTeacher,
+                UserRole::Moderator,
+            ]);
+    }
+
     public function canViewQuestionBank(User $actor): bool
     {
         return $this->canViewLearningContentWorkspace($actor);

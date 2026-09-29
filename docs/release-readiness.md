@@ -19,6 +19,7 @@ Route’lar `src` içindeki `#[Route]` ve `name:` değerlerinden, erişim `confi
 | `^/ogrenci` | `ROLE_STUDENT` | `/giris` | POST | no-store, noindex, no-referrer |
 | `^/veli` | `ROLE_PARENT` | `/giris` | POST | no-store, noindex, no-referrer |
 | `^/yonetim` | `ROLE_USER`; panel kapısı controller/voter | `/giris` | POST | no-store, noindex, no-referrer |
+| `^/calisma-alani` | `ROLE_USER`; içerik yetkisi veya aktif sınıf ataması | `/giris` | çıkış POST; sayfa salt GET | no-store, noindex, no-referrer |
 | `^/health` | herkese açık | 200 yerel | yok | nosniff |
 | `^/webhook/odeme/...` | herkese açık, yalnız POST | imza | ödeme imzası | nosniff |
 

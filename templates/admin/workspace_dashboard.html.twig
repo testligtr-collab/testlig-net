@@ -1,0 +1,90 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Çalışma alanı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <span>Çalışma alanı</span>
+    </nav>
+    <header class="workspace-header">
+        <p class="workspace-initials" aria-hidden="true">{{ avatar_initials }}</p>
+        <div>
+            <h1 class="panel-greeting">Çalışma alanı</h1>
+            <p class="muted">Merhaba, {{ display_name }}</p>
+            <p>{{ panel_role_label }}</p>
+            <p>{{ home.intro }}</p>
+        </div>
+    </header>
+
+    <section class="admin-section" aria-labelledby="workspace-summary-heading">
+        <h2 id="workspace-summary-heading">Özet</h2>
+        <div class="workspace-metrics workspace-metrics--home admin-metric-grid">
+            {% for card in home.cards %}
+                {% if card.href %}
+                    <a class="workspace-metric admin-metric admin-metric--link" href="{{ card.href }}" data-metric="{{ card.key }}">
+                        <h3>{{ card.label }}</h3>
+                        <p class="workspace-metric__value">{{ card.value }}</p>
+                        <p class="workspace-metric__hint">{{ card.hint }}</p>
+                    </a>
+                {% else %}
+                    <div class="workspace-metric admin-metric" data-metric="{{ card.key }}">
+                        <h3>{{ card.label }}</h3>
+                        <p class="workspace-metric__value">{{ card.value }}</p>
+                        <p class="workspace-metric__hint">{{ card.hint }}</p>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+
+    {% if home.actions is not empty %}
+        <section class="admin-section" aria-labelledby="workspace-actions-heading">
+            <h2 id="workspace-actions-heading">Hızlı işlemler</h2>
+            <div class="workspace-actions">
+                {% for action in home.actions %}
+                    <a class="btn btn--cta" href="{{ action.href }}">{{ action.label }}</a>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
+    {% if home.showContent %}
+        <section class="admin-section" aria-labelledby="workspace-recent-heading">
+            <h2 id="workspace-recent-heading">Son güncellediğim içerikler</h2>
+            {% if home.recent is empty %}
+                {% include 'components/empty_state.html.twig' with { title: 'Güncel içerik yok', body: 'Sahibi olduğunuz güncellenmiş bir içerik yok.' } %}
+            {% else %}
+                <ul class="workspace-list">
+                    {% for item in home.recent %}
+                        <li>
+                            <a href="{{ item.href }}">{{ item.title }}</a>
+                            <span>{{ item.kind }}</span>
+                            <span class="ws-badge">{{ item.status }}</span>
+                            <time>{{ item.updatedAt }}</time>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+    {% endif %}
+
+    {% if home.showContent %}
+        <section class="admin-section" {% if home.canReview %}id="review-queue"{% endif %} aria-labelledby="workspace-pending-heading">
+            <h2 id="workspace-pending-heading">İşlem bekleyenler</h2>
+            {% if home.pending is empty %}
+                {% include 'components/empty_state.html.twig' with { title: 'Bekleyen işlem yok', body: 'Şu anda işlem alabileceğiniz bir kayıt yok.' } %}
+            {% else %}
+                <ul class="workspace-list">
+                    {% for item in home.pending %}
+                        <li>
+                            <a href="{{ item.href }}">{{ item.title }}</a>
+                            <span>{{ item.kind }}</span>
+                            <span class="ws-badge">{{ item.status }}</span>
+                            <time>{{ item.updatedAt }}</time>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}

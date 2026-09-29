@@ -66,6 +66,24 @@ final class MembershipClassroomLinkLifecycleTest extends KernelTestCase
         self::assertSame(InstitutionMembershipStatus::Active, $tm->getStatus());
     }
 
+    public function testWorkspaceCountKeepsOnlyTheActiveClassroomAssignment(): void
+    {
+        [$owner, , $institution, , $classroom] = $this->readyClassroom('ws-asg');
+        $membership = $this->addTeacher($institution, $owner, 'ws-asg-t@example.com');
+        $teacherId = $membership->getUser()->getId();
+        $assignment = $this->teacherManager()->assign($classroom, $owner, $membership, TeacherAssignmentRole::HomeroomTeacher, 'asg');
+        $summary = $this->workspaceSummary();
+        $teacher = $this->users->find($teacherId);
+        self::assertInstanceOf(User::class, $teacher);
+        self::assertSame(1, $summary->activeClassroomCount($teacher));
+
+        $this->teacherManager()->endAssignment($assignment, $owner, 'end_asg');
+        $this->resetDoctrine();
+        $teacher = $this->users->find($teacherId);
+        self::assertInstanceOf(User::class, $teacher);
+        self::assertSame(0, $this->workspaceSummary()->activeClassroomCount($teacher));
+    }
+
     public function testStudentToStaffBlockedWithActiveEnrollment(): void
     {
         [$owner, , $institution, , $classroom] = $this->readyClassroom('ml-stu-role');
@@ -353,6 +371,14 @@ final class MembershipClassroomLinkLifecycleTest extends KernelTestCase
     {
         $service = static::getContainer()->get(ClassroomManager::class);
         self::assertInstanceOf(ClassroomManager::class, $service);
+
+        return $service;
+    }
+
+    private function workspaceSummary(): \App\Service\Admin\ContentWorkspaceSummary
+    {
+        $service = static::getContainer()->get(\App\Service\Admin\ContentWorkspaceSummary::class);
+        self::assertInstanceOf(\App\Service\Admin\ContentWorkspaceSummary::class, $service);
 
         return $service;
     }
