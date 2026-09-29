@@ -115,6 +115,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $student = $this->account('browser-student@example.test', 'Deneme', 'Ogrenci', UserRole::Student);
         $otherStudent = $this->account('browser-other@example.test', 'Deneme', 'Diger', UserRole::Student);
         $parent = $this->account('browser-parent@example.test', 'Deneme', 'Veli', UserRole::Parent);
+        $this->account('browser-parent-empty@example.test', 'Deneme', 'Bos', UserRole::Parent);
         $owner = $this->account('browser-owner@example.test', 'Deneme', 'Sahip', UserRole::InstitutionManager);
 
         $this->profiles->completeOnboarding($student, $this->profile(GradeLevel::Grade1));
@@ -312,6 +313,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'student' => 'browser-student@example.test',
                 'otherStudent' => 'browser-other@example.test',
                 'parent' => 'browser-parent@example.test',
+                'parentUnlinked' => 'browser-parent-empty@example.test',
                 'owner' => 'browser-owner@example.test',
             ],
             'paths' => [

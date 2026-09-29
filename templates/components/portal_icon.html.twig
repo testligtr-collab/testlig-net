@@ -1,0 +1,19 @@
+{% set name = icon|default('default') %}
+{% set allowed = ['courses', 'tests', 'history', 'default'] %}
+{% if name not in allowed %}
+    {% set name = 'default' %}
+{% endif %}
+<svg class="portal-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    {% if name == 'courses' %}
+        <path d="M5 6.5h5.5A2.5 2.5 0 0 1 13 9v9.5H7.5A2.5 2.5 0 0 0 5 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M19 6.5h-5.5A2.5 2.5 0 0 0 11 9v9.5h5.5A2.5 2.5 0 0 0 19 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'tests' %}
+        <rect x="5" y="4.5" width="14" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8.5 12l2 2 4.5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    {% elseif name == 'history' %}
+        <circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12 8v4.5l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    {% else %}
+        <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% endif %}
+</svg>

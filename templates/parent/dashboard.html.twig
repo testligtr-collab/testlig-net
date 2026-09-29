@@ -3,10 +3,13 @@
 {% block title %}Panel — Veli — Testlig{% endblock %}
 
 {% block parent_content %}
-<section>
-    <h1>Merhaba, {{ parent_name }}</h1>
-    <p class="muted">Bağlı çocuklarının özeti. Başka bir öğrencinin bilgisi burada görünmez.</p>
-    <p><a class="btn btn--cta" href="{{ path('app_parent_link') }}">Bağlantı kodunu gir</a></p>
+<section class="portal-hello">
+    <div>
+        <p class="portal-role">Veli</p>
+        <h1>Merhaba, {{ parent_name }}</h1>
+        <p class="muted">Bağlı çocuklarının özeti. Başka bir öğrencinin bilgisi burada görünmez.</p>
+        <p><a class="btn btn--cta" href="{{ path('app_parent_link') }}">Bağlantı kodunu gir</a></p>
+    </div>
 </section>
 <div class="student-card-grid">
     {% for child in children %}

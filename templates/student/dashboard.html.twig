@@ -4,9 +4,14 @@
 
 {% block student_content %}
 <section class="student-dashboard">
-    <header class="student-dashboard__header">
-        <h1 class="panel-greeting">Merhaba, {{ user.firstName }}</h1>
-        <p class="student-grade">{{ profile.gradeLevel.value }}. sınıf</p>
+    <header class="student-dashboard__header portal-hello">
+        <span class="portal-initials" aria-hidden="true">{{ user.firstName|slice(0, 1)|upper }}</span>
+        <div>
+            <p class="portal-role">Öğrenci</p>
+            <h1 class="panel-greeting">Merhaba, {{ user.firstName }}</h1>
+            <p class="student-grade">{{ profile.gradeLevel.value }}. sınıf</p>
+            <p class="muted">Yayımlanan ders ve testlerden devam edebilirsin.</p>
+        </div>
     </header>
 
     <section class="student-section" aria-labelledby="continue-heading">
@@ -24,6 +29,8 @@
                 {% if not link.soon and link.href %}
                     <li>
                         <a class="student-quick-card" href="{{ link.href }}">
+                            {% set icon = link.label == 'Dersler' ? 'courses' : (link.label == 'Testler' ? 'tests' : (link.label == 'Test geçmişim' ? 'history' : 'default')) %}
+                            {% include 'components/portal_icon.html.twig' with { icon: icon } only %}
                             <span class="student-quick-card__label">{{ link.label }}</span>
                         </a>
                     </li>
