@@ -1,4 +1,4 @@
-{# Student-safe typed blocks. Autoescape on; never |raw. #}
+{# Student-safe typed blocks. Autoescape stays on. #}
 {% for block in blocks %}
     {% if block.type == 'heading' %}
         {% if block.level == 1 %}
@@ -29,7 +29,10 @@
     {% elseif block.type == 'math' %}
         <p class="student-content-math"><code>{{ block.latex }}</code></p>
     {% elseif block.type == 'callout' %}
-        <aside class="student-content-callout student-content-callout--{{ block.variant }}" role="note">
+        {% set tone = block.variant in ['info', 'warning', 'tip', 'note'] ? block.variant : 'info' %}
+        {% set tone_label = tone == 'warning' ? 'Uyarı' : (tone == 'tip' ? 'İpucu' : (tone == 'note' ? 'Not' : 'Bilgi')) %}
+        <aside class="student-content-callout student-content-callout--{{ tone }}" role="note">
+            <p class="student-content-callout__label">{{ tone_label }}</p>
             {% include 'student/content/_blocks.html.twig' with {blocks: block.children} only %}
         </aside>
     {% elseif block.type == 'video' %}
