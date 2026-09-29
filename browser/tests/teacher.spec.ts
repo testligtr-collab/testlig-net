@@ -6,6 +6,7 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await watch(page);
   const data = manifest();
   await login(page, data.users.teacher);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/hesabim');
   await expect(page).toHaveURL(/\/hesabim$/);
   const shell = await page.request.get('/yonetim');
@@ -13,14 +14,26 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    await page.goto('/yonetim/icerikler');
+    const workspace = await page.goto('/yonetim/icerikler');
+    expect(workspace?.headers()['cache-control'] ?? '').toContain('no-store');
+    expect(workspace?.headers()['x-robots-tag'] ?? '').toContain('noindex');
+    await expect(page.locator('.panel-role')).toHaveText('Öğretmen');
+    await expect(page.getByRole('link', { name: 'Ödemeler' })).toHaveCount(0);
     await assertLayout(page);
     await shot(page, info, 'teacher', 'calisma-alani', viewport.name);
+    if (viewport.width === 360) {
+      const toggle = page.getByRole('button', { name: 'Menü', exact: true });
+      await toggle.click();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await page.keyboard.press('Escape');
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    }
   }
 
   await page.goto(data.paths.reviewDetail);
   await expect(page.getByRole('button', { name: 'Yayımla' })).toHaveCount(0);
   await expect(page.getByText('Yayın bekleniyor')).toBeVisible();
+  await shot(page, info, 'teacher', 'icerik', '1280');
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
@@ -56,6 +69,7 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await expect(page.getByLabel('Gerekçe kodu')).toHaveCount(0);
 
   await page.goto(data.paths.questionEdit);
+  await shot(page, info, 'teacher', 'soru', '1280');
   const options = page.locator('.option-row');
   const optionCount = await options.count();
   await page.locator('#add-option').click();
@@ -66,7 +80,13 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
 
   await page.goto('/yonetim/sorular');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await shot(page, info, 'teacher', 'sorular', '1280');
   await page.goto('/yonetim/testler');
   await expect(page.getByText(data.paths.testTitle)).toBeVisible();
+  await shot(page, info, 'teacher', 'testler', '1280');
+  await page.goto('/ogretmen/siniflarim');
+  await expect(page.getByRole('heading', { level: 1, name: 'Sınıflarım' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ödemeler' })).toHaveCount(0);
+  await shot(page, info, 'teacher', 'siniflar', '1280');
   await assertClean(page);
 });

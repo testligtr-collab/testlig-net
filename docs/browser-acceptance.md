@@ -18,7 +18,7 @@ Veli bağlantısı komut içinde kurulur. Düz bağlantı kodu manifestte tutulm
 
 Herkese açık `/`, dört yasal sayfa, `/giris`, `/kayit` ve `/kayit/ogrenci`. Teacher, Student ve SuperAdmin girişleri ayrı Chromium context’lerindedir. Placeholder CSRF submit sırasında uzun değere döner. Cookie’siz eski token girişi hesap açmaz. Çıkış POST formudur. `GET /cikis` çıkış yapmaz.
 
-Öğrenci ve veli kabuğu `docs/student-parent-ui-guidelines.md` içindedir. Öğrenci panel, ders listesi, ders, ünite, konu, test listesi, çözme, sonuç, geçmiş ve profil sentetik görüntülerdedir. Veli özeti, kod formu ve bağlantısız veli ekranı da öyledir. Kod görüntüye yazılmaz.
+Öğrenci ve veli kabuğu `docs/student-parent-ui-guidelines.md` içindedir. Öğretmen ve kurum kabuğu `docs/teacher-institution-ui-guidelines.md` içindedir. Öğrenci panel, ders listesi, ders, ünite, konu, test listesi, çözme, sonuç, geçmiş ve profil sentetik görüntülerdedir. Veli özeti, kod formu ve bağlantısız veli ekranı da öyledir. Kod görüntüye yazılmaz. Öğretmen çalışma alanı, içerik, sürüm, soru, test ve sınıflar; kurum özeti, sınıf, davet ve test listesi aynı turdadır.
 
 Öğrenci panel, ders zinciri, tip bloklar, PDF kartı ve video iframe’i. Video isteği `youtube-nocookie` ve `player.vimeo.com` için kesilir. Öğrenci bir testi başlatır, seçenek işaretler, kaydeder, onay kutusunu işaretler, bitirir, sonuç ve geçmişi görür. Çözmeden önce cevap anahtarı ve teknik anahtar yoktur. Kayıtlı `Manual` yayın politikası skorlu sonuç okuyucusunu henüz kapatmaz; biten denemenin sonuç sayfası ürünün bugünkü skorlu görünümüdür. Başka öğrencinin sonuç adresi 404’tür.
 
