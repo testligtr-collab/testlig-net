@@ -1,0 +1,220 @@
+/* Teacher and institution workspace. Not loaded by the admin shell. */
+
+body.is-workspace {
+    background: #eef3f8;
+}
+
+.is-workspace .workspace-page,
+.is-workspace .panel-content {
+    box-sizing: border-box;
+    width: min(72rem, calc(100% - 2rem));
+    margin: 0 auto;
+    padding-bottom: 2rem;
+}
+
+.is-workspace .panel-content {
+    width: min(72rem, 100%);
+    padding: 1.25rem 1rem 2rem;
+}
+
+.is-workspace .workspace-header {
+    background: #fff;
+    border-bottom: 1px solid var(--tl-border);
+}
+
+.is-workspace .workspace-header .site-nav a,
+.is-workspace .mobile-drawer a,
+.is-workspace .nav-toggle,
+.is-workspace .workspace-header .btn,
+.is-workspace .panel-nav-link,
+.is-workspace .admin-menu-btn {
+    min-height: 2.75rem;
+}
+
+.is-workspace .workspace-header .site-nav a[aria-current="page"] {
+    background: var(--tl-brand-soft);
+    color: var(--tl-brand-strong);
+    font-weight: 600;
+}
+
+.is-workspace .workspace-context {
+    min-width: 0;
+}
+
+.is-workspace .workspace-context__name,
+.is-workspace .workspace-context__role,
+.is-workspace .admin-sidebar__context,
+.is-workspace .panel-role {
+    margin: 0;
+}
+
+.is-workspace .workspace-context__role,
+.is-workspace .panel-role,
+.is-workspace .admin-sidebar__context {
+    color: var(--tl-ink-muted);
+    font-size: 0.8125rem;
+    font-weight: 700;
+}
+
+.is-workspace .panel-sidebar,
+.is-workspace .panel-main,
+.is-workspace .panel-topbar,
+.is-workspace .workspace-metric,
+.is-workspace .workspace-card,
+.is-workspace .student-form-card,
+.is-workspace .empty-state,
+.is-workspace .admin-table-wrap,
+.is-workspace fieldset.admin-section {
+    background: #fff;
+}
+
+.is-workspace .panel-sidebar {
+    border-right: 1px solid var(--tl-border);
+}
+
+.is-workspace .workspace-metrics,
+.is-workspace .student-card-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.is-workspace .workspace-metric {
+    padding: 1rem;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace .workspace-metric h3 {
+    margin: 0;
+    color: var(--tl-ink-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.is-workspace .workspace-metric p {
+    margin: 0.35rem 0 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.is-workspace .student-form-card,
+.is-workspace .workspace-card {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace h1,
+.is-workspace .panel-greeting {
+    margin: 0 0 0.5rem;
+    font-family: var(--tl-font-sans);
+    font-size: 1.6rem;
+    line-height: 1.25;
+}
+
+.is-workspace .admin-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.is-workspace .admin-breadcrumb,
+.is-workspace .workspace-footer ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    list-style: none;
+}
+
+.is-workspace .admin-table-wrap,
+.is-workspace .table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace .admin-filters {
+    display: grid;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.is-workspace .admin-filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.is-workspace input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.is-workspace select,
+.is-workspace textarea,
+.is-workspace .btn {
+    min-height: 2.75rem;
+}
+
+.is-workspace textarea {
+    min-height: 6rem;
+}
+
+.is-workspace .btn--primary,
+.is-workspace .btn--cta {
+    background: var(--tl-cta);
+    color: #fff;
+}
+
+.is-workspace .btn--primary:hover,
+.is-workspace .btn--primary:focus-visible,
+.is-workspace .btn--cta:hover,
+.is-workspace .btn--cta:focus-visible {
+    background: var(--tl-cta-strong);
+    color: #fff;
+}
+
+.is-workspace .workspace-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+    align-items: center;
+    width: min(72rem, calc(100% - 2rem));
+    margin: 0 auto 2rem;
+    color: var(--tl-ink-muted);
+}
+
+.is-workspace .workspace-footer ul {
+    margin: 0;
+}
+
+@media (min-width: 768px) {
+    .is-workspace .workspace-metrics,
+    .is-workspace .student-card-grid,
+    .is-workspace .admin-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1280px) {
+    .is-workspace .workspace-metrics,
+    .is-workspace .student-card-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .is-workspace .panel-sidebar,
+    .is-workspace .mobile-drawer,
+    .is-workspace .admin-metric--link {
+        transition: none;
+    }
+}

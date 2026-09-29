@@ -1,7 +1,7 @@
-<aside id="panel-sidebar" class="panel-sidebar" aria-label="Yönetim menüsü">
+<aside id="panel-sidebar" class="panel-sidebar" aria-label="{{ workspace_shell|default(false) ? 'Çalışma alanı menüsü' : 'Yönetim menüsü' }}">
     <div class="admin-sidebar__brand">
-        {% include 'components/brand.html.twig' with { href: path('app_home') } only %}
-        <p class="admin-sidebar__context">Yönetim</p>
+        {% include 'components/brand.html.twig' with { href: (workspace_shell|default(false) ? path('app_admin_learning_contents') : path('app_home')) } only %}
+        <p class="admin-sidebar__context">{{ workspace_shell|default(false) ? 'Çalışma alanı' : 'Yönetim' }}</p>
     </div>
     <div class="admin-sidebar__user">
         {% include 'components/avatar.html.twig' with { initials: avatar_initials } only %}

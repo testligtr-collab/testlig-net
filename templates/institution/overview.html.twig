@@ -20,12 +20,12 @@
 </section>
 <section aria-labelledby="institution-summary-title">
     <h2 id="institution-summary-title">Özet</h2>
-    <div class="student-card-grid">
-        <article class="student-form-card"><h3>Aktif öğretmen</h3><p>{{ overview.activeTeacherCount }}</p></article>
-        <article class="student-form-card"><h3>Aktif öğrenci</h3><p>{{ overview.activeStudentCount }}</p></article>
-        <article class="student-form-card"><h3>Sınıf</h3><p>{{ overview.classroomCount }}</p></article>
-        <article class="student-form-card"><h3>Yayımlanmış kurum testi</h3><p>{{ overview.publishedTestCount }}</p></article>
-        <article class="student-form-card"><h3>Devam eden teslimat</h3><p>{{ overview.activeDeliveryCount }}</p></article>
+    <div class="student-card-grid workspace-metrics">
+        <article class="workspace-metric"><h3>Aktif öğretmen</h3><p>{{ overview.activeTeacherCount }}</p></article>
+        <article class="workspace-metric"><h3>Aktif öğrenci</h3><p>{{ overview.activeStudentCount }}</p></article>
+        <article class="workspace-metric"><h3>Sınıf</h3><p>{{ overview.classroomCount }}</p></article>
+        <article class="workspace-metric"><h3>Yayımlanmış kurum testi</h3><p>{{ overview.publishedTestCount }}</p></article>
+        <article class="workspace-metric"><h3>Devam eden teslimat</h3><p>{{ overview.activeDeliveryCount }}</p></article>
     </div>
 </section>
 {% endblock %}

@@ -2,15 +2,16 @@
 
 {% block title %}Kurum seçin — Testlig{% endblock %}
 
-{% block body_class %}is-student-surface{% endblock %}
+{% block body_class %}is-workspace{% endblock %}
 
 {% block stylesheets %}
     <meta name="robots" content="noindex, nofollow">
     {{ parent() }}
+    <link rel="stylesheet" href="{{ mapped_asset('styles/workspace.css') }}">
 {% endblock %}
 
 {% block body %}
-<div class="student-page">
+<div class="workspace-page">
     <section class="student-form-card">
         <h1>Kurum seçin</h1>
         <p>Birden fazla kurum üyeliğiniz var. Çalışma alanı yalnız seçtiğiniz kurumu gösterir.</p>

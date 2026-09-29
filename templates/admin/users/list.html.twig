@@ -22,7 +22,7 @@
         'ROLE_SUPER_ADMIN': 'Süper Yönetici'
     } %}
     <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_dashboard') }}">Yönetim</a>
+        {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
         <span>Kullanıcılar</span>
     </nav>

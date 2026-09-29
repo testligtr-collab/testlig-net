@@ -24,6 +24,21 @@ test('institution owner and assigned teacher stay inside their classroom', async
     }
     await shot(page, info, 'owner', 'kurum', viewport.name);
   }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/kurum/siniflar');
+  await shot(page, info, 'owner', 'siniflar', '1280');
+  await page.getByRole('link', { name: data.paths.classroomName }).first().click();
+  await shot(page, info, 'owner', 'sinif', '1280');
+  await page.goto('/kurum/ogretmenler');
+  await shot(page, info, 'owner', 'ogretmenler', '1280');
+  await page.goto('/kurum/ogretmenler/davet');
+  await expect(page.getByLabel('Öğretmen e-postası')).toBeVisible();
+  await expect(page.locator('#invite-email')).toHaveValue('');
+  await shot(page, info, 'owner', 'davet', '1280');
+  await page.goto('/kurum/ogrenciler');
+  await shot(page, info, 'owner', 'ogrenciler', '1280');
+  await page.goto('/kurum/testler');
+  await shot(page, info, 'owner', 'testler', '1280');
   await assertClean(page);
   const missing = await page.goto('/kurum/siniflar/bbbbbbbbbbbbbbbbbbbb');
   expect(missing?.status()).toBe(404);

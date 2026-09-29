@@ -9,15 +9,20 @@
 {% endblock %}
 
 {% block site_chrome %}
-    {% include 'institution/_header.html.twig' %}
+    {% include 'teacher/_header.html.twig' %}
 {% endblock %}
 
 {% block site_footer %}
-    {% include 'parent/_footer.html.twig' %}
+    <footer class="workspace-footer">
+        <p>Testlig</p>
+        <nav aria-label="Yasal">
+            {% include 'legal/_links.html.twig' %}
+        </nav>
+    </footer>
 {% endblock %}
 
 {% block body %}
     <div class="workspace-page">
-        {% block institution_content %}{% endblock %}
+        {% block teacher_content %}{% endblock %}
     </div>
 {% endblock %}
