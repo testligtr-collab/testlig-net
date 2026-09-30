@@ -48,21 +48,23 @@
                     >Menü</button>
                     {% block panel_breadcrumb %}{% endblock %}
                 </div>
-                <div class="admin-search">
-                    <label>
-                        <span class="sr-only">Arama şu an kapalı</span>
-                        <input type="search" placeholder="Kullanıcı, kurum veya içerik ara…" disabled autocomplete="off">
-                    </label>
-                </div>
-                <div class="admin-topbar-tools">
-                    <button type="button" class="admin-icon-btn" disabled title="Bildirimler henüz yok">
-                        <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                            <path d="M6 9.5a6 6 0 0 1 12 0c0 4 1.2 5.5 1.2 5.5H4.8S6 13.5 6 9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                            <path d="M10 18a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        </svg>
-                        <span class="sr-only">Bildirimler henüz yok</span>
-                    </button>
-                    <p class="admin-topbar-initials" aria-hidden="true">{{ avatar_initials }}</p>
+                <div class="admin-toolbar">
+                    <div class="admin-search">
+                        <label>
+                            <span class="sr-only" id="admin-search-note">Arama şu an kapalı</span>
+                            <input type="search" placeholder="Kullanıcı, kurum veya içerik ara…" disabled tabindex="-1" autocomplete="off" aria-describedby="admin-search-note">
+                        </label>
+                    </div>
+                    <div class="admin-topbar-tools">
+                        <button type="button" class="admin-icon-btn" disabled tabindex="-1" title="Bildirimler henüz yok" aria-describedby="admin-bell-note">
+                            <svg class="admin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                <path d="M6 9.5a6 6 0 0 1 12 0c0 4 1.2 5.5 1.2 5.5H4.8S6 13.5 6 9.5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                                <path d="M10 18a2 2 0 0 0 4 0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                            </svg>
+                            <span class="sr-only" id="admin-bell-note">Bildirimler henüz yok</span>
+                        </button>
+                        <p class="admin-topbar-initials" aria-hidden="true">{{ avatar_initials }}</p>
+                    </div>
                 </div>
             {% endif %}
         </header>

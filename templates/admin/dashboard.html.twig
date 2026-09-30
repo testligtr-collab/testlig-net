@@ -21,7 +21,7 @@
 
     <div class="admin-hello-row">
         <div>
-            <h1 class="panel-greeting admin-hello">Günaydın {{ greeting_name }}, sistem hazır.</h1>
+            <h1 class="panel-greeting admin-hello">{% if greeting_name %}Günaydın {{ greeting_name }}, sistem hazır.{% else %}Günaydın, sistem hazır.{% endif %}</h1>
             <p class="admin-hello__lead">Platformun güncel durumunu ve sıradaki işleri buradan takip edebilirsin.</p>
         </div>
         {% if workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest or overview.can_create_institution) %}

@@ -11,6 +11,7 @@ export default class extends Controller {
             }
         };
         document.addEventListener('keydown', this.onKeydown);
+        this.placeNav();
     }
 
     disconnect() {
@@ -31,7 +32,7 @@ export default class extends Controller {
         if (open) {
             const first = this.element.querySelector('.panel-sidebar a');
             if (first instanceof HTMLElement) {
-                first.focus();
+                first.focus({ preventScroll: true });
             }
         }
         event.preventDefault();
@@ -46,6 +47,23 @@ export default class extends Controller {
         this.setMenuExpanded(false);
         if (trigger instanceof HTMLElement) {
             trigger.focus();
+        }
+    }
+
+    placeNav() {
+        const nav = this.element.querySelector('.panel-sidebar__nav');
+        if (!(nav instanceof HTMLElement)) {
+            return;
+        }
+        nav.scrollTop = 0;
+        const current = nav.querySelector('[aria-current="page"]');
+        if (!(current instanceof HTMLElement)) {
+            return;
+        }
+        const navBox = nav.getBoundingClientRect();
+        const linkBox = current.getBoundingClientRect();
+        if (linkBox.top < navBox.top || linkBox.bottom > navBox.bottom) {
+            current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
         }
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\User;
+use App\Presentation\AdminGreetingName;
 use App\Presentation\AdminIconCatalog;
 use App\Presentation\WorkspaceRoleLabels;
 use App\Security\AdminAuthorization;
@@ -25,6 +26,7 @@ final class AdminNavBuilder
         private readonly RequestStack $requestStack,
         private readonly AdminIconCatalog $icons,
         private readonly ContentWorkspaceSummary $workspaceSummary,
+        private readonly AdminGreetingName $greetingName,
     ) {
     }
 
@@ -104,7 +106,7 @@ final class AdminNavBuilder
             'mobile_nav' => $items,
             'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : WorkspaceRoleLabels::content($actor->getRoles())),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
-            'greeting_name' => $this->greetingName($actor),
+            'greeting_name' => $this->greetingName->friendlyFirstName($actor->getFirstName()) ?? '',
             'avatar_initials' => $this->initials($actor),
             'workspace_shell' => $workspaceShell,
         ];
@@ -170,13 +172,6 @@ final class AdminNavBuilder
             'current' => $current,
             'icon' => $this->icons->resolve($id),
         ];
-    }
-
-    private function greetingName(User $actor): string
-    {
-        $first = trim($actor->getFirstName());
-
-        return '' !== $first ? $first : 'yönetici';
     }
 
     private function initials(User $actor): string
