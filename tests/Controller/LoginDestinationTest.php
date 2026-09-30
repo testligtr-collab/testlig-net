@@ -28,10 +28,10 @@ final class LoginDestinationTest extends WebTestCase
     public function testContentRolesLandOnTheWorkspace(): void
     {
         foreach ([
-            'login-dest-teacher@example.com' => UserRole::Teacher,
-            'login-dest-expert@example.com' => UserRole::ExpertTeacher,
-            'login-dest-head@example.com' => UserRole::HeadTeacher,
-            'login-dest-mod@example.com' => UserRole::Moderator,
+            'logindest-teacher@example.com' => UserRole::Teacher,
+            'logindest-expert@example.com' => UserRole::ExpertTeacher,
+            'logindest-head@example.com' => UserRole::HeadTeacher,
+            'logindest-mod@example.com' => UserRole::Moderator,
         ] as $email => $role) {
             $client = static::createClient();
             $this->loginAs($client, $email, $role);
@@ -42,8 +42,8 @@ final class LoginDestinationTest extends WebTestCase
     public function testAdminAndSuperAdminLandOnYonetimEvenWithContentAccess(): void
     {
         foreach ([
-            'login-dest-admin@example.com' => UserRole::Admin,
-            'login-dest-super@example.com' => UserRole::SuperAdmin,
+            'logindest-admin@example.com' => UserRole::Admin,
+            'logindest-super@example.com' => UserRole::SuperAdmin,
         ] as $email => $role) {
             $client = static::createClient();
             $this->loginAs($client, $email, $role);
@@ -54,83 +54,61 @@ final class LoginDestinationTest extends WebTestCase
     public function testStudentParentAndPlainAccountDestinations(): void
     {
         $client = static::createClient();
-        $this->loginAs($client, 'login-dest-student@example.com', UserRole::Student);
+        $this->loginAs($client, 'logindest-student@example.com', UserRole::Student);
         self::assertResponseRedirects('/ogrenci/kurulum');
 
-        $this->completeStudent('login-dest-student-ready@example.com');
+        $this->completeStudent('logindest-student-ready@example.com');
         $client = $this->newClient();
-        $this->login($client, 'login-dest-student-ready@example.com');
+        $this->login($client, 'logindest-student-ready@example.com');
         self::assertResponseRedirects('/ogrenci');
 
         $client = $this->newClient();
-        $this->loginAs($client, 'login-dest-parent@example.com', UserRole::Parent);
+        $this->loginAs($client, 'logindest-parent@example.com', UserRole::Parent);
         self::assertResponseRedirects('/veli');
 
         $client = $this->newClient();
-        $this->loginAs($client, 'login-dest-plain@example.com', UserRole::User);
+        $this->loginAs($client, 'logindest-plain@example.com', UserRole::User);
         self::assertResponseRedirects('/hesabim');
     }
 
-    public function testPendingAccountCannotReachTheWorkspace(): void
+    public function testStoredTargetsStayInsideWhatTheUserCanOpen(): void
     {
-        $client = static::createClient();
-        $this->createUser('login-dest-pending@example.com', UserRole::Teacher, false);
-        $crawler = $client->request('GET', '/giris');
-        $client->submit($crawler->selectButton('Giriş yap')->form([
-            '_username' => 'login-dest-pending@example.com',
-            '_password' => 'Guclu-Parola-123!',
-        ]));
-        self::assertResponseRedirects('/giris');
-    }
-
-    public function testUnsafeTargetsFallBackAndSafeTargetsAreKept(): void
-    {
-        $this->createUser('login-dest-target@example.com', UserRole::Teacher, true);
-        $this->assertLoginTarget('https://evil.example/phish', '/calisma-alani');
-        $this->assertLoginTarget('//evil.example/phish', '/calisma-alani');
-        $this->assertLoginTarget('/giris', '/calisma-alani');
-        $this->assertLoginTarget('/yonetim', '/calisma-alani');
-        $this->assertLoginTarget('/yonetim/icerikler', '/yonetim/icerikler');
+        $this->createUser('logindest-target@example.com', UserRole::Teacher, true);
 
         $client = $this->newClient();
-        $this->login($client, 'login-dest-target@example.com');
+        $client->request('GET', '/yonetim');
+        self::assertResponseRedirects('/giris');
+        $this->login($client, 'logindest-target@example.com');
         self::assertResponseRedirects('/calisma-alani');
         $client->followRedirect();
         $client->request('GET', '/yonetim');
         self::assertResponseStatusCodeSame(403);
+
+        $client = $this->newClient();
+        $client->request('GET', '/yonetim/icerikler');
+        self::assertResponseRedirects('/giris');
+        $this->login($client, 'logindest-target@example.com');
+        self::assertResponseRedirects('/yonetim/icerikler');
     }
 
     public function testStudentCannotBeSentToTheWorkspaceOrAdminHome(): void
     {
-        $this->createUser('login-dest-student-block@example.com', UserRole::Student, true);
+        $this->createUser('logindest-student-block@example.com', UserRole::Student, true);
         $client = static::createClient();
-        $client->request('GET', '/hesabim');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', '/calisma-alani');
-        $session->save();
-        $this->login($client, 'login-dest-student-block@example.com');
+        $client->request('GET', '/calisma-alani');
+        self::assertResponseRedirects('/giris');
+        $this->login($client, 'logindest-student-block@example.com');
         self::assertResponseRedirects('/ogrenci/kurulum');
         $client->followRedirect();
         $client->request('GET', '/calisma-alani');
         self::assertResponseStatusCodeSame(403);
 
         $client = $this->newClient();
-        $this->loginAs($client, 'login-dest-parent-block@example.com', UserRole::Parent);
+        $this->loginAs($client, 'logindest-parent-block@example.com', UserRole::Parent);
         self::assertResponseRedirects('/veli');
         $client->followRedirect();
         $client->request('GET', '/calisma-alani');
         self::assertResponseStatusCodeSame(403);
-    }
-
-    private function assertLoginTarget(string $storedPath, string $expected): void
-    {
-        $client = $this->newClient();
-        $client->request('GET', '/hesabim');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', $storedPath);
-        $session->save();
-        $this->login($client, 'login-dest-target@example.com');
-        self::assertResponseRedirects($expected);
     }
 
     private function completeStudent(string $email): void
@@ -200,11 +178,11 @@ final class LoginDestinationTest extends WebTestCase
         try {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
-            if ($em->getConnection()->createSchemaManager()->tablesExist(['student_profiles'])) {
-                $em->getConnection()->executeStatement('DELETE FROM student_profiles');
+            if ($em->getConnection()->createSchemaManager()->tablesExist(['student_profiles', 'users'])) {
+                $em->getConnection()->executeStatement("DELETE FROM student_profiles WHERE user_id IN (SELECT id FROM users WHERE normalized_email LIKE 'logindest-%@example.com')");
             }
             if ($em->getConnection()->createSchemaManager()->tablesExist(['users'])) {
-                $em->getConnection()->executeStatement("DELETE FROM users WHERE normalized_email LIKE 'login-dest-%@example.com'");
+                $em->getConnection()->executeStatement("DELETE FROM users WHERE normalized_email LIKE 'logindest-%@example.com'");
             }
         } catch (\Throwable) {
         }

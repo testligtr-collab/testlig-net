@@ -122,6 +122,21 @@ final class MembershipClassroomLinkLifecycleTest extends KernelTestCase
         self::assertSame(PostLoginRoute::ACCOUNT_HOME, $this->loginDestination()->resolve($manager, null)->route);
     }
 
+    public function testRejectedTargetsFallBackToTheRoleRoute(): void
+    {
+        $teacher = $this->activeRole('login-tgt-t@example.com', UserRole::Teacher);
+        $resolver = $this->loginDestination();
+        foreach (['https://evil.example/phish', '//evil.example/phish', '/giris', '/cikis', '/yonetim'] as $target) {
+            self::assertSame(PostLoginRoute::WORKSPACE_HOME, $resolver->resolve($teacher, $target)->route);
+        }
+        self::assertSame('/yonetim/icerikler', $resolver->resolve($teacher, '/yonetim/icerikler')->path);
+        self::assertSame('/hesabim', $resolver->resolve($teacher, '/hesabim')->path);
+
+        $student = $this->activeRole('login-tgt-s@example.com', UserRole::Student);
+        self::assertSame(PostLoginRoute::STUDENT_ONBOARDING, $resolver->resolve($student, '/calisma-alani')->route);
+        self::assertSame(PostLoginRoute::STUDENT_ONBOARDING, $resolver->resolve($student, '/yonetim')->route);
+    }
+
     public function testStudentToStaffBlockedWithActiveEnrollment(): void
     {
         [$owner, , $institution, , $classroom] = $this->readyClassroom('ml-stu-role');
