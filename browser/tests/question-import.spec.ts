@@ -44,9 +44,9 @@ test('teacher previews and imports draft questions from csv', async ({ page }, i
   });
   await page.getByRole('button', { name: 'Önizle' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'İçe aktarma önizlemesi' })).toBeVisible();
-  await expect(page.getByText('Oluşturulacak')).toBeVisible();
-  await page.getByRole('button', { name: 'Taslak olarak oluştur' }).click();
-  await expect(page).toHaveURL(/\/ice-aktar\//);
+  await expect(page.getByText('Oluşturulacak', { exact: true })).toBeVisible();
+  const blocked = await page.locator('form.stack-sm').evaluate((form) => form instanceof HTMLFormElement && !form.checkValidity());
+  expect(blocked).toBeTruthy();
 
   await page.getByRole('checkbox', { name: 'Önizlemeyi kontrol ettim; sorular taslak olarak oluşturulsun.' }).check();
   await page.getByRole('button', { name: 'Taslak olarak oluştur' }).click();
@@ -61,7 +61,7 @@ test('teacher previews and imports draft questions from csv', async ({ page }, i
     buffer: Buffer.from(csv(data, questionCode, '1', 'Baska metin')),
   });
   await page.getByRole('button', { name: 'Önizle' }).click();
-  await expect(page.getByText('Atlanacak')).toBeVisible();
+  await expect(page.getByText('Atlanacak', { exact: true })).toBeVisible();
   await expect(page.getByText('Mevcut kayıt, güncellenmedi.')).toBeVisible();
 
   await page.goto('/yonetim/sorular/ice-aktar');
