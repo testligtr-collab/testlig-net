@@ -6,6 +6,7 @@ test('student lesson, blocked video host, and one test attempt', async ({ page, 
   await watch(page);
   const data = manifest();
   await login(page, data.users.student);
+  await expect(page).toHaveURL(/\/ogrenci$/);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const home = await page.goto('/ogrenci');
   expect(home?.headers()['cache-control'] ?? '').toContain('no-store');

@@ -6,6 +6,10 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await watch(page);
   const data = manifest();
   await login(page, data.users.teacher);
+  await expect(page).toHaveURL(/\/calisma-alani$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Çalışma alanı' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Ödemeler' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Özet', exact: true })).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/hesabim');
   await expect(page).toHaveURL(/\/hesabim$/);

@@ -4,9 +4,9 @@ import { assertClean, installVideoAbort, login, manifest, watch } from './suppor
 test('separate contexts log in, reject a token without its cookie, and log out with POST', async ({ browser, request }) => {
   const data = manifest();
   const cases = [
-    { email: data.users.teacher, path: /\/hesabim$/ },
+    { email: data.users.teacher, path: /\/calisma-alani$/ },
     { email: data.users.student, path: /\/ogrenci$/ },
-    { email: data.users.superadmin, path: /\/hesabim$/ },
+    { email: data.users.superadmin, path: /\/yonetim$/ },
   ];
   let captured = '';
   for (const entry of cases) {
@@ -45,5 +45,5 @@ test('separate contexts log in, reject a token without its cookie, and log out w
     },
     maxRedirects: 0,
   });
-  expect(replay.headers()['location'] ?? '').not.toMatch(/\/(hesabim|ogrenci|kurum|yonetim|veli)/);
+  expect(replay.headers()['location'] ?? '').not.toMatch(/\/(hesabim|ogrenci|kurum|yonetim|veli|calisma-alani)/);
 });

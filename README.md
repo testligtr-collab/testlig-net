@@ -120,7 +120,7 @@ Mailpit UI yalnızca localhost’ta dinler (`127.0.0.1:8025`).
 
 - `StudentProfile` ↔ `User` bire bir; sınıf (1–12), isteğe bağlı okul/şehir/öğrenme hedefi; doğum tarihi/telefon/adres yok.
 - Onboarding tamamlanmadan `/ogrenci` ve `/ogrenci/profil` kurulum sayfasına yönlendirir; tamamlanmış kurulum paneline döner.
-- Güvenli `_target_path` korunur; varsayılan login hedefi öğrenci için panel/kurulum, diğer roller için `/hesabim`.
+- Güvenli aynı kaynaklı `_target_path` korunur. Varsayılan giriş: öğrenci paneli veya kurulum, veli `/veli`, aktif kurum sahibi veya müdürü `/kurum`, Admin/SuperAdmin `/yonetim`, öğretmen ve içerik rolleri `/calisma-alani`, diğer hesaplar `/hesabim`.
 - Dersler: `/ogrenci/dersler` (sınıf seviyesine göre published katalog). Testler: `/ogrenci/testler`. Öğrenme araçları henüz “Yakında”.
 - Hesap/parola `/hesabim` altında kalır.
 - Ayrıntı: `docs/architecture-auth-membership-onboarding.md` (öğrenci panel dilimi); katalog: `docs/architecture.md`.

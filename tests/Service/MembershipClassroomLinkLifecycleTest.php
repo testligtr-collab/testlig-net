@@ -20,6 +20,8 @@ use App\Enum\UserStatus;
 use App\Exception\InstitutionMembershipException;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\UserRepository;
+use App\Security\PostLoginDestinationResolver;
+use App\Security\PostLoginRoute;
 use App\Service\AcademicYearManager;
 use App\Service\ClassroomManager;
 use App\Service\ClassroomStudentEnrollmentManager;
@@ -82,6 +84,57 @@ final class MembershipClassroomLinkLifecycleTest extends KernelTestCase
         $teacher = $this->users->find($teacherId);
         self::assertInstanceOf(User::class, $teacher);
         self::assertSame(0, $this->workspaceSummary()->activeClassroomCount($teacher));
+    }
+
+    public function testActiveClassroomWithoutContentRoleChoosesTheWorkspace(): void
+    {
+        [$owner, , $institution, , $classroom] = $this->readyClassroom('login-asg');
+        $teacher = $this->activeRole('login-asg-t@example.com', UserRole::InstitutionManager);
+        $this->membershipManager()->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'add_tch');
+        $membership = $this->memberships->findActiveMembership($teacher, $institution);
+        self::assertInstanceOf(InstitutionMembership::class, $membership);
+        $assignment = $this->teacherManager()->assign($classroom, $owner, $membership, TeacherAssignmentRole::HomeroomTeacher, 'asg');
+        self::assertSame(PostLoginRoute::WORKSPACE_HOME, $this->loginDestination()->resolve($teacher, null)->route);
+
+        $this->teacherManager()->endAssignment($assignment, $owner, 'end_asg');
+        $this->resetDoctrine();
+        $teacher = $this->users->find($teacher->getId());
+        self::assertInstanceOf(User::class, $teacher);
+        self::assertSame(PostLoginRoute::ACCOUNT_HOME, $this->loginDestination()->resolve($teacher, null)->route);
+    }
+
+    public function testInstitutionLeadershipComesFromActiveMembershipOnly(): void
+    {
+        $plain = $this->activeRole('login-mgr-none@example.com', UserRole::InstitutionManager);
+        self::assertSame(PostLoginRoute::ACCOUNT_HOME, $this->loginDestination()->resolve($plain, null)->route);
+
+        [$owner, , $institution] = $this->activeOwnerInstitution('login-mgr');
+        $manager = $this->activeRole('login-mgr-m@example.com', UserRole::InstitutionManager);
+        $this->membershipManager()->addMember($institution, $owner, $manager, InstitutionMembershipRole::Manager, 'add_mgr');
+        $membership = $this->memberships->findActiveMembership($manager, $institution);
+        self::assertInstanceOf(InstitutionMembership::class, $membership);
+        self::assertSame(PostLoginRoute::INSTITUTION_HOME, $this->loginDestination()->resolve($manager, null)->route);
+
+        $this->membershipManager()->endMembership($membership, $owner, 'end_mgr');
+        $this->resetDoctrine();
+        $manager = $this->users->find($manager->getId());
+        self::assertInstanceOf(User::class, $manager);
+        self::assertSame(PostLoginRoute::ACCOUNT_HOME, $this->loginDestination()->resolve($manager, null)->route);
+    }
+
+    public function testRejectedTargetsFallBackToTheRoleRoute(): void
+    {
+        $teacher = $this->activeRole('login-tgt-t@example.com', UserRole::Teacher);
+        $resolver = $this->loginDestination();
+        foreach (['https://evil.example/phish', '//evil.example/phish', '/giris', '/cikis', '/yonetim'] as $target) {
+            self::assertSame(PostLoginRoute::WORKSPACE_HOME, $resolver->resolve($teacher, $target)->route);
+        }
+        self::assertSame('/yonetim/icerikler', $resolver->resolve($teacher, '/yonetim/icerikler')->path);
+        self::assertSame('/hesabim', $resolver->resolve($teacher, '/hesabim')->path);
+
+        $student = $this->activeRole('login-tgt-s@example.com', UserRole::Student);
+        self::assertSame(PostLoginRoute::STUDENT_ONBOARDING, $resolver->resolve($student, '/calisma-alani')->route);
+        self::assertSame(PostLoginRoute::STUDENT_ONBOARDING, $resolver->resolve($student, '/yonetim')->route);
     }
 
     public function testStudentToStaffBlockedWithActiveEnrollment(): void
@@ -323,6 +376,24 @@ final class MembershipClassroomLinkLifecycleTest extends KernelTestCase
         self::assertInstanceOf(InstitutionMembership::class, $membership);
 
         return $membership;
+    }
+
+    private function activeRole(string $email, UserRole $role): User
+    {
+        $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', 'A', 'U', $role);
+        $user->markEmailVerified(new \DateTimeImmutable('now'));
+        $user->transitionTo(UserStatus::Active);
+        $this->users->save($user);
+
+        return $user;
+    }
+
+    private function loginDestination(): PostLoginDestinationResolver
+    {
+        $service = static::getContainer()->get(PostLoginDestinationResolver::class);
+        self::assertInstanceOf(PostLoginDestinationResolver::class, $service);
+
+        return $service;
     }
 
     private function activeUser(string $email): User
