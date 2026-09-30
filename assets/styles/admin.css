@@ -508,6 +508,14 @@ body.is-admin-panel {
     .is-admin-panel .panel-shell.is-nav-open .panel-sidebar {
         width: min(17.5rem, 88vw);
     }
+
+    .is-admin-panel .panel-shell.is-nav-open .panel-topbar {
+        pointer-events: none;
+    }
+
+    .is-admin-panel .panel-shell.is-nav-open .admin-menu-btn {
+        pointer-events: auto;
+    }
 }
 
 @media (max-width: 767px) {
@@ -561,6 +569,8 @@ body.is-admin-panel {
 .is-admin-panel .admin-topbar-tools {
     display: flex;
     align-items: center;
+    justify-self: end;
+    width: max-content;
     gap: 0.45rem;
 }
 
