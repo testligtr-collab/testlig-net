@@ -32,7 +32,7 @@ Domain editörü 2–6 seçenek kabul eder. Bu ilk dilim 2–4 seçenek taşır.
 2. Önizleme satır durumunu gösterir: Oluşturulacak, Atlanacak, Hatalı, Çakışma.
 3. Hatalı veya çakışan satır varken onay formu görünmez.
 4. Onay kutusunun metni: “Önizlemeyi kontrol ettim; sorular taslak olarak oluşturulsun.”
-5. Onaylı apply aynı sunucu planını tek transaction içinde yazar. Aynı kod o sırada oluşmuşsa bütün import geri alınır.
+5. Onaylı apply aynı sunucu planını tek transaction içinde yazar. Önizlemeden sonra aynı kod oluşmuşsa apply, onaylanan oluşturma listesini transaction içinde yeniden kontrol eder ve bütün importu geri alır. Kısmi satır kalmaz.
 
 Plan `var/question-imports` altındadır, public web kökünde değildir. Tahmin edilemez kimlik, kullanıcıya bağlı sahiplik, içerik özeti, 15 dakika süre, tek kullanımlık apply ve süre sonunda silme vardır. Ham CSV session veya veritabanına yazılmaz. Dosya adı audit’e girmez.
 

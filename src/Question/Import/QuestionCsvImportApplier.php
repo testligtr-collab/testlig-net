@@ -49,7 +49,14 @@ final class QuestionCsvImportApplier
         $stored = $this->plans->load($planId, $actor->getId()->toRfc4122());
         $plan = $this->planner->plan($stored['records']);
         if (!hash_equals($stored['decision_digest'], $plan->decisionDigest())) {
-            throw new QuestionCsvImportException(QuestionCsvImportException::STALE, 'Önizleme güncelliğini yitirdi. Dosyayı yeniden yükleyin.');
+            $preserve = [];
+            foreach ($stored['create_codes'] as $code) {
+                $preserve[$code] = true;
+            }
+            $plan = $this->planner->plan($stored['records'], $preserve);
+            if (!hash_equals($stored['decision_digest'], $plan->decisionDigest())) {
+                throw new QuestionCsvImportException(QuestionCsvImportException::STALE, 'Önizleme güncelliğini yitirdi. Dosyayı yeniden yükleyin.');
+            }
         }
         if ($plan->errorCount > 0 || $plan->conflictCount > 0 || !$plan->canApply()) {
             throw new QuestionCsvImportException(QuestionCsvImportException::CONFIRMATION, 'Hatalı bir satır varken içe aktarma yapılmaz.');

@@ -76,11 +76,16 @@ final class AdminQuestionImportController extends AdminBaseController
         }
 
         $digestSource = str_starts_with($bytes, "\xEF\xBB\xBF") ? substr($bytes, 3) : $bytes;
+        $createCodes = [];
+        foreach ($plan->creates as $payload) {
+            $createCodes[] = $payload['code'];
+        }
         $planId = $this->plans->save(
             $actor->getId()->toRfc4122(),
             hash('sha256', $digestSource),
             $plan->decisionDigest(),
             $records,
+            $createCodes,
         );
 
         return $this->redirectToRoute('app_admin_question_import_preview', ['planId' => $planId]);
