@@ -8,6 +8,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   installVideoAbort(adminPage);
   await watch(adminPage);
   await login(adminPage, data.users.admin);
+  await expect(adminPage).toHaveURL(/\/yonetim$/);
   await adminPage.emulateMedia({ reducedMotion: 'reduce' });
   const dashboard = await adminPage.goto('/yonetim');
   expect(dashboard?.headers()['cache-control'] ?? '').toContain('no-store');
