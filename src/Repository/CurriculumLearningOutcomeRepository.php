@@ -62,9 +62,6 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
     }
 
     /**
-     * @return list<CurriculumLearningOutcome>
-     */
-    /**
      * One query for every requested code, with program, subject, and topic hydrated.
      *
      * @param list<string> $codes
@@ -93,6 +90,9 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @return list<CurriculumLearningOutcome>
+     */
     public function findByTopic(CurriculumTopic $topic): array
     {
         /** @var list<CurriculumLearningOutcome> $rows */
