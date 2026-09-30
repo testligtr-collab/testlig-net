@@ -14,13 +14,13 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   expect(dashboard?.headers()['cache-control'] ?? '').toContain('no-store');
   expect(dashboard?.headers()['x-robots-tag'] ?? '').toContain('noindex');
   await expect(adminPage.locator('.panel-role')).toHaveText('Yönetici');
-  for (const label of ['Özet', 'Sistem', 'Kullanıcılar', 'Kurumlar', 'Müfredat', 'İçerikler', 'Sorular', 'Testler']) {
+  for (const label of ['Genel Bakış', 'Sistem', 'Kullanıcılar', 'Kurumlar', 'Müfredat', 'İçerikler', 'Sorular', 'Testler']) {
     await expect(adminPage.getByRole('link', { name: label }).first()).toBeVisible();
   }
   for (const label of ['Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
     await expect(adminPage.getByRole('link', { name: label })).toHaveCount(0);
   }
-  await expect(adminPage.locator('a.panel-nav-link[aria-current="page"]')).toHaveText('Özet');
+  await expect(adminPage.locator('a.panel-nav-link[aria-current="page"]')).toHaveText('Genel Bakış');
   for (const viewport of VIEWPORTS) {
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim');
@@ -47,7 +47,8 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   expect(zoomBox).not.toBeNull();
   expect(zoomBox!.width).toBeGreaterThanOrEqual(44);
   expect(zoomBox!.height).toBeGreaterThanOrEqual(44);
-  await expect(adminPage.getByRole('heading', { level: 1, name: 'Yönetim özeti' })).toBeVisible();
+  await expect(adminPage.getByRole('heading', { level: 1, name: /Günaydın .+ sistem hazır/ })).toBeVisible();
+  await expect(adminPage.getByRole('heading', { level: 1 })).toHaveCount(1);
   await adminPage.setViewportSize({ width: 1280, height: 900 });
   for (const [path, name] of [
     ['/yonetim/kullanicilar', 'kullanicilar'],
@@ -89,9 +90,14 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await shot(saPage, info, 'superadmin', 'ozet', viewport.name);
     if (viewport.width >= 1024) {
       await expect(saPage.locator('#panel-sidebar')).toBeVisible();
+      await expect(saPage.locator('#nav-group-operations')).toBeVisible();
       await shot(saPage, info, 'superadmin', 'operasyon', viewport.name);
     }
   }
+  await saPage.setViewportSize({ width: 1280, height: 900 });
+  await saPage.goto('/yonetim/denetim');
+  await assertLayout(saPage);
+  await shot(saPage, info, 'superadmin', 'denetim', '1280');
   await assertClean(saPage);
   await sa.close();
 });

@@ -100,7 +100,7 @@ final class WorkspaceDashboardControllerTest extends WebTestCase
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/yonetim"]');
-        self::assertSelectorTextContains('body', 'Özet');
+        self::assertSelectorTextContains('body', 'Genel Bakış');
         self::assertSelectorNotExists('a[href="/calisma-alani"]');
     }
 

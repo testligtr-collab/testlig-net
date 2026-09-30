@@ -69,14 +69,14 @@ test('admin and superadmin overview stays on yonetim', async ({ browser }) => {
   const data = manifest();
   const admin = await openAs(browser, data.users.admin);
   await admin.page.goto('/yonetim');
-  await expect(admin.page.getByRole('link', { name: 'Özet', exact: true })).toHaveAttribute('href', '/yonetim');
+  await expect(admin.page.getByRole('link', { name: 'Genel Bakış', exact: true })).toHaveAttribute('href', '/yonetim');
   expect((await admin.page.request.get('/calisma-alani')).status()).toBe(200);
   await assertClean(admin.page);
   await admin.close();
 
   const superadmin = await openAs(browser, data.users.superadmin);
   await superadmin.page.goto('/yonetim');
-  await expect(superadmin.page.getByRole('link', { name: 'Özet', exact: true })).toHaveAttribute('href', '/yonetim');
+  await expect(superadmin.page.getByRole('link', { name: 'Genel Bakış', exact: true })).toHaveAttribute('href', '/yonetim');
   await assertClean(superadmin.page);
   await superadmin.close();
 });

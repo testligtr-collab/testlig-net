@@ -12,7 +12,7 @@
     </div>
     <nav class="panel-sidebar__nav" aria-label="Yönetim bölümleri">
         {% for section in nav_sections|default([]) %}
-            <div class="panel-nav-group">
+            <div class="panel-nav-group panel-nav-group--{{ section.id }}">
                 <p class="panel-nav-group__label" id="nav-group-{{ section.id }}">{{ section.label }}</p>
                 <div role="group" aria-labelledby="nav-group-{{ section.id }}">
                     {% for item in section['items'] %}

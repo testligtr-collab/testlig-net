@@ -85,6 +85,19 @@ final class ContentWorkspaceSummary
         );
     }
 
+    public function publishedContentCount(User $actor): int
+    {
+        if (!$this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
+            return 0;
+        }
+
+        return $this->contents->listContents($actor->getId(), [
+            'status' => LearningContentStatus::Published->value,
+            'page' => 1,
+            'page_size' => 1,
+        ])->totalCount;
+    }
+
     public function activeClassroomCount(User $actor): int
     {
         $key = $actor->getId()->toRfc4122();

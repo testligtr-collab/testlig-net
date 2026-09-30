@@ -37,11 +37,17 @@ final class AdminDashboardController extends AdminBaseController
         }
 
         $user = $this->getUser();
+        $workspace = $user instanceof User ? $this->workspaceSummary->forActor($user) : null;
+        $metrics = $user instanceof User ? $this->shellMetrics->forActor($user) : [];
+        $overview = $user instanceof User
+            ? $this->shellMetrics->overview($user, $workspace, $metrics, $this->workspaceSummary->publishedContentCount($user))
+            : ['can_create_institution' => false, 'published_contents' => 0, 'tasks' => []];
 
         return $this->renderAdmin('admin/dashboard.html.twig', [
             'dashboard' => $view,
-            'workspace' => $user instanceof User ? $this->workspaceSummary->forActor($user) : null,
-            'shell_metrics' => $user instanceof User ? $this->shellMetrics->forActor($user) : [],
+            'workspace' => $workspace,
+            'shell_metrics' => $metrics,
+            'overview' => $overview,
         ]);
     }
 }
