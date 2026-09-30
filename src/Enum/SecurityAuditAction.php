@@ -70,6 +70,7 @@ enum SecurityAuditAction: string
     case CurriculumLearningOutcomeReordered = 'curriculum_learning_outcome_reordered';
     case CurriculumLearningOutcomeArchived = 'curriculum_learning_outcome_archived';
     case QuestionCreated = 'question_created';
+    case QuestionsBulkImported = 'questions_bulk_imported';
     case QuestionRevisionCreated = 'question_revision_created';
     case QuestionSubmittedForReview = 'question_submitted_for_review';
     case QuestionReturnedToDraft = 'question_returned_to_draft';

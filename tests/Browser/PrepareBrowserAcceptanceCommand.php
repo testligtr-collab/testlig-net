@@ -345,6 +345,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'revision' => '/yonetim/icerikler/'.$draft->getId()->toRfc4122().'/revision',
                 'reviewDetail' => '/yonetim/icerikler/'.$review->getId()->toRfc4122(),
                 'questionEdit' => '/yonetim/sorular/'.$draftQuestion->getId()->toRfc4122().'/duzenle',
+                'questionSubjectCode' => 'browser_subj',
+                'questionOutcomeCode' => 'browser_lo',
                 'classroomName' => 'Sinif A',
                 'contentTitle' => 'Toplama anlatimi',
                 'testTitle' => 'Toplama testi',

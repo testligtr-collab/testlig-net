@@ -30,6 +30,27 @@ class SubjectRepository extends ServiceEntityRepository
         return $this->findOneBy(['code' => $code]);
     }
 
+    /**
+     * @param list<string> $codes
+     *
+     * @return list<Subject>
+     */
+    public function findByCodes(array $codes): array
+    {
+        if ([] === $codes) {
+            return [];
+        }
+
+        /** @var list<Subject> $rows */
+        $rows = $this->createQueryBuilder('s')
+            ->andWhere('s.code IN (:codes)')
+            ->setParameter('codes', $codes)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function existsWithCode(string $code): bool
     {
         return null !== $this->findOneByCode($code);

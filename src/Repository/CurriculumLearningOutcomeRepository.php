@@ -64,6 +64,35 @@ class CurriculumLearningOutcomeRepository extends ServiceEntityRepository
     /**
      * @return list<CurriculumLearningOutcome>
      */
+    /**
+     * One query for every requested code, with program, subject, and topic hydrated.
+     *
+     * @param list<string> $codes
+     *
+     * @return list<CurriculumLearningOutcome>
+     */
+    public function findByCodesWithPlacement(array $codes): array
+    {
+        if ([] === $codes) {
+            return [];
+        }
+
+        /** @var list<CurriculumLearningOutcome> $rows */
+        $rows = $this->createQueryBuilder('o')
+            ->innerJoin('o.curriculumProgram', 'p')
+            ->addSelect('p')
+            ->innerJoin('p.subject', 's')
+            ->addSelect('s')
+            ->innerJoin('o.topic', 't')
+            ->addSelect('t')
+            ->andWhere('o.code IN (:codes)')
+            ->setParameter('codes', $codes)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findByTopic(CurriculumTopic $topic): array
     {
         /** @var list<CurriculumLearningOutcome> $rows */

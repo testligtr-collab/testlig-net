@@ -14,6 +14,7 @@
         <h1 class="panel-greeting">Sorular</h1>
         {% if can_author %}
             <a class="btn btn--cta" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
+            <a class="btn" href="{{ path('app_admin_question_import') }}">CSV ile içe aktar</a>
         {% endif %}
     </div>
 
