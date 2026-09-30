@@ -30,8 +30,9 @@ final class QuestionCsvImportPlanStore
 
     /**
      * @param list<StoredRecord> $records
+     * @param list<string>       $createCodes question codes the preview promised to create
      */
-    public function save(string $ownerId, string $contentDigest, string $decisionDigest, array $records): string
+    public function save(string $ownerId, string $contentDigest, string $decisionDigest, array $records, array $createCodes): string
     {
         $this->ensureDirectory();
         $this->purgeExpired();
@@ -42,6 +43,7 @@ final class QuestionCsvImportPlanStore
             'decision_digest' => $decisionDigest,
             'expires_at' => $this->clock->now()->getTimestamp() + self::TTL_SECONDS,
             'records' => $records,
+            'create_codes' => $createCodes,
         ];
         $this->write($this->path($id), $payload);
 
@@ -55,7 +57,8 @@ final class QuestionCsvImportPlanStore
      *     content_digest: string,
      *     decision_digest: string,
      *     expires_at: int,
-     *     records: list<StoredRecord>
+     *     records: list<StoredRecord>,
+     *     create_codes: list<string>
      * }
      */
     public function load(string $id, string $ownerId): array
@@ -70,7 +73,7 @@ final class QuestionCsvImportPlanStore
             throw new QuestionCsvImportException(QuestionCsvImportException::PLAN, 'Önizleme bulunamadı.');
         }
         $payload = $this->read($path);
-        if (!hash_equals($payload['record_digest'], hash('sha256', $this->canonical($payload['records'])))) {
+        if (!hash_equals($payload['record_digest'], hash('sha256', $this->canonical($payload['records'], $payload['create_codes'])))) {
             throw new QuestionCsvImportException(QuestionCsvImportException::PLAN, 'Önizleme bulunamadı.');
         }
         if (\strlen($payload['owner_id']) !== \strlen($ownerId) || !hash_equals($payload['owner_id'], $ownerId)) {
@@ -88,6 +91,7 @@ final class QuestionCsvImportPlanStore
             'decision_digest' => $payload['decision_digest'],
             'expires_at' => $payload['expires_at'],
             'records' => $payload['records'],
+            'create_codes' => $payload['create_codes'],
         ];
     }
 
@@ -107,10 +111,12 @@ final class QuestionCsvImportPlanStore
      */
     private function write(string $path, array $payload): void
     {
-        if (isset($payload['records'])) {
+        if (isset($payload['records'], $payload['create_codes'])) {
             /** @var list<array{line: int, values: array<string, string>, column_error: bool}> $records */
             $records = $payload['records'];
-            $payload['record_digest'] = hash('sha256', $this->canonical($records));
+            /** @var list<string> $createCodes */
+            $createCodes = $payload['create_codes'];
+            $payload['record_digest'] = hash('sha256', $this->canonical($records, $createCodes));
         }
         $json = json_encode($payload, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
         $tmp = $path.'.'.bin2hex(random_bytes(4));
@@ -125,7 +131,7 @@ final class QuestionCsvImportPlanStore
     }
 
     /**
-     * @return array{owner_id: string, content_digest: string, decision_digest: string, expires_at: int, records: list<array{line: int, values: array<string, string>, column_error: bool}>, record_digest: string}
+     * @return array{owner_id: string, content_digest: string, decision_digest: string, expires_at: int, records: list<array{line: int, values: array<string, string>, column_error: bool}>, create_codes: list<string>, record_digest: string}
      */
     private function read(string $path): array
     {
@@ -139,13 +145,14 @@ final class QuestionCsvImportPlanStore
             throw new QuestionCsvImportException(QuestionCsvImportException::PLAN, 'Önizleme bulunamadı.');
         }
         if (!\is_array($decoded)
-            || !isset($decoded['owner_id'], $decoded['content_digest'], $decoded['decision_digest'], $decoded['expires_at'], $decoded['records'], $decoded['record_digest'])
+            || !isset($decoded['owner_id'], $decoded['content_digest'], $decoded['decision_digest'], $decoded['expires_at'], $decoded['records'], $decoded['create_codes'], $decoded['record_digest'])
             || !\is_string($decoded['owner_id'])
             || !\is_string($decoded['content_digest'])
             || !\is_string($decoded['decision_digest'])
             || !\is_int($decoded['expires_at'])
             || !\is_string($decoded['record_digest'])
             || !\is_array($decoded['records'])
+            || !\is_array($decoded['create_codes'])
         ) {
             throw new QuestionCsvImportException(QuestionCsvImportException::PLAN, 'Önizleme bulunamadı.');
         }
@@ -166,6 +173,13 @@ final class QuestionCsvImportPlanStore
             }
             $records[] = ['line' => $record['line'], 'values' => $values, 'column_error' => $record['column_error']];
         }
+        $createCodes = [];
+        foreach ($decoded['create_codes'] as $code) {
+            if (!\is_string($code) || 1 !== preg_match('/^[a-f0-9]{32}$/', $code)) {
+                throw new QuestionCsvImportException(QuestionCsvImportException::PLAN, 'Önizleme bulunamadı.');
+            }
+            $createCodes[] = $code;
+        }
 
         return [
             'owner_id' => $decoded['owner_id'],
@@ -173,16 +187,18 @@ final class QuestionCsvImportPlanStore
             'decision_digest' => $decoded['decision_digest'],
             'expires_at' => $decoded['expires_at'],
             'records' => $records,
+            'create_codes' => $createCodes,
             'record_digest' => $decoded['record_digest'],
         ];
     }
 
     /**
      * @param list<array{line: int, values: array<string, string>, column_error: bool}> $records
+     * @param list<string>                                                              $createCodes
      */
-    private function canonical(array $records): string
+    private function canonical(array $records, array $createCodes): string
     {
-        return json_encode($records, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
+        return json_encode(['records' => $records, 'create_codes' => $createCodes], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE);
     }
 
     private function purgeExpired(?string $keepId = null): void

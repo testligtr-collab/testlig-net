@@ -156,7 +156,7 @@ final class QuestionCsvImportTest extends TestCase
             [self::CODE_A, '1', 'mat', 'mat_1', 'Kök', 'A', 'B', '', '', 'A', ''],
         ]));
         $owner = '11111111-1111-4111-8111-111111111111';
-        $id = $store->save($owner, hash('sha256', 'file'), hash('sha256', 'plan'), $records);
+        $id = $store->save($owner, hash('sha256', 'file'), hash('sha256', 'plan'), $records, []);
         try {
             $store->load($id, '22222222-2222-4222-8222-222222222222');
             self::fail('Another user opened the plan.');
@@ -192,7 +192,7 @@ final class QuestionCsvImportTest extends TestCase
             [self::CODE_A, '1', 'mat', 'mat_1', 'Kök', 'A', 'B', '', '', 'A', ''],
         ]));
         $owner = '11111111-1111-4111-8111-111111111111';
-        $id = $store->save($owner, hash('sha256', 'file'), hash('sha256', 'plan'), $records);
+        $id = $store->save($owner, hash('sha256', 'file'), hash('sha256', 'plan'), $records, []);
         $store->consume($id, $owner);
         $this->expectException(QuestionCsvImportException::class);
         $store->load($id, $owner);

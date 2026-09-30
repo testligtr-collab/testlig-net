@@ -19,8 +19,9 @@ final class QuestionCsvImportPlanner
 
     /**
      * @param list<array{line: int, values: array<string, string>, column_error: bool}> $records
+     * @param array<string, true>                                                       $preserveCreateCodes
      */
-    public function plan(array $records): QuestionCsvImportPlan
+    public function plan(array $records, array $preserveCreateCodes = []): QuestionCsvImportPlan
     {
         $prepared = [];
         $subjectCodes = [];
@@ -62,7 +63,7 @@ final class QuestionCsvImportPlanner
         $errors = 0;
         $conflicts = 0;
         foreach ($prepared as $row) {
-            $view = $this->classify($row['record'], $row['code'], $row['subject'], $row['outcome'], $counts, $lookup);
+            $view = $this->classify($row['record'], $row['code'], $row['subject'], $row['outcome'], $counts, $lookup, $preserveCreateCodes);
             $views[] = [
                 'line' => $view['line'],
                 'code' => $view['code'],
@@ -89,6 +90,7 @@ final class QuestionCsvImportPlanner
     /**
      * @param array{line: int, values: array<string, string>, column_error: bool} $record
      * @param array<string, int>                                                  $counts
+     * @param array<string, true>                                                 $preserveCreateCodes
      *
      * @return array{
      *     line: int,
@@ -109,7 +111,7 @@ final class QuestionCsvImportPlanner
      *     }
      * }
      */
-    private function classify(array $record, ?string $code, ?string $subject, ?string $outcome, array $counts, QuestionCsvImportLookup $lookup): array
+    private function classify(array $record, ?string $code, ?string $subject, ?string $outcome, array $counts, QuestionCsvImportLookup $lookup, array $preserveCreateCodes): array
     {
         $values = $record['values'];
         $blankPayload = [
@@ -148,7 +150,7 @@ final class QuestionCsvImportPlanner
         if (($counts[$code] ?? 0) > 1) {
             return $base + ['status' => 'conflict', 'message' => QuestionCsvMessages::CONFLICT];
         }
-        if (isset($lookup->existingCodes[$code])) {
+        if (isset($lookup->existingCodes[$code]) && !isset($preserveCreateCodes[$code])) {
             return $base + ['status' => 'skip', 'message' => QuestionCsvMessages::SKIP];
         }
 

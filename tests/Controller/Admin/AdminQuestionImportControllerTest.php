@@ -193,7 +193,7 @@ final class AdminQuestionImportControllerTest extends WebTestCase
         $client->submit($client->getCrawler()->selectButton('Taslak olarak oluştur')->form(['confirm' => '1']));
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertStringContainsString('güncelliğini yitirdi', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('geri alındı', (string) $client->getResponse()->getContent());
         $connection = $this->connection();
         self::assertFalse($connection->fetchOne('SELECT code FROM questions WHERE code = ?', [$second]));
         self::assertSame(1, $this->questionCount());
