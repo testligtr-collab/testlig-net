@@ -85,56 +85,26 @@ final class LoginDestinationTest extends WebTestCase
 
     public function testUnsafeTargetsFallBackAndSafeTargetsAreKept(): void
     {
-        $client = static::createClient();
         $this->createUser('login-dest-target@example.com', UserRole::Teacher, true);
-        $client->request('GET', '/giris');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', 'https://evil.example/phish');
-        $session->save();
-        $this->login($client, 'login-dest-target@example.com');
-        self::assertResponseRedirects('/calisma-alani');
+        $this->assertLoginTarget('https://evil.example/phish', '/calisma-alani');
+        $this->assertLoginTarget('//evil.example/phish', '/calisma-alani');
+        $this->assertLoginTarget('/giris', '/calisma-alani');
+        $this->assertLoginTarget('/yonetim', '/calisma-alani');
+        $this->assertLoginTarget('/yonetim/icerikler', '/yonetim/icerikler');
 
         $client = $this->newClient();
-        $client->request('GET', '/giris');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', '//evil.example/phish');
-        $session->save();
-        $this->login($client, 'login-dest-target@example.com');
-        self::assertResponseRedirects('/calisma-alani');
-
-        $client = $this->newClient();
-        $client->request('GET', '/yonetim');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', '/yonetim');
-        $session->save();
         $this->login($client, 'login-dest-target@example.com');
         self::assertResponseRedirects('/calisma-alani');
         $client->followRedirect();
         $client->request('GET', '/yonetim');
         self::assertResponseStatusCodeSame(403);
-
-        $client = $this->newClient();
-        $client->request('GET', '/giris');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', '/giris');
-        $session->save();
-        $this->login($client, 'login-dest-target@example.com');
-        self::assertResponseRedirects('/calisma-alani');
-
-        $client = $this->newClient();
-        $client->request('GET', '/giris');
-        $session = $client->getRequest()->getSession();
-        $session->set('_security.main.target_path', '/yonetim/icerikler');
-        $session->save();
-        $this->login($client, 'login-dest-target@example.com');
-        self::assertResponseRedirects('/yonetim/icerikler');
     }
 
     public function testStudentCannotBeSentToTheWorkspaceOrAdminHome(): void
     {
-        $client = static::createClient();
         $this->createUser('login-dest-student-block@example.com', UserRole::Student, true);
-        $client->request('GET', '/giris');
+        $client = static::createClient();
+        $client->request('GET', '/hesabim');
         $session = $client->getRequest()->getSession();
         $session->set('_security.main.target_path', '/calisma-alani');
         $session->save();
@@ -146,9 +116,21 @@ final class LoginDestinationTest extends WebTestCase
 
         $client = $this->newClient();
         $this->loginAs($client, 'login-dest-parent-block@example.com', UserRole::Parent);
+        self::assertResponseRedirects('/veli');
         $client->followRedirect();
         $client->request('GET', '/calisma-alani');
         self::assertResponseStatusCodeSame(403);
+    }
+
+    private function assertLoginTarget(string $storedPath, string $expected): void
+    {
+        $client = $this->newClient();
+        $client->request('GET', '/hesabim');
+        $session = $client->getRequest()->getSession();
+        $session->set('_security.main.target_path', $storedPath);
+        $session->save();
+        $this->login($client, 'login-dest-target@example.com');
+        self::assertResponseRedirects($expected);
     }
 
     private function completeStudent(string $email): void
