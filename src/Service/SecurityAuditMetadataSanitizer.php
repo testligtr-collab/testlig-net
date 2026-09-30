@@ -193,6 +193,9 @@ final class SecurityAuditMetadataSanitizer
         'retry_pending_count',
         'dead_letter_count',
         'skipped_count',
+        'created_count',
+        'row_count',
+        'import_id',
         // Stage 2.22.2b phone verification claim manager (identifiers / counts only).
         'claim_id',
         'purpose',

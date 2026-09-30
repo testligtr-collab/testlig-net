@@ -18,6 +18,8 @@ type Manifest = {
     revision: string;
     reviewDetail: string;
     questionEdit: string;
+    questionSubjectCode: string;
+    questionOutcomeCode: string;
     classroomName: string;
     contentTitle: string;
     testTitle: string;

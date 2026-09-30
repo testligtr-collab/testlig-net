@@ -94,6 +94,28 @@ class QuestionRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @param list<string> $codes
+     *
+     * @return list<string>
+     */
+    public function findCodesPresent(array $codes): array
+    {
+        if ([] === $codes) {
+            return [];
+        }
+
+        /** @var list<string> $rows */
+        $rows = $this->createQueryBuilder('q')
+            ->select('q.code')
+            ->andWhere('q.code IN (:codes)')
+            ->setParameter('codes', $codes)
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return $rows;
+    }
+
     public function countCreatedBy(User $actor): int
     {
         return (int) $this->createQueryBuilder('q')

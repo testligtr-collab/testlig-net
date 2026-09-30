@@ -91,7 +91,7 @@ final class AdminQuestionController extends AdminBaseController
         return $this->renderForm($request, null);
     }
 
-    #[Route('/yonetim/sorular/{id}', name: 'app_admin_question_show', methods: ['GET'])]
+    #[Route('/yonetim/sorular/{id}', name: 'app_admin_question_show', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function show(string $id): Response
     {
@@ -127,7 +127,7 @@ final class AdminQuestionController extends AdminBaseController
         ]);
     }
 
-    #[Route('/yonetim/sorular/{id}/duzenle', name: 'app_admin_question_edit', methods: ['GET', 'POST'])]
+    #[Route('/yonetim/sorular/{id}/duzenle', name: 'app_admin_question_edit', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['GET', 'POST'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function edit(Request $request, string $id): Response
     {
@@ -144,7 +144,7 @@ final class AdminQuestionController extends AdminBaseController
         return $this->renderForm($request, $question);
     }
 
-    #[Route('/yonetim/sorular/{id}/gorunum', name: 'app_admin_question_preview', methods: ['GET'])]
+    #[Route('/yonetim/sorular/{id}/gorunum', name: 'app_admin_question_preview', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function preview(string $id): Response
     {
@@ -159,28 +159,28 @@ final class AdminQuestionController extends AdminBaseController
         ]);
     }
 
-    #[Route('/yonetim/sorular/{id}/incelemeye-gonder', name: 'app_admin_question_submit', methods: ['POST'])]
+    #[Route('/yonetim/sorular/{id}/incelemeye-gonder', name: 'app_admin_question_submit', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function submit(Request $request, string $id): Response
     {
         return $this->transition($request, $id, 'submit');
     }
 
-    #[Route('/yonetim/sorular/{id}/taslaga-dondur', name: 'app_admin_question_return', methods: ['POST'])]
+    #[Route('/yonetim/sorular/{id}/taslaga-dondur', name: 'app_admin_question_return', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function returnToDraft(Request $request, string $id): Response
     {
         return $this->transition($request, $id, 'return');
     }
 
-    #[Route('/yonetim/sorular/{id}/yayinla', name: 'app_admin_question_publish', methods: ['POST'])]
+    #[Route('/yonetim/sorular/{id}/yayinla', name: 'app_admin_question_publish', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function publish(Request $request, string $id): Response
     {
         return $this->transition($request, $id, 'publish');
     }
 
-    #[Route('/yonetim/sorular/{id}/arsivle', name: 'app_admin_question_archive', methods: ['POST'])]
+    #[Route('/yonetim/sorular/{id}/arsivle', name: 'app_admin_question_archive', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
     public function archive(Request $request, string $id): Response
     {

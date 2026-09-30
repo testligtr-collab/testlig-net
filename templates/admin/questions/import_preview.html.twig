@@ -1,0 +1,64 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}CSV önizleme — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_questions') }}">Sorular</a>
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_question_import') }}">CSV ile içe aktar</a>
+        <span aria-hidden="true">/</span>
+        <span>Önizleme</span>
+    </nav>
+    <h1 class="panel-greeting">İçe aktarma önizlemesi</h1>
+    <p>
+        Toplam {{ rows|length }}.
+        Oluşturulacak {{ created_count }}.
+        Atlanacak {{ skipped_count }}.
+        Hatalı {{ error_count }}.
+        Çakışma {{ conflict_count }}.
+    </p>
+    {% if stale %}
+        <p role="alert">Önizleme güncelliğini yitirdi. Dosyayı yeniden yükleyin.</p>
+    {% endif %}
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Satır</th>
+                    <th>Kod</th>
+                    <th>Durum</th>
+                    <th>Açıklama</th>
+                    <th>Soru kökü</th>
+                    <th>Doğru seçenek</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                    <tr>
+                        <td>{{ row.line }}</td>
+                        <td>{{ row.code }}</td>
+                        <td><span class="ws-badge">{{ row.status == 'create' ? 'Oluşturulacak' : (row.status == 'skip' ? 'Atlanacak' : (row.status == 'conflict' ? 'Çakışma' : 'Hatalı')) }}</span></td>
+                        <td>{{ row.message }}</td>
+                        <td>{{ row.stem }}</td>
+                        <td>{{ row.correct }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if can_apply %}
+        <form method="post" class="stack-sm" action="{{ path('app_admin_question_import_apply', {planId: plan_id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_csv_import_apply') }}">
+            <label>
+                <input type="checkbox" name="confirm" value="1" required>
+                Önizlemeyi kontrol ettim; sorular taslak olarak oluşturulsun.
+            </label>
+            <button class="btn btn--cta" type="submit">Taslak olarak oluştur</button>
+        </form>
+    {% else %}
+        <p><a class="btn" href="{{ path('app_admin_question_import') }}">Yeni dosya yükle</a></p>
+    {% endif %}
+{% endblock %}

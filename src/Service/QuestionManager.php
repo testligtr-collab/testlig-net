@@ -121,6 +121,7 @@ final class QuestionManager
         ?int $estimatedSeconds = null,
         QuestionSourceType $sourceType = QuestionSourceType::Original,
         ?string $sourceReference = null,
+        ?Uuid $id = null,
     ): Question {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $stemDoc = $stem instanceof QuestionContentDocument ? $stem : QuestionContentDocument::fromArray($stem);
@@ -151,6 +152,7 @@ final class QuestionManager
                 $sourceType,
                 $sourceReference,
                 $reasonCode,
+                $id,
             ): Question {
                 // Lock order (create): Institution? → Subject → Curriculum → Actor → Question → revision bundle.
                 $lockedInstitution = null;
@@ -185,6 +187,7 @@ final class QuestionManager
                     $gradeLevel,
                     $freshActor,
                     $now,
+                    $id,
                 );
                 $this->questions->save($question, false);
 

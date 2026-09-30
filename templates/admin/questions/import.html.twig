@@ -1,0 +1,27 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}CSV ile içe aktar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_admin_questions') }}">Sorular</a>
+        <span aria-hidden="true">/</span>
+        <span>CSV ile içe aktar</span>
+    </nav>
+    <h1 class="panel-greeting">CSV ile içe aktar</h1>
+    <p>UTF-8 CSV ile tek doğru seçenekli taslak soru eklenir. Dosya önce önizlenir; onaydan sonra sorular taslak olarak oluşturulur. Yayımlama bu adıma dahil değildir.</p>
+    <p>Kolonlar: <code>code</code>, <code>grade_level</code>, <code>subject_code</code>, <code>learning_outcome_code</code>, <code>stem</code>, <code>option_a</code>, <code>option_b</code>, <code>option_c</code>, <code>option_d</code>, <code>correct_option</code>, <code>explanation</code>.</p>
+    <p><a class="btn" href="{{ path('app_admin_question_import_template') }}">Şablon indir</a></p>
+
+    {% if file_error %}
+        <p class="form-error" role="alert">{{ file_error }}</p>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="stack-sm" action="{{ path('app_admin_question_import') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('question_csv_import') }}">
+        <label for="question-csv">CSV dosyası
+            <input id="question-csv" name="csv" type="file" accept=".csv,text/csv" required>
+        </label>
+        <button class="btn btn--cta" type="submit">Önizle</button>
+    </form>
+{% endblock %}
