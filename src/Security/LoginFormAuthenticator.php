@@ -70,10 +70,43 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $this->removeTargetPath($request->getSession(), $firewallName);
         $user = $token->getUser();
         if ($user instanceof User) {
-            return new RedirectResponse($this->postLoginDestination->resolve($user, \is_string($target) ? $target : null)->location($this->urlGenerator));
+            return new RedirectResponse($this->postLoginDestination->resolve($user, $this->sameOriginPath($request, \is_string($target) ? $target : null))->location($this->urlGenerator));
         }
 
         return new RedirectResponse($this->urlGenerator->generate(PostLoginRoute::ACCOUNT_HOME));
+    }
+
+    /**
+     * Symfony stores an absolute URI. Keep only a same-origin path.
+     */
+    private function sameOriginPath(Request $request, ?string $target): ?string
+    {
+        if (!\is_string($target) || '' === $target || str_contains($target, '\\')) {
+            return null;
+        }
+        if (str_starts_with($target, '/') && !str_starts_with($target, '//')) {
+            return $target;
+        }
+
+        $parts = parse_url($target);
+        if (!\is_array($parts) || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if (!\in_array($scheme, ['http', 'https'], true) || '' === $host || $scheme !== strtolower($request->getScheme()) || $host !== strtolower($request->getHost())) {
+            return null;
+        }
+        if (isset($parts['port']) && (int) $parts['port'] !== $request->getPort()) {
+            return null;
+        }
+        $path = (string) ($parts['path'] ?? '/');
+        if (!str_starts_with($path, '/') || str_starts_with($path, '//')) {
+            return null;
+        }
+        $query = isset($parts['query']) ? '?'.$parts['query'] : '';
+
+        return $path.$query;
     }
 
     protected function getLoginUrl(Request $request): string
