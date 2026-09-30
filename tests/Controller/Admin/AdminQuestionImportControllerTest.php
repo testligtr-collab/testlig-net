@@ -136,10 +136,6 @@ final class AdminQuestionImportControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
         self::assertSame(QuestionStatus::Draft->value, $connection->fetchOne('SELECT status FROM questions WHERE code = ?', [$code]));
 
-        $client->request('GET', '/ogrenci/dersler');
-        self::assertStringNotContainsString($stem, (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('correctStableKey', (string) $client->getResponse()->getContent());
-
         $client->request('GET', '/yonetim/sorular/ice-aktar');
         $token = (string) $client->getCrawler()->filter('input[name="_token"]')->attr('value');
         $client->request('POST', '/yonetim/sorular/ice-aktar', ['_token' => $token], [
@@ -150,6 +146,16 @@ final class AdminQuestionImportControllerTest extends WebTestCase
         self::assertStringContainsString('Mevcut kayıt, güncellenmedi.', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Taslak olarak oluştur', (string) $client->getResponse()->getContent());
         self::assertSame($before + 1, $this->questionCount());
+
+        $this->createPrivileged('qcsv-student@example.com', UserRole::Student);
+        $student = $this->newClient();
+        $this->login($student, 'qcsv-student@example.com');
+        $student->request('GET', '/ogrenci/dersler');
+        $student->followRedirect();
+        self::assertResponseIsSuccessful();
+        $studentHtml = (string) $student->getResponse()->getContent();
+        self::assertStringNotContainsString($stem, $studentHtml);
+        self::assertStringNotContainsString('correctStableKey', $studentHtml);
     }
 
     public function testInvalidRowBlocksApplyAndAConcurrentCodeRollsBack(): void
@@ -187,7 +193,7 @@ final class AdminQuestionImportControllerTest extends WebTestCase
         $client->submit($client->getCrawler()->selectButton('Taslak olarak oluştur')->form(['confirm' => '1']));
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertStringContainsString('geri alındı', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('güncelliğini yitirdi', (string) $client->getResponse()->getContent());
         $connection = $this->connection();
         self::assertFalse($connection->fetchOne('SELECT code FROM questions WHERE code = ?', [$second]));
         self::assertSame(1, $this->questionCount());
