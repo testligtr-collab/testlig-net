@@ -21,10 +21,11 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await expect(adminPage.getByRole('link', { name: label })).toHaveCount(0);
   }
   await expect(adminPage.locator('a.panel-nav-link[aria-current="page"]')).toHaveText('Genel Bakış');
-  for (const viewport of VIEWPORTS) {
+  for (const viewport of [...VIEWPORTS, { name: '1920', width: 1920, height: 1080 }]) {
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim');
     await assertLayout(adminPage);
+    await assertOverviewChrome(adminPage, viewport.width);
     const primary = adminPage.getByRole('link', { name: 'Yeni içerik' });
     if (await primary.count()) {
       const primaryBox = await primary.first().boundingBox();
@@ -34,7 +35,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     if (viewport.width >= 1024) {
       await expect(adminPage.locator('#panel-sidebar')).toBeVisible();
     }
-    await shot(adminPage, info, 'admin', 'ozet', viewport.name);
+    await shot(adminPage, info, 'admin', 'dashboard', viewport.name);
     if (viewport.width < 1024) {
       await closeDrawer(adminPage);
     }
@@ -83,15 +84,18 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   }
   const kurum = await saPage.request.get('/kurum');
   expect(kurum.status()).toBe(403);
-  for (const viewport of VIEWPORTS) {
+  for (const viewport of [...VIEWPORTS, { name: '1920', width: 1920, height: 1080 }]) {
     await saPage.setViewportSize(viewport);
     await saPage.goto('/yonetim');
     await assertLayout(saPage);
-    await shot(saPage, info, 'superadmin', 'ozet', viewport.name);
+    await assertOverviewChrome(saPage, viewport.width);
+    await shot(saPage, info, 'superadmin', viewport.width === 1920 ? 'dashboard' : 'ozet', viewport.name);
     if (viewport.width >= 1024) {
       await expect(saPage.locator('#panel-sidebar')).toBeVisible();
       await expect(saPage.locator('#nav-group-operations')).toBeVisible();
-      await shot(saPage, info, 'superadmin', 'operasyon', viewport.name);
+      if (viewport.width !== 1920) {
+        await shot(saPage, info, 'superadmin', 'operasyon', viewport.name);
+      }
     }
   }
   await saPage.setViewportSize({ width: 1280, height: 900 });
@@ -101,6 +105,52 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await assertClean(saPage);
   await sa.close();
 });
+
+async function assertOverviewChrome(page: import('@playwright/test').Page, width: number): Promise<void> {
+  const chrome = await page.evaluate(() => {
+    const navEl = document.querySelector('.panel-sidebar__nav');
+    const side = document.querySelector('.panel-sidebar');
+    if (!(navEl instanceof HTMLElement) || !(side instanceof HTMLElement)) {
+      return null;
+    }
+    return {
+      scroll: navEl.scrollTop,
+      navOverflow: getComputedStyle(navEl).overflowY,
+      sideOverflow: getComputedStyle(side).overflowY,
+    };
+  });
+  expect(chrome).not.toBeNull();
+  expect(chrome!.scroll).toBe(0);
+  expect(chrome!.navOverflow).toBe('auto');
+  expect(chrome!.sideOverflow).toBe('hidden');
+
+  if (width >= 1024) {
+    await expect(page.locator('#nav-group-general')).toBeVisible();
+    const genel = await page.locator('#nav-group-general').boundingBox();
+    const navBox = await page.locator('.panel-sidebar__nav').boundingBox();
+    expect(genel).not.toBeNull();
+    expect(navBox).not.toBeNull();
+    expect(genel!.y).toBeGreaterThanOrEqual(navBox!.y - 1);
+    expect(genel!.y).toBeLessThan(navBox!.y + navBox!.height);
+    const search = await page.locator('.admin-search input').boundingBox();
+    const bell = await page.locator('.admin-icon-btn').boundingBox();
+    const avatar = await page.locator('.admin-topbar-initials').boundingBox();
+    const bar = await page.locator('.panel-topbar').boundingBox();
+    expect(search && bell && avatar && bar).toBeTruthy();
+    expect(Math.abs(search!.y - bell!.y)).toBeLessThan(16);
+    expect(Math.abs(bell!.y - avatar!.y)).toBeLessThan(12);
+    expect(bar!.height).toBeLessThan(88);
+    await expect(page.locator('.admin-search input')).toHaveAttribute('tabindex', '-1');
+    await expect(page.locator('.admin-icon-btn')).toHaveAttribute('tabindex', '-1');
+  }
+  if (width >= 1280) {
+    const tops = await page.locator('.admin-metric').evaluateAll((nodes) =>
+      nodes.map((node) => node.getBoundingClientRect().top),
+    );
+    expect(tops).toHaveLength(6);
+    expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(8);
+  }
+}
 
 async function closeDrawer(page: import('@playwright/test').Page): Promise<void> {
   const menu = page.getByRole('button', { name: 'Menü', exact: true });
