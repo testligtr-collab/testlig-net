@@ -34,7 +34,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         private readonly UrlGeneratorInterface $urlGenerator,
         private readonly EmailNormalizer $emailNormalizer,
         private readonly UserRepository $users,
-        private readonly StudentLoginRedirector $studentLoginRedirector,
+        private readonly PostLoginDestinationResolver $postLoginDestination,
     ) {
     }
 
@@ -67,35 +67,17 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): RedirectResponse
     {
         $target = $this->getTargetPath($request->getSession(), $firewallName);
-        if (\is_string($target) && $this->isSafeLocalPath($target)) {
-            $this->removeTargetPath($request->getSession(), $firewallName);
-
-            return new RedirectResponse($target);
-        }
-
+        $this->removeTargetPath($request->getSession(), $firewallName);
         $user = $token->getUser();
         if ($user instanceof User) {
-            return new RedirectResponse($this->studentLoginRedirector->defaultPathFor($user));
+            return new RedirectResponse($this->postLoginDestination->resolve($user, \is_string($target) ? $target : null)->location($this->urlGenerator));
         }
 
-        return new RedirectResponse($this->urlGenerator->generate('app_account'));
+        return new RedirectResponse($this->urlGenerator->generate(PostLoginRoute::ACCOUNT_HOME));
     }
 
     protected function getLoginUrl(Request $request): string
     {
         return $this->urlGenerator->generate(self::LOGIN_ROUTE);
-    }
-
-    private function isSafeLocalPath(string $path): bool
-    {
-        if ('' === $path || !str_starts_with($path, '/') || str_starts_with($path, '//')) {
-            return false;
-        }
-
-        if (str_contains($path, '://') || str_contains($path, '\\')) {
-            return false;
-        }
-
-        return true;
     }
 }

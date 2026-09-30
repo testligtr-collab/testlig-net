@@ -73,8 +73,8 @@ Aşağıdakiler **mevcut kod**tan kanıtlıdır; “hedef” değildir.
 - Authenticator: `App\Security\LoginFormAuthenticator`
   - Form alanı `_username` e-posta olarak okunur
   - `App\Service\EmailNormalizer` ile normalize edilir
-  - CSRF badge `authenticate`; başarıda yalnızca güvenli yerel path (`isSafeLocalPath`)
-  - Varsayılan yönlendirme: `app_account` (`/hesabim`)
+  - CSRF badge `authenticate`; kayıtlı hedef yalnızca aynı kaynaklı ve erişilebilir bir iç path ise korunur
+  - Varsayılan yönlendirme `PostLoginDestinationResolver`: öğrenci paneli veya kurulum, veli paneli, aktif kurum sahibi/müdürü için `/kurum`, Admin/SuperAdmin için `/yonetim`, içerik veya aktif sınıf öğretmeni için `/calisma-alani`, aksi halde `/hesabim`
 - `App\Security\UserChecker`: yalnız `UserStatus::Active` kimlik doğrulayabilir; diğer
   durumlar **tek generic** mesajla reddedilir
 - Firewall `login_throttling`: 5 deneme / 15 dk (`rate_limiter` adı `login`)
