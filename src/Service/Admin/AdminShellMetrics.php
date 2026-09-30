@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace App\Service\Admin;
 
+use App\Dto\ContentWorkspaceSummaryView;
 use App\Entity\Assessment;
 use App\Entity\CatalogSubject;
 use App\Entity\Institution;
-use App\Entity\InstitutionApplication;
 use App\Entity\LearningContent;
 use App\Entity\Question;
 use App\Entity\User;
 use App\Enum\CatalogPublicationStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\LearningContentStatus;
-use App\Enum\OnboardingApplicationStatus;
 use App\Enum\UserStatus;
 use App\Presentation\AdminIconCatalog;
 use App\Security\AdminAuthorization;
@@ -37,7 +36,7 @@ final class AdminShellMetrics
     }
 
     /**
-     * @return list<array{label: string, value: int, href: string|null, icon: string}>
+     * @return list<array{key: string, label: string, value: int, href: string|null, icon: string, tone: string}>
      */
     public function forActor(User $actor): array
     {
@@ -48,33 +47,77 @@ final class AdminShellMetrics
         $cards = [];
 
         if ($this->adminAuthorization->canViewUsers($actor)) {
-            $users = $this->urlGenerator->generate('app_admin_users');
-            $cards[] = $this->card('Aktif kullanıcı', $this->countStatus(User::class, UserStatus::Active), $users, 'users');
-            $cards[] = $this->card('Doğrulama bekleyen', $this->countStatus(User::class, UserStatus::PendingVerification), $users, 'users');
+            $cards[] = $this->card('users', 'Aktif kullanıcı', $this->countStatus(User::class, UserStatus::Active), $this->urlGenerator->generate('app_admin_users'), 'users', 'users');
         }
 
         if ($this->adminAuthorization->canViewInstitutions($actor)) {
-            $cards[] = $this->card('Aktif kurum', $this->countStatus(Institution::class, InstitutionStatus::Active), $this->urlGenerator->generate('app_admin_institutions'), 'institutions');
-            $cards[] = $this->card('Bekleyen kurum başvurusu', $this->countStatus(InstitutionApplication::class, OnboardingApplicationStatus::Pending), null, 'institutions');
+            $cards[] = $this->card('institutions', 'Aktif kurum', $this->countStatus(Institution::class, InstitutionStatus::Active), $this->urlGenerator->generate('app_admin_institutions'), 'institutions', 'institutions');
         }
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
-            $cards[] = $this->card('Yayımlanmış katalog dersi', $this->countStatus(CatalogSubject::class, CatalogPublicationStatus::Published), $this->urlGenerator->generate('app_admin_catalog'), 'catalog');
+            $cards[] = $this->card('lessons', 'Yayımlanmış ders', $this->countStatus(CatalogSubject::class, CatalogPublicationStatus::Published), $this->urlGenerator->generate('app_admin_catalog'), 'catalog', 'lessons');
         }
 
         if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
-            $cards[] = $this->card('İçerik inceleme kuyruğu', $this->countStatus(LearningContent::class, LearningContentStatus::InReview), $this->urlGenerator->generate('app_admin_learning_contents'), 'learning_contents');
+            $cards[] = $this->card('review', 'İnceleme bekleyen', $this->countStatus(LearningContent::class, LearningContentStatus::InReview), $this->urlGenerator->generate('app_admin_learning_contents'), 'learning_contents', 'review');
         }
 
         if ($this->adminAuthorization->canViewQuestionBank($actor)) {
-            $cards[] = $this->card('Soru', $this->countStatus(Question::class, null), $this->urlGenerator->generate('app_admin_questions'), 'questions');
+            $cards[] = $this->card('questions', 'Sorular', $this->countStatus(Question::class, null), $this->urlGenerator->generate('app_admin_questions'), 'questions', 'questions');
         }
 
         if ($this->adminAuthorization->canViewTestBank($actor)) {
-            $cards[] = $this->card('Test', $this->countStatus(Assessment::class, null), $this->urlGenerator->generate('app_admin_tests'), 'tests');
+            $cards[] = $this->card('tests', 'Testler', $this->countStatus(Assessment::class, null), $this->urlGenerator->generate('app_admin_tests'), 'tests', 'tests');
         }
 
         return $cards;
+    }
+
+    /**
+     * @param list<array{key: string, label: string, value: int, href: string|null, icon: string, tone: string}> $cards
+     *
+     * @return array{can_create_institution: bool, published_contents: int, tasks: list<array{label: string, hint: string, href: string, icon: string}>}
+     */
+    public function overview(User $actor, ?ContentWorkspaceSummaryView $workspace, array $cards, int $publishedContents): array
+    {
+        $values = [];
+        foreach ($cards as $card) {
+            $values[$card['key']] = $card['value'];
+        }
+
+        $tasks = [];
+        if (null !== $workspace && 0 === ($values['questions'] ?? -1) && $workspace->canCreateQuestion) {
+            $tasks[] = [
+                'label' => 'İlk soruyu oluştur',
+                'hint' => 'Testlerin için soru havuzunu oluşturmaya başla.',
+                'href' => $this->urlGenerator->generate('app_admin_question_new'),
+                'icon' => $this->icons->resolve('questions'),
+            ];
+        }
+        if (null !== $workspace && 0 === ($values['tests'] ?? -1) && $workspace->canCreateTest) {
+            $tasks[] = [
+                'label' => 'İlk testi hazırla',
+                'hint' => 'Oluşturduğun sorulardan bir test hazırlamaya başla.',
+                'href' => $this->urlGenerator->generate('app_admin_test_new'),
+                'icon' => $this->icons->resolve('tests'),
+            ];
+        }
+        if ($this->adminAuthorization->canViewInstitutions($actor)) {
+            $tasks[] = [
+                'label' => 'Kurumları yönet',
+                'hint' => $this->adminAuthorization->canCreateInstitutions($actor)
+                    ? 'Okul ve kurumları ekleyerek platformu büyüt.'
+                    : 'Kayıtlı kurumları buradan görebilirsin.',
+                'href' => $this->urlGenerator->generate('app_admin_institutions'),
+                'icon' => $this->icons->resolve('institutions'),
+            ];
+        }
+
+        return [
+            'can_create_institution' => $this->adminAuthorization->canCreateInstitutions($actor),
+            'published_contents' => max(0, $publishedContents),
+            'tasks' => $tasks,
+        ];
     }
 
     /**
@@ -93,15 +136,17 @@ final class AdminShellMetrics
     }
 
     /**
-     * @return array{label: string, value: int, href: string|null, icon: string}
+     * @return array{key: string, label: string, value: int, href: string|null, icon: string, tone: string}
      */
-    private function card(string $label, int $value, ?string $href, string $icon): array
+    private function card(string $key, string $label, int $value, ?string $href, string $icon, string $tone): array
     {
         return [
+            'key' => $key,
             'label' => $label,
             'value' => $value,
             'href' => $href,
             'icon' => $this->icons->resolve($icon),
+            'tone' => $tone,
         ];
     }
 }

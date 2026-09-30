@@ -35,6 +35,7 @@ final class AdminNavBuilder
      *     mobile_nav: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
      *     panel_role_label: string,
      *     display_name: string,
+     *     greeting_name: string,
      *     avatar_initials: string,
      *     workspace_shell: bool
      * }
@@ -54,7 +55,7 @@ final class AdminNavBuilder
 
         $items = [];
         if ($canShell) {
-            $items[] = $this->item('dashboard', 'Özet', 'app_admin_dashboard', $currentPath);
+            $items[] = $this->item('dashboard', 'Genel Bakış', 'app_admin_dashboard', $currentPath);
             $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
         } elseif ($workspaceShell) {
             $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_workspace_dashboard', $currentPath);
@@ -103,6 +104,7 @@ final class AdminNavBuilder
             'mobile_nav' => $items,
             'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : WorkspaceRoleLabels::content($actor->getRoles())),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
+            'greeting_name' => $this->greetingName($actor),
             'avatar_initials' => $this->initials($actor),
             'workspace_shell' => $workspaceShell,
         ];
@@ -168,6 +170,13 @@ final class AdminNavBuilder
             'current' => $current,
             'icon' => $this->icons->resolve($id),
         ];
+    }
+
+    private function greetingName(User $actor): string
+    {
+        $first = trim($actor->getFirstName());
+
+        return '' !== $first ? $first : 'yönetici';
     }
 
     private function initials(User $actor): string

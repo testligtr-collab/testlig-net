@@ -52,8 +52,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
-        self::assertSelectorTextContains('body', 'Sınırlı görünüm');
-        self::assertSelectorTextContains('body', 'Özet');
+        self::assertSelectorTextContains('body', 'Testlig Yönetim Özeti');
+        self::assertSelectorTextContains('body', 'Genel Bakış');
         self::assertSelectorTextContains('body', 'Genel');
         self::assertSelectorTextContains('body', 'Aktif kullanıcı');
         self::assertSelectorExists('a[href="/yonetim/kullanicilar"]');
@@ -62,6 +62,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/yonetim/uzlastirma"]');
         self::assertSelectorNotExists('a[href="/yonetim/denetim"]');
         self::assertSelectorNotExists('#nav-group-operations');
+        self::assertSelectorNotExists('a[href="/yonetim/kurumlar/yeni"]');
 
         $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
@@ -85,7 +86,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
-        self::assertSelectorTextContains('body', 'Özet');
+        self::assertSelectorTextContains('body', 'Genel Bakış');
+        self::assertSelectorExists('a[href="/yonetim/kurumlar/yeni"]');
         self::assertSelectorExists('#nav-group-operations');
         self::assertSelectorExists('a[href="/yonetim/odemeler"]');
         self::assertSelectorExists('a[href="/yonetim/denetim"]');
