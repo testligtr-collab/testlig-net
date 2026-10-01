@@ -34,6 +34,7 @@ use App\Exception\AssessmentAttemptException;
 use App\Exception\AssessmentException;
 use App\Exception\AssessmentScoringException;
 use App\Exception\StudentPracticeException;
+use App\Presentation\ResultPresentation;
 use App\Question\Content\QuestionPlainText;
 use App\Repository\AssessmentAttemptAnswerRepository;
 use App\Repository\AssessmentAttemptItemRepository;
@@ -86,6 +87,7 @@ final class StudentAssessmentPractice
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
         private readonly StudentAssignedTestCatalog $assignedTests,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -115,7 +117,7 @@ final class StudentAssessmentPractice
             $rows[] = [
                 'code' => $assessment->getCode(),
                 'title' => $revision->getTitle(),
-                'subject' => $assessment->getSubject()?->getName() ?? '',
+                'subject' => $this->presentation->subjectName($assessment->getSubject()),
                 'question_count' => $counts[$revision->getId()->toRfc4122()] ?? 0,
                 'duration_label' => $this->durationLabel($revision),
                 'state' => $this->state($attempts[$assessment->getId()->toRfc4122()] ?? null),
@@ -133,6 +135,7 @@ final class StudentAssessmentPractice
      *     question_count: int,
      *     duration_label: string,
      *     total_points: string,
+     *     subject: string,
      *     state: string,
      *     institution?: string,
      *     classroom?: string,
@@ -157,6 +160,7 @@ final class StudentAssessmentPractice
             'question_count' => \count($this->revisionItems($revision)),
             'duration_label' => $this->durationLabel($revision),
             'total_points' => $this->totalPoints($revision),
+            'subject' => $this->presentation->subjectName($assessment->getSubject()),
             'state' => $this->state($attempt),
         ];
     }
@@ -299,7 +303,7 @@ final class StudentAssessmentPractice
                 throw StudentPracticeException::rejected('in_progress');
             }
 
-            return $this->results->read($student, $attempt);
+            return $this->withSubject($this->results->read($student, $attempt), $delivery->getAssessment());
         }
         $assessment = $this->visible($student, $grade, $code);
         $attempt = $this->requireAttempt($student, $assessment);
@@ -307,7 +311,22 @@ final class StudentAssessmentPractice
             throw StudentPracticeException::rejected('in_progress');
         }
 
-        return $this->results->read($student, $attempt);
+        return $this->withSubject($this->results->read($student, $attempt), $assessment);
+    }
+
+    /**
+     * @param array<string, mixed>|null $view
+     *
+     * @return array<string, mixed>|null
+     */
+    private function withSubject(?array $view, Assessment $assessment): ?array
+    {
+        if (null === $view) {
+            return null;
+        }
+        $view['subject'] = $this->presentation->subjectName($assessment->getSubject());
+
+        return $view;
     }
 
     private function visible(User $student, GradeLevel $grade, string $code): Assessment
@@ -738,7 +757,7 @@ final class StudentAssessmentPractice
             $total = bcadd($total, AssessmentScore::normalizePoints($item->getPoints()), 2);
         }
 
-        return $total;
+        return $this->presentation->points($total) ?? '0';
     }
 
     private function isPlatform(User $student, GradeLevel $grade, string $code): bool
@@ -795,6 +814,7 @@ final class StudentAssessmentPractice
      *     question_count: int,
      *     duration_label: string,
      *     total_points: string,
+     *     subject: string,
      *     state: string,
      *     institution?: string,
      *     classroom?: string,
@@ -819,6 +839,7 @@ final class StudentAssessmentPractice
                 'question_count' => $card['question_count'],
                 'duration_label' => $card['duration_label'],
                 'total_points' => $this->totalPoints($revision),
+                'subject' => $card['subject'],
                 'state' => $card['state'],
                 'institution' => $card['institution'],
                 'classroom' => $card['classroom'],

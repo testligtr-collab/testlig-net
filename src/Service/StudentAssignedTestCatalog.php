@@ -16,6 +16,7 @@ use App\Enum\AssessmentDeliveryAudienceType;
 use App\Enum\AssessmentDeliveryRecipientStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
+use App\Presentation\ResultPresentation;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -30,6 +31,7 @@ final class StudentAssignedTestCatalog
         private readonly EntityManagerInterface $entityManager,
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly ClockInterface $clock,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -221,7 +223,7 @@ final class StudentAssignedTestCatalog
         return [
             'code' => $this->hasher->studentAssignmentCode($delivery->getId()),
             'title' => $revision->getTitle(),
-            'subject' => $delivery->getAssessment()->getSubject()?->getName() ?? '',
+            'subject' => $this->presentation->subjectName($delivery->getAssessment()->getSubject()),
             'question_count' => $questionCount,
             'duration_label' => $this->duration($revision),
             'state' => $state,

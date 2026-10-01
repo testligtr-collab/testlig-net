@@ -205,19 +205,20 @@ final class ParentPanelControllerTest extends WebTestCase
                 'Toplama',
                 'Matematik',
                 'Tamamlandı',
-                '01.01.2026 10:00 UTC',
+                '01.01.2026 13:00',
                 true,
-                '8,00',
-                '10,00',
-                '80,0%',
+                '8',
+                '10',
+                '%80',
                 4,
                 1,
                 2,
             ),
         ]);
         self::assertStringContainsString('Toplama', $html);
-        self::assertStringContainsString('8,00', $html);
-        self::assertStringContainsString('80,0%', $html);
+        self::assertStringContainsString('8', $html);
+        self::assertStringContainsString('%80', $html);
+        self::assertStringNotContainsString(' UTC', $html);
         self::assertStringContainsString('Doğru', $html);
         self::assertStringNotContainsString('çözüm', $html);
         self::assertStringNotContainsString('ciphertext', $html);
@@ -228,7 +229,7 @@ final class ParentPanelControllerTest extends WebTestCase
                 'Çıkarma',
                 'Matematik',
                 'Devam ediyor',
-                '01.01.2026 11:00 UTC',
+                '01.01.2026 14:00',
                 false,
                 null,
                 null,
@@ -239,7 +240,7 @@ final class ParentPanelControllerTest extends WebTestCase
             ),
         ]);
         self::assertStringContainsString('Devam ediyor', $progress);
-        self::assertStringNotContainsString('8,00', $progress);
+        self::assertStringNotContainsString('%80', $progress);
     }
 
     private function link(string $studentEmail, string $parentEmail): void

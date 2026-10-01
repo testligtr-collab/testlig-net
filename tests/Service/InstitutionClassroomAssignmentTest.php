@@ -83,7 +83,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertNotNull($report);
         self::assertSame(1, $report->recipientCount);
         self::assertSame(1, $report->notStarted);
-        self::assertSame('0.00', $report->completionRate);
+        self::assertSame('%0', $report->completionRate);
 
         $student = $this->fresh($ctx['student']);
         $cards = $this->catalog()->listFor($student);
@@ -116,9 +116,9 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $scored = $this->report()->result($ctx['owner'], $this->requireDelivery($ctx['institution'], $deliveryReference), 1);
         self::assertNotNull($scored);
         self::assertSame(1, $scored->completed);
-        self::assertSame('100.00', $scored->completionRate);
-        self::assertNotNull($scored->averagePercentage);
-        self::assertSame('2.50', $scored->students[0]->earned);
+        self::assertSame('%100', $scored->completionRate);
+        self::assertSame('%100', $scored->averagePercentage);
+        self::assertSame('2,5', $scored->students[0]->earned);
         self::assertStringNotContainsString('@', $scored->students[0]->name);
 
         $other = $this->activeUser('solve-other@example.com', UserRole::Student);
@@ -543,7 +543,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         ]);
         self::assertResponseRedirects();
         $client->followRedirect();
-        self::assertStringContainsString('2.50', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('2,5', (string) $client->getResponse()->getContent());
     }
 
     private function login(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $email): void

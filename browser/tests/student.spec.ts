@@ -91,10 +91,27 @@ test('student lesson, blocked video host, and one test attempt', async ({ page, 
   const resultHtml = await page.content();
   expect(resultHtml).not.toContain('correctStableKey');
   expect(resultHtml).not.toContain('opt_b');
-  await shot(page, info, 'student', 'sonuc', '1280');
-  await page.goto('/ogrenci/testler/gecmisim');
-  await expect(page.getByText(data.paths.testTitle)).toBeVisible();
-  await shot(page, info, 'student', 'gecmis', '1280');
+  expect(resultHtml).not.toContain('100.0000');
+  expect(resultHtml).not.toContain('1.00');
+  expect(resultHtml).not.toContain(' UTC');
+  expect(resultHtml).not.toContain('browser_subj');
+  await expect(page.getByText('Tarayici dersi')).toBeVisible();
+  await expect(page.getByText('%0')).toBeVisible();
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto(page.url());
+    await assertLayout(page);
+    await shot(page, info, 'student', 'sonuc', viewport.name);
+  }
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto('/ogrenci/testler/gecmisim');
+    await expect(page.getByText(data.paths.testTitle)).toBeVisible();
+    await expect(page.getByText('%0')).toBeVisible();
+    await expect(page.getByText('Tarayici dersi')).toBeVisible();
+    await assertLayout(page);
+    await shot(page, info, 'student', 'gecmis', viewport.name);
+  }
   await page.goto('/ogrenci/profil');
   await expect(page.getByRole('heading', { level: 1, name: 'Profilim' })).toBeVisible();
   await shot(page, info, 'student', 'profil', '1280');

@@ -17,6 +17,7 @@ use App\Enum\ItemScoreOutcome;
 use App\Enum\QuestionType;
 use App\Enum\ScoringRunStatus;
 use App\Exception\QuestionException;
+use App\Presentation\ResultPresentation;
 use App\Question\Answer\QuestionAnswerIntegrityHasher;
 use App\Question\Content\QuestionPlainText;
 use App\Repository\AssessmentAttemptAnswerRepository;
@@ -42,6 +43,7 @@ final class StudentPracticeResultReader
         private readonly QuestionRevisionOptionRepository $options,
         private readonly QuestionAnswerIntegrityHasher $hasher,
         private readonly AttemptAnswerReader $answerReader,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -149,9 +151,9 @@ final class StudentPracticeResultReader
             'correct' => $run->getCorrectCount(),
             'incorrect' => $run->getIncorrectCount(),
             'unanswered' => $run->getUnansweredCount(),
-            'earned' => $run->getFinalPoints(),
-            'total' => $run->getMaximumPoints(),
-            'percentage' => $run->getPercentage(),
+            'earned' => $this->presentation->points($run->getFinalPoints()) ?? '0',
+            'total' => $this->presentation->points($run->getMaximumPoints()) ?? '0',
+            'percentage' => $this->presentation->percent($run->getPercentage()) ?? '%0',
             'questions' => $questions,
         ];
     }
