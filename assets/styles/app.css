@@ -3577,3 +3577,123 @@ textarea.revision-text { field-sizing: content; }
 .progress__bar--98 { width: 98%; }
 .progress__bar--99 { width: 99%; }
 .progress__bar--100 { width: 100%; }
+
+.public-catalog {
+    background: var(--tl-bg);
+    color: var(--tl-ink);
+}
+
+.catalog-wrap {
+    width: min(72rem, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 1.5rem 0 3rem;
+}
+
+.public-catalog h1 {
+    margin: 0 0 0.75rem;
+    color: var(--tl-ink);
+    font-size: var(--tl-fs-2xl);
+    line-height: var(--tl-lh-tight);
+}
+
+.catalog-lead,
+.catalog-kicker {
+    color: var(--tl-ink-muted);
+}
+
+.catalog-grid,
+.catalog-list {
+    display: grid;
+    gap: 1rem;
+    margin: 1.25rem 0;
+    padding: 0;
+    list-style: none;
+}
+
+.catalog-grid {
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+}
+
+.catalog-card,
+.catalog-panel {
+    min-width: 0;
+    border: 1px solid var(--tl-border);
+    border-radius: 1rem;
+    background: var(--tl-surface);
+    color: var(--tl-ink);
+}
+
+.catalog-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.35rem;
+    min-height: 6.5rem;
+    padding: 1rem;
+    text-decoration: none;
+}
+
+.catalog-panel {
+    padding: 1rem;
+}
+
+.catalog-panel h2 {
+    margin: 0 0 0.35rem;
+    font-size: var(--tl-fs-lg);
+}
+
+.catalog-card__label {
+    font-size: var(--tl-fs-xl);
+    font-weight: 700;
+}
+
+.catalog-card__meta {
+    color: var(--tl-ink-muted);
+}
+
+.catalog-tone-pink { background: #fde8ef; }
+.catalog-tone-yellow { background: #fff4d6; }
+.catalog-tone-mint { background: #e5f7ef; }
+.catalog-tone-blue { background: #e7f2fb; }
+.catalog-tone-purple { background: #efe8fb; }
+.catalog-tone-peach { background: #fff0e6; }
+
+.catalog-crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.6rem;
+    margin-bottom: 1rem;
+}
+
+.catalog-cta {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 1rem;
+    background: var(--tl-surface);
+    border: 1px solid var(--tl-border);
+}
+
+.catalog-cta__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.public-catalog a:focus-visible,
+.public-catalog button:focus-visible {
+    outline: 3px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+
+@media (max-width: 40rem) {
+    .catalog-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .public-catalog a,
+    .public-catalog button {
+        transition: none;
+    }
+}

@@ -1,0 +1,52 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ catalog_title }} — Testlig{% endblock %}
+{% block meta_description %}{{ catalog_description }}{% endblock %}
+{% block head_extra %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:title" content="{{ catalog_title }}">
+    <meta property="og:description" content="{{ catalog_description }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+{% endblock %}
+{% block body_class %}public-catalog{% endblock %}
+{% block flashes %}{% endblock %}
+{% block site_chrome %}{% include 'public_catalog/_chrome.html.twig' %}{% endblock %}
+{% block site_footer %}{% include 'public_catalog/_footer.html.twig' %}{% endblock %}
+
+{% block body %}
+    <div class="catalog-wrap">
+        <nav class="catalog-crumbs" aria-label="Konum">
+            <a href="{{ path('app_public_catalog') }}">Dersler</a>
+            <a href="{{ path('app_public_catalog_grade', {grade: grade}) }}">{{ grade_label }}</a>
+            <a href="{{ path('app_public_catalog_subject', {grade: grade, subjectSlug: subject.slug}) }}">{{ subject.name }}</a>
+            <span aria-current="page">{{ unit.name }}</span>
+        </nav>
+        <p class="catalog-kicker">{{ subject.name }}</p>
+        <h1>{{ unit.name }}</h1>
+        {% if unit.description %}
+            <p class="catalog-lead">{{ unit.description }}</p>
+        {% endif %}
+        {% if unit.sourceUrl %}
+            <p><a href="{{ unit.sourceUrl }}" rel="noopener noreferrer">Kaynak</a></p>
+        {% endif %}
+        {% if topics is empty %}
+            <p>Bu ünitede yayımlanmış konu yok.</p>
+        {% else %}
+            <ul class="catalog-list">
+                {% for topic in topics %}
+                    <li class="catalog-panel">
+                        <h2>{{ topic.name }}</h2>
+                        {% if topic.summary %}
+                            <p>{{ topic.summary }}</p>
+                        {% endif %}
+                        <div class="catalog-cta__actions">
+                            <a class="btn btn--cta" href="{{ path('app_register') }}">Ücretsiz hesap oluştur</a>
+                            <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş yap</a>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        {% include 'public_catalog/_cta.html.twig' %}
+    </div>
+{% endblock %}

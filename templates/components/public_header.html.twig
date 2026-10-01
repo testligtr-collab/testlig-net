@@ -4,7 +4,7 @@
 
         <nav class="site-nav" aria-label="Ana menü">
             <a href="{{ path('app_home') }}" {% if app.request.attributes.get('_route') == 'app_home' %}aria-current="page"{% endif %}>Ana Sayfa</a>
-            <a href="{{ path('app_home') }}#siniflar">Sınıflar</a>
+            <a href="{{ path('app_public_catalog') }}">Sınıflar</a>
             <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
             <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
             <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>
@@ -51,7 +51,7 @@
     >
         <nav aria-label="Mobil ana menü">
             <a href="{{ path('app_home') }}">Ana Sayfa</a>
-            <a href="{{ path('app_home') }}#siniflar">Sınıflar</a>
+            <a href="{{ path('app_public_catalog') }}">Sınıflar</a>
             <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
             <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
             <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>

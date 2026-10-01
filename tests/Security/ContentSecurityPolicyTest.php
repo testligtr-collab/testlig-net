@@ -38,6 +38,10 @@ final class ContentSecurityPolicyTest extends TestCase
             'app_legal_terms',
             'app_legal_cookies',
             'app_legal_children',
+            'app_public_catalog',
+            'app_public_catalog_grade',
+            'app_public_catalog_subject',
+            'app_public_catalog_unit',
         ], ResponseSecurityPolicySubscriber::INDEXABLE_ROUTES);
     }
 }

@@ -14,6 +14,11 @@ type Manifest = {
   users: Record<string, string>;
   paths: {
     topic: string;
+    publicCatalog: string;
+    publicGrade: string;
+    publicSubject: string;
+    publicUnit: string;
+    publicDraft: string;
     testCode: string;
     revision: string;
     reviewDetail: string;

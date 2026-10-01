@@ -1,0 +1,35 @@
+<header class="site-header" data-controller="mobile-nav">
+    <div class="site-header__inner">
+        {% include 'components/brand.html.twig' %}
+        <nav class="site-nav" aria-label="Ana menü">
+            <a href="{{ path('app_home') }}">Ana Sayfa</a>
+            <a href="{{ path('app_public_catalog') }}" aria-current="page">Sınıflar</a>
+            <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
+            <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
+            <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>
+        </nav>
+        <div class="site-header__actions">
+            <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş yap</a>
+            <a class="btn btn--cta" href="{{ path('app_register') }}">Ücretsiz hesap oluştur</a>
+        </div>
+        <button type="button" class="nav-toggle" data-mobile-nav-target="button" data-action="mobile-nav#toggle" aria-expanded="false" aria-controls="catalog-mobile-nav">
+            <span class="sr-only">Menüyü aç veya kapat</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M4 7h16v2H4V7zm0 5h16v2H4v-2zm0 5h16v2H4v-2z"/>
+            </svg>
+        </button>
+    </div>
+    <div id="catalog-mobile-nav" class="mobile-drawer" data-mobile-nav-target="drawer" data-action="click->mobile-nav#closeOnNavigate" hidden>
+        <nav aria-label="Mobil ana menü">
+            <a href="{{ path('app_home') }}">Ana Sayfa</a>
+            <a href="{{ path('app_public_catalog') }}" aria-current="page">Sınıflar</a>
+            <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
+            <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
+            <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>
+        </nav>
+        <div class="mobile-drawer__actions">
+            <a class="btn btn--ghost btn--block" href="{{ path('app_login') }}">Giriş yap</a>
+            <a class="btn btn--cta btn--block" href="{{ path('app_register') }}">Ücretsiz hesap oluştur</a>
+        </div>
+    </div>
+</header>
