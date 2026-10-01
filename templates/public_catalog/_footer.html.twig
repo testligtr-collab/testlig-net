@@ -1,0 +1,16 @@
+<footer class="site-footer">
+    <div class="container site-footer__grid">
+        <div>
+            <h2>Keşfet</h2>
+            <ul>
+                <li><a href="{{ path('app_public_catalog') }}">Dersleri keşfet</a></li>
+                <li><a href="{{ path('app_login') }}">Giriş yap</a></li>
+                <li><a href="{{ path('app_register') }}">Ücretsiz hesap oluştur</a></li>
+            </ul>
+        </div>
+        <div>
+            <h2>Yasal</h2>
+            {% include 'legal/_links.html.twig' %}
+        </div>
+    </div>
+</footer>

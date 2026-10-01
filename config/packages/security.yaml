@@ -63,6 +63,9 @@ security:
         - { path: ^/veli, roles: ROLE_PARENT }
         - { path: ^/yonetim(?:/|$), roles: ROLE_USER }
         - { path: ^/$, roles: PUBLIC_ACCESS }
+        - { path: ^/dersler(?:/|$), roles: PUBLIC_ACCESS }
+        - { path: ^/sitemap\.xml$, roles: PUBLIC_ACCESS }
+        - { path: ^/robots\.txt$, roles: PUBLIC_ACCESS }
 
 when@test:
     security:

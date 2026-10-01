@@ -62,7 +62,7 @@ final class HomepageView
     {
         return new self(
             navItems: [
-                ['label' => 'Sınıflar', 'href' => '#siniflar'],
+                ['label' => 'Sınıflar', 'href' => '/dersler'],
                 ['label' => 'Haberler', 'href' => '#haberler'],
                 ['label' => 'Simülasyonlar', 'href' => '#simulasyonlar'],
                 ['label' => 'Dokümanlar', 'href' => '#dokumanlar'],
@@ -108,7 +108,7 @@ final class HomepageView
                     'accent' => '#b8770a',
                     'tint' => '#fff0ce',
                     'actionLabel' => 'Sınıfları keşfet',
-                    'actionHref' => '#siniflar',
+                    'actionHref' => '/dersler',
                 ],
                 [
                     'id' => 'ortaokul',
@@ -118,7 +118,7 @@ final class HomepageView
                     'accent' => '#0878e1',
                     'tint' => '#e4f2ff',
                     'actionLabel' => 'Sınıfları keşfet',
-                    'actionHref' => '#siniflar',
+                    'actionHref' => '/dersler',
                 ],
                 [
                     'id' => 'lise',
@@ -206,7 +206,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/path-discover.png',
                     'imageAlt' => 'Deney yaparak öğrenen öğrenci illüstrasyonu',
                     'linkLabel' => 'Sınıfları incele',
-                    'linkHref' => '#siniflar',
+                    'linkHref' => '/dersler',
                 ],
                 [
                     'title' => 'Uygula',

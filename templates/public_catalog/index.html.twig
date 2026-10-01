@@ -1,0 +1,36 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ catalog_title }} — Testlig{% endblock %}
+{% block meta_description %}{{ catalog_description }}{% endblock %}
+{% block head_extra %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta property="og:title" content="{{ catalog_title }}">
+    <meta property="og:description" content="{{ catalog_description }}">
+    <meta property="og:url" content="{{ canonical_url }}">
+{% endblock %}
+{% block body_class %}public-catalog{% endblock %}
+{% block flashes %}{% endblock %}
+{% block site_chrome %}{% include 'public_catalog/_chrome.html.twig' %}{% endblock %}
+{% block site_footer %}{% include 'public_catalog/_footer.html.twig' %}{% endblock %}
+
+{% block body %}
+    <div class="catalog-wrap">
+        <h1>{{ catalog_title }}</h1>
+        <p class="catalog-lead">Yayımlanmış sınıfları ve ders adlarını buradan inceleyebilirsin. Ders içeriği öğrenci hesabıyla açılır.</p>
+        {% if grades is empty %}
+            <p>Yayımlanmış ders henüz yok.</p>
+        {% else %}
+            <ul class="catalog-grid">
+                {% for grade in grades %}
+                    <li>
+                        <a class="catalog-card catalog-tone-{{ grade.tone }}" href="{{ path('app_public_catalog_grade', {grade: grade.grade}) }}">
+                            <span class="catalog-card__label">{{ grade.label }}</span>
+                            <span class="catalog-card__meta">{{ grade.subjectCount }} ders</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        {% include 'public_catalog/_cta.html.twig' %}
+    </div>
+{% endblock %}

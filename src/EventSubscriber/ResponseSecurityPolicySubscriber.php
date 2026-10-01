@@ -30,6 +30,10 @@ final class ResponseSecurityPolicySubscriber implements EventSubscriberInterface
         'app_legal_terms',
         'app_legal_cookies',
         'app_legal_children',
+        'app_public_catalog',
+        'app_public_catalog_grade',
+        'app_public_catalog_subject',
+        'app_public_catalog_unit',
     ];
 
     public function __construct(

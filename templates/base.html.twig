@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Testlig{% endblock %}</title>
         <meta name="description" content="{% block meta_description %}Testlig — dersler, testler ve gelişim raporları tek öğrenme alanında.{% endblock %}">
+        {% block head_extra %}{% endblock %}
         {% block stylesheets %}
             <link rel="stylesheet" href="{{ mapped_asset('styles/app.css') }}">
         {% endblock %}

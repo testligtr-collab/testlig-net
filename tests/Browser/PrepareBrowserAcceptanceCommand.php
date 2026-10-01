@@ -138,6 +138,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->catalog->publishSubject($catalogSubject->getId());
         $this->catalog->publishUnit($unit->getId());
         $this->catalog->publishTopic($topic->getId());
+        $this->catalog->createSubject(GradeLevel::Grade1, 'Taslak Ders', null, 2, 'taslak-ders');
+        $this->catalog->createUnit($catalogSubject->getId(), 'Taslak Unite', null, 9, 'taslak-unite');
 
         $pdf = $this->receivePdf($teacher, 'calisma-notu.pdf');
         $secret = $this->kernel->getContainer()->getParameter('kernel.secret');
@@ -341,6 +343,11 @@ final class PrepareBrowserAcceptanceCommand extends Command
             ],
             'paths' => [
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
+                'publicCatalog' => '/dersler',
+                'publicGrade' => '/dersler/1',
+                'publicSubject' => \sprintf('/dersler/1/%s', $catalogSubject->getSlug()),
+                'publicUnit' => \sprintf('/dersler/1/%s/%s', $catalogSubject->getSlug(), $unit->getSlug()),
+                'publicDraft' => '/dersler/1/taslak-ders',
                 'testCode' => $assessment->getCode(),
                 'revision' => '/yonetim/icerikler/'.$draft->getId()->toRfc4122().'/revision',
                 'reviewDetail' => '/yonetim/icerikler/'.$review->getId()->toRfc4122(),
