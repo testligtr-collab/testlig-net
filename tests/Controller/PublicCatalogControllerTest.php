@@ -106,21 +106,27 @@ final class PublicCatalogControllerTest extends WebTestCase
         self::assertStringNotContainsString('youtube', $unitHtml);
         self::assertStringNotContainsString('.pdf', $unitHtml);
 
+        $opaque = [];
         foreach ([
             '/dersler/1/taslak-gizli',
+            '/dersler/1/olmayan-ders',
             '/dersler/1/pcv-mat/taslak-unite',
+            '/dersler/1/pcv-mat/olmayan-unite',
             '/dersler/8/arsiv-ders',
+            '/dersler/8/olmayan-ders',
             '/dersler/8/arsiv-ders/arsiv-unite',
+            '/dersler/8/olmayan-ders/olmayan-unite',
             '/dersler/2',
+            '/dersler/3',
         ] as $path) {
             $client->request('GET', $path);
             self::assertResponseStatusCodeSame(404);
             self::assertStringContainsString('noindex', (string) $client->getResponse()->headers->get('x-robots-tag'));
-            $body = (string) $client->getResponse()->getContent();
-            self::assertStringNotContainsString('Taslak Gizli', $body);
-            self::assertStringNotContainsString('Arsiv Gizli', $body);
-            self::assertStringNotContainsString('yayımlanmamış', $body);
+            $opaque[$path] = str_replace($path, '{path}', (string) $client->getResponse()->getContent());
         }
+        self::assertStringNotContainsString('Taslak Gizli', implode("\n", $opaque));
+        self::assertStringNotContainsString('Arsiv Gizli', implode("\n", $opaque));
+        self::assertStringNotContainsString('yayımlanmamış', implode("\n", $opaque));
 
         $client->request('GET', '/sitemap.xml');
         self::assertResponseIsSuccessful();
