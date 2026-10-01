@@ -13,7 +13,7 @@ use App\Enum\AssessmentAttemptStatus;
 use App\Enum\AssessmentDeliveryAudienceType;
 use App\Enum\AssessmentScope;
 use App\Enum\ScoringRunStatus;
-use App\Time\UtcInstant;
+use App\Presentation\ResultPresentation;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 
@@ -27,6 +27,7 @@ final class StudentTestHistoryQuery
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly InvitationCodeDigestHasher $hasher,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -65,16 +66,16 @@ final class StudentTestHistoryQuery
             $cards[] = new StudentTestHistoryCard(
                 $institutionTest ? $this->hasher->studentAssignmentCode($delivery->getId()) : $assessment->getCode(),
                 $attempt->getAssessmentRevision()->getTitle(),
-                $assessment->getSubject()?->getName() ?? '',
+                $this->presentation->subjectName($assessment->getSubject()),
                 $inProgress ? 'resume' : 'done',
                 $inProgress ? 'Devam ediyor' : 'Tamamlandı',
                 $this->stamp($attempt->getSubmittedAt() ?? $attempt->getExpiredAt()),
                 $scored ? $run->getCorrectCount() : null,
                 $scored ? $run->getIncorrectCount() : null,
                 $scored ? $run->getUnansweredCount() : null,
-                $scored ? $run->getFinalPoints() : null,
-                $scored ? $run->getMaximumPoints() : null,
-                $scored ? $run->getPercentage() : null,
+                $scored ? $this->presentation->points($run->getFinalPoints()) : null,
+                $scored ? $this->presentation->points($run->getMaximumPoints()) : null,
+                $scored ? $this->presentation->percent($run->getPercentage()) : null,
                 $institutionTest ? $delivery->getInstitution()->getName() : null,
             );
         }
@@ -186,6 +187,6 @@ final class StudentTestHistoryQuery
             return null;
         }
 
-        return UtcInstant::ensure($at)->format('d.m.Y H:i').' UTC';
+        return $this->presentation->instant($at);
     }
 }

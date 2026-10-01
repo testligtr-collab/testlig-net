@@ -174,7 +174,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $client = static::createClient();
         $this->login($client, 'practice-score@example.com');
         $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['main']);
-        self::assertStringContainsString('6.00', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Toplam 6 puan', (string) $client->getResponse()->getContent());
         $client->submit($crawler->filter('#student-test-start')->form());
         $client->followRedirect();
 
@@ -241,9 +241,9 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringContainsString('>Doğru<', $page);
         self::assertStringContainsString('>Yanlış<', $page);
         self::assertStringContainsString('>Boş<', $page);
-        self::assertStringContainsString('1.00', $page);
-        self::assertStringContainsString('6.00', $page);
-        self::assertStringContainsString('16.6666', $page);
+        self::assertStringContainsString('1 / 6', $page);
+        self::assertStringContainsString('%16,67', $page);
+        self::assertStringNotContainsString('16.6666', $page);
         self::assertStringNotContainsString('opt_', $page);
         self::assertStringNotContainsString($seed['hidden'], $page);
         self::assertStringNotContainsString('correctStableKey', $page);
@@ -355,6 +355,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringContainsString('Devam ediyor', $open);
         self::assertStringContainsString('Çözüme dön', $open);
         self::assertStringNotContainsString('16.6666', $open);
+        self::assertStringNotContainsString('%16,67', $open);
         self::assertStringNotContainsString('Doğru cevap', $open);
 
         $this->answerAndFinish($client, $seed['main']);
@@ -365,9 +366,9 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringContainsString('private', $cache);
         self::assertStringContainsString('Sinif testi', $history);
         self::assertStringContainsString('Tamamlandı', $history);
-        self::assertStringContainsString('16.6666', $history);
-        self::assertStringContainsString('1.00', $history);
-        self::assertStringContainsString('6.00', $history);
+        self::assertStringContainsString('%16,67', $history);
+        self::assertStringContainsString('1 / 6', $history);
+        self::assertStringNotContainsString('16.6666', $history);
         self::assertStringContainsString('Sonucu görüntüle', $history);
         self::assertStringNotContainsString('Doğru cevap', $history);
         self::assertStringNotContainsString('practice-history@example.com', $history);
@@ -380,6 +381,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $this->login($otherClient, 'practice-history-other@example.com');
         $otherClient->request('GET', '/ogrenci/testler/gecmisim');
         self::assertStringNotContainsString('16.6666', (string) $otherClient->getResponse()->getContent());
+        self::assertStringNotContainsString('%16,67', (string) $otherClient->getResponse()->getContent());
         $otherClient->request('GET', '/ogrenci/testler/'.$seed['main'].'/sonuc');
         self::assertResponseStatusCodeSame(404);
 
@@ -394,8 +396,9 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringContainsString('no-store', $reportCache);
         self::assertStringContainsString('private', $reportCache);
         self::assertStringContainsString('Ayşe Yılmaz', $report);
-        self::assertStringContainsString('16.6666', $report);
-        self::assertStringContainsString('1.00', $report);
+        self::assertStringContainsString('%16,67', $report);
+        self::assertStringContainsString('1 / 6', $report);
+        self::assertStringNotContainsString('16.6666', $report);
         self::assertStringNotContainsString('practice-history@example.com', $report);
         self::assertStringNotContainsString('Doğru cevap', $report);
         self::assertStringNotContainsString('opt_', $report);

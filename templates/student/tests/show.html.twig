@@ -16,6 +16,9 @@
         <p class="student-test-instructions">{{ test.instructions }}</p>
     {% endif %}
     <ul class="student-test-facts">
+        {% if test.subject|default('') %}
+            <li>{{ test.subject }}</li>
+        {% endif %}
         <li>{{ test.question_count }} soru</li>
         <li>{{ test.duration_label }}</li>
         <li>Toplam {{ test.total_points }} puan</li>

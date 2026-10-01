@@ -14,6 +14,9 @@
         <p role="status">Sonuç gösterilemiyor.</p>
     {% else %}
         <h1>{{ result.title }}</h1>
+        {% if result.subject %}
+            <p>{{ result.subject }}</p>
+        {% endif %}
         <p class="student-score">{{ result.earned }} / {{ result.total }}</p>
         <p class="student-score__note">Yüzde: {{ result.percentage }}</p>
         <ul class="student-metrics">

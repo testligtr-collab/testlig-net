@@ -26,6 +26,7 @@ use App\Enum\ResultReleasePolicy;
 use App\Exception\AssessmentException;
 use App\Exception\LearningContentException;
 use App\Presentation\ContentWorkflowReason;
+use App\Presentation\ResultPresentation;
 use App\Presentation\TestWorkflowProgress;
 use App\Repository\AssessmentItemRepository;
 use App\Repository\AssessmentRepository;
@@ -66,6 +67,7 @@ final class AdminTestController extends AdminBaseController
         private readonly ContentWorkflowReason $workflowReason,
         private readonly TestWorkflowProgress $workflowProgress,
         private readonly AssessmentResultReportGate $resultReportGate,
+        private readonly ResultPresentation $presentation,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -114,13 +116,13 @@ final class AdminTestController extends AdminBaseController
         return $this->renderAdmin('admin/tests/detail.html.twig', [
             'assessment' => $assessment,
             'revision' => $revision,
-            'rows' => $rows,
+            'rows' => $this->presentRows($rows),
             'question_count' => \count($rows),
-            'total_points' => $this->totalPoints($rows),
+            'total_points' => $this->presentation->points($this->totalPoints($rows)) ?? '0',
             'duration_label' => $this->durationLabel($revision),
             'status_label' => $this->statusLabels()[$assessment->getStatus()->value] ?? $assessment->getStatus()->value,
             'type_label' => $this->typeLabels()[$assessment->getType()->value] ?? $assessment->getType()->value,
-            'subject_name' => $assessment->getSubject()?->getName() ?? '',
+            'subject_name' => $this->presentation->subjectName($assessment->getSubject()),
             'grade_label' => $assessment->getGradeLevel()->value.'. sınıf',
             'can_edit' => $this->canEdit($assessment),
             'can_view_results' => $this->resultReportGate->canRead($actor, $assessment),
@@ -567,7 +569,7 @@ final class AdminTestController extends AdminBaseController
             $rows[] = [
                 'position' => $item->getPosition(),
                 'code' => $item->getQuestion()->getCode(),
-                'points' => $item->getPoints(),
+                'points' => $this->presentation->points($item->getPoints()) ?? $item->getPoints(),
                 'stem' => $this->plainLines($item->getQuestionRevision()->getStemContent()),
                 'options' => $options,
             ];
@@ -593,6 +595,20 @@ final class AdminTestController extends AdminBaseController
         }
 
         return $items;
+    }
+
+    /**
+     * @param list<array{position: int, code: string, points: string, stem: string, question_id: string}> $rows
+     *
+     * @return list<array{position: int, code: string, points: string, stem: string, question_id: string}>
+     */
+    private function presentRows(array $rows): array
+    {
+        foreach ($rows as $index => $row) {
+            $rows[$index]['points'] = $this->presentation->points($row['points']) ?? $row['points'];
+        }
+
+        return $rows;
     }
 
     /**

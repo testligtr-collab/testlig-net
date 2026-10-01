@@ -14,9 +14,9 @@ use App\Entity\AssessmentAttempt;
 use App\Entity\AssessmentScoringRun;
 use App\Enum\AssessmentAttemptStatus;
 use App\Enum\ScoringRunStatus;
+use App\Presentation\ResultPresentation;
 use App\Service\Admin\AdminLikeEscape;
 use App\Service\Admin\AdminPagination;
-use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 
@@ -32,6 +32,7 @@ final class AssessmentResultReportQuery
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly StudentPracticeResultReader $results,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -116,11 +117,13 @@ final class AssessmentResultReportQuery
             $offset += self::SUMMARY_BATCH;
         } while (self::SUMMARY_BATCH === \count($batch));
 
+        $average = $count > 0 ? bcdiv($sum, (string) $count, 4) : null;
+
         return new AssessmentResultSummary(
             $participants,
-            $count > 0 ? bcdiv($sum, (string) $count, 4) : null,
-            $highest,
-            $lowest,
+            $this->presentation->percent($average),
+            $this->presentation->percent($highest),
+            $this->presentation->percent($lowest),
             $completed,
             $inProgress,
         );
@@ -315,9 +318,9 @@ final class AssessmentResultReportQuery
             $scored ? $run->getCorrectCount() : null,
             $scored ? $run->getIncorrectCount() : null,
             $scored ? $run->getUnansweredCount() : null,
-            $scored ? $run->getFinalPoints() : null,
-            $scored ? $run->getMaximumPoints() : null,
-            $scored ? $run->getPercentage() : null,
+            $scored ? $this->presentation->points($run->getFinalPoints()) : null,
+            $scored ? $this->presentation->points($run->getMaximumPoints()) : null,
+            $scored ? $this->presentation->percent($run->getPercentage()) : null,
         );
     }
 
@@ -370,6 +373,6 @@ final class AssessmentResultReportQuery
             return null;
         }
 
-        return UtcInstant::ensure($at)->format('d.m.Y H:i').' UTC';
+        return $this->presentation->instant($at);
     }
 }

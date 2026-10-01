@@ -31,8 +31,8 @@ use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\ScoringRunStatus;
 use App\Enum\TeacherAssignmentStatus;
+use App\Presentation\ResultPresentation;
 use App\Repository\InstitutionMembershipRepository;
-use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -46,6 +46,7 @@ final class InstitutionDeliveryReport
         private readonly EntityManagerInterface $entityManager,
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly InstitutionMembershipRepository $memberships,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -145,10 +146,10 @@ final class InstitutionDeliveryReport
             $counts['in_progress'],
             $counts['completed'],
             $counts['expired'],
-            $this->rate($counts['completed'], $recipientCount),
-            $average,
-            $this->extreme($percentages, true),
-            $this->extreme($percentages, false),
+            $this->presentation->percent($this->rate($counts['completed'], $recipientCount)) ?? '%0',
+            $this->presentation->percent($average),
+            $this->presentation->percent($this->extreme($percentages, true)),
+            $this->presentation->percent($this->extreme($percentages, false)),
             $this->students($delivery, $page),
             $page,
             $pageCount,
@@ -582,9 +583,9 @@ final class InstitutionDeliveryReport
                 $run?->getCorrectCount(),
                 $run?->getIncorrectCount(),
                 $run?->getUnansweredCount(),
-                $run?->getFinalPoints(),
-                $run?->getMaximumPoints(),
-                $run?->getPercentage(),
+                $this->presentation->points($run?->getFinalPoints()),
+                $this->presentation->points($run?->getMaximumPoints()),
+                $this->presentation->percent($run?->getPercentage()),
             );
         }
 
@@ -693,6 +694,6 @@ final class InstitutionDeliveryReport
             return '';
         }
 
-        return UtcInstant::ensure($at)->setTimezone(new \DateTimeZone('Europe/Istanbul'))->format('d.m.Y H:i');
+        return $this->presentation->instant($at) ?? '';
     }
 }

@@ -16,11 +16,11 @@ use App\Entity\AssessmentScoringRun;
 use App\Entity\ParentStudentLink;
 use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
+use App\Presentation\ResultPresentation;
 use App\Repository\CatalogSubjectRepository;
 use App\Repository\ParentStudentLinkCodeRepository;
 use App\Repository\ParentStudentLinkRepository;
 use App\Repository\StudentProfileRepository;
-use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -41,6 +41,7 @@ final class ParentLinkQuery
         private readonly CatalogSubjectRepository $subjects,
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly ClockInterface $clock,
+        private readonly ResultPresentation $presentation,
     ) {
     }
 
@@ -377,16 +378,16 @@ final class ParentLinkQuery
             $run = $releases[$attempt->getId()->toRfc4122()] ?? null;
             $published = !$inProgress && $run instanceof AssessmentScoringRun;
             $title = trim($attempt->getAssessmentRevision()->getTitle());
-            $subject = trim($attempt->getAssessment()->getSubject()?->getName() ?? '');
+            $subject = $this->presentation->subjectName($attempt->getAssessment()->getSubject());
             $views[] = new ParentTestSummaryView(
                 '' !== $title ? $title : 'Test',
                 $subject,
                 $inProgress ? 'Devam ediyor' : ($published ? 'Tamamlandı' : 'Sonuç henüz yayımlanmadı'),
                 $this->stamp($attempt->getSubmittedAt() ?? $attempt->getStartedAt()),
                 $published,
-                $published ? $this->points($run->getFinalPoints()) : null,
-                $published ? $this->points($run->getMaximumPoints()) : null,
-                $published ? $this->percent($run->getPercentage()) : null,
+                $published ? $this->presentation->points($run->getFinalPoints()) : null,
+                $published ? $this->presentation->points($run->getMaximumPoints()) : null,
+                $published ? $this->presentation->percent($run->getPercentage()) : null,
                 $published ? $run->getCorrectCount() : null,
                 $published ? $run->getIncorrectCount() : null,
                 $published ? $run->getUnansweredCount() : null,
@@ -396,35 +397,8 @@ final class ParentLinkQuery
         return $views;
     }
 
-    private function points(string $value): string
-    {
-        return str_replace('.', ',', $this->scale($value, 2));
-    }
-
-    private function percent(string $value): string
-    {
-        return str_replace('.', ',', $this->scale($value, 1)).'%';
-    }
-
-    /**
-     * @return numeric-string
-     */
-    private function scale(string $value, int $scale): string
-    {
-        $trimmed = trim($value);
-        if ('' === $trimmed || !is_numeric($trimmed) || 1 !== preg_match('/^-?\d+(\.\d+)?$/', $trimmed)) {
-            return bcadd('0', '0', $scale);
-        }
-
-        return bcadd($trimmed, '0', $scale);
-    }
-
     private function stamp(?\DateTimeImmutable $at): string
     {
-        if (null === $at) {
-            return '';
-        }
-
-        return UtcInstant::ensure($at)->format('d.m.Y H:i').' UTC';
+        return $this->presentation->instant($at) ?? '';
     }
 }

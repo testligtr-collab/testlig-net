@@ -99,9 +99,13 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await page.goto('/yonetim/sorular');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await shot(page, info, 'teacher', 'sorular', '1280');
-  await page.goto('/yonetim/testler');
-  await expect(page.getByText(data.paths.testTitle)).toBeVisible();
-  await shot(page, info, 'teacher', 'testler', '1280');
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/testler');
+    await expect(page.getByText(data.paths.testTitle)).toBeVisible();
+    await assertLayout(page);
+    await shot(page, info, 'teacher', 'testler', viewport.name);
+  }
   await page.goto('/ogretmen/siniflarim');
   await expect(page.getByRole('heading', { level: 1, name: 'Sınıflarım' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Ödemeler' })).toHaveCount(0);

@@ -37,8 +37,12 @@ test('institution owner and assigned teacher stay inside their classroom', async
   await shot(page, info, 'owner', 'davet', '1280');
   await page.goto('/kurum/ogrenciler');
   await shot(page, info, 'owner', 'ogrenciler', '1280');
-  await page.goto('/kurum/testler');
-  await shot(page, info, 'owner', 'testler', '1280');
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto('/kurum/testler');
+    await assertLayout(page);
+    await shot(page, info, 'owner', 'testler', viewport.name);
+  }
   await assertClean(page);
   const missing = await page.goto('/kurum/siniflar/bbbbbbbbbbbbbbbbbbbb');
   expect(missing?.status()).toBe(404);
