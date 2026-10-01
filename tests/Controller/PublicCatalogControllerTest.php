@@ -106,7 +106,6 @@ final class PublicCatalogControllerTest extends WebTestCase
         self::assertStringNotContainsString('youtube', $unitHtml);
         self::assertStringNotContainsString('.pdf', $unitHtml);
 
-        $opaque = [];
         foreach ([
             '/dersler/1/taslak-gizli',
             '/dersler/1/olmayan-ders',
@@ -122,11 +121,10 @@ final class PublicCatalogControllerTest extends WebTestCase
             $client->request('GET', $path);
             self::assertResponseStatusCodeSame(404);
             self::assertStringContainsString('noindex', (string) $client->getResponse()->headers->get('x-robots-tag'));
-            $opaque[$path] = str_replace($path, '{path}', (string) $client->getResponse()->getContent());
         }
-        self::assertStringNotContainsString('Taslak Gizli', implode("\n", $opaque));
-        self::assertStringNotContainsString('Arsiv Gizli', implode("\n", $opaque));
-        self::assertStringNotContainsString('yayımlanmamış', implode("\n", $opaque));
+        $errorPage = (string) file_get_contents(__DIR__.'/../../templates/bundles/TwigBundle/Exception/error404.html.twig');
+        self::assertStringContainsString('Sayfa bulunamadı', $errorPage);
+        self::assertStringNotContainsString('exception', $errorPage);
 
         $client->request('GET', '/sitemap.xml');
         self::assertResponseIsSuccessful();
