@@ -1,0 +1,51 @@
+schema_version: 1
+package: mat-1-3-2
+subject_code: matematik
+grade_level: 1
+program_code: mat_grade1_tymm
+program_version: TYMM-2026
+source_program_id: "2339"
+outcome_code: mat_1_3_2
+official_code: MAT.1.3.2
+official_title: Nesnelerin eşliğini değerlendirebilme
+theme_title: Nesnelerin Geometrisi (1)
+curriculum_topic_code: es_nesneler
+catalog_topic_name: Eş Nesneler
+catalog_topic_slug: es-nesneler
+catalog_unit_slug: nesnelerin-geometrisi-1
+status: draft
+document:
+  schemaVersion: 1
+  blocks:
+    - type: heading
+      level: 2
+      text: Eş Nesneleri Tanıyalım
+    - type: paragraph
+      text: Eş nesnelerin renk, biçim ve büyüklük gibi görsel özellikleri aynıdır. Nesneleri karşılaştırırken bu özelliklere birlikte bakarız.
+    - type: callout
+      variant: info
+      blocks:
+        - type: paragraph
+          text: Yalnız rengin aynı olması yeterli değildir. Renkle birlikte biçim ve büyüklüğü de karşılaştırırız.
+    - type: heading
+      level: 2
+      text: Nasıl Karşılaştırırız?
+    - type: list
+      items:
+        - Renklerine bak.
+        - Biçimlerine bak.
+        - Büyüklüklerine bak.
+        - Yönü değişmiş olsa da bu özellikler aynıysa nesneleri eş olarak değerlendir.
+    - type: heading
+      level: 2
+      text: Birlikte Düşünelim
+    - type: paragraph
+      text: Bir nesne yana çevrilse de rengi, biçimi ve büyüklüğü aynı kaldıysa eşi olabilir. Büyük bir top ile küçük bir topun rengi ve biçimi aynı olsa bile büyüklükleri farklıysa eş değildir. Benzer görünmek, eş olmak demek değildir.
+    - type: heading
+      level: 2
+      text: Hatırlayalım
+    - type: callout
+      variant: tip
+      blocks:
+        - type: paragraph
+          text: Eş nesnelerin renk, biçim ve büyüklük gibi görsel özellikleri aynıdır. Nesnenin yalnızca yönü değişirse eşlik bozulmaz.
