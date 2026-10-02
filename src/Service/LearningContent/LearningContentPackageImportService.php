@@ -112,6 +112,7 @@ final class LearningContentPackageImportService
                 if ($before !== $after) {
                     throw LearningContentPackageException::evidenceChanged();
                 }
+                $this->auditRecorder->resetRequestDedup();
                 $this->audit($loaded, $plan->operation, $actor);
                 $connection->commit();
 
