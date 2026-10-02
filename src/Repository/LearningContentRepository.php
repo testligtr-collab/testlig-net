@@ -49,6 +49,25 @@ class LearningContentRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * Platform contents that share a stable code. More than one row is a conflict.
+     *
+     * @return list<LearningContent>
+     */
+    public function findPlatformByCode(string $code): array
+    {
+        /** @var list<LearningContent> $rows */
+        $rows = $this->createQueryBuilder('content')
+            ->andWhere('content.code = :code')
+            ->andWhere('content.scope = :scope')
+            ->setParameter('code', $code)
+            ->setParameter('scope', LearningContentScope::Platform)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function save(LearningContent $entity, bool $flush = true): void
     {
         $this->getEntityManager()->persist($entity);

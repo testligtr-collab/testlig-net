@@ -89,6 +89,12 @@ php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/t
 # Not a general published-program editor. Dry-run default. --apply needs the printed plan fingerprint
 # and a separate production approval. It does not reorder the catalog.
 php bin/console app:curriculum:reconcile-official-program --file=data/curriculum/meb/tymm-2026/grade-1-matematik.yaml
+
+# Closed lesson package import. Default mode is verify and does not write.
+# dry-run prints the plan fingerprint. apply requires that fingerprint and replaces
+# only an owned placeholder draft. It does not review, seal, publish, place, or import questions.
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=verify --actor-email-env=TESTLIG_CONTENT_ACTOR_EMAIL
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=dry-run --actor-email-env=TESTLIG_CONTENT_ACTOR_EMAIL
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).

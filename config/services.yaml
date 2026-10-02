@@ -32,6 +32,10 @@ services:
     App\:
         resource: '../src/'
 
+    App\Service\LearningContent\LearningContentPackageImportService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     App\LearningContent\Document\LearningDocumentStorage:
         arguments:
             $directory: '%kernel.project_dir%/var/learning-documents'
