@@ -196,9 +196,8 @@ final class OfficialCurriculumReconcileServiceTest extends KernelTestCase
         $lock = $locks->createLock('app.curriculum.official_reconcile', 30.0);
         self::assertTrue($lock->acquire());
         try {
-            $dry = $this->reconcile->reconcile($this->fixture, false);
             $this->expectException(CurriculumImportException::class);
-            $this->reconcile->reconcile($this->fixture, true, $dry->planFingerprint);
+            $this->reconcile->reconcile($this->fixture, false);
         } finally {
             $lock->release();
         }

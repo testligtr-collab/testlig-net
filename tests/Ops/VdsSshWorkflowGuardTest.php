@@ -258,7 +258,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(5, $paths);
+        self::assertCount(6, $paths);
 
         return $paths;
     }

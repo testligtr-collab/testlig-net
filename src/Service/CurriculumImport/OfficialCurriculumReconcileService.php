@@ -184,9 +184,10 @@ final class OfficialCurriculumReconcileService
                     actorUser: $actor,
                     metadata: [
                         'source' => 'official_curriculum_reconcile',
-                        'subject_code' => OfficialCurriculumReconcileDocument::SUBJECT_CODE,
-                        'program_code' => OfficialCurriculumReconcileDocument::PROGRAM_CODE,
-                        'source_version' => OfficialCurriculumReconcileDocument::SOURCE_VERSION,
+                        'reason_code' => 'official_curriculum_reconcile',
+                        'code' => OfficialCurriculumReconcileDocument::PROGRAM_CODE,
+                        'version' => OfficialCurriculumReconcileDocument::SOURCE_VERSION,
+                        'grade_level' => 1,
                         'source_program_id' => OfficialCurriculumReconcileDocument::PROGRAM_ID,
                         'fixture_sha256' => OfficialCurriculumReconcileDocument::FIXTURE_SHA256,
                         'themes_created' => \count($plan['unitCreates']),
