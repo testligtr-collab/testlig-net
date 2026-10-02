@@ -6,7 +6,7 @@ Production SSH is opened only by GitHub Actions, and only when repository variab
 
 Deploy uploads one bundle (`release.tgz`, `release-deploy.sh`, `rollback.sh`) with one `scp`, then installs, activates, and deletes the temporary bundle in one `ssh` on the same `ControlMaster` socket (`testlig-vds`). The remote script uses `trap` for that cleanup. There is no later SSH cleanup step. Closing the local control socket uses `ssh -O exit` only when the socket already exists, which does not start a new authentication.
 
-Ops workflows (catalog import, catalog publish-tree, curriculum pilot import, official curriculum reconcile, SuperAdmin bootstrap) each open one `ssh` heredoc. Official reconcile apply also requires the dry-run plan fingerprint and stays a separate manual dispatch. External HTTPS checks stay off that session. Dry-run, apply, and verify stay separate manual dispatches. They are not chained and they do not auto-dispatch.
+Ops workflows (catalog import, catalog publish-tree, curriculum pilot import, official curriculum reconcile, learning-content package import, SuperAdmin bootstrap) each open one `ssh` heredoc. Official reconcile and the learning-content package importer require a separate manual dry-run before apply. The package importer does not review, seal, publish, or place the lesson, and it does not import questions. Apply needs the dry-run plan fingerprint and a later explicit approval. External HTTPS checks stay off that session. Dry-run, apply, and verify stay separate manual dispatches. They are not chained and they do not auto-dispatch.
 
 ## Shared queue
 

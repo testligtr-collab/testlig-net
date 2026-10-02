@@ -1,0 +1,146 @@
+name: Ops learning content package import (VDS)
+
+# Closed lesson-package importer. verify is the default.
+# Does not import questions, review, seal, publish, or place content.
+# Dispatch is manual. This workflow does not run from deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "verify | dry-run | apply"
+        type: choice
+        options:
+          - verify
+          - dry-run
+          - apply
+        default: verify
+      package:
+        description: "Allowlisted package directory"
+        type: choice
+        options:
+          - data/content/tymm-2026/grade-1/matematik/mat-1-3-2
+        default: data/content/tymm-2026/grade-1/matematik/mat-1-3-2
+      expected_plan_fingerprint:
+        description: "Required for apply: dry-run plan fingerprint. Not an email or secret."
+        type: string
+        required: false
+      actor_env:
+        description: "Server environment variable NAME that holds the actor email. Not the email."
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: echo "VDS SSH operations are paused"
+
+  refuse-apply-without-plan:
+    name: Refuse apply without plan
+    if: inputs.mode == 'apply' && inputs.expected_plan_fingerprint == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop
+        run: |
+          echo "apply requires the dry-run plan fingerprint"
+          exit 1
+
+  guard:
+    name: Check dispatch inputs
+    if: vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reject unsafe inputs before SSH
+        env:
+          MODE: ${{ inputs.mode }}
+          PLAN: ${{ inputs.expected_plan_fingerprint }}
+          ACTOR_ENV: ${{ inputs.actor_env }}
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          if [ "$PACKAGE" != "data/content/tymm-2026/grade-1/matematik/mat-1-3-2" ]; then
+            echo "package is not allowlisted"
+            exit 1
+          fi
+          if ! printf '%s' "$ACTOR_ENV" | grep -Eq '^[A-Z][A-Z0-9_]{0,63}$'; then
+            echo "actor env name rejected"
+            exit 1
+          fi
+          if [ "$MODE" = "apply" ] && ! printf '%s' "$PLAN" | grep -Eq '^[a-f0-9]{64}$'; then
+            echo "apply requires the dry-run plan fingerprint"
+            exit 1
+          fi
+
+  vds:
+    name: VDS learning content package import
+    needs: [guard, refuse-apply-without-plan]
+    if: always() && needs.guard.result == 'success' && (needs.refuse-apply-without-plan.result == 'success' || needs.refuse-apply-without-plan.result == 'skipped') && vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote package import
+        env:
+          MODE: ${{ inputs.mode }}
+          PLAN: ${{ inputs.expected_plan_fingerprint }}
+          ACTOR_ENV: ${{ inputs.actor_env }}
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          set +e
+          ssh testlig-vds "export MODE=$(printf %q "$MODE"); export PLAN=$(printf %q "$PLAN"); export ACTOR_ENV=$(printf %q "$ACTOR_ENV"); export PACKAGE=$(printf %q "$PACKAGE"); bash -s" <<'EOS'
+          set -euo pipefail
+          APP_ROOT=/home/testlig.net/app
+          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
+          APP_USER=testl3865
+          cd "$APP_ROOT"
+          run_app() {
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod "$@"
+          }
+          echo "mode=${MODE}"
+          echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
+          echo "package_present=$([ -f "$PACKAGE/lesson.yaml" ] && echo 1 || echo 0)"
+          echo "command_present=$([ -f bin/console ] && run_app "$PHP_BIN" bin/console list --raw 2>/dev/null | grep -c '^app:learning-content:import-package' || echo 0)"
+          [ -f "$PACKAGE/lesson.yaml" ] || { echo "ERROR: package missing"; exit 1; }
+          ARGS=(bin/console app:learning-content:import-package --no-interaction --package="$PACKAGE" --mode="$MODE" --actor-email-env="$ACTOR_ENV")
+          if [ "$MODE" = "apply" ]; then
+            ARGS+=(--expected-plan-fingerprint="$PLAN")
+          elif [ "$MODE" != "dry-run" ] && [ "$MODE" != "verify" ]; then
+            echo "ERROR: unknown mode"
+            exit 1
+          fi
+          run_app "$PHP_BIN" "${ARGS[@]}"
+          EOS
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi

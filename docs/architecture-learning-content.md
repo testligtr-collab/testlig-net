@@ -168,6 +168,24 @@ editor. Curriculum theme order follows the TYMM theme numbers. The catalog keeps
 own işleniş order. The existing `mat_1_3_1` row and anything linked to it stay in place.
 Production apply stays a separate approval.
 
+## Lesson package import
+
+`app:learning-content:import-package` reads one allowlisted `lesson.yaml` and, only with
+`--mode=apply` plus the dry-run plan fingerprint, replaces the current unsealed revision of an
+existing owned draft. The stored type for this lesson package is `topic_explanation`.
+verify and dry-run write nothing. A second apply with the new fingerprint is a noop.
+A stale fingerprint or a failed write rolls the transaction back and leaves the placeholder in place.
+
+The draft must already exist: content and revision are draft, the revision is the default
+`[Taslak]` paragraph or already identical to the package, the actor is the verified teacher
+who owns it, there is no review, publication, or catalog placement, and the title, empty summary,
+subject, grade, and `mat_1_3_2` outcome match the package. Any other state is a conflict and
+writes nothing. The command does not create a second content row for this package.
+
+Questions stay on the separate CSV importer. This command does not submit review, seal, publish,
+open free access, or create a placement. Production dry-run and apply are separate manual
+SSH dispatches; they are not part of deploy.
+
 ## Limitations
 
 - No CDN/S3 or antivirus. PDF approval is a manual admin ready mark, not a scan result.

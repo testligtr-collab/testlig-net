@@ -117,6 +117,7 @@ enum SecurityAuditAction: string
     case LearningContentCreated = 'learning_content_created';
     case LearningContentRevisionCreated = 'learning_content_revision_created';
     case LearningContentRevisionUpdated = 'learning_content_revision_updated';
+    case LearningContentPackageImported = 'learning_content_package_imported';
     case LearningContentSubmittedForReview = 'learning_content_submitted_for_review';
     case LearningContentReturnedToDraft = 'learning_content_returned_to_draft';
     case LearningContentPublished = 'learning_content_published';

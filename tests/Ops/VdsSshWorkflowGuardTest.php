@@ -167,6 +167,8 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-catalog-import.yml',
             '.github/workflows/ops-catalog-publish-tree.yml',
             '.github/workflows/ops-curriculum-pilot-import.yml',
+            '.github/workflows/ops-curriculum-reconcile.yml',
+            '.github/workflows/ops-learning-content-package-import.yml',
             '.github/workflows/ops-superadmin-bootstrap.yml',
         ];
         foreach ($ops as $relative) {
@@ -258,7 +260,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(6, $paths);
+        self::assertCount(7, $paths);
 
         return $paths;
     }
