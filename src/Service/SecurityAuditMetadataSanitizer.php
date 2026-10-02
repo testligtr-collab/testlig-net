@@ -130,6 +130,13 @@ final class SecurityAuditMetadataSanitizer
         'external_reference',
         'version_number',
         'policy_hash',
+        'fixture_sha256',
+        'source_program_id',
+        'themes_created',
+        'themes_reordered',
+        'topics_created',
+        'outcomes_created',
+        'outcomes_skipped',
         'expires_at',
         'grant_kind',
         // Stage 2.17 commerce / payment: identifiers, integer minor-unit amounts, and

@@ -1,0 +1,228 @@
+# TYMM-2026 grade 1 Matematik official learning outcomes.
+# Curriculum theme order follows TYMM tema numbers, not the PDF işleniş table
+# and not the published catalog order.
+schema_version: 1
+source:
+  program_id: "2339"
+  version: "TYMM-2026"
+  program_url: "https://mufredat.meb.gov.tr/ProgramDetay.aspx?PID=2339"
+  pdf_url: "https://mufredat.meb.gov.tr/Dosyalar/20268149102521-Matematik%20(1-4)%20DÖP.pdf"
+  tymm_url: "https://tymm.meb.gov.tr/ogretim-programlari/ders/ilkokul-matematik-dersi"
+  pdf_sha256: "249D9FF5A9D7AAB3BE853F112C395A29A776DECE302D4A474EA23B2453A82FF0"
+  pdf_bytes: 3772188
+  verified_on: "2026-10-02"
+subject_code: matematik
+program:
+  code: mat_grade1_tymm
+  version: "TYMM-2026"
+  grade_level: 1
+expected_outcome_count: 19
+themes:
+  - position: 1
+    code: mat_1_1_occ1
+    official_theme_code: "MAT.1.1"
+    occurrence: 1
+    title: "Sayılar ve Nicelikler (1)"
+    tymm_unit_id: 45
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/45"
+    topics:
+      - position: 1
+        code: rakamlar_ve_sayilar
+        title: "Rakamlar ve Sayılar"
+        outcome:
+          position: 1
+          code: mat_1_1_1
+          official_code: "MAT.1.1.1"
+          description: "Rakamları ve 20’ye kadar olan sayıları (20 dâhil), niceliklerin büyüklüklerini temsil etmek için kullanabilme"
+      - position: 2
+        code: sayilari_cozumleme
+        title: "Sayıları Çözümleme"
+        outcome:
+          position: 1
+          code: mat_1_1_2
+          official_code: "MAT.1.1.2"
+          description: "Ögeleri dağınık veya düzenli bir şekilde bulunan bir nesne grubunu sayarken parçalar arasında ilişkileri çözümleyebilme"
+      - position: 3
+        code: sira_sayilari
+        title: "Sıra Sayıları"
+        outcome:
+          position: 1
+          code: mat_1_1_3
+          official_code: "MAT.1.1.3"
+          description: "Nesnelerin sıra sayısını gösterebilme"
+      - position: 4
+        code: buyuklukleri_karsilastirma
+        title: "Büyüklükleri Karşılaştırma"
+        outcome:
+          position: 1
+          code: mat_1_1_4
+          official_code: "MAT.1.1.4"
+          description: "İki niceliğin büyüklüğünü “çok”, “daha çok”, “az”, “daha az” veya “eşit” terimleriyle karşılaştırabilme"
+      - position: 5
+        code: ritmik_sayma
+        title: "Ritmik Sayma"
+        outcome:
+          position: 1
+          code: mat_1_1_5
+          official_code: "MAT.1.1.5"
+          description: "100’e kadar ileriye ve 20’den geriye doğru ritmik sayabilme"
+      - position: 6
+        code: sayi_ve_sekil_oruntuleri
+        title: "Sayı ve Şekil Örüntüleri"
+        outcome:
+          position: 1
+          code: mat_1_1_6
+          official_code: "MAT.1.1.6"
+          description: "Artan veya azalan sayı ve şekil örüntülerini çözümleyebilme"
+      - position: 7
+        code: nesne_sayisini_tahmin_etme
+        title: "Nesne Sayısını Tahmin Etme"
+        outcome:
+          position: 1
+          code: mat_1_1_7
+          official_code: "MAT.1.1.7"
+          description: "Verilen bir çokluktaki ilişkilerden yararlanarak 20’ye kadar (20 dâhil) olan nesnelerin sayısını tahmin edebilme"
+  - position: 2
+    code: mat_1_1_occ2
+    official_theme_code: "MAT.1.1"
+    occurrence: 2
+    title: "Sayılar ve Nicelikler (2)"
+    tymm_unit_id: 86
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/86"
+    topics:
+      - position: 1
+        code: uzunluk_ve_kutle_olcme
+        title: "Uzunluk ve Kütle Ölçme"
+        outcome:
+          position: 1
+          code: mat_1_1_8
+          official_code: "MAT.1.1.8"
+          description: "Standart olmayan uygun ölçme araçları ile nesnelerin uzunluğunu ve tartacağı kütlenin ölçüm sonuçlarını tahmin edebilme"
+  - position: 3
+    code: mat_1_1_occ3
+    official_theme_code: "MAT.1.1"
+    occurrence: 3
+    title: "Sayılar ve Nicelikler (3)"
+    tymm_unit_id: 95
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/95"
+    topics:
+      - position: 1
+        code: paralarimiz
+        title: "Paralarımız"
+        outcome:
+          position: 1
+          code: mat_1_1_9
+          official_code: "MAT.1.1.9"
+          description: "Paraların (1 TL, 5 TL, 10 TL, 20 TL, 50 TL, 100 TL ve 200 TL) temsil ettiği büyüklükleri tanıyabilme"
+  - position: 4
+    code: mat_1_2_occ1
+    official_theme_code: "MAT.1.2"
+    occurrence: 1
+    title: "İşlemlerden Cebirsel Düşünmeye"
+    tymm_unit_id: 99
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/99"
+    topics:
+      - position: 1
+        code: toplama_ve_cikarma_islemlerini_cozumleme
+        title: "Toplama ve Çıkarma İşlemlerini Çözümleme"
+        outcome:
+          position: 1
+          code: mat_1_2_1
+          official_code: "MAT.1.2.1"
+          description: "Günlük yaşamın içerdiği toplama ve çıkarma işlemlerini çözümleyebilme"
+      - position: 2
+        code: toplama_ve_cikarma_sonuclarini_tahmin
+        title: "Toplama ve Çıkarma İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem"
+        outcome:
+          position: 1
+          code: mat_1_2_2
+          official_code: "MAT.1.2.2"
+          description: "Toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      - position: 3
+        code: toplama_ve_cikarma_islemlerinde_esitlik
+        title: "Toplama ve Çıkarma İşlemlerinde Eşitlik"
+        outcome:
+          position: 1
+          code: mat_1_2_3
+          official_code: "MAT.1.2.3"
+          description: "Eşit işaretinin anlamını toplama ve çıkarma işlemi bağlamında yorumlayabilme"
+      - position: 4
+        code: toplama_ve_cikarma_islemlerinin_iliskisi
+        title: "Toplama ve Çıkarma İşlemlerinin İlişkisi"
+        outcome:
+          position: 1
+          code: mat_1_2_4
+          official_code: "MAT.1.2.4"
+          description: "Toplama ve çıkarma işlemlerinin ilişkisini yorumlayabilme"
+  - position: 5
+    code: mat_1_3_occ1
+    official_theme_code: "MAT.1.3"
+    occurrence: 1
+    title: "Nesnelerin Geometrisi (1)"
+    tymm_unit_id: 109
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/109"
+    topics:
+      - position: 1
+        code: uzamsal_iliskiler
+        title: "Uzamsal İlişkiler"
+        outcome:
+          position: 1
+          code: mat_1_3_1
+          official_code: "MAT.1.3.1"
+          description: "Hedefe ulaşmak için mesafeleri ve yönleri içeren yönergeleri çözümleyebilme"
+      - position: 2
+        code: es_nesneler
+        title: "Eş Nesneler"
+        outcome:
+          position: 1
+          code: mat_1_3_2
+          official_code: "MAT.1.3.2"
+          description: "Nesnelerin eşliğini değerlendirebilme"
+  - position: 6
+    code: mat_1_3_occ2
+    official_theme_code: "MAT.1.3"
+    occurrence: 2
+    title: "Nesnelerin Geometrisi (2)"
+    tymm_unit_id: 113
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/113"
+    topics:
+      - position: 1
+        code: nesnelerin_bicimsel_ozellikleri
+        title: "Nesnelerin Biçimsel Özellikleri"
+        outcome:
+          position: 1
+          code: mat_1_3_3
+          official_code: "MAT.1.3.3"
+          description: "Günlük yaşamdaki nesneleri biçimsel özelliklerine göre ayırt edebilme"
+      - position: 2
+        code: geometrik_yapilardaki_geometrik_sekiller
+        title: "Geometrik Yapılardaki Geometrik Şekiller"
+        outcome:
+          position: 1
+          code: mat_1_3_4
+          official_code: "MAT.1.3.4"
+          description: "Günlük yaşamda karşılaşılan geometrik yapılardaki geometrik şekilleri çözümleyebilme"
+      - position: 3
+        code: geometrik_sekilleri_siniflandirma
+        title: "Geometrik Şekilleri Sınıflandırma"
+        outcome:
+          position: 1
+          code: mat_1_3_5
+          official_code: "MAT.1.3.5"
+          description: "Biçimsel özelliklerine göre geometrik şekilleri sınıflandırabilme"
+  - position: 7
+    code: mat_1_4_occ1
+    official_theme_code: "MAT.1.4"
+    occurrence: 1
+    title: "Veriye Dayalı Araştırma"
+    tymm_unit_id: 115
+    tymm_url: "https://tymm.meb.gov.tr/ilkokul-matematik-dersi/unite/115"
+    topics:
+      - position: 1
+        code: veriyle_calisma
+        title: "Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+        outcome:
+          position: 1
+          code: mat_1_4_1
+          official_code: "MAT.1.4.1"
+          description: "Kategorik veriye dayalı temel veri grubu ile çalışabilme ve veriye dayalı karar verebilme"

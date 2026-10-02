@@ -162,6 +162,11 @@ outcome chain must exist. Pilot slice:
 `data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml`
 (MAT.1.3.1 / Uzamsal İlişkiler). Import publishes the program for later LC publish
 eligibility but does not create LearningContent or placements.
+`app:curriculum:reconcile-official-program` is a later, closed completion of that
+published program from `grade-1-matematik.yaml`. It is not a general published-program
+editor. Curriculum theme order follows the TYMM theme numbers. The catalog keeps its
+own işleniş order. The existing `mat_1_3_1` row and anything linked to it stay in place.
+Production apply stays a separate approval.
 
 ## Limitations
 

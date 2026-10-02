@@ -1,0 +1,141 @@
+name: Ops curriculum official reconcile (VDS)
+
+# Closed TYMM-2026 grade-1 Matematik reconcile. dry-run default.
+# Does not edit the catalog, questions, tests, or attempts.
+# Dispatch is manual. This workflow does not run from deploy.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run | apply | verify"
+        type: choice
+        options:
+          - dry-run
+          - apply
+          - verify
+        default: dry-run
+      plan:
+        description: "Required for apply: dry-run plan fingerprint"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: echo "VDS SSH operations are paused"
+
+  refuse-apply-without-plan:
+    name: Refuse apply without plan
+    if: inputs.mode == 'apply' && inputs.plan == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stop
+        run: |
+          echo "apply requires the dry-run plan fingerprint"
+          exit 1
+
+  vds:
+    name: VDS official curriculum reconcile
+    if: vars.VDS_SSH_PAUSED != 'true' && (inputs.mode != 'apply' || inputs.plan != '')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote official reconcile
+        env:
+          MODE: ${{ inputs.mode }}
+          PLAN: ${{ inputs.plan }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "apply" ] && [ -z "$PLAN" ]; then
+            echo "ERROR: apply requires plan"
+            exit 1
+          fi
+          set +e
+          ssh testlig-vds "export MODE=$(printf %q "$MODE"); export PLAN=$(printf %q "$PLAN"); bash -s" <<'EOS'
+          set -euo pipefail
+          APP_ROOT=/home/testlig.net/app
+          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
+          APP_USER=testl3865
+          FIXTURE=data/curriculum/meb/tymm-2026/grade-1-matematik.yaml
+          cd "$APP_ROOT"
+          run_app() {
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod "$@"
+          }
+          sql_count() {
+            local sql="$1"
+            local out rc
+            set +e
+            out="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/tmp/testlig-ocr-sql.err)"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              echo "err"
+              return 0
+            fi
+            printf '%s\n' "$out" | tr -d '\r' | awk '
+              /^[[:space:]]*[0-9]+[[:space:]]*$/ { v=$1 }
+              END { if (v != "") print v; else print "err" }
+            '
+          }
+
+          echo "mode=${MODE}"
+          echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
+          echo "fixture_present=$([ -f "$FIXTURE" ] && echo 1 || echo 0)"
+          echo "command_present=$([ -f bin/console ] && run_app "$PHP_BIN" bin/console list --raw 2>/dev/null | grep -c '^app:curriculum:reconcile-official-program' || echo 0)"
+
+          if [ "$MODE" = "verify" ]; then
+            echo "programs_published=$(sql_count "SELECT COUNT(*) AS c FROM curriculum_programs p INNER JOIN subjects s ON s.id = p.subject_id WHERE s.code = 'matematik' AND p.grade_level = 1 AND p.code = 'mat_grade1_tymm' AND p.version = 'TYMM-2026' AND p.status = 'published'")"
+            echo "outcomes_program=$(sql_count "SELECT COUNT(*) AS c FROM curriculum_learning_outcomes o INNER JOIN curriculum_programs p ON p.id = o.curriculum_program_id INNER JOIN subjects s ON s.id = p.subject_id WHERE s.code = 'matematik' AND p.code = 'mat_grade1_tymm' AND p.version = 'TYMM-2026'")"
+            echo "pilot_outcome=$(sql_count "SELECT COUNT(*) AS c FROM curriculum_learning_outcomes o INNER JOIN curriculum_programs p ON p.id = o.curriculum_program_id WHERE p.code = 'mat_grade1_tymm' AND o.code = 'mat_1_3_1' AND o.status = 'active'")"
+            echo "catalog_topics=$(sql_count "SELECT COUNT(*) AS c FROM catalog_topics t INNER JOIN catalog_units u ON u.id = t.unit_id INNER JOIN catalog_subjects s ON s.id = u.subject_id WHERE s.source_version = 'TYMM-2026' AND s.source_code = 'MAT' AND s.grade_level = 1")"
+            echo "questions=$(sql_count "SELECT COUNT(*) AS c FROM questions")"
+            echo "assessments=$(sql_count "SELECT COUNT(*) AS c FROM assessments")"
+            echo "attempts=$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempts")"
+            exit 0
+          fi
+
+          [ -f "$FIXTURE" ] || { echo "ERROR: fixture missing"; exit 1; }
+          ARGS=(bin/console app:curriculum:reconcile-official-program --no-interaction --file="$FIXTURE")
+          if [ "$MODE" = "apply" ]; then
+            ARGS+=(--apply --plan="$PLAN")
+          elif [ "$MODE" != "dry-run" ]; then
+            echo "ERROR: unknown mode"
+            exit 1
+          fi
+          run_app "$PHP_BIN" "${ARGS[@]}"
+          EOS
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi
