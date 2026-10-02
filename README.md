@@ -84,6 +84,11 @@ php bin/console app:catalog:import --file=data/catalog/meb/tymm-2026/grade-1-mat
 # TYMM pilot curriculum outcome (LearningContent primary-outcome form). Dry-run default.
 php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml
 php bin/console app:curriculum:import-pilot-outcome --file=data/curriculum/meb/tymm-2026/grade-1-matematik-uzamsal-iliskiler.yaml --apply
+
+# Closed official reconcile for the published TYMM-2026 grade-1 Matematik program.
+# Not a general published-program editor. Dry-run default. --apply needs the printed plan fingerprint
+# and a separate production approval. It does not reorder the catalog.
+php bin/console app:curriculum:reconcile-official-program --file=data/curriculum/meb/tymm-2026/grade-1-matematik.yaml
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
