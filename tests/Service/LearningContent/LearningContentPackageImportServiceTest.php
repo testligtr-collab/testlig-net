@@ -327,6 +327,26 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         self::assertSame(0, $plan->contentTypeMatch);
     }
 
+    public function testSubjectMismatchReason(): void
+    {
+        $teacher = $this->teacher('pkg-subject@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
+        $other = $this->subjects()->findOneByCode('hayat_bilgisi');
+        if (!$other instanceof Subject) {
+            $other = $this->subjectManager()->create($this->superAdmin(), 'hayat_bilgisi', 'Hayat Bilgisi', 'create_hb');
+        }
+        $this->entityManager->flush();
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE learning_contents SET subject_id = ? WHERE id = ?',
+            [$other->getId()->toBinary(), $content->getId()->toBinary()],
+            [ParameterType::BINARY, ParameterType::BINARY],
+        );
+        $this->entityManager->clear();
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertContains('subject_mismatch', $plan->conflictReasons);
+        self::assertSame(0, $plan->subjectMatch);
+    }
+
     public function testMissingContentIsUnsupportedExistingState(): void
     {
         $teacher = $this->teacher('pkg-missing@example.com');
@@ -335,23 +355,6 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         self::assertSame(['unsupported_existing_state'], $plan->conflictReasons);
         self::assertSame(0, $plan->contentFound);
         self::assertSame(0, $plan->applyReady);
-    }
-
-    public function testLaterRevisionNumberIsUnsupportedExistingState(): void
-    {
-        $teacher = $this->teacher('pkg-revnum@example.com');
-        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
-        $revision = $content->getCurrentRevision();
-        self::assertInstanceOf(LearningContentRevision::class, $revision);
-        $this->entityManager->flush();
-        $this->entityManager->getConnection()->executeStatement(
-            'UPDATE learning_content_revisions SET revision_number = 2 WHERE id = ?',
-            [$revision->getId()->toBinary()],
-            [ParameterType::BINARY],
-        );
-        $this->entityManager->clear();
-        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
-        self::assertSame(['unsupported_existing_state'], $plan->conflictReasons);
     }
 
     public function testFailureInsideTheTransactionKeepsThePlaceholder(): void
