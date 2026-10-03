@@ -3,7 +3,10 @@ name: Ops learning content package import (VDS)
 # Closed lesson-package importer. verify is the default.
 # Does not import questions, review, seal, publish, or place content.
 # Actor email comes from repository secret TESTLIG_CONTENT_ACTOR_EMAIL for this
-# one SSH session only. It is not written to a VDS env file.
+# one SSH session only. The first SSH stdin line is the secret; the remote
+# command reads it, exports it, then runs the remaining stdin with bash -se.
+# Mode and package are allowlisted exports, not stdin data lines.
+# The secret is not written to a VDS env file.
 # Dispatch is manual. This workflow does not run from deploy.
 
 on:
@@ -67,7 +70,20 @@ jobs:
             echo "actor secret is not configured"
             exit 1
           fi
+          case "$ACTOR_EMAIL" in
+            *$'\r'*|*$'\n'*)
+              echo "actor secret is not configured"
+              exit 1
+              ;;
+          esac
           echo "::add-mask::${ACTOR_EMAIL}"
+          case "$MODE" in
+            verify|dry-run|apply) ;;
+            *)
+              echo "ERROR: unknown mode"
+              exit 1
+              ;;
+          esac
           if [ "$PACKAGE" != "data/content/tymm-2026/grade-1/matematik/mat-1-3-2" ]; then
             echo "package is not allowlisted"
             exit 1
@@ -114,44 +130,34 @@ jobs:
             echo "actor secret is not configured"
             exit 1
           fi
+          case "$TESTLIG_CONTENT_ACTOR_EMAIL" in
+            *$'\r'*|*$'\n'*)
+              echo "actor secret is not configured"
+              exit 1
+              ;;
+          esac
           echo "::add-mask::${TESTLIG_CONTENT_ACTOR_EMAIL}"
-          set +e
-          ssh testlig-vds "bash -s" < <(
-            printf '%s\n' "$TESTLIG_CONTENT_ACTOR_EMAIL"
-            printf '%s\n' "$MODE"
-            printf '%s\n' "$PLAN"
-            printf '%s\n' "$PACKAGE"
-            cat <<'EOS'
-          set -euo pipefail
-          IFS= read -r TESTLIG_CONTENT_ACTOR_EMAIL
-          IFS= read -r MODE
-          IFS= read -r PLAN
-          IFS= read -r PACKAGE
-          export TESTLIG_CONTENT_ACTOR_EMAIL
-          APP_ROOT=/home/testlig.net/app
-          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
-          APP_USER=testl3865
-          ACTOR_ENV_NAME=TESTLIG_CONTENT_ACTOR_EMAIL
-          cd "$APP_ROOT"
-          run_app() {
-            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod \
-              TESTLIG_CONTENT_ACTOR_EMAIL="$TESTLIG_CONTENT_ACTOR_EMAIL" "$@"
-          }
-          echo "mode=${MODE}"
-          echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
-          echo "package_present=$([ -f "$PACKAGE/lesson.yaml" ] && echo 1 || echo 0)"
-          echo "command_present=$([ -f bin/console ] && run_app "$PHP_BIN" bin/console list --raw 2>/dev/null | grep -c '^app:learning-content:import-package' || echo 0)"
-          [ -f "$PACKAGE/lesson.yaml" ] || { echo "ERROR: package missing"; exit 1; }
-          [ -n "${TESTLIG_CONTENT_ACTOR_EMAIL}" ] || { echo "Actor is not available."; exit 1; }
-          ARGS=(bin/console app:learning-content:import-package --no-interaction --package="$PACKAGE" --mode="$MODE" --actor-email-env="$ACTOR_ENV_NAME")
-          if [ "$MODE" = "apply" ]; then
-            ARGS+=(--expected-plan-fingerprint="$PLAN")
-          elif [ "$MODE" != "dry-run" ] && [ "$MODE" != "verify" ]; then
-            echo "ERROR: unknown mode"
+          case "$MODE" in
+            verify|dry-run|apply) ;;
+            *)
+              echo "ERROR: unknown mode"
+              exit 1
+              ;;
+          esac
+          if [ "$PACKAGE" != "data/content/tymm-2026/grade-1/matematik/mat-1-3-2" ]; then
+            echo "package is not allowlisted"
             exit 1
           fi
-          run_app "$PHP_BIN" "${ARGS[@]}"
-          EOS
+          if [ "$MODE" = "apply" ] && ! printf '%s' "$PLAN" | grep -Eq '^[a-f0-9]{64}$'; then
+            echo "apply requires the dry-run plan fingerprint"
+            exit 1
+          fi
+          ENTRY="$(cat deploy/vds/gha-learning-content-package-import-entry.sh)"
+          set +e
+          ssh testlig-vds "export MODE=$(printf %q "$MODE"); export PLAN=$(printf %q "$PLAN"); export PACKAGE=$(printf %q "$PACKAGE")
+          $ENTRY" < <(
+            printf '%s\n' "$TESTLIG_CONTENT_ACTOR_EMAIL"
+            cat deploy/vds/gha-learning-content-package-import-remote.sh
           )
           status=$?
           bash deploy/vds/gha-ssh-close-master.sh

@@ -186,8 +186,10 @@ Questions stay on the separate CSV importer. This command does not submit review
 open free access, or create a placement. Production dry-run and apply are separate manual
 SSH dispatches; they are not part of deploy. The ops workflow reads the actor email from the
 GitHub secret `TESTLIG_CONTENT_ACTOR_EMAIL`, masks it, and injects it into that one remote
-process environment over SSH stdin. It does not ask for the email in workflow inputs and does
-not write it to a VDS `.env` or profile file.
+process environment. The SSH remote command reads the first stdin line with `read` (it is never
+a `bash -s` script line), exports it, then runs the remaining stdin with `bash -se`. Mode and
+package are `printf %q` exports, not stdin data. The workflow does not ask for the email in
+inputs and does not write it to a VDS `.env` or profile file.
 
 ## Limitations
 
