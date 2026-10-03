@@ -81,6 +81,25 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   await assertClean(teacherPage);
   await teacher.close();
 
+  const csrf = await browser.newContext();
+  const csrfPage = await csrf.newPage();
+  installVideoAbort(csrfPage);
+  await watch(csrfPage);
+  await login(csrfPage, data.users.superadmin);
+  await csrfPage.goto(data.paths.questionReview);
+  await csrfPage.locator('form[action$="/yayinla"] input[name="_token"]').evaluate((node) => {
+    if (node instanceof HTMLInputElement) {
+      node.value = 'invalid-csrf';
+    }
+  });
+  const csrfResponse = csrfPage.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/yayinla'));
+  await csrfPage.getByRole('button', { name: 'Yayınla' }).click();
+  await csrfPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
+  expect((await csrfResponse).status()).toBe(403);
+  await csrfPage.goto(data.paths.questionReview);
+  await expect(csrfPage.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
+  await csrf.close();
+
   const sa = await browser.newContext();
   const saPage = await sa.newPage();
   installVideoAbort(saPage);
@@ -99,19 +118,6 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   expect(questionPosts).toHaveLength(0);
   await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Vazgeç' }).click();
   await expect(saPage.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
-
-  await saPage.locator('form[action$="/yayinla"] input[name="_token"]').evaluate((node) => {
-    if (node instanceof HTMLInputElement) {
-      node.value = 'invalid-csrf';
-    }
-  });
-  const csrfResponse = saPage.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/yayinla'));
-  await saPage.getByRole('button', { name: 'Yayınla' }).click();
-  await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
-  expect((await csrfResponse).status()).toBe(403);
-  await saPage.goto(data.paths.questionReview);
-  await expect(saPage.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
-
   questionPosts.length = 0;
   await saPage.getByRole('button', { name: 'Yayınla' }).click();
   await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
