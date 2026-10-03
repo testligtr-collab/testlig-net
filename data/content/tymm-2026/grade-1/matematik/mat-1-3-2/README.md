@@ -51,6 +51,8 @@ Kod, 32 küçük onaltılık ve geçerli UUID olmalıdır. `mat-1-3-2-es-nesnele
 
 ## Konu anlatımı
 
+Özet alanı (`summary`): Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.
+
 Doküman `LearningContentDocument` şemasıdır. `callout` varyantı yalnız `info`, `warning`, `tip`, `note` olabilir. İstenen `success` bu modelde yoktur; özet kutu `tip` olarak yazıldı. Video, PDF ve görsel yoktur.
 
 ## İlerideki yayın sırası

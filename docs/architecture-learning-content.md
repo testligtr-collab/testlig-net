@@ -178,7 +178,7 @@ A stale fingerprint or a failed write rolls the transaction back and leaves the 
 
 The draft must already exist: content and revision are draft, the revision is the default
 `[Taslak]` paragraph or already identical to the package, the actor is the verified teacher
-who owns it, there is no review, publication, or catalog placement, and the title, empty summary,
+who owns it, there is no review, publication, or catalog placement, and the title, package summary,
 subject, grade, and `mat_1_3_2` outcome match the package. Any other state is a conflict and
 writes nothing. verify and dry-run print closed `conflict_reasons` codes and boolean match
 flags. They never print emails, UUIDs, titles, summaries, or document text. The command does not create a second content row for this package.
