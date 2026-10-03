@@ -39,7 +39,7 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
     await shot(page, info, 'admin', 'onay-dialog', viewport.name);
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
-    await expect(page.getByText('İncelemede')).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
     expect(contentPosts).toHaveLength(0);
   }
 
@@ -53,18 +53,18 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   await page.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Vazgeç' }).click();
   await expect(page.getByRole('dialog', { name: 'İşlemi onayla' })).toBeHidden();
   await expect(page.getByRole('button', { name: 'Yayımla' })).toBeFocused();
-  await expect(page.getByText('İncelemede')).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Arşivle' }).click();
   await expect(page.getByRole('dialog', { name: 'İşlemi onayla' })).toBeVisible();
   await expect(page.getByText('Arşivleme geri alınamaz. Devam edilsin mi?')).toBeVisible();
   await page.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Vazgeç' }).click();
-  await expect(page.getByText('İncelemede')).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
 
   contentPosts.length = 0;
   await page.getByRole('button', { name: 'Yayımla' }).click();
   await page.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).dblclick();
-  await expect(page.getByText('Yayında')).toBeVisible();
+  await expect(page.getByRole('definition').filter({ hasText: 'Yayında' })).toBeVisible();
   expect(contentPosts).toHaveLength(1);
   await assertClean(page);
   await admin.close();
@@ -98,7 +98,7 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   await expect(saPage.getByRole('dialog', { name: 'İşlemi onayla' })).toBeVisible();
   expect(questionPosts).toHaveLength(0);
   await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Vazgeç' }).click();
-  await expect(saPage.getByText('İncelemede')).toBeVisible();
+  await expect(saPage.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
 
   await saPage.locator('form[action$="/yayinla"] input[name="_token"]').evaluate((node) => {
     if (node instanceof HTMLInputElement) {
@@ -110,12 +110,12 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
   expect((await csrfResponse).status()).toBe(403);
   await saPage.goto(data.paths.questionReview);
-  await expect(saPage.getByText('İncelemede')).toBeVisible();
+  await expect(saPage.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
 
   questionPosts.length = 0;
   await saPage.getByRole('button', { name: 'Yayınla' }).click();
   await saPage.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
-  await expect(saPage.getByText('Yayında')).toBeVisible();
+  await expect(saPage.getByRole('definition').filter({ hasText: 'Yayında' })).toBeVisible();
   expect(questionPosts).toHaveLength(1);
   await assertClean(saPage);
   await sa.close();
