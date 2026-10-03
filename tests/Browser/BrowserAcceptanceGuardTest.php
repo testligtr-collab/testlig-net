@@ -44,6 +44,9 @@ final class BrowserAcceptanceGuardTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/https?:\/\/([a-z0-9-]+\.)?testlig\.net/i', $combined);
         self::assertStringContainsString('www.youtube-nocookie.com', $combined);
         self::assertStringContainsString('player.vimeo.com', $combined);
+        self::assertStringNotContainsString("page.once('dialog'", $combined);
+        self::assertStringNotContainsString('dialog.accept', $combined);
+        self::assertStringNotContainsString('dialog.dismiss', $combined);
         self::assertStringContainsString('`${role}-${route}-${viewport}.png`', $combined);
         self::assertDoesNotMatchRegularExpression('/screenshot\(\{[^}]*[0-9a-f]{8}-[0-9a-f]{4}-/i', $combined);
     }

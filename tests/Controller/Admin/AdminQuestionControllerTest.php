@@ -173,6 +173,8 @@ final class AdminQuestionControllerTest extends WebTestCase
         $this->login($client, 'qb-admin-pub@example.com');
         $client->request('GET', $path);
         self::assertSelectorTextContains('body', 'Yayınla');
+        self::assertSelectorExists('#app-confirm-dialog');
+        self::assertSelectorExists('form[action*="yayinla"][data-controller="confirm-submit"]');
         $this->postAction($client, 'yayinla');
         self::assertSelectorTextContains('body', 'Yayında');
         $this->postAction($client, 'arsivle');

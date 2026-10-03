@@ -99,6 +99,10 @@ final class AdminLearningContentLifecycleTest extends WebTestCase
         $crawler = $client->request('GET', '/yonetim/icerikler/'.$contentId->toRfc4122());
         $token = $crawler->filter('form[action$="/yayimla"] input[name="_token"]')->attr('value');
         self::assertNotNull($token);
+        self::assertSelectorExists('#app-confirm-dialog');
+        self::assertSame('true', $crawler->filter('#app-confirm-dialog')->attr('aria-modal'));
+        self::assertSelectorExists('form[action$="/yayimla"][data-controller="confirm-submit"]');
+        self::assertSelectorExists('form[action$="/arsivle"][data-controller="confirm-submit"]');
         $client->request('POST', '/yonetim/icerikler/'.$contentId->toRfc4122().'/yayimla', [
             '_token' => $token,
             'note' => 'publish_approved',
