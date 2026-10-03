@@ -9,6 +9,9 @@ use App\Entity\LearningContentRevision;
 
 final class LearningContentPackageReport
 {
+    /**
+     * @param list<string> $conflictReasons
+     */
     public function __construct(
         public readonly int $packageFound,
         public readonly string $fixtureChecksum,
@@ -30,6 +33,18 @@ final class LearningContentPackageReport
         public readonly int $usersTouched,
         public readonly string $planFingerprint,
         public readonly string $operation,
+        public readonly array $conflictReasons = [],
+        public readonly int $ownerMatch = 0,
+        public readonly int $contentStatusMatch = 0,
+        public readonly int $revisionStatusMatch = 0,
+        public readonly int $subjectMatch = 0,
+        public readonly int $gradeMatch = 0,
+        public readonly int $outcomeMatch = 0,
+        public readonly int $stableCodeMatch = 0,
+        public readonly int $contentTypeMatch = 0,
+        public readonly int $titleMatch = 0,
+        public readonly int $summaryMatch = 0,
+        public readonly int $placementAbsent = 0,
         public readonly ?LearningContent $content = null,
         public readonly ?LearningContentRevision $revision = null,
     ) {
@@ -61,6 +76,19 @@ final class LearningContentPackageReport
             'users_touched='.$this->usersTouched,
             'plan_fingerprint='.$this->planFingerprint,
             'operation='.$this->operation,
+            'conflict_reason_count='.\count($this->conflictReasons),
+            'conflict_reasons='.implode(',', $this->conflictReasons),
+            'owner_match='.$this->ownerMatch,
+            'content_status_match='.$this->contentStatusMatch,
+            'revision_status_match='.$this->revisionStatusMatch,
+            'subject_match='.$this->subjectMatch,
+            'grade_match='.$this->gradeMatch,
+            'outcome_match='.$this->outcomeMatch,
+            'stable_code_match='.$this->stableCodeMatch,
+            'content_type_match='.$this->contentTypeMatch,
+            'title_match='.$this->titleMatch,
+            'summary_match='.$this->summaryMatch,
+            'placement_absent='.$this->placementAbsent,
         ];
     }
 }
