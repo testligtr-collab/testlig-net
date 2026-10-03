@@ -206,6 +206,23 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_create',
         );
         $this->contents->submitForReview($review, $teacher, 'browser_submit');
+        $this->access->setLearningContentAccessPolicy($review, $admin, ResourceAccessClass::EntitlementRequired, 'browser_entitlement');
+        $confirm = $this->contents->createDraft(
+            $teacher,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::TopicExplanation,
+            'browser_confirm',
+            'Onay dialog anlatimi',
+            null,
+            LearningContentDocument::paragraph('Onay dialog metni'),
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            'browser_create',
+        );
+        $this->contents->submitForReview($confirm, $teacher, 'browser_submit');
+        $this->access->setLearningContentAccessPolicy($confirm, $admin, ResourceAccessClass::EntitlementRequired, 'browser_entitlement');
         $this->contents->createDraft(
             $admin,
             LearningContentScope::Platform,
@@ -303,6 +320,26 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_q_draft',
         );
 
+        $reviewQuestion = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Inceleme sorusu koku'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Birinci secenek'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Ikinci secenek'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_rev',
+        );
+        $this->questions->submitForReview($reviewQuestion, $teacher, 'browser_submit');
+
         $institution = $this->institutions->create($superAdmin, $owner, 'Tarayici Okulu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($institution, $superAdmin, 'browser_activate');
         $year = $this->years->createPlanned(
@@ -351,7 +388,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'testCode' => $assessment->getCode(),
                 'revision' => '/yonetim/icerikler/'.$draft->getId()->toRfc4122().'/revision',
                 'reviewDetail' => '/yonetim/icerikler/'.$review->getId()->toRfc4122(),
+                'confirmDetail' => '/yonetim/icerikler/'.$confirm->getId()->toRfc4122(),
                 'questionEdit' => '/yonetim/sorular/'.$draftQuestion->getId()->toRfc4122().'/duzenle',
+                'questionReview' => '/yonetim/sorular/'.$reviewQuestion->getId()->toRfc4122(),
                 'questionSubjectCode' => 'browser_subj',
                 'questionOutcomeCode' => 'browser_lo',
                 'classroomName' => 'Sinif A',

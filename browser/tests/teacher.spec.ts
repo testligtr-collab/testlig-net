@@ -63,8 +63,8 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
   await page.locator('select[name="block_type"]').selectOption('paragraph');
   await page.getByRole('button', { name: 'Yeni blok ekle' }).click();
   await expect(blocks).toHaveCount(before + 1);
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Kaldır' }).first().click();
+  await page.getByRole('dialog', { name: 'İşlemi onayla' }).getByRole('button', { name: 'Onayla' }).click();
   await expect(blocks).toHaveCount(before);
 
   await page.locator('#revision-save-form textarea').first().fill('Kaydedilmeyen degisiklik');

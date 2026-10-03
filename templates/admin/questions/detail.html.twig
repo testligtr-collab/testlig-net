@@ -86,7 +86,7 @@
             <button class="btn btn--primary" type="submit">Taslağa döndür</button>
         </form>
     {% elseif progress.next.kind == 'publish' %}
-        <form method="post" action="{{ path('app_admin_question_publish', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+        <form method="post" action="{{ path('app_admin_question_publish', {id: question.id.toRfc4122}) }}" class="stack-sm" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Soruyu yayımlamak istediğinize emin misiniz?" data-warn-unsaved="1">
             <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
             <input type="hidden" name="expected_revision" value="{{ revision_number }}">
             <label>İşlem notu
@@ -95,7 +95,7 @@
             <button class="btn btn--primary" type="submit">Yayınla</button>
         </form>
     {% elseif progress.next.kind == 'archive' %}
-        <form method="post" action="{{ path('app_admin_question_archive', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+        <form method="post" action="{{ path('app_admin_question_archive', {id: question.id.toRfc4122}) }}" class="stack-sm" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Arşivleme geri alınamaz. Devam edilsin mi?" data-warn-unsaved="1">
             <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
             <input type="hidden" name="expected_revision" value="{{ revision_number }}">
             <label>İşlem notu

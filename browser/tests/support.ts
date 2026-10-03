@@ -22,7 +22,9 @@ type Manifest = {
     testCode: string;
     revision: string;
     reviewDetail: string;
+    confirmDetail: string;
     questionEdit: string;
+    questionReview: string;
     questionSubjectCode: string;
     questionOutcomeCode: string;
     classroomName: string;
