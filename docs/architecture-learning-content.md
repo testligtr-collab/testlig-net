@@ -184,7 +184,10 @@ writes nothing. The command does not create a second content row for this packag
 
 Questions stay on the separate CSV importer. This command does not submit review, seal, publish,
 open free access, or create a placement. Production dry-run and apply are separate manual
-SSH dispatches; they are not part of deploy.
+SSH dispatches; they are not part of deploy. The ops workflow reads the actor email from the
+GitHub secret `TESTLIG_CONTENT_ACTOR_EMAIL`, masks it, and injects it into that one remote
+process environment over SSH stdin. It does not ask for the email in workflow inputs and does
+not write it to a VDS `.env` or profile file.
 
 ## Limitations
 

@@ -93,8 +93,10 @@ php bin/console app:curriculum:reconcile-official-program --file=data/curriculum
 # Closed lesson package import. Default mode is verify and does not write.
 # dry-run prints the plan fingerprint. apply requires that fingerprint and replaces
 # only an owned placeholder draft. It does not review, seal, publish, place, or import questions.
-php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=verify --actor-email-env=TESTLIG_CONTENT_ACTOR_EMAIL
-php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=dry-run --actor-email-env=TESTLIG_CONTENT_ACTOR_EMAIL
+# The actor email is read only from env TESTLIG_CONTENT_ACTOR_EMAIL (never as a CLI value).
+# Production ops uses the GitHub secret of the same name for one SSH session; it is not written to the VDS.
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=verify
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=dry-run
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
