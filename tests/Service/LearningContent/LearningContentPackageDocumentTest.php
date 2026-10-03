@@ -46,9 +46,9 @@ final class LearningContentPackageDocumentTest extends TestCase
         $raw = $this->rawFixture();
         self::assertSame(
             'Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.',
-            $raw['summary'] ?? null,
+            $raw['summary'],
         );
-        self::assertSame(LearningContentPackageTarget::mat132()->summary, $raw['summary'] ?? null);
+        self::assertSame(LearningContentPackageTarget::mat132()->summary, $raw['summary']);
         $checksum = $loaded->fixtureChecksum;
         self::assertSame(hash('sha256', (string) file_get_contents($this->lessonPath())), $checksum);
         self::assertNotSame('cd54683002dddc8d95366bd42cbd847bf7035558ab9f5539cc6527f76e693c7b', $checksum);
