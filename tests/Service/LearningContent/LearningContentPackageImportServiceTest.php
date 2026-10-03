@@ -272,9 +272,9 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $email = 'pkg-command@example.com';
         $teacher = $this->teacher($email);
         $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
-        putenv('TESTLIG_PACKAGE_ACTOR_EMAIL='.$email);
-        $_ENV['TESTLIG_PACKAGE_ACTOR_EMAIL'] = $email;
-        $_SERVER['TESTLIG_PACKAGE_ACTOR_EMAIL'] = $email;
+        putenv('TESTLIG_CONTENT_ACTOR_EMAIL='.$email);
+        $_ENV['TESTLIG_CONTENT_ACTOR_EMAIL'] = $email;
+        $_SERVER['TESTLIG_CONTENT_ACTOR_EMAIL'] = $email;
         try {
             $kernel = self::$kernel;
             self::assertNotNull($kernel);
@@ -284,7 +284,7 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
             $status = $tester->execute([
                 '--package' => self::PACKAGE,
                 '--mode' => 'dry-run',
-                '--actor-email-env' => 'TESTLIG_PACKAGE_ACTOR_EMAIL',
+                '--actor-email-env' => 'TESTLIG_CONTENT_ACTOR_EMAIL',
             ]);
             $display = $tester->getDisplay();
             self::assertSame(0, $status);
@@ -294,9 +294,17 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
             self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $display);
             self::assertStringContainsString('plan_fingerprint=', $display);
             self::assertStringContainsString('questions_touched=0', $display);
+
+            $rejected = $tester->execute([
+                '--package' => self::PACKAGE,
+                '--mode' => 'dry-run',
+                '--actor-email-env' => 'OTHER_ACTOR_EMAIL',
+            ]);
+            self::assertSame(1, $rejected);
+            self::assertStringContainsString('Actor is not available.', $tester->getDisplay());
         } finally {
-            putenv('TESTLIG_PACKAGE_ACTOR_EMAIL');
-            unset($_ENV['TESTLIG_PACKAGE_ACTOR_EMAIL'], $_SERVER['TESTLIG_PACKAGE_ACTOR_EMAIL']);
+            putenv('TESTLIG_CONTENT_ACTOR_EMAIL');
+            unset($_ENV['TESTLIG_CONTENT_ACTOR_EMAIL'], $_SERVER['TESTLIG_CONTENT_ACTOR_EMAIL']);
         }
     }
 

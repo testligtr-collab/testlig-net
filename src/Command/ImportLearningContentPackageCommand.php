@@ -22,6 +22,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 final class ImportLearningContentPackageCommand extends Command
 {
+    public const ACTOR_EMAIL_ENV = 'TESTLIG_CONTENT_ACTOR_EMAIL';
+
     public function __construct(
         private readonly LearningContentPackageImportService $importer,
         private readonly EmailNormalizer $emailNormalizer,
@@ -37,12 +39,19 @@ final class ImportLearningContentPackageCommand extends Command
             ->addOption('package', null, InputOption::VALUE_REQUIRED, 'Allowlisted package directory, relative to the repository')
             ->addOption('mode', null, InputOption::VALUE_REQUIRED, 'verify, dry-run, or apply', 'verify')
             ->addOption('expected-plan-fingerprint', null, InputOption::VALUE_REQUIRED, 'Required only for apply')
-            ->addOption('actor-email-env', null, InputOption::VALUE_REQUIRED, 'Name of the environment variable that holds the actor email')
+            ->addOption(
+                'actor-email-env',
+                null,
+                InputOption::VALUE_REQUIRED,
+                'Allowlisted environment variable name that holds the actor email',
+                self::ACTOR_EMAIL_ENV,
+            )
             ->setHelp(
                 <<<'HELP'
 Default mode is verify. verify and dry-run do not write.
 apply replaces one owned placeholder draft when the recomputed plan fingerprint matches.
 The command does not review, seal, publish, or place the lesson, and it does not import questions.
+The actor email is read only from the allowlisted environment variable TESTLIG_CONTENT_ACTOR_EMAIL.
 HELP
             );
     }
@@ -79,10 +88,10 @@ HELP
 
     private function actor(string $envName): User
     {
-        if (1 !== preg_match('/^[A-Z][A-Z0-9_]{0,63}$/', $envName)) {
+        if (self::ACTOR_EMAIL_ENV !== $envName) {
             throw LearningContentPackageException::actorUnavailable();
         }
-        $email = getenv($envName);
+        $email = getenv(self::ACTOR_EMAIL_ENV);
         if (!\is_string($email) || '' === trim($email)) {
             throw LearningContentPackageException::actorUnavailable();
         }
