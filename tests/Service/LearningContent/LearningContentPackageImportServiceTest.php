@@ -102,6 +102,18 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         self::assertSame(0, $first->assessmentsTouched);
         self::assertSame(0, $first->placementsTouched);
         self::assertSame(0, $first->usersTouched);
+        self::assertSame([], $first->conflictReasons);
+        self::assertSame(1, $first->ownerMatch);
+        self::assertSame(1, $first->contentStatusMatch);
+        self::assertSame(1, $first->revisionStatusMatch);
+        self::assertSame(1, $first->subjectMatch);
+        self::assertSame(1, $first->gradeMatch);
+        self::assertSame(1, $first->outcomeMatch);
+        self::assertSame(1, $first->stableCodeMatch);
+        self::assertSame(1, $first->contentTypeMatch);
+        self::assertSame(1, $first->titleMatch);
+        self::assertSame(1, $first->summaryMatch);
+        self::assertSame(1, $first->placementAbsent);
         $this->entityManager->refresh($revision);
         self::assertSame($beforeBody, $revision->getStructuredContent());
 
@@ -115,6 +127,8 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
 
         $noopPlan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
         self::assertNotSame($first->planFingerprint, $noopPlan->planFingerprint);
+        self::assertSame([], $noopPlan->conflictReasons);
+        self::assertSame(1, $noopPlan->noop);
         $noop = $this->importer->execute(self::PACKAGE, 'apply', $noopPlan->planFingerprint, $teacher);
         self::assertSame(0, $noop->applied);
         self::assertSame(1, $noop->noop);
@@ -158,7 +172,8 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $other = $this->teacher('pkg-other@example.com');
         $content = $this->placeholder($owner, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
         $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $other);
-        self::assertGreaterThan(0, $plan->conflicts);
+        self::assertSame(['actor_not_owner'], $plan->conflictReasons);
+        self::assertSame(0, $plan->ownerMatch);
         self::assertSame(0, $plan->applyReady);
         try {
             $this->importer->execute(self::PACKAGE, 'apply', $plan->planFingerprint, $other);
@@ -175,7 +190,10 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
         $this->contents()->submitForReview($content, $teacher, 'submit_pkg');
         $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
-        self::assertGreaterThan(0, $plan->conflicts);
+        self::assertContains('revision_not_draft', $plan->conflictReasons);
+        self::assertContains('content_not_draft', $plan->conflictReasons);
+        self::assertSame(0, $plan->revisionStatusMatch);
+        self::assertSame(0, $plan->contentStatusMatch);
         $this->entityManager->refresh($content);
         $revision = $content->getCurrentRevision();
         self::assertInstanceOf(LearningContentRevision::class, $revision);
@@ -190,7 +208,10 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $this->contents()->submitForReview($content, $teacher, 'submit_pkg_pub');
         $this->contents()->publish($content, $publisher, 'publish_pkg');
         $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
-        self::assertGreaterThan(0, $plan->conflicts);
+        self::assertContains('content_not_draft', $plan->conflictReasons);
+        self::assertContains('revision_not_draft', $plan->conflictReasons);
+        self::assertContains('review_or_publish_history_exists', $plan->conflictReasons);
+        self::assertSame(0, $plan->contentStatusMatch);
     }
 
     public function testPlacementConflicts(): void
@@ -214,7 +235,8 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $catalog->publishTopic($topic->getId());
         $placements->create($admin, $topic->getId(), $content->getId(), 'Eş Nesneler', null, 1, 'place_pkg');
         $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
-        self::assertGreaterThan(0, $plan->conflicts);
+        self::assertSame(['placement_exists'], $plan->conflictReasons);
+        self::assertSame(0, $plan->placementAbsent);
         $this->assertStillPlaceholder($content);
     }
 
@@ -223,7 +245,8 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $teacher = $this->teacher('pkg-title@example.com');
         $title = $this->placeholder($teacher, $this->ensureOutcome(), 'Başka Başlık', null);
         $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
-        self::assertGreaterThan(0, $plan->conflicts);
+        self::assertSame(['title_mismatch'], $plan->conflictReasons);
+        self::assertSame(0, $plan->titleMatch);
         $this->assertStillPlaceholder($title);
     }
 
@@ -231,7 +254,10 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
     {
         $teacher = $this->teacher('pkg-summary@example.com');
         $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, 'Kısa özet');
-        self::assertGreaterThan(0, $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher)->conflicts);
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['summary_mismatch'], $plan->conflictReasons);
+        self::assertSame(0, $plan->summaryMatch);
+        self::assertStringNotContainsString('Kısa özet', implode("\n", $plan->lines()));
         $this->assertStillPlaceholder($content);
     }
 
@@ -240,8 +266,95 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
         $teacher = $this->teacher('pkg-outcome@example.com');
         $this->ensureOutcome();
         $content = $this->placeholder($teacher, $this->ensureExtraOutcome(), LearningContentPackageTarget::mat132()->title, null);
-        self::assertGreaterThan(0, $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher)->conflicts);
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['outcome_mismatch'], $plan->conflictReasons);
+        self::assertSame(0, $plan->outcomeMatch);
         $this->assertStillPlaceholder($content);
+    }
+
+    public function testMultipleMismatchesAreSortedDeterministically(): void
+    {
+        $teacher = $this->teacher('pkg-multi@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), 'Başka Başlık', 'Kısa özet');
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['title_mismatch', 'summary_mismatch'], $plan->conflictReasons);
+        self::assertSame(2, $plan->conflicts);
+        self::assertSame('title_mismatch,summary_mismatch', implode(',', $plan->conflictReasons));
+        $this->assertStillPlaceholder($content);
+    }
+
+    public function testEditedBodyIsRevisionNotPlaceholder(): void
+    {
+        $teacher = $this->teacher('pkg-edited@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
+        $revision = $content->getCurrentRevision();
+        self::assertInstanceOf(LearningContentRevision::class, $revision);
+        $this->contents()->updateUnsealedRevision($revision, $teacher, LearningContentDocument::paragraph('Dolu metin'), 'edit_pkg');
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['revision_not_placeholder'], $plan->conflictReasons);
+        self::assertSame(0, $plan->placeholderRevision);
+    }
+
+    public function testGradeMismatchReason(): void
+    {
+        $teacher = $this->teacher('pkg-grade@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
+        $this->entityManager->flush();
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE learning_contents SET grade_level = ? WHERE id = ?',
+            [GradeLevel::Grade2->value, $content->getId()->toBinary()],
+            [ParameterType::INTEGER, ParameterType::BINARY],
+        );
+        $this->entityManager->clear();
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['grade_mismatch'], $plan->conflictReasons);
+        self::assertSame(0, $plan->gradeMatch);
+    }
+
+    public function testContentTypeMismatchReason(): void
+    {
+        $teacher = $this->teacher('pkg-type@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
+        $this->entityManager->flush();
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE learning_contents SET content_type = ? WHERE id = ?',
+            [LearningContentType::Video->value, $content->getId()->toBinary()],
+            [ParameterType::STRING, ParameterType::BINARY],
+        );
+        $this->entityManager->clear();
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['content_type_mismatch'], $plan->conflictReasons);
+        self::assertSame(0, $plan->contentTypeMatch);
+    }
+
+    public function testSubjectMismatchReason(): void
+    {
+        $teacher = $this->teacher('pkg-subject@example.com');
+        $content = $this->placeholder($teacher, $this->ensureOutcome(), LearningContentPackageTarget::mat132()->title, null);
+        $other = $this->subjects()->findOneByCode('hayat_bilgisi');
+        if (!$other instanceof Subject) {
+            $other = $this->subjectManager()->create($this->superAdmin(), 'hayat_bilgisi', 'Hayat Bilgisi', 'create_hb');
+        }
+        $this->entityManager->flush();
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE learning_contents SET subject_id = ? WHERE id = ?',
+            [$other->getId()->toBinary(), $content->getId()->toBinary()],
+            [ParameterType::BINARY, ParameterType::BINARY],
+        );
+        $this->entityManager->clear();
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertContains('subject_mismatch', $plan->conflictReasons);
+        self::assertSame(0, $plan->subjectMatch);
+    }
+
+    public function testMissingContentIsUnsupportedExistingState(): void
+    {
+        $teacher = $this->teacher('pkg-missing@example.com');
+        $this->ensureOutcome();
+        $plan = $this->importer->execute(self::PACKAGE, 'dry-run', null, $teacher);
+        self::assertSame(['unsupported_existing_state'], $plan->conflictReasons);
+        self::assertSame(0, $plan->contentFound);
+        self::assertSame(0, $plan->applyReady);
     }
 
     public function testFailureInsideTheTransactionKeepsThePlaceholder(): void
@@ -294,6 +407,12 @@ final class LearningContentPackageImportServiceTest extends KernelTestCase
             self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $display);
             self::assertStringContainsString('plan_fingerprint=', $display);
             self::assertStringContainsString('questions_touched=0', $display);
+            self::assertStringContainsString('conflict_reason_count=0', $display);
+            self::assertStringContainsString('conflict_reasons=', $display);
+            self::assertStringContainsString('owner_match=1', $display);
+            self::assertStringContainsString('summary_match=1', $display);
+            self::assertStringNotContainsString('Eş Nesneleri Tanıyalım', $display);
+            self::assertDoesNotMatchRegularExpression('/conflict_reasons=[^\n]*[A-Z]/', $display);
 
             $rejected = $tester->execute([
                 '--package' => self::PACKAGE,

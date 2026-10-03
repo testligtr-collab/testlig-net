@@ -158,14 +158,12 @@ final class LearningContentPackageImportService
         bool $lockRows,
     ): LearningContentPackageReport {
         $target = $loaded->target;
-        $conflicts = 0;
         $subject = $this->subjects->findOneByCode($target->subjectCode);
         $subjectFound = $subject instanceof Subject ? 1 : 0;
-        if (!$subject instanceof Subject) {
-            ++$conflicts;
-        } elseif ($lockRows && !$this->lockSubject($subject)) {
+        $lockFailed = false;
+        if ($subject instanceof Subject && $lockRows && !$this->lockSubject($subject)) {
             $subject = null;
-            ++$conflicts;
+            $lockFailed = true;
         }
 
         $program = null;
@@ -193,9 +191,6 @@ final class LearningContentPackageImportService
             && CurriculumContentStatus::Active === $outcome->getStatus()
             ? 1
             : 0;
-        if (1 !== $outcomeFound) {
-            ++$conflicts;
-        }
 
         $matches = $this->contents->findPlatformByCode($target->stableCode);
         $contentFound = \count($matches);
@@ -207,9 +202,6 @@ final class LearningContentPackageImportService
                 $contentFound = 0;
             }
         }
-        if (1 !== $contentFound) {
-            ++$conflicts;
-        }
 
         $revision = null;
         $revisionFound = 0;
@@ -217,6 +209,20 @@ final class LearningContentPackageImportService
         $identical = false;
         $blocksCurrent = 0;
         $contentState = 'missing';
+        $diagnosis = LearningContentPackageDiagnosis::none();
+        $reasons = [];
+        if ($lockFailed) {
+            $reasons[] = LearningContentPackageConflictReason::UNSUPPORTED_EXISTING_STATE;
+        }
+        if (1 !== $subjectFound) {
+            $reasons[] = LearningContentPackageConflictReason::SUBJECT_MISMATCH;
+        }
+        if (1 !== $outcomeFound) {
+            $reasons[] = LearningContentPackageConflictReason::OUTCOME_MISMATCH;
+        }
+        if (1 !== $contentFound) {
+            $reasons[] = LearningContentPackageConflictReason::UNSUPPORTED_EXISTING_STATE;
+        }
         if ($content instanceof LearningContent) {
             $revision = $content->getCurrentRevision();
             if ($revision instanceof LearningContentRevision && $lockRows) {
@@ -225,20 +231,21 @@ final class LearningContentPackageImportService
             }
             $revisionFound = $revision instanceof LearningContentRevision ? 1 : 0;
             if (!$revision instanceof LearningContentRevision) {
-                ++$conflicts;
+                $reasons[] = LearningContentPackageConflictReason::REVISION_NOT_CURRENT;
             } else {
                 $canonical = $this->canonical($revision->getStructuredContent());
                 $blocksCurrent = \is_string($canonical) ? \count($revision->getStructuredContent()['blocks'] ?? []) : 0;
                 $contentState = \is_string($canonical) ? hash('sha256', $canonical) : 'invalid';
                 $placeholder = $canonical === $this->canonical(LearningContentDocument::paragraph('[Taslak]')->toArray()) ? 1 : 0;
                 $identical = $canonical === $this->canonical($loaded->document->toArray());
-                if ($this->contentConflicts($content, $revision, $loaded, $actor, $outcome, 1 === $placeholder, $identical)) {
-                    ++$conflicts;
-                }
+                $diagnosis = $this->diagnoseContent($content, $revision, $loaded, $actor, $outcome, 1 === $placeholder, $identical);
+                $reasons = [...$reasons, ...$diagnosis->reasons];
             }
         }
 
         $expected = \count($loaded->document->blocks);
+        $sortedReasons = LearningContentPackageConflictReason::uniqueSorted($reasons);
+        $conflicts = \count($sortedReasons);
         $operation = self::OPERATION_BLOCKED;
         $blocksToReplace = 0;
         if (0 === $conflicts && $identical) {
@@ -247,7 +254,8 @@ final class LearningContentPackageImportService
             $operation = self::OPERATION_REPLACE;
             $blocksToReplace = $expected;
         } elseif (0 === $conflicts) {
-            ++$conflicts;
+            $sortedReasons = [LearningContentPackageConflictReason::REVISION_NOT_PLACEHOLDER];
+            $conflicts = 1;
         }
 
         return new LearningContentPackageReport(
@@ -269,14 +277,26 @@ final class LearningContentPackageImportService
             assessmentsTouched: 0,
             placementsTouched: 0,
             usersTouched: 0,
-            planFingerprint: $this->fingerprint($loaded, $content, $revision, $placeholder, $identical, $blocksCurrent, $expected, $operation, $conflicts, $contentState),
+            planFingerprint: $this->fingerprint($loaded, $content, $revision, $placeholder, $identical, $blocksCurrent, $expected, $operation, $conflicts, $contentState, $sortedReasons, $diagnosis),
             operation: $operation,
+            conflictReasons: $sortedReasons,
+            ownerMatch: $diagnosis->ownerMatch,
+            contentStatusMatch: $diagnosis->contentStatusMatch,
+            revisionStatusMatch: $diagnosis->revisionStatusMatch,
+            subjectMatch: $diagnosis->subjectMatch,
+            gradeMatch: $diagnosis->gradeMatch,
+            outcomeMatch: $diagnosis->outcomeMatch,
+            stableCodeMatch: $diagnosis->stableCodeMatch,
+            contentTypeMatch: $diagnosis->contentTypeMatch,
+            titleMatch: $diagnosis->titleMatch,
+            summaryMatch: $diagnosis->summaryMatch,
+            placementAbsent: $diagnosis->placementAbsent,
             content: $content,
             revision: $revision,
         );
     }
 
-    private function contentConflicts(
+    private function diagnoseContent(
         LearningContent $content,
         LearningContentRevision $revision,
         LoadedLearningContentPackage $loaded,
@@ -284,53 +304,96 @@ final class LearningContentPackageImportService
         ?CurriculumLearningOutcome $outcome,
         bool $placeholder,
         bool $identical,
-    ): bool {
+    ): LearningContentPackageDiagnosis {
         $target = $loaded->target;
-        if (!$this->ownsDraft($actor, $content)) {
-            return true;
+        $ownerMatch = $this->ownsDraft($actor, $content) ? 1 : 0;
+        $contentStatusMatch = LearningContentStatus::Draft === $content->getStatus() ? 1 : 0;
+        $revisionStatusMatch = $revision->isSealed() ? 0 : 1;
+        $subjectMatch = $content->getSubject()->getCode() === $target->subjectCode ? 1 : 0;
+        $gradeMatch = $content->getGradeLevel() === GradeLevel::from($target->gradeLevel) ? 1 : 0;
+        $stableCodeMatch = $content->getCode() === $target->stableCode ? 1 : 0;
+        $contentTypeMatch = $content->getContentType() === $target->contentType ? 1 : 0;
+        $titleMatch = $content->getTitle() === $target->title ? 1 : 0;
+        $summaryMatch = $content->getSummary() === $target->summary ? 1 : 0;
+        $placementAbsent = [] === $this->placements->findOrderedByLearningContent($content) ? 1 : 0;
+        $reasons = [];
+
+        if (1 !== $ownerMatch) {
+            $reasons[] = LearningContentPackageConflictReason::ACTOR_NOT_OWNER;
         }
-        if (LearningContentScope::Platform !== $content->getScope()
-            || LearningContentStatus::Draft !== $content->getStatus()
-            || $content->getContentType() !== $target->contentType
-            || $content->getCode() !== $target->stableCode
-            || $content->getTitle() !== $target->title
-            || $content->getSummary() !== $target->summary
-            || $content->getGradeLevel() !== GradeLevel::from($target->gradeLevel)
-            || $content->getSubject()->getCode() !== $target->subjectCode
-        ) {
-            return true;
+        if (LearningContentScope::Platform !== $content->getScope()) {
+            $reasons[] = LearningContentPackageConflictReason::UNSUPPORTED_EXISTING_STATE;
         }
-        if ($revision->isSealed() || 1 !== $revision->getRevisionNumber()) {
-            return true;
+        if (1 !== $contentStatusMatch) {
+            $reasons[] = LearningContentPackageConflictReason::CONTENT_NOT_DRAFT;
+        }
+        if (1 !== $contentTypeMatch) {
+            $reasons[] = LearningContentPackageConflictReason::CONTENT_TYPE_MISMATCH;
+        }
+        if (1 !== $stableCodeMatch) {
+            $reasons[] = LearningContentPackageConflictReason::STABLE_CODE_MISMATCH;
+        }
+        if (1 !== $titleMatch) {
+            $reasons[] = LearningContentPackageConflictReason::TITLE_MISMATCH;
+        }
+        if (1 !== $summaryMatch) {
+            $reasons[] = LearningContentPackageConflictReason::SUMMARY_MISMATCH;
+        }
+        if (1 !== $gradeMatch) {
+            $reasons[] = LearningContentPackageConflictReason::GRADE_MISMATCH;
+        }
+        if (1 !== $subjectMatch) {
+            $reasons[] = LearningContentPackageConflictReason::SUBJECT_MISMATCH;
+        }
+        if ($revision->isSealed()) {
+            $reasons[] = LearningContentPackageConflictReason::REVISION_NOT_DRAFT;
+        }
+        if (1 !== $revision->getRevisionNumber()) {
+            $reasons[] = LearningContentPackageConflictReason::UNSUPPORTED_EXISTING_STATE;
         }
         if (1 !== $this->countRevisions($content) || 0 !== $this->countPublications($content)) {
-            return true;
+            $reasons[] = LearningContentPackageConflictReason::REVIEW_OR_PUBLISH_HISTORY_EXISTS;
         }
-        if ([] !== $this->placements->findOrderedByLearningContent($content)) {
-            return true;
+        if (1 !== $placementAbsent) {
+            $reasons[] = LearningContentPackageConflictReason::PLACEMENT_EXISTS;
         }
         if (!$placeholder && !$identical) {
-            return true;
-        }
-        if (!$outcome instanceof CurriculumLearningOutcome) {
-            return true;
+            $reasons[] = LearningContentPackageConflictReason::REVISION_NOT_PLACEHOLDER;
         }
 
         $rows = $this->alignments->findByRevision($revision);
-        if (1 !== \count($rows) || !$rows[0]->isPrimary()) {
-            return true;
+        $alignmentOk = false;
+        if ($outcome instanceof CurriculumLearningOutcome && 1 === \count($rows) && $rows[0]->isPrimary()) {
+            $aligned = $rows[0]->getLearningOutcome();
+            $program = $aligned->getCurriculumProgram();
+            $alignmentOk = $aligned->getId()->toRfc4122() === $outcome->getId()->toRfc4122()
+                && $aligned->getCode() === $target->outcomeCode
+                && CurriculumContentStatus::Active === $aligned->getStatus()
+                && $program->getCode() === $target->programCode
+                && $program->getVersion() === $target->programVersion
+                && CurriculumStatus::Published === $program->getStatus()
+                && $program->getGradeLevel() === GradeLevel::from($target->gradeLevel)
+                && $program->getSubject()->getCode() === $target->subjectCode;
         }
-        $aligned = $rows[0]->getLearningOutcome();
-        $program = $aligned->getCurriculumProgram();
+        $outcomeMatch = $alignmentOk ? 1 : 0;
+        if (1 !== $outcomeMatch) {
+            $reasons[] = LearningContentPackageConflictReason::OUTCOME_MISMATCH;
+        }
 
-        return $aligned->getId()->toRfc4122() !== $outcome->getId()->toRfc4122()
-            || $aligned->getCode() !== $target->outcomeCode
-            || CurriculumContentStatus::Active !== $aligned->getStatus()
-            || $program->getCode() !== $target->programCode
-            || $program->getVersion() !== $target->programVersion
-            || CurriculumStatus::Published !== $program->getStatus()
-            || $program->getGradeLevel() !== GradeLevel::from($target->gradeLevel)
-            || $program->getSubject()->getCode() !== $target->subjectCode;
+        return new LearningContentPackageDiagnosis(
+            LearningContentPackageConflictReason::uniqueSorted($reasons),
+            $ownerMatch,
+            $contentStatusMatch,
+            $revisionStatusMatch,
+            $subjectMatch,
+            $gradeMatch,
+            $outcomeMatch,
+            $stableCodeMatch,
+            $contentTypeMatch,
+            $titleMatch,
+            $summaryMatch,
+            $placementAbsent,
+        );
     }
 
     private function ownsDraft(User $actor, LearningContent $content): bool
@@ -411,6 +474,9 @@ final class LearningContentPackageImportService
         return $counts;
     }
 
+    /**
+     * @param list<string> $conflictReasons
+     */
     private function fingerprint(
         LoadedLearningContentPackage $loaded,
         ?LearningContent $content,
@@ -422,6 +488,8 @@ final class LearningContentPackageImportService
         string $operation,
         int $conflicts,
         string $contentState,
+        array $conflictReasons,
+        LearningContentPackageDiagnosis $diagnosis,
     ): string {
         $target = $loaded->target;
         $payload = [
@@ -444,6 +512,18 @@ final class LearningContentPackageImportService
             'operation' => $operation,
             'conflicts' => $conflicts,
             'content_state_sha256' => $contentState,
+            'conflict_reasons' => $conflictReasons,
+            'owner_match' => $diagnosis->ownerMatch,
+            'content_status_match' => $diagnosis->contentStatusMatch,
+            'revision_status_match' => $diagnosis->revisionStatusMatch,
+            'subject_match' => $diagnosis->subjectMatch,
+            'grade_match' => $diagnosis->gradeMatch,
+            'outcome_match' => $diagnosis->outcomeMatch,
+            'stable_code_match' => $diagnosis->stableCodeMatch,
+            'content_type_match' => $diagnosis->contentTypeMatch,
+            'title_match' => $diagnosis->titleMatch,
+            'summary_match' => $diagnosis->summaryMatch,
+            'placement_absent' => $diagnosis->placementAbsent,
         ];
         $encoded = json_encode($payload, \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES);
         if (!\is_string($encoded)) {
@@ -494,6 +574,18 @@ final class LearningContentPackageImportService
             usersTouched: 0,
             planFingerprint: $plan->planFingerprint,
             operation: $plan->operation,
+            conflictReasons: $plan->conflictReasons,
+            ownerMatch: $plan->ownerMatch,
+            contentStatusMatch: $plan->contentStatusMatch,
+            revisionStatusMatch: $plan->revisionStatusMatch,
+            subjectMatch: $plan->subjectMatch,
+            gradeMatch: $plan->gradeMatch,
+            outcomeMatch: $plan->outcomeMatch,
+            stableCodeMatch: $plan->stableCodeMatch,
+            contentTypeMatch: $plan->contentTypeMatch,
+            titleMatch: $plan->titleMatch,
+            summaryMatch: $plan->summaryMatch,
+            placementAbsent: $plan->placementAbsent,
             content: null,
             revision: null,
         );
