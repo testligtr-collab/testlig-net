@@ -80,6 +80,7 @@ final class LearningContentPackageDocument
             || (string) $raw['source_program_id'] !== $target->sourceProgramId
             || $raw['outcome_code'] !== $target->outcomeCode
             || $raw['official_code'] !== $target->officialCode
+            || $raw['summary'] !== $target->summary
         ) {
             throw LearningContentPackageException::rejected();
         }

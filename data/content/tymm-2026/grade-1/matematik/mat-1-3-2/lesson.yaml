@@ -14,6 +14,7 @@ catalog_topic_name: Eş Nesneler
 catalog_topic_slug: es-nesneler
 catalog_unit_slug: nesnelerin-geometrisi-1
 status: draft
+summary: Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.
 document:
   schemaVersion: 1
   blocks:

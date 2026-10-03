@@ -43,9 +43,17 @@ final class LearningContentPackageDocumentTest extends TestCase
             'Büyüklüklerine bak.',
             'Yönü değişmiş olsa da bu özellikler aynıysa nesneleri eş olarak değerlendir.',
         ], $blocks[4]['items'] ?? null);
-        self::assertSame(hash('sha256', (string) file_get_contents($this->lessonPath())), $loaded->fixtureChecksum);
+        $raw = $this->rawFixture();
+        self::assertSame(
+            'Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.',
+            $raw['summary'] ?? null,
+        );
+        self::assertSame(LearningContentPackageTarget::mat132()->summary, $raw['summary'] ?? null);
+        $checksum = $loaded->fixtureChecksum;
+        self::assertSame(hash('sha256', (string) file_get_contents($this->lessonPath())), $checksum);
+        self::assertNotSame('cd54683002dddc8d95366bd42cbd847bf7035558ab9f5539cc6527f76e693c7b', $checksum);
         $again = $this->documents()->load($this->projectDir, LearningContentPackageTarget::mat132());
-        self::assertSame($loaded->fixtureChecksum, $again->fixtureChecksum);
+        self::assertSame($checksum, $again->fixtureChecksum);
     }
 
     public function testUnknownBlockIsRejected(): void
@@ -103,6 +111,7 @@ final class LearningContentPackageDocumentTest extends TestCase
             'program_version' => 'OTHER-2026',
             'outcome_code' => 'mat_1_3_1',
             'official_code' => 'MAT.1.3.1',
+            'summary' => 'Başka özet',
         ] as $key => $value) {
             $raw = $this->rawFixture();
             $raw[$key] = $value;
@@ -114,7 +123,7 @@ final class LearningContentPackageDocumentTest extends TestCase
             }
         }
 
-        self::assertSame(6, $rejected);
+        self::assertSame(7, $rejected);
 
         $this->expectException(LearningContentPackageException::class);
         (new LearningContentPackageAllowlist())->resolve('data/content/tymm-2026/grade-1/matematik/mat-1-3-1');

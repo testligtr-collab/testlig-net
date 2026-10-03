@@ -56,7 +56,7 @@ final class LearningContentPackageTarget
             officialCode: 'MAT.1.3.2',
             stableCode: 'mat_1_3_2_es_nesneler',
             title: 'Eş Nesneleri Tanıyalım',
-            summary: null,
+            summary: 'Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.',
             packageType: self::PACKAGE_TYPE_LESSON,
             contentType: LearningContentType::TopicExplanation,
             allowedYamlKeys: [
@@ -76,6 +76,7 @@ final class LearningContentPackageTarget
                 'catalog_topic_slug',
                 'catalog_unit_slug',
                 'status',
+                'summary',
                 'document',
             ],
             expectedBlocks: [

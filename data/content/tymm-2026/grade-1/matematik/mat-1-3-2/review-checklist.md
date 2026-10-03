@@ -4,6 +4,8 @@ Onaylanmadan içe aktarma, yayın, commit veya production işlemi yapılmaz.
 
 ## Bloklar
 
+Özet: Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.
+
 1. Başlık: Eş Nesneleri Tanıyalım
 2. Paragraf: Eş nesnelerin renk, biçim ve büyüklük gibi görsel özellikleri aynıdır. Nesneleri karşılaştırırken bu özelliklere birlikte bakarız.
 3. Bilgi kutusu: Yalnız rengin aynı olması yeterli değildir. Renkle birlikte biçim ve büyüklüğü de karşılaştırırız.
