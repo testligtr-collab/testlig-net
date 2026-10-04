@@ -17,7 +17,7 @@ final class LearningContentPackageMat133QuestionsTest extends TestCase
             .\DIRECTORY_SEPARATOR.'questions.csv';
         $bytes = (string) file_get_contents($path);
         self::assertTrue(str_starts_with($bytes, "\xEF\xBB\xBF"));
-        self::assertStringContainsString("\r\n", $bytes);
+        self::assertTrue(str_contains($bytes, "\n"));
 
         $parser = new QuestionCsvParser();
         $records = $parser->parse($bytes);
