@@ -19,11 +19,12 @@ final class LearningContentPackageAllowlist
             throw LearningContentPackageException::notAllowlisted();
         }
 
-        $target = LearningContentPackageTarget::mat132();
-        if ($normalized !== $target->directory) {
-            throw LearningContentPackageException::notAllowlisted();
+        foreach (LearningContentPackageTarget::all() as $target) {
+            if ($normalized === $target->directory) {
+                return $target;
+            }
         }
 
-        return $target;
+        throw LearningContentPackageException::notAllowlisted();
     }
 }

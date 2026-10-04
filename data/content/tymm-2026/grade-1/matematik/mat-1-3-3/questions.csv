@@ -1,0 +1,11 @@
+﻿code,grade_level,subject_code,learning_outcome_code,stem,option_a,option_b,option_c,option_d,correct_option,explanation
+
+c42685528712410e898e1c5b1bfca821,1,matematik,mat_1_3_3,"Top yuvarlak görünür. Kutu köşeli görünür. Düğme yuvarlak görünür. Cetvel uzun ve düz görünür. Yuvarlak görünme özelliğine göre hangileri aynı gruba konur?","Top ve kutu","Kutu ve cetvel","Top ve düğme","Top ve cetvel",C,"Yuvarlak görünme özelliğine göre top ve düğme aynı gruba konur. Bu, biçimlerinin her ayrıntıda aynı olduğu anlamına gelmez. Kutu köşeli görünür. Cetvel uzun ve düz görünür. Bu çiftler yuvarlak görünme özelliğini paylaşmaz."
+
+b07a55ad45c9411ab8364d8e1b0dca54,1,matematik,mat_1_3_3,"Üç nesne yuvarlak görünür. Bir nesne köşeli görünür. Hangisi gruptan farklıdır?","Köşeli görünen nesne","Birinci yuvarlak nesne","İkinci yuvarlak nesne","Üçüncü yuvarlak nesne",A,"Üç nesne yuvarlak görünür. Köşeli görünen nesne bu gruptan farklıdır. Yuvarlak görünen üç nesne benzer biçim grubundadır."
+
+21ea85aae2a94af99079a5fbe24ed443,1,matematik,mat_1_3_3,"Hangisinin biçimsel özelliği yuvarlaktır?","Köşeli görünen kitap","Köşeli görünen kapı","Köşeli görünen kutu","Yuvarlak görünen tabak",D,"Kökte ve seçenekte yuvarlak görünen tabak verilir. Kitap, kapı ve kutu köşeli görünür diye anlatılır. Nesne adına bakarak değil, verilen görünüme bakarak karar verilir."
+
+67a48d575fe54d609fc6260e5de778c7,1,matematik,mat_1_3_3,"İki nesne de yuvarlak görünür. Biri kırmızı, biri mavidir. Hangisi doğrudur?","Renkleri farklı olduğu için biçimleri de farklıdır.","Renk değişse de ikisi de yuvarlak görünür.","Yalnız kırmızı olan yuvarlak görünür.","Mavi olan köşeli görünür.",B,"İkisi de yuvarlak görünür. Renk değişse de bu biçimsel özellik durur. Renk farkı biçimi değiştirmez. Yalnız kırmızı olan yuvarlak değildir. Mavi olan köşeli değildir."
+
+c648ed3074684de987576a75554bb1a6,1,matematik,mat_1_3_3,"Bir nesne köşeli görünür diye anlatılır. Hangisi bu açıklamaya uyar?","Yuvarlak görünen portakal","Yuvarlak görünen düğme","Köşeli görünen kitap","Yuvarlak görünen tabak",C,"Verilen açıklama köşeli görünür. Buna uyan seçenek köşeli görünen kitaptır. Portakal, düğme ve tabak yuvarlak görünür diye anlatılır."
