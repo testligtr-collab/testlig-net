@@ -125,6 +125,7 @@ final class LearningContentPackageImportWorkflowGuardTest extends TestCase
         self::assertStringContainsString('--expected-plan-fingerprint="$PLAN"', $remote);
         self::assertStringContainsString('verify|dry-run|apply', $remote);
         self::assertStringContainsString('data/content/tymm-2026/grade-1/matematik/mat-1-3-2', $remote);
+        self::assertStringContainsString('data/content/tymm-2026/grade-1/matematik/mat-1-3-3', $remote);
         self::assertStringContainsString('--mode="$MODE"', $remote);
         self::assertStringContainsString('app:learning-content:import-package', $remote);
         self::assertSame(1, $this->commandCount($text, 'ssh'));

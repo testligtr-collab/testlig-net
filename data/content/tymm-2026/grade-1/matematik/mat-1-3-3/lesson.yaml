@@ -1,0 +1,52 @@
+schema_version: 1
+package: mat-1-3-3
+subject_code: matematik
+grade_level: 1
+program_code: mat_grade1_tymm
+program_version: TYMM-2026
+source_program_id: "2339"
+outcome_code: mat_1_3_3
+official_code: MAT.1.3.3
+official_title: Günlük yaşamdaki nesneleri biçimsel özelliklerine göre ayırt edebilme
+theme_title: Nesnelerin Geometrisi (2)
+curriculum_topic_code: nesnelerin_bicimsel_ozellikleri
+catalog_topic_name: Nesnelerin Biçimsel Özellikleri
+catalog_topic_slug: nesnelerin-bicimsel-ozellikleri
+catalog_unit_slug: nesnelerin-geometrisi-2
+status: draft
+summary: Günlük nesneleri görünüşlerindeki biçimsel benzerlik ve farklılıklara göre ayırt etmeyi öğren.
+document:
+  schemaVersion: 1
+  blocks:
+    - type: heading
+      level: 2
+      text: Nesnelerin Biçimini Ayırt Edelim
+    - type: paragraph
+      text: Nesnenin biçimi, nasıl göründüğüdür. Bazı nesneler yuvarlak görünür. Bazı nesneler köşeli görünür. Bunlar bakarken işe yarayan ipuçlarıdır. Biçimsel özellikleri benzer olan nesneleri gruplarız. Biçimsel özellikleri farklı olan nesneleri ayırırız. Yuvarlak görünen iki nesne benzer biçimde olabilir; bu, her ayrıntıda aynı biçim oldukları anlamına gelmez.
+    - type: callout
+      variant: info
+      blocks:
+        - type: paragraph
+          text: Nesneyi ayırt ederken görünüşüne bak. Rengi değişse de biçimsel özelliği durabilir. Yalnız nesnenin adına bakarak biçimine karar verme.
+    - type: heading
+      level: 2
+      text: Nasıl Ayırt Ederiz?
+    - type: list
+      items:
+        - Nesnenin nasıl göründüğüne bak.
+        - Yuvarlak mı, köşeli mi gibi ipuçlarına bak.
+        - Biçimsel özellikleri benzer olanları grupla.
+        - Biçimsel özellikleri farklı olanları ayır.
+    - type: heading
+      level: 2
+      text: Günlük Yaşamda
+    - type: paragraph
+      text: Bir nesne yuvarlak görünür, başka bir nesne köşeli görünür. Yuvarlak görünen iki nesneyi benzer biçim grubuna koyabiliriz. Köşeli görünen bir nesne ile yuvarlak görünen bir nesneyi ayırırız. Aynı genel görünüme sahip olmak, biçimlerin tamamen aynı olduğu demek değildir.
+    - type: heading
+      level: 2
+      text: Hatırlayalım
+    - type: callout
+      variant: tip
+      blocks:
+        - type: paragraph
+          text: Biçimsel özellikleri benzer olanları grupla. Yuvarlak görünen ile köşeli görüneni karıştırma. Benzer grupta olmak, biçimlerin her ayrıntıda aynı olduğu anlamına gelmez.

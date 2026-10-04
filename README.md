@@ -97,6 +97,8 @@ php bin/console app:curriculum:reconcile-official-program --file=data/curriculum
 # Production ops uses the GitHub secret of the same name for one SSH session; it is not written to the VDS.
 php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=verify
 php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=dry-run
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=verify
+php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=dry-run
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).

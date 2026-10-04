@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service\LearningContent;
 
+use App\Enum\LearningContentType;
 use App\Exception\LearningContentPackageException;
 use App\LearningContent\Content\LearningContentDocumentValidator;
 use App\Service\LearningContent\LearningContentPackageAllowlist;
@@ -129,6 +130,60 @@ final class LearningContentPackageDocumentTest extends TestCase
         (new LearningContentPackageAllowlist())->resolve('data/content/tymm-2026/grade-1/matematik/mat-1-3-1');
     }
 
+    public function testApprovedMat133FixtureParsesTheNineBlocks(): void
+    {
+        $target = LearningContentPackageTarget::mat133();
+        $loaded = $this->documents()->load($this->projectDir, $target);
+        $blocks = $loaded->document->blocks;
+
+        self::assertCount(9, $blocks);
+        self::assertSame(
+            ['heading', 'paragraph', 'callout', 'heading', 'list', 'heading', 'paragraph', 'heading', 'callout'],
+            array_column($blocks, 'type'),
+        );
+        self::assertSame('info', $blocks[2]['variant'] ?? null);
+        self::assertSame('tip', $blocks[8]['variant'] ?? null);
+        self::assertSame('Nesnelerin Biçimini Ayırt Edelim', $blocks[0]['text'] ?? null);
+        self::assertSame('Nasıl Ayırt Ederiz?', $blocks[3]['text'] ?? null);
+        self::assertSame('Günlük Yaşamda', $blocks[5]['text'] ?? null);
+        self::assertSame('Hatırlayalım', $blocks[7]['text'] ?? null);
+        self::assertSame([
+            'Nesnenin nasıl göründüğüne bak.',
+            'Yuvarlak mı, köşeli mi gibi ipuçlarına bak.',
+            'Biçimsel özellikleri benzer olanları grupla.',
+            'Biçimsel özellikleri farklı olanları ayır.',
+        ], $blocks[4]['items'] ?? null);
+        $raw = Yaml::parseFile($this->mat133LessonPath());
+        self::assertIsArray($raw);
+        self::assertSame($target->summary, $raw['summary']);
+        self::assertSame($target->stableCode, 'mat_1_3_3_nesnelerin_bicimsel_ozellikleri');
+        self::assertSame($target->outcomeCode, 'mat_1_3_3');
+        self::assertSame($target->subjectCode, 'matematik');
+        self::assertSame(1, $target->gradeLevel);
+        self::assertSame($target->contentType, LearningContentType::TopicExplanation);
+        self::assertSame(hash('sha256', (string) file_get_contents($this->mat133LessonPath())), $loaded->fixtureChecksum);
+        self::assertSame($target->directory, (new LearningContentPackageAllowlist())->resolve($target->directory)->directory);
+    }
+
+    public function testTraversalAndUnknownPackageAreRejected(): void
+    {
+        $allowlist = new LearningContentPackageAllowlist();
+        $rejected = 0;
+        foreach ([
+            'data/content/tymm-2026/grade-1/matematik/../matematik/mat-1-3-3',
+            'data/content/tymm-2026/grade-1/matematik/mat-1-3-1',
+            'C:/data/content/tymm-2026/grade-1/matematik/mat-1-3-3',
+        ] as $path) {
+            try {
+                $allowlist->resolve($path);
+                self::fail($path);
+            } catch (LearningContentPackageException) {
+                ++$rejected;
+            }
+        }
+        self::assertSame(3, $rejected);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -170,6 +225,14 @@ final class LearningContentPackageDocumentTest extends TestCase
         return $this->projectDir.\DIRECTORY_SEPARATOR.'data'.\DIRECTORY_SEPARATOR.'content'
             .\DIRECTORY_SEPARATOR.'tymm-2026'.\DIRECTORY_SEPARATOR.'grade-1'
             .\DIRECTORY_SEPARATOR.'matematik'.\DIRECTORY_SEPARATOR.'mat-1-3-2'
+            .\DIRECTORY_SEPARATOR.'lesson.yaml';
+    }
+
+    private function mat133LessonPath(): string
+    {
+        return $this->projectDir.\DIRECTORY_SEPARATOR.'data'.\DIRECTORY_SEPARATOR.'content'
+            .\DIRECTORY_SEPARATOR.'tymm-2026'.\DIRECTORY_SEPARATOR.'grade-1'
+            .\DIRECTORY_SEPARATOR.'matematik'.\DIRECTORY_SEPARATOR.'mat-1-3-3'
             .\DIRECTORY_SEPARATOR.'lesson.yaml';
     }
 }

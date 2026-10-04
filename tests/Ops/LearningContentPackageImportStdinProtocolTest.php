@@ -162,6 +162,17 @@ BASH;
         ];
     }
 
+    public function testAllowlistedMat133PackagePassesValidation(): void
+    {
+        $result = $this->runValidation(
+            'dry-run',
+            '',
+            'data/content/tymm-2026/grade-1/matematik/mat-1-3-3',
+        );
+        self::assertSame(0, $result['exit']);
+        self::assertSame('0', $result['importer']);
+    }
+
     /**
      * @return array{exit: int, stdout: string, importer: string}
      */

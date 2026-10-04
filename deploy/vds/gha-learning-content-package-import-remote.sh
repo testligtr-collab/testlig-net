@@ -7,7 +7,6 @@ APP_ROOT=/home/testlig.net/app
 PHP_BIN=/usr/local/lsws/lsphp83/bin/php
 APP_USER=testl3865
 ACTOR_ENV_NAME=TESTLIG_CONTENT_ACTOR_EMAIL
-ALLOWED_PACKAGE='data/content/tymm-2026/grade-1/matematik/mat-1-3-2'
 case "${MODE:-}" in
   verify|dry-run|apply) ;;
   *)
@@ -15,10 +14,13 @@ case "${MODE:-}" in
     exit 1
     ;;
 esac
-if [ "${PACKAGE:-}" != "$ALLOWED_PACKAGE" ]; then
-  echo "package is not allowlisted"
-  exit 1
-fi
+case "${PACKAGE:-}" in
+  data/content/tymm-2026/grade-1/matematik/mat-1-3-2|data/content/tymm-2026/grade-1/matematik/mat-1-3-3) ;;
+  *)
+    echo "package is not allowlisted"
+    exit 1
+    ;;
+esac
 if [ "$MODE" = "apply" ] && ! printf '%s' "${PLAN:-}" | grep -Eq '^[a-f0-9]{64}$'; then
   echo "apply requires the dry-run plan fingerprint"
   exit 1

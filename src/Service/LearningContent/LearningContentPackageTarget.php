@@ -17,6 +17,45 @@ final class LearningContentPackageTarget
     public const PACKAGE_TYPE_LESSON = 'lesson';
 
     /**
+     * @var list<string>
+     */
+    private const LESSON_YAML_KEYS = [
+        'schema_version',
+        'package',
+        'subject_code',
+        'grade_level',
+        'program_code',
+        'program_version',
+        'source_program_id',
+        'outcome_code',
+        'official_code',
+        'official_title',
+        'theme_title',
+        'curriculum_topic_code',
+        'catalog_topic_name',
+        'catalog_topic_slug',
+        'catalog_unit_slug',
+        'status',
+        'summary',
+        'document',
+    ];
+
+    /**
+     * @var list<array{type: string, variant?: string, items?: int}>
+     */
+    private const LESSON_EXPECTED_BLOCKS = [
+        ['type' => 'heading'],
+        ['type' => 'paragraph'],
+        ['type' => 'callout', 'variant' => 'info'],
+        ['type' => 'heading'],
+        ['type' => 'list', 'items' => 4],
+        ['type' => 'heading'],
+        ['type' => 'paragraph'],
+        ['type' => 'heading'],
+        ['type' => 'callout', 'variant' => 'tip'],
+    ];
+
+    /**
      * @param list<string>                                             $allowedYamlKeys
      * @param list<array{type: string, variant?: string, items?: int}> $expectedBlocks
      */
@@ -41,6 +80,17 @@ final class LearningContentPackageTarget
     ) {
     }
 
+    /**
+     * @return list<self>
+     */
+    public static function all(): array
+    {
+        return [
+            self::mat132(),
+            self::mat133(),
+        ];
+    }
+
     public static function mat132(): self
     {
         return new self(
@@ -59,37 +109,31 @@ final class LearningContentPackageTarget
             summary: 'Eş nesneleri renk, biçim ve büyüklüklerine göre karşılaştırmayı öğren.',
             packageType: self::PACKAGE_TYPE_LESSON,
             contentType: LearningContentType::TopicExplanation,
-            allowedYamlKeys: [
-                'schema_version',
-                'package',
-                'subject_code',
-                'grade_level',
-                'program_code',
-                'program_version',
-                'source_program_id',
-                'outcome_code',
-                'official_code',
-                'official_title',
-                'theme_title',
-                'curriculum_topic_code',
-                'catalog_topic_name',
-                'catalog_topic_slug',
-                'catalog_unit_slug',
-                'status',
-                'summary',
-                'document',
-            ],
-            expectedBlocks: [
-                ['type' => 'heading'],
-                ['type' => 'paragraph'],
-                ['type' => 'callout', 'variant' => 'info'],
-                ['type' => 'heading'],
-                ['type' => 'list', 'items' => 4],
-                ['type' => 'heading'],
-                ['type' => 'paragraph'],
-                ['type' => 'heading'],
-                ['type' => 'callout', 'variant' => 'tip'],
-            ],
+            allowedYamlKeys: self::LESSON_YAML_KEYS,
+            expectedBlocks: self::LESSON_EXPECTED_BLOCKS,
+        );
+    }
+
+    public static function mat133(): self
+    {
+        return new self(
+            directory: 'data/content/tymm-2026/grade-1/matematik/mat-1-3-3',
+            packageKey: 'tymm-2026/grade-1/matematik/mat-1-3-3',
+            packageSlug: 'mat-1-3-3',
+            subjectCode: 'matematik',
+            gradeLevel: 1,
+            programCode: 'mat_grade1_tymm',
+            programVersion: 'TYMM-2026',
+            sourceProgramId: '2339',
+            outcomeCode: 'mat_1_3_3',
+            officialCode: 'MAT.1.3.3',
+            stableCode: 'mat_1_3_3_nesnelerin_bicimsel_ozellikleri',
+            title: 'Nesnelerin Biçimini Ayırt Edelim',
+            summary: 'Günlük nesneleri görünüşlerindeki biçimsel benzerlik ve farklılıklara göre ayırt etmeyi öğren.',
+            packageType: self::PACKAGE_TYPE_LESSON,
+            contentType: LearningContentType::TopicExplanation,
+            allowedYamlKeys: self::LESSON_YAML_KEYS,
+            expectedBlocks: self::LESSON_EXPECTED_BLOCKS,
         );
     }
 }
