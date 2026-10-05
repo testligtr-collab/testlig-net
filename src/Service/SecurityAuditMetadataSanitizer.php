@@ -208,6 +208,7 @@ final class SecurityAuditMetadataSanitizer
         'created_count',
         'row_count',
         'import_id',
+        'question_count',
         // Stage 2.22.2b phone verification claim manager (identifiers / counts only).
         'claim_id',
         'purpose',

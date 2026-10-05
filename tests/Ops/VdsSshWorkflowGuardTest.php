@@ -260,7 +260,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(7, $paths);
+        self::assertCount(8, $paths);
 
         return $paths;
     }
@@ -276,6 +276,8 @@ final class VdsSshWorkflowGuardTest extends TestCase
             $this->root().'/deploy/vds/gha-deploy-once.sh',
             $this->root().'/deploy/vds/gha-learning-content-package-import-entry.sh',
             $this->root().'/deploy/vds/gha-learning-content-package-import-remote.sh',
+            $this->root().'/deploy/vds/gha-question-package-import-entry.sh',
+            $this->root().'/deploy/vds/gha-question-package-import-remote.sh',
         ];
     }
 

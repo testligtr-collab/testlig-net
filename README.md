@@ -99,6 +99,16 @@ php bin/console app:learning-content:import-package --package=data/content/tymm-
 php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-2 --mode=dry-run
 php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=verify
 php bin/console app:learning-content:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=dry-run
+
+# Closed question package import. Default mode is verify and does not write.
+# Reads only the allowlisted repo fixture (not a file upload). dry-run prints the
+# plan fingerprint. apply requires that fingerprint and creates owned Draft
+# questions only. It does not review, publish, place, or attach questions to a test.
+# The actor email is read only from env TESTLIG_CONTENT_ACTOR_EMAIL.
+# Production ops uses the GitHub secret of the same name for one SSH session.
+# See docs/question-package-import.md. Browser credential / file-picker security is not relaxed.
+php bin/console app:question:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=verify
+php bin/console app:question:import-package --package=data/content/tymm-2026/grade-1/matematik/mat-1-3-3 --mode=dry-run
 ```
 
 - Idempotency: `source_version` + `source_code` + `source_occurrence` (aynı MEB kodunun tekrarlayan temaları `occurrence` ile ayrılır).
@@ -106,7 +116,7 @@ php bin/console app:learning-content:import-package --package=data/content/tymm-
 - Import asla publish/archive/delete yapmaz.
 - Curriculum pilot import: natural keys program `(subject, grade, code, version)` + unit/topic/outcome codes; requires active Subject + SuperAdmin; does **not** create LearningContent or placements.
 - Herkese açık katalog `/dersler` yalnız yayımlanmış sınıf, ders, ünite ve konu adlarını gösterir (`docs/public-catalog.md`). Ders gövdesi, soru ve test bu sayfada yoktur.
-- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. İçerik ekibi aynı yetkiyle UTF-8 CSV önizleyip taslak aktarabilir (`docs/question-csv-import.md`); deploy sırasında import çalışmaz. Test editörü (`/yonetim/testler`) yayımlanmış sorulardan `Assessment` kaydı kurar. Öğrenci `/ogrenci/testler` üzerinde yalnız kendi sınıfının yayımlanmış platform testini, mevcut `AssessmentAttempt` ve `DecimalScoreCalculator` ile bir kez çözer. `/ogrenci/testler/gecmisim` yalnız kendi kayıtlarını gösterir. `/yonetim/testler/{assessment}/sonuclar` platform sonuçlarını yalnız SuperAdmin ve platform Admin okur; öğretmen erişimi sınıf ataması kanıtı olmadığı için kapalıdır. Production soru, test veya attempt tohumu yoktur. Cevap anahtarı çözüm ekranına yazılmaz.
+- Soru bankası editörü (`/yonetim/sorular`) tek doğru cevaplı çoktan seçmeli taslak üretir. İçerik ekibi aynı yetkiyle UTF-8 CSV önizleyip taslak aktarabilir (`docs/question-csv-import.md`); deploy sırasında import çalışmaz. Onaylı repo fixture’ları için ayrı kapalı komut `app:question:import-package` vardır (`docs/question-package-import.md`); bu genel bir upload API değildir ve production çalıştırma ayrı onay ister. Test editörü (`/yonetim/testler`) yayımlanmış sorulardan `Assessment` kaydı kurar. Öğrenci `/ogrenci/testler` üzerinde yalnız kendi sınıfının yayımlanmış platform testini, mevcut `AssessmentAttempt` ve `DecimalScoreCalculator` ile bir kez çözer. `/ogrenci/testler/gecmisim` yalnız kendi kayıtlarını gösterir. `/yonetim/testler/{assessment}/sonuclar` platform sonuçlarını yalnız SuperAdmin ve platform Admin okur; öğretmen erişimi sınıf ataması kanıtı olmadığı için kapalıdır. Production soru, test veya attempt tohumu yoktur. Cevap anahtarı çözüm ekranına yazılmaz.
 
 ### MEB katalog yayınlama (ağaç)
 
