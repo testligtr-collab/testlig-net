@@ -4,6 +4,8 @@
 
 Deploy bu importu çalıştırmaz. Production verisine örnek soru yazılmaz.
 
+Onaylı repo fixture’ları için ayrı kapalı komut `app:question:import-package` vardır (`docs/question-package-import.md`). O yol UI yüklemesinin yerine geçmez.
+
 ## Kolonlar
 
 İlk satır birebir şu başlık olmalıdır. Fazla, eksik veya tekrar eden kolon dosyayı reddeder.

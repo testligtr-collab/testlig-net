@@ -97,6 +97,27 @@ class QuestionRepository extends ServiceEntityRepository
     /**
      * @param list<string> $codes
      *
+     * @return list<Question>
+     */
+    public function findByCodes(array $codes): array
+    {
+        if ([] === $codes) {
+            return [];
+        }
+
+        /** @var list<Question> $rows */
+        $rows = $this->createQueryBuilder('q')
+            ->andWhere('q.code IN (:codes)')
+            ->setParameter('codes', $codes)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
+    /**
+     * @param list<string> $codes
+     *
      * @return list<string>
      */
     public function findCodesPresent(array $codes): array

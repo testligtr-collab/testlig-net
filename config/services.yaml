@@ -36,6 +36,10 @@ services:
         arguments:
             $projectDir: '%kernel.project_dir%'
 
+    App\Question\Package\QuestionPackageImportService:
+        arguments:
+            $projectDir: '%kernel.project_dir%'
+
     App\LearningContent\Document\LearningDocumentStorage:
         arguments:
             $directory: '%kernel.project_dir%/var/learning-documents'

@@ -183,7 +183,8 @@ subject, grade, and `mat_1_3_2` outcome match the package. Any other state is a 
 writes nothing. verify and dry-run print closed `conflict_reasons` codes and boolean match
 flags. They never print emails, UUIDs, titles, summaries, or document text. The command does not create a second content row for this package.
 
-Questions stay on the separate CSV importer. This command does not submit review, seal, publish,
+Questions stay on the separate CSV importer or the closed `app:question:import-package`
+allowlist path (`docs/question-package-import.md`). This lesson command does not submit review, seal, publish,
 open free access, or create a placement. Production dry-run and apply are separate manual
 SSH dispatches; they are not part of deploy. The ops workflow reads the actor email from the
 GitHub secret `TESTLIG_CONTENT_ACTOR_EMAIL`, masks it, and injects it into that one remote
@@ -191,6 +192,16 @@ process environment. The SSH remote command reads the first stdin line with `rea
 a `bash -s` script line), exports it, then runs the remaining stdin with `bash -se`. Mode and
 package are `printf %q` exports, not stdin data. The workflow does not ask for the email in
 inputs and does not write it to a VDS `.env` or profile file.
+
+## Question package import
+
+`app:question:import-package` reads one allowlisted `questions.csv` from the repository. It is
+not a general upload API and does not replace the browser CSV importer. verify is the default.
+dry-run plans create/noop/conflict counts inside a transaction and rolls back. apply requires
+the matching 64-hex plan fingerprint and creates missing owned Draft questions, revisions, and
+answer keys through `QuestionManager`. A second apply is a noop. Review, publish, placement,
+and assessment links stay separate SoD steps. Production dispatch needs a separate approval.
+Browser credential and file-picker security is not relaxed.
 
 ## Limitations
 
