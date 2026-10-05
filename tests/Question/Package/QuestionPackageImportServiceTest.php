@@ -250,7 +250,9 @@ final class QuestionPackageImportServiceTest extends KernelTestCase
     public function testPublishedQuestionIsNotOverwritten(): void
     {
         $author = $this->teacher('qpkg-pub-author@example.com');
-        $reviewer = $this->teacher('qpkg-pub-reviewer@example.com', UserRole::Admin);
+        $reviewer = $this->teacher('qpkg-pub-reviewer@example.com');
+        $reviewer->addGlobalRole(UserRole::Admin);
+        $this->users()->save($reviewer);
         $outcome = $this->ensureOutcome();
         $question = $this->createOwnedDraft($author, $outcome, $this->payloads()[0]);
         $this->questions()->submitForReview($question, $author, 'submit');
@@ -341,7 +343,7 @@ final class QuestionPackageImportServiceTest extends KernelTestCase
     private function payloads(): array
     {
         $target = QuestionPackageTarget::mat133();
-        $bytes = (string) file_get_contents(\dirname(__DIR__, 2).'/data/content/tymm-2026/grade-1/matematik/mat-1-3-3/questions.csv');
+        $bytes = (string) file_get_contents(\dirname(__DIR__, 3).'/data/content/tymm-2026/grade-1/matematik/mat-1-3-3/questions.csv');
         $records = (new QuestionCsvParser())->parse($bytes);
         $payloads = [];
         foreach ($records as $record) {
