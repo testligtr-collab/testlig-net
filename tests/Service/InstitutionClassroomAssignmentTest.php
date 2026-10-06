@@ -600,6 +600,18 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
     {
         $started = $this->startedClassroomAssignment('contmem');
         $membership = $this->studentMembership($started['ctx']['institution'], $this->fresh($started['ctx']['student']));
+        $enrollment = $this->em->createQueryBuilder()
+            ->select('enrollment')
+            ->from(ClassroomStudentEnrollment::class, 'enrollment')
+            ->andWhere('enrollment.studentMembership = :membership')
+            ->andWhere('enrollment.status = :active')
+            ->setParameter('membership', $membership->getId(), 'uuid')
+            ->setParameter('active', StudentEnrollmentStatus::Active)
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(ClassroomStudentEnrollment::class, $enrollment);
+        $this->enrollmentManager()->endEnrollment($enrollment, $started['ctx']['owner'], 'end_enr');
+        $membership = $this->studentMembership($started['ctx']['institution'], $this->fresh($started['ctx']['student']));
         $this->membershipManager()->suspend($membership, $started['ctx']['owner'], 'suspend_stu');
         $this->em->clear();
         $student = $this->fresh($started['ctx']['student']);
@@ -648,7 +660,6 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             'owner' => $ctx['owner'],
             'sa' => $ctx['sa'],
             'institution' => $ctx['institution'],
-            'subject' => $ctx['subject'],
         ], 'contnxt2', GradeLevel::Grade9, '0.00');
         $firstRefs = $this->references($ctx['assessment'], $ctx['classroom']);
         $secondRefs = $this->references($second, $ctx['classroom']);
