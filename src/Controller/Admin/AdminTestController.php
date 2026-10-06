@@ -22,12 +22,15 @@ use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionOrderMode;
+use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
+use App\Exception\AccessEntitlementException;
 use App\Exception\AssessmentException;
 use App\Exception\LearningContentException;
 use App\Presentation\ContentWorkflowReason;
 use App\Presentation\ResultPresentation;
 use App\Presentation\TestWorkflowProgress;
+use App\Repository\AssessmentAccessPolicyRepository;
 use App\Repository\AssessmentItemRepository;
 use App\Repository\AssessmentRepository;
 use App\Repository\AssessmentRevisionRepository;
@@ -36,9 +39,11 @@ use App\Repository\QuestionRepository;
 use App\Repository\QuestionRevisionOptionRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\SubjectRepository;
+use App\Security\AccessPackageAuthorization;
 use App\Security\AdminAuthorization;
 use App\Security\AdminPermission;
 use App\Security\AssessmentPermission;
+use App\Service\AccessPackageManager;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\AssessmentManager;
 use App\Service\AssessmentResultReportGate;
@@ -55,15 +60,18 @@ final class AdminTestController extends AdminBaseController
     public function __construct(
         AdminNavBuilder $adminNavBuilder,
         private readonly AdminAuthorization $adminAuthorization,
+        private readonly AccessPackageAuthorization $accessPackageAuthorization,
         private readonly AssessmentRepository $assessments,
         private readonly AssessmentRevisionRepository $revisions,
         private readonly AssessmentSectionRepository $sections,
         private readonly AssessmentItemRepository $items,
+        private readonly AssessmentAccessPolicyRepository $accessPolicies,
         private readonly QuestionRepository $questions,
         private readonly QuestionRevisionRepository $questionRevisions,
         private readonly QuestionRevisionOptionRepository $options,
         private readonly SubjectRepository $subjects,
         private readonly AssessmentManager $assessmentManager,
+        private readonly AccessPackageManager $accessPackages,
         private readonly ContentWorkflowReason $workflowReason,
         private readonly TestWorkflowProgress $workflowProgress,
         private readonly AssessmentResultReportGate $resultReportGate,
@@ -112,6 +120,8 @@ final class AdminTestController extends AdminBaseController
         $rows = $this->itemRows($revision);
         $actor = $this->requireActorUser();
         $isAuthor = $revision->getCreatedBy()->getId()->equals($actor->getId());
+        $policy = $this->accessPolicies->findForAssessment($assessment->getId());
+        $canSetPolicy = $this->canManageAssessmentAccessPolicy($actor, $assessment);
 
         return $this->renderAdmin('admin/tests/detail.html.twig', [
             'assessment' => $assessment,
@@ -126,6 +136,9 @@ final class AdminTestController extends AdminBaseController
             'grade_label' => $assessment->getGradeLevel()->value.'. sınıf',
             'can_edit' => $this->canEdit($assessment),
             'can_view_results' => $this->resultReportGate->canRead($actor, $assessment),
+            'access_policy' => $policy,
+            'access_policy_label' => $this->accessPolicyLabel($policy?->getAccessClass()),
+            'can_set_access_policy' => $canSetPolicy,
             'progress' => $this->workflowProgress->summarize([
                 'status' => $assessment->getStatus()->value,
                 'can_edit' => $this->canEdit($assessment),
@@ -138,6 +151,49 @@ final class AdminTestController extends AdminBaseController
                 'is_revision_author' => $isAuthor,
             ]),
         ]);
+    }
+
+    #[Route('/yonetim/testler/{id}/erisim', name: 'app_admin_test_policy', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
+    public function setAccessPolicy(Request $request, string $id): Response
+    {
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid('assessment_access_policy_'.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+
+        $assessment = $this->visibleAssessment($id);
+        $actor = $this->requireActorUser();
+        if (!$this->canManageAssessmentAccessPolicy($actor, $assessment)) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $accessClassRaw = (string) $request->request->get('access_class', '');
+        $accessClass = ResourceAccessClass::tryFrom($accessClassRaw);
+        if (!$accessClass instanceof ResourceAccessClass) {
+            $this->addFlash('error', 'Geçersiz erişim politikası.');
+
+            return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+        }
+        if (ResourceAccessClass::Free === $accessClass && '1' !== (string) $request->request->get('confirm_free')) {
+            $this->addFlash('error', 'Ücretsiz erişim için onay kutusu zorunludur.');
+
+            return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+        }
+
+        try {
+            $this->accessPackages->setAssessmentAccessPolicy(
+                $assessment,
+                $actor,
+                $accessClass,
+                ResourceAccessClass::Free === $accessClass ? 'admin_set_free' : 'admin_set_entitlement',
+            );
+            $this->addFlash('success', 'Erişim politikası güncellendi.');
+        } catch (AccessEntitlementException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
     }
 
     #[Route('/yonetim/testler/{id}/duzenle', name: 'app_admin_test_edit', methods: ['GET', 'POST'])]
@@ -670,6 +726,21 @@ final class AdminTestController extends AdminBaseController
     {
         return AssessmentStatus::Draft === $assessment->getStatus()
             && $this->isGranted(AssessmentPermission::REVISE, $assessment);
+    }
+
+    private function canManageAssessmentAccessPolicy(User $actor, Assessment $assessment): bool
+    {
+        return AssessmentScope::Platform === $assessment->getScope()
+            && $this->accessPackageAuthorization->canSetResourceAccessPolicy($actor);
+    }
+
+    private function accessPolicyLabel(?ResourceAccessClass $accessClass): string
+    {
+        return match ($accessClass) {
+            ResourceAccessClass::Free => 'Ücretsiz',
+            ResourceAccessClass::EntitlementRequired => 'Lisans gerekli',
+            null => 'Politika tanımlanmamış',
+        };
     }
 
     private function canSeeAll(User $actor): bool
