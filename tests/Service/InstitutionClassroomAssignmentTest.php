@@ -677,7 +677,21 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
     }
 
     /**
-     * @return array{ctx: array<string, mixed>, delivery: AssessmentDelivery, code: string}
+     * @return array{
+     *     ctx: array{
+     *         owner: User,
+     *         sa: User,
+     *         institution: Institution,
+     *         classroom: Classroom,
+     *         teacher: User,
+     *         student: User,
+     *         assessment: Assessment,
+     *         platform: Assessment,
+     *         subject: Subject
+     *     },
+     *     delivery: AssessmentDelivery,
+     *     code: string
+     * }
      */
     private function startedClassroomAssignment(string $prefix, ?string $closesRaw = null): array
     {
@@ -747,7 +761,11 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
     }
 
     /**
-     * @param array{ctx: array{student: User}, delivery: AssessmentDelivery, code: string} $started
+     * @param array{
+     *     ctx: array{student: User},
+     *     delivery: AssessmentDelivery,
+     *     code: string
+     * } $started
      */
     private function assertDashboardContinueEmptyAndUnchanged(array $started, AssessmentAttempt $before): void
     {
