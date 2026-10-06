@@ -164,6 +164,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
     public function testOpsWorkflowsUseOneSshSession(): void
     {
         $ops = [
+            '.github/workflows/ops-assessment-access-policy-inventory.yml',
             '.github/workflows/ops-catalog-import.yml',
             '.github/workflows/ops-catalog-publish-tree.yml',
             '.github/workflows/ops-curriculum-pilot-import.yml',
@@ -260,7 +261,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(8, $paths);
+        self::assertCount(9, $paths);
 
         return $paths;
     }
