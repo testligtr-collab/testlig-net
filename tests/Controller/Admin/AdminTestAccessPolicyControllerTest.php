@@ -450,7 +450,6 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
     private function csrfToken(KernelBrowser $client, string $assessmentId): string
     {
         $request = $client->getRequest();
-        self::assertNotNull($request);
         $session = $request->getSession();
         /** @var RequestStack $stack */
         $stack = $client->getContainer()->get('request_stack');
