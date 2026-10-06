@@ -94,6 +94,17 @@ final class AccessPackageAuthorization
         throw AccessEntitlementException::unauthorized();
     }
 
+    public function canSetResourceAccessPolicy(User $actor): bool
+    {
+        try {
+            $this->assertCanSetResourceAccessPolicy($actor);
+        } catch (AccessEntitlementException) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function assertCanSetResourceAccessPolicy(User $actor): void
     {
         $this->assertActiveVerified($actor);

@@ -59,6 +59,29 @@
         {% endfor %}
     </ol>
 
+    <section class="admin-section" aria-labelledby="access-policy-heading">
+        <h2 id="access-policy-heading">Erişim politikası</h2>
+        <p><strong>Mevcut durum:</strong> {{ access_policy_label }}</p>
+        <p class="muted">Bu politika testin erişim ayarını belirler. Öğrenci erişim akışına uygulanması ayrı geliştirme adımıdır.</p>
+        {% if can_set_access_policy %}
+            <p class="muted">Varsayılan kapalı kalır. Ücretsiz yalnız açık onay ile işaretlenir.</p>
+            <form method="post" action="{{ path('app_admin_test_policy', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
+                <input type="hidden" name="_token" value="{{ csrf_token('assessment_access_policy_' ~ assessment.id.toRfc4122) }}">
+                <label>Politika
+                    <select name="access_class" id="access_class">
+                        <option value="entitlement_required" {% if access_policy and access_policy.accessClass.value == 'entitlement_required' %}selected{% endif %}>Lisans gerekli</option>
+                        <option value="free" {% if access_policy and access_policy.accessClass.value == 'free' %}selected{% endif %}>Ücretsiz</option>
+                    </select>
+                </label>
+                <label>
+                    <input type="checkbox" name="confirm_free" value="1">
+                    Bu test ücretsiz erişime açılacak
+                </label>
+                <button type="submit" class="btn btn--primary">Politikayı kaydet</button>
+            </form>
+        {% endif %}
+    </section>
+
     {% if progress.next.kind == 'submit' %}
         <form method="post" action="{{ path('app_admin_test_submit', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
             <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
