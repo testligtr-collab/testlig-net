@@ -19,9 +19,21 @@ Kaynak: ChatGPT tarayıcısında SuperAdmin + öğrenci oturumu. Yerel kodla yen
 | Catalog topic | `01a0cebb-8c06-7d2a-b9ab-bb2373242175` |
 | Sorular | `c4268552-8712-410e-898e-1c5b1bfca821`, `b07a55ad-45c9-411a-b836-4d8e1b0dca54`, `21ea85aa-e2a9-4af9-9079-a5fbe24ed443`, `67a48d57-5fe5-4d60-9fc6-260e5de778c7`, `c648ed30-7468-4de9-8757-6a75554bb1a6` |
 
-Gözlem: içerik ücretsiz yayımlandı; beş soru yayımlandı; yerleşim oluşturulup yayımlandı; ilgili audit olayları görüldü; öğrenci hesabında doğru konu altında gövde açıldı; masaüstünde yatay taşma yok; temel HTML’de cevap anahtarı / `storageKey` / revision kimliği göstergesi yok. Mobil/tablet doğrulanmadı.
+Gözlem: içerik ücretsiz yayımlandı; beş soru yayımlandı; yerleşim oluşturulup yayımlandı; ilgili audit olayları görüldü; öğrenci hesabında doğru konu altında gövde açıldı; masaüstünde yatay taşma yok; temel HTML’de cevap anahtarı / `storageKey` / revision kimliği göstergesi yok.
 
 Paket: `tymm-2026/grade-1/matematik/mat-1-3-3`. Öğrenci yolu (kod): `/ogrenci/dersler/matematik/nesnelerin-geometrisi-2/nesnelerin-bicimsel-ozellikleri`.
+
+### Mobil/tablet (2026-10-06, bu tur)
+
+Hedef viewport: **390px** ve **768px**. Üretim gövdesi ile yerel sentetik konu **eşdeğer değildir**.
+
+| Kanıt türü | Durum |
+| --- | --- |
+| Production 390/768 | **Doğrulanamadı.** Cursor production öğrenci girişi yasak. 2026-10-06 ChatGPT oturumu masaüstü gövde içindir; mobil/tablet ölçümü o oturumda yok. |
+| Yerel 390/768 | **Engelli.** `browser/` Playwright (`1.55.1`) ve `app:browser-acceptance:prepare` altyapısı var; bu makinede Docker daemon kapalı, `browser/node_modules` yok, `var/browser-acceptance.json` yok. Yeni paket kurulumu ve Docker başlatma bu görevde yok. Mevcut suite viewport’ları 360/768/1280 ve sentetik `/ogrenci/dersler/.../toplama` zinciridir; MAT.1.3.3 revision’ı değildir. |
+| CI Browser acceptance (PR #101) | Ayrı iş: sentetik 360/768, production MAT değil. Bu turda 390 ölçümü yerine kullanılmaz. |
+
+Mobil/tablet kabul geçmedi. Ekran görüntüsü ve `scrollWidth` ölçümü üretilmedi.
 
 ## Öğrenci akışı (sınıf → ders → konu → içerik → test → sonuç → devam)
 
@@ -30,7 +42,7 @@ Paket: `tymm-2026/grade-1/matematik/mat-1-3-3`. Öğrenci yolu (kod): `/ogrenci/
 | Sınıf | `StudentOnboardingController` `/ogrenci/kurulum` → `StudentProfile.gradeLevel`. Katalog sınıf seçici yok; öğrenci başka grade slug’ı opaque 404 | Kısmi | Public `/dersler/{grade}` ayrı ziyaretçi yüzeyi |
 | Ders | `StudentCourseCatalogController::index/subject` `/ogrenci/dersler`, `/{subjectSlug}`; `StudentCatalogQuery` | Çalışıyor (kod+test); MAT canlı: konu gövdesi açıldı | — |
 | Ünite | `::unit` `/{subjectSlug}/{unitSlug}` | Çalışıyor (kod+test) | — |
-| Konu | `::topic` `/{subjectSlug}/{unitSlug}/{topicSlug}`; `StudentTopicContentQuery` | Çalışıyor (kod+test); MAT canlı masaüstü | Mobil/tablet yok |
+| Konu | `::topic` `/{subjectSlug}/{unitSlug}/{topicSlug}`; `StudentTopicContentQuery` | Çalışıyor (kod+test); MAT canlı masaüstü | Production 390/768 doğrulanamadı; yerel 390/768 engelli |
 | İçerik | Aynı konu sayfası; `StudentContentBlockNormalizer` + `student/courses/topic.html.twig` | Çalışıyor (MAT gövde) | Dashboard “devam et” bu yerleşime bağlı değil |
 | Konu → test | Konu şablonunda `app_student_tests` yok | **Kopuk** | Soru bankası yayını assessment oluşturmaz |
 | Test listesi | `StudentAssessmentController` `/ogrenci/testler`; `StudentAssignedTestCatalog` | Çalışıyor (kod+`StudentAssessmentPracticeTest`) | Canlı MAT testi yok |
