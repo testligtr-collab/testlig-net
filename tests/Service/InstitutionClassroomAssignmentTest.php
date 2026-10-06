@@ -470,10 +470,10 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $ownerEmail = $ctx['owner']->getEmail();
         $studentEmail = $ctx['student']->getEmail();
         $teacherEmail = $ctx['teacher']->getEmail();
-        $profile = new \App\Dto\StudentProfileRequest();
+        $profile = new StudentProfileRequest();
         $profile->gradeLevel = GradeLevel::Grade9;
-        $profiles = static::getContainer()->get(\App\Service\StudentProfileManager::class);
-        self::assertInstanceOf(\App\Service\StudentProfileManager::class, $profiles);
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
         $profiles->completeOnboarding($this->fresh($ctx['student']), $profile);
         $institutionName = $ctx['institution']->getName();
         self::ensureKernelShutdown();
@@ -969,7 +969,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         ];
     }
 
-    private function requireDelivery(Institution $institution, string $reference): \App\Entity\AssessmentDelivery
+    private function requireDelivery(Institution $institution, string $reference): AssessmentDelivery
     {
         $delivery = $this->report()->deliveryForInstitution($institution, $reference);
         self::assertNotNull($delivery);
