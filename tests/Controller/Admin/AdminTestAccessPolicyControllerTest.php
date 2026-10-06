@@ -36,6 +36,7 @@ use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\InstitutionCreator;
+use App\Service\InstitutionStatusManager;
 use App\Service\QuestionManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
@@ -243,6 +244,8 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         $assessments = $container->get(AssessmentManager::class);
         /** @var InstitutionCreator $institutions */
         $institutions = $container->get(InstitutionCreator::class);
+        /** @var InstitutionStatusManager $institutionStatus */
+        $institutionStatus = $container->get(InstitutionStatusManager::class);
         /** @var EntityManagerInterface $em */
         $em = $container->get(EntityManagerInterface::class);
         /** @var UserRepository $users */
@@ -253,6 +256,7 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertInstanceOf(User::class, $owner);
         $institution = $institutions->create($sa, $owner, $prefix.' Okul', InstitutionType::School, 'platform_setup');
         self::assertInstanceOf(Institution::class, $institution);
+        $institutionStatus->activate($institution, $sa, 'activate_ok');
         $subject = $em->find(Subject::class, Uuid::fromString($bundle['subject']));
         $question = $em->find(Question::class, Uuid::fromString($bundle['question']));
         self::assertInstanceOf(Subject::class, $subject);
