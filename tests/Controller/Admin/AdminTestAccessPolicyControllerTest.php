@@ -49,6 +49,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -448,10 +449,22 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
 
     private function csrfToken(KernelBrowser $client, string $assessmentId): string
     {
-        /** @var CsrfTokenManagerInterface $tokens */
-        $tokens = $client->getContainer()->get('security.csrf.token_manager');
+        $request = $client->getRequest();
+        self::assertNotNull($request);
+        $session = $request->getSession();
+        /** @var RequestStack $stack */
+        $stack = $client->getContainer()->get('request_stack');
+        $stack->push($request);
+        try {
+            /** @var CsrfTokenManagerInterface $tokens */
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
+            $value = $tokens->getToken('assessment_access_policy_'.$assessmentId)->getValue();
+            $session->save();
 
-        return $tokens->getToken('assessment_access_policy_'.$assessmentId)->getValue();
+            return $value;
+        } finally {
+            $stack->pop();
+        }
     }
 
     private function setPolicyDirectly(
