@@ -113,9 +113,11 @@ jobs:
 
           echo "mode=verify"
           echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
-          echo "scope=published_platform_assessments"
+          echo "policy_counts_scope=published_platform_assessments"
           echo "policy_join=assessment_access_policies PK assessment_id (no row multiplication)"
-          echo "attempt_scope=assessment_platform_practices delivery+user join; classroom deliveries excluded"
+          echo "attempt_total_scope=platform practice InProgress for platform-scope assessments (any assessment status; not limited to published)"
+          echo "attempt_join=assessment_platform_practices on delivery_id+user_id; classroom deliveries excluded"
+          echo "test_details_scope=published_platform_assessments_only"
           echo "in_progress_includes_unfinalized_expired=1"
           echo "note=platform_in_progress_attempts counts status=in_progress only; expires_at is not applied, so deadline-passed but unfinalized attempts are included"
 
@@ -131,6 +133,7 @@ jobs:
           REQUIRED="$(sql_count "SELECT COUNT(*) AS c FROM assessments a INNER JOIN assessment_access_policies p ON p.assessment_id = a.id WHERE a.scope = 'platform' AND a.status = 'published' AND p.access_class = 'entitlement_required'")"
           require_count policy_entitlement_required "$REQUIRED"
 
+          # Total includes non-published platform assessments that still have practice InProgress rows.
           INPROG="$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempts aa INNER JOIN assessment_platform_practices pp ON pp.delivery_id = aa.delivery_id AND pp.user_id = aa.user_id INNER JOIN assessments a ON a.id = aa.assessment_id WHERE aa.status = 'in_progress' AND a.scope = 'platform'")"
           require_count platform_in_progress_attempts "$INPROG"
 
