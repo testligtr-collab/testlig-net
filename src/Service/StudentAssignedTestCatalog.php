@@ -16,6 +16,9 @@ use App\Enum\AssessmentDeliveryAudienceType;
 use App\Enum\AssessmentDeliveryRecipientStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
+use App\Enum\InstitutionMembershipRole;
+use App\Enum\InstitutionMembershipStatus;
+use App\Enum\InstitutionStatus;
 use App\Presentation\ResultPresentation;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,6 +73,103 @@ final class StudentAssignedTestCatalog
         }
 
         return $cards;
+    }
+
+    /**
+     * Classroom assignments the student can still resume. Read-only; does not expire attempts.
+     *
+     * Access matches {@see AssessmentDeliveryAccessGate} for an already-started attempt:
+     * active institution, active student membership, eligible recipient, active delivery,
+     * and an open delivery window. Attempt expiry is checked separately. Does not call the
+     * gate (no extra per-delivery loads or writes).
+     *
+     * @return list<array{
+     *     code: string,
+     *     title: string,
+     *     subject: string,
+     *     institution: ?string,
+     *     classroom: ?string,
+     *     startedAt: \DateTimeImmutable,
+     *     attemptId: \Symfony\Component\Uid\Uuid
+     * }>
+     */
+    public function continuableInProgress(User $student, \DateTimeImmutable $now): array
+    {
+        $recipients = $this->resumableRecipients($student, $now);
+        if ([] === $recipients) {
+            return [];
+        }
+        $attempts = $this->ownedAttempts($student, $recipients);
+        $rows = [];
+        foreach ($recipients as $recipient) {
+            $delivery = $recipient->getDelivery();
+            $attempt = $attempts[$delivery->getId()->toRfc4122()] ?? null;
+            if (!$attempt instanceof AssessmentAttempt || AssessmentAttemptStatus::InProgress !== $attempt->getStatus()) {
+                continue;
+            }
+            if ($now >= UtcInstant::ensure($attempt->getExpiresAt())) {
+                continue;
+            }
+            $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+            $classroom = $delivery->getClassroom();
+            $classroomName = $classroom instanceof Classroom ? $classroom->getName() : '';
+
+            $rows[] = [
+                'code' => $this->hasher->studentAssignmentCode($delivery->getId()),
+                'title' => $revision->getTitle(),
+                'subject' => $this->presentation->subjectName($delivery->getAssessment()->getSubject()),
+                'institution' => $delivery->getInstitution()->getName(),
+                'classroom' => '' === $classroomName ? null : $classroomName,
+                'startedAt' => UtcInstant::ensure($attempt->getStartedAt()),
+                'attemptId' => $attempt->getId(),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return list<AssessmentDeliveryRecipient>
+     */
+    private function resumableRecipients(User $student, \DateTimeImmutable $now): array
+    {
+        $now = UtcInstant::ensure($now);
+        /** @var list<AssessmentDeliveryRecipient> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('recipient', 'delivery', 'assessment', 'publication', 'revision', 'institution', 'classroom', 'subject', 'membership')
+            ->from(AssessmentDeliveryRecipient::class, 'recipient')
+            ->innerJoin('recipient.delivery', 'delivery')
+            ->innerJoin('delivery.assessment', 'assessment')
+            ->innerJoin('delivery.assessmentPublication', 'publication')
+            ->innerJoin('publication.assessmentRevision', 'revision')
+            ->innerJoin('delivery.institution', 'institution')
+            ->leftJoin('delivery.classroom', 'classroom')
+            ->leftJoin('assessment.subject', 'subject')
+            ->innerJoin('recipient.studentMembership', 'membership')
+            ->andWhere('membership.user = :student')
+            ->andWhere('recipient.user = :student')
+            ->andWhere('recipient.status = :eligible')
+            ->andWhere('delivery.audienceType = :classroom')
+            ->andWhere('assessment.scope = :scope')
+            ->andWhere('institution.status = :institutionActive')
+            ->andWhere('membership.status = :membershipActive')
+            ->andWhere('membership.role = :studentRole')
+            ->andWhere('delivery.status = :deliveryActive')
+            ->andWhere('delivery.opensAt <= :now')
+            ->andWhere('delivery.closesAt > :now')
+            ->setParameter('student', $student->getId(), 'uuid')
+            ->setParameter('eligible', AssessmentDeliveryRecipientStatus::Eligible)
+            ->setParameter('classroom', AssessmentDeliveryAudienceType::Classroom)
+            ->setParameter('scope', AssessmentScope::Institution)
+            ->setParameter('institutionActive', InstitutionStatus::Active)
+            ->setParameter('membershipActive', InstitutionMembershipStatus::Active)
+            ->setParameter('studentRole', InstitutionMembershipRole::Student)
+            ->setParameter('deliveryActive', AssessmentDeliveryStatus::Active)
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
     }
 
     public function deliveryFor(User $student, string $code): ?AssessmentDelivery

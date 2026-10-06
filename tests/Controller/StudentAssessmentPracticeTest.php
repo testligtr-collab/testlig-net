@@ -13,6 +13,7 @@ use App\Entity\QuestionRevision;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentAttemptFailureReason;
+use App\Enum\AssessmentAttemptStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
@@ -40,6 +41,7 @@ use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\QuestionManager;
+use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
 use App\Service\UserAccountLifecycle;
@@ -449,6 +451,151 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $this->login($empty, 'p62-ed@example.com');
         $empty->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar?q=');
         self::assertResponseIsSuccessful();
+    }
+
+    public function testDashboardContinueCardBindsOwnedInProgressAndHidesOthers(): void
+    {
+        $seed = $this->seed('pcont');
+        $owner = $this->createActive('practice-continue@example.com', UserRole::Student);
+        $this->completeOnboarding($owner, GradeLevel::Grade1);
+        $other = $this->createActive('practice-continue-other@example.com', UserRole::Student);
+        $this->completeOnboarding($other, GradeLevel::Grade1);
+
+        $client = static::createClient();
+        $this->login($client, 'practice-continue@example.com');
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['main']);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+
+        $client->request('GET', '/ogrenci');
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Sinif testi');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Devam ediyor');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['main'].'/coz"]');
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('ciphertext', $html);
+        self::assertStringNotContainsString('Doğru cevap', $html);
+        self::assertStringNotContainsString('opt_', $html);
+        self::assertStringNotContainsString($seed['hidden'], $html);
+
+        $practice = static::getContainer()->get(StudentAssessmentPractice::class);
+        self::assertInstanceOf(StudentAssessmentPractice::class, $practice);
+        $card = $practice->continueCard($this->freshUser('practice-continue@example.com'), GradeLevel::Grade1);
+        self::assertNotNull($card);
+        self::assertSame($seed['main'], $card->code);
+        $encoded = json_encode($card, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('correctStableKey', $encoded);
+        self::assertStringNotContainsString('ciphertext', $encoded);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $encoded);
+
+        self::ensureKernelShutdown();
+        $otherClient = static::createClient();
+        $this->login($otherClient, 'practice-continue-other@example.com');
+        $otherClient->request('GET', '/ogrenci');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href*="/coz"]');
+        self::assertStringNotContainsString('Sinif testi', (string) $otherClient->getResponse()->getContent());
+        $otherPractice = static::getContainer()->get(StudentAssessmentPractice::class);
+        self::assertInstanceOf(StudentAssessmentPractice::class, $otherPractice);
+        self::assertNull($otherPractice->continueCard($this->freshUser('practice-continue-other@example.com'), GradeLevel::Grade1));
+    }
+
+    public function testDashboardContinueCardOmitsFinishedAndExpiredWithoutWriting(): void
+    {
+        $seed = $this->seed('pdone', 60);
+        $student = $this->createActive('practice-continue-done@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-06 10:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+
+        $client = static::createClient();
+        $this->login($client, 'practice-continue-done@example.com');
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['main']);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $this->answerAndFinish($client, $seed['main']);
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['timed']);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $before = $this->attemptFor($this->freshUser('practice-continue-done@example.com'), $seed['timed']);
+        self::assertSame(AssessmentAttemptStatus::InProgress, $before->getStatus());
+        $statusBefore = $before->getStatus();
+        $startedBefore = $before->getStartedAt();
+        $expiresBefore = $before->getExpiresAt();
+        $submittedBefore = $before->getSubmittedAt();
+
+        $clock->modify('+3 minutes');
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href*="/coz"]');
+
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->clear();
+        $after = $this->attemptFor($this->freshUser('practice-continue-done@example.com'), $seed['timed']);
+        self::assertSame($statusBefore, $after->getStatus());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $after->getStatus());
+        self::assertEquals($startedBefore, $after->getStartedAt());
+        self::assertEquals($expiresBefore, $after->getExpiresAt());
+        self::assertEquals($submittedBefore, $after->getSubmittedAt());
+        Clock::set(new NativeClock());
+    }
+
+    public function testDashboardContinueCardPicksTheLaterStartedAttempt(): void
+    {
+        $seed = $this->seed('ppick');
+        $student = $this->createActive('practice-continue-pick@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-06 11:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+
+        $client = static::createClient();
+        $this->login($client, 'practice-continue-pick@example.com');
+        $practice = static::getContainer()->get(StudentAssessmentPractice::class);
+        self::assertInstanceOf(StudentAssessmentPractice::class, $practice);
+        $owner = $this->freshUser('practice-continue-pick@example.com');
+        $practice->start($owner, GradeLevel::Grade1, $seed['main']);
+        $clock->modify('+1 minute');
+        $practice->start($this->freshUser('practice-continue-pick@example.com'), GradeLevel::Grade1, $seed['timed']);
+
+        $first = $this->attemptFor($this->freshUser('practice-continue-pick@example.com'), $seed['main']);
+        $second = $this->attemptFor($this->freshUser('practice-continue-pick@example.com'), $seed['timed']);
+        self::assertLessThan($second->getStartedAt(), $first->getStartedAt());
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['timed'].'/coz"]');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['main'].'/coz"]');
+        Clock::set(new NativeClock());
+    }
+
+    public function testDashboardContinueCardBreaksStartedAtTiesByAttemptId(): void
+    {
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-06 12:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+        $seed = $this->seed('ptie');
+        $student = $this->createActive('practice-continue-tie@example.com', UserRole::Student);
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+
+        $client = static::createClient();
+        $this->login($client, 'practice-continue-tie@example.com');
+        $practice = static::getContainer()->get(StudentAssessmentPractice::class);
+        self::assertInstanceOf(StudentAssessmentPractice::class, $practice);
+        $practice->start($this->freshUser('practice-continue-tie@example.com'), GradeLevel::Grade1, $seed['main']);
+        $practice->start($this->freshUser('practice-continue-tie@example.com'), GradeLevel::Grade1, $seed['timed']);
+
+        $owner = $this->freshUser('practice-continue-tie@example.com');
+        $first = $this->attemptFor($owner, $seed['main']);
+        $second = $this->attemptFor($owner, $seed['timed']);
+        self::assertEquals($first->getStartedAt(), $second->getStartedAt());
+        $expectedCode = $first->getId()->compare($second->getId()) > 0 ? $seed['main'] : $seed['timed'];
+        $hiddenCode = $expectedCode === $seed['main'] ? $seed['timed'] : $seed['main'];
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$expectedCode.'/coz"]');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$hiddenCode.'/coz"]');
+        Clock::set(new NativeClock());
     }
 
     public function testMigrationDeclaresThePracticeBinding(): void
