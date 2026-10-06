@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Dto\StudentProfileRequest;
 use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
+use App\Entity\AssessmentDelivery;
 use App\Entity\AssessmentDeliveryRecipient;
 use App\Entity\Classroom;
 use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\Institution;
+use App\Entity\InstitutionMembership;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
 use App\Entity\SecurityAuditEvent;
 use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\AssessmentAttemptStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
@@ -29,12 +33,14 @@ use App\Enum\StudentEnrollmentStatus;
 use App\Enum\UserRole;
 use App\Exception\InstitutionTestAssignmentException;
 use App\Exception\StudentPracticeException;
+use App\Repository\AssessmentAttemptRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Service\InstitutionClassroomTestAssigner;
 use App\Service\InstitutionDeliveryReport;
 use App\Service\InvitationCodeDigestHasher;
 use App\Service\StudentAssessmentPractice;
 use App\Service\StudentAssignedTestCatalog;
+use App\Service\StudentProfileManager;
 use App\Service\StudentTestHistoryQuery;
 use App\Tests\Support\AssessmentDeliveryTestFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -565,6 +571,206 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertStringContainsString('2,5', (string) $client->getResponse()->getContent());
         $client->request('GET', '/ogrenci');
         self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+    }
+
+    public function testDashboardHidesAssignedContinueWhenDeliveryIsCancelled(): void
+    {
+        $started = $this->startedClassroomAssignment('contcan');
+        $this->deliveries()->cancel($started['delivery'], $started['ctx']['owner'], 'cancel_d', 'cancelled_by_owner');
+        $this->em->clear();
+        $student = $this->fresh($started['ctx']['student']);
+        self::assertNull($this->practice()->continueCard($student, GradeLevel::Grade9));
+        $attempt = $this->ownedAttempt($student, $started['delivery']->getId());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $attempt->getStatus());
+        $this->assertDashboardContinueEmptyAndUnchanged($started, $attempt);
+    }
+
+    public function testDashboardHidesAssignedContinueWhenInstitutionIsSuspended(): void
+    {
+        $started = $this->startedClassroomAssignment('contins');
+        $this->institutionStatus()->suspend($started['ctx']['institution'], $started['ctx']['sa'], 'suspend_inst');
+        $this->em->clear();
+        $student = $this->fresh($started['ctx']['student']);
+        self::assertNull($this->practice()->continueCard($student, GradeLevel::Grade9));
+        $attempt = $this->ownedAttempt($student, $started['delivery']->getId());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $attempt->getStatus());
+    }
+
+    public function testDashboardHidesAssignedContinueWhenStudentMembershipIsSuspended(): void
+    {
+        $started = $this->startedClassroomAssignment('contmem');
+        $membership = $this->studentMembership($started['ctx']['institution'], $this->fresh($started['ctx']['student']));
+        $this->membershipManager()->suspend($membership, $started['ctx']['owner'], 'suspend_stu');
+        $this->em->clear();
+        $student = $this->fresh($started['ctx']['student']);
+        self::assertNull($this->practice()->continueCard($student, GradeLevel::Grade9));
+        $attempt = $this->ownedAttempt($student, $started['delivery']->getId());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $attempt->getStatus());
+    }
+
+    public function testDashboardHidesAssignedContinueWhenRecipientIsRevoked(): void
+    {
+        $started = $this->startedClassroomAssignment('contrev');
+        $recipient = $this->recipientOn($started['delivery']);
+        $this->deliveries()->revokeRecipient($started['delivery'], $recipient, $started['ctx']['owner'], 'revoke_r');
+        $this->em->clear();
+        $student = $this->fresh($started['ctx']['student']);
+        self::assertNull($this->practice()->continueCard($student, GradeLevel::Grade9));
+        $attempt = $this->ownedAttempt($student, $started['delivery']->getId());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $attempt->getStatus());
+    }
+
+    public function testDashboardHidesAssignedContinueWhenDeliveryWindowClosed(): void
+    {
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-06 07:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+        $closes = $clock->now()->modify('+5 minutes')->setTimezone(new \DateTimeZone('Europe/Istanbul'))->format('Y-m-d\TH:i');
+        $started = $this->startedClassroomAssignment('contwin', $closes);
+        $before = $this->ownedAttempt($this->fresh($started['ctx']['student']), $started['delivery']->getId());
+        $clock->modify('+10 minutes');
+        $this->em->clear();
+        $student = $this->fresh($started['ctx']['student']);
+        self::assertNull($this->practice()->continueCard($student, GradeLevel::Grade9));
+        $after = $this->ownedAttempt($student, $started['delivery']->getId());
+        self::assertSame(AssessmentAttemptStatus::InProgress, $after->getStatus());
+        self::assertEquals($before->getStartedAt(), $after->getStartedAt());
+        self::assertEquals($before->getExpiresAt(), $after->getExpiresAt());
+        self::assertEquals($before->getSubmittedAt(), $after->getSubmittedAt());
+        Clock::set(new NativeClock());
+    }
+
+    public function testDashboardContinueSkipsInaccessibleAssignedAttemptForTheNextEligible(): void
+    {
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-06 08:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+        $ctx = $this->institutionClass('contnxt');
+        $second = $this->publishInstitutionAssessment([
+            'owner' => $ctx['owner'],
+            'sa' => $ctx['sa'],
+            'institution' => $ctx['institution'],
+            'subject' => $ctx['subject'],
+        ], 'contnxt2', GradeLevel::Grade9, '0.00');
+        $firstRefs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $secondRefs = $this->references($second, $ctx['classroom']);
+        $firstReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $firstRefs['assessment'], $firstRefs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $firstReference);
+        $secondReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $secondRefs['assessment'], $secondRefs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $secondReference);
+        $firstDelivery = $this->requireDelivery($ctx['institution'], $firstReference);
+        $secondDelivery = $this->requireDelivery($ctx['institution'], $secondReference);
+        $student = $this->fresh($ctx['student']);
+        $firstCode = $this->hasher()->studentAssignmentCode($firstDelivery->getId());
+        $secondCode = $this->hasher()->studentAssignmentCode($secondDelivery->getId());
+        $this->practice()->start($student, GradeLevel::Grade9, $firstCode);
+        $clock->modify('+1 minute');
+        $this->practice()->start($this->fresh($ctx['student']), GradeLevel::Grade9, $secondCode);
+        $newer = $this->practice()->continueCard($this->fresh($ctx['student']), GradeLevel::Grade9);
+        self::assertNotNull($newer);
+        self::assertSame($secondCode, $newer->code);
+        $this->deliveries()->cancel($secondDelivery, $ctx['owner'], 'cancel_newer', 'cancelled_by_owner');
+        $this->em->clear();
+        $chosen = $this->practice()->continueCard($this->fresh($ctx['student']), GradeLevel::Grade9);
+        self::assertNotNull($chosen);
+        self::assertSame($firstCode, $chosen->code);
+        self::assertSame(AssessmentAttemptStatus::InProgress, $this->ownedAttempt($this->fresh($ctx['student']), $secondDelivery->getId())->getStatus());
+        Clock::set(new NativeClock());
+    }
+
+    /**
+     * @return array{ctx: array<string, mixed>, delivery: AssessmentDelivery, code: string}
+     */
+    private function startedClassroomAssignment(string $prefix, ?string $closesRaw = null): array
+    {
+        $ctx = $this->institutionClass($prefix);
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft(
+            $ctx['owner'],
+            $ctx['institution'],
+            $refs['assessment'],
+            $refs['classroom'],
+            null,
+            $closesRaw,
+            null,
+        );
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+        $student = $this->fresh($ctx['student']);
+        $cards = $this->catalog()->listFor($student);
+        self::assertNotSame([], $cards);
+        $code = $cards[0]['code'];
+        $this->practice()->start($student, GradeLevel::Grade9, $code);
+
+        return [
+            'ctx' => $ctx,
+            'delivery' => $this->requireDelivery($ctx['institution'], $deliveryReference),
+            'code' => $code,
+        ];
+    }
+
+    private function ownedAttempt(User $student, \Symfony\Component\Uid\Uuid $deliveryId): AssessmentAttempt
+    {
+        $attempts = static::getContainer()->get(AssessmentAttemptRepository::class);
+        self::assertInstanceOf(AssessmentAttemptRepository::class, $attempts);
+        $attempt = $attempts->findOwnedForDelivery($deliveryId, $student->getId());
+        self::assertInstanceOf(AssessmentAttempt::class, $attempt);
+
+        return $attempt;
+    }
+
+    private function studentMembership(Institution $institution, User $student): InstitutionMembership
+    {
+        $row = $this->em->createQueryBuilder()
+            ->select('membership')
+            ->from(InstitutionMembership::class, 'membership')
+            ->andWhere('membership.user = :user')
+            ->andWhere('membership.institution = :institution')
+            ->setParameter('user', $student->getId(), 'uuid')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(InstitutionMembership::class, $row);
+
+        return $row;
+    }
+
+    private function recipientOn(AssessmentDelivery $delivery): AssessmentDeliveryRecipient
+    {
+        $row = $this->em->createQueryBuilder()
+            ->select('recipient')
+            ->from(AssessmentDeliveryRecipient::class, 'recipient')
+            ->andWhere('recipient.delivery = :delivery')
+            ->setParameter('delivery', $delivery->getId(), 'uuid')
+            ->getQuery()
+            ->getSingleResult();
+        self::assertInstanceOf(AssessmentDeliveryRecipient::class, $row);
+
+        return $row;
+    }
+
+    /**
+     * @param array{ctx: array{student: User}, delivery: AssessmentDelivery, code: string} $started
+     */
+    private function assertDashboardContinueEmptyAndUnchanged(array $started, AssessmentAttempt $before): void
+    {
+        $profile = new StudentProfileRequest();
+        $profile->gradeLevel = GradeLevel::Grade9;
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
+        $profiles->completeOnboarding($this->fresh($started['ctx']['student']), $profile);
+        $email = $started['ctx']['student']->getEmail();
+        $deliveryId = $started['delivery']->getId();
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->login($client, $email);
+        $client->request('GET', '/ogrenci');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href*="/coz"]');
+        $this->rebindDeliveryFixtures();
+        $after = $this->ownedAttempt($this->fresh($started['ctx']['student']), $deliveryId);
+        self::assertSame(AssessmentAttemptStatus::InProgress, $after->getStatus());
+        self::assertEquals($before->getStartedAt(), $after->getStartedAt());
+        self::assertEquals($before->getExpiresAt(), $after->getExpiresAt());
+        self::assertEquals($before->getSubmittedAt(), $after->getSubmittedAt());
     }
 
     private function login(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $email): void
