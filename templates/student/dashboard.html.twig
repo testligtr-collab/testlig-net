@@ -16,10 +16,23 @@
 
     <section class="student-section" aria-labelledby="continue-heading">
         <h2 id="continue-heading">Öğrenmeye devam et</h2>
-        <div class="empty-state" role="status">
-            <p>Henüz başladığın bir çalışma yok.</p>
-            <p class="muted">Yayımlanan ders ve testler burada görünecek.</p>
-        </div>
+        {% if continue_test %}
+            <a class="student-catalog-card" href="{{ path('app_student_test_solve', {code: continue_test.code}) }}">
+                <span class="student-catalog-card__title">{{ continue_test.title }}</span>
+                <span class="student-catalog-card__meta muted">{{ continue_test.subject }}{% if continue_test.institutionName %} · {{ continue_test.institutionName }}{% if continue_test.classroomName %} · {{ continue_test.classroomName }}{% endif %}{% endif %}</span>
+                <span class="student-test-state">{{ continue_test.stateLabel }}</span>
+                <span class="student-test-state">Devam et</span>
+            </a>
+        {% else %}
+            <div class="empty-state" role="status">
+                <p>Şu anda devam eden bir testin yok.</p>
+                <p class="muted">
+                    <a href="{{ path('app_student_courses') }}">Dersler</a>
+                    ·
+                    <a href="{{ path('app_student_tests') }}">Testler</a>
+                </p>
+            </div>
+        {% endif %}
     </section>
 
     <section class="student-section" aria-labelledby="quick-heading">

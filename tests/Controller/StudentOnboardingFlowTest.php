@@ -38,10 +38,10 @@ final class StudentOnboardingFlowTest extends WebTestCase
 
     public function testCompletedOnboardingGoesToDashboardAndSkipsSetup(): void
     {
-        $client = static::createClient();
         $user = $this->createActiveUser('done@example.com', UserRole::Student);
         $this->completeOnboarding($user, GradeLevel::Grade5);
 
+        $client = static::createClient();
         $crawler = $client->request('GET', '/giris');
         $client->submit($crawler->selectButton('Giriş yap')->form([
             '_username' => 'done@example.com',
@@ -51,7 +51,10 @@ final class StudentOnboardingFlowTest extends WebTestCase
         $client->followRedirect();
         self::assertSelectorTextContains('h1', 'Merhaba, Ayşe');
         self::assertSelectorTextContains('body', '5. sınıf');
-        self::assertSelectorTextContains('body', 'Henüz başladığın bir çalışma yok.');
+        self::assertSelectorTextContains('body', 'Şu anda devam eden bir testin yok.');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/dersler"]');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler"]');
+        self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href*="/coz"]');
         self::assertSelectorTextContains('body', 'Yakında');
         self::assertSelectorNotExists('body:contains("%")');
         self::assertSelectorNotExists('body:contains("rozet")');

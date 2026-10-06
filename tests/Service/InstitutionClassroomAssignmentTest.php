@@ -96,6 +96,15 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
 
         $practice = $this->practice();
         $practice->start($student, GradeLevel::Grade9, $code);
+        $continue = $practice->continueCard($student, GradeLevel::Grade9);
+        self::assertNotNull($continue);
+        self::assertSame($code, $continue->code);
+        self::assertSame('Devam ediyor', $continue->stateLabel);
+        self::assertSame($ctx['institution']->getName(), $continue->institutionName);
+        $encodedContinue = json_encode($continue, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('correctStableKey', $encodedContinue);
+        self::assertStringNotContainsString('ciphertext', $encodedContinue);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $encodedContinue);
         $view = $practice->solve($student, GradeLevel::Grade9, $code, 1);
         $encoded = json_encode($view, \JSON_THROW_ON_ERROR);
         self::assertStringNotContainsString('correctStableKey', $encoded);
@@ -106,6 +115,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $practice->finish($student, GradeLevel::Grade9, $code);
         $result = $practice->result($student, GradeLevel::Grade9, $code);
         self::assertIsArray($result);
+        self::assertNull($practice->continueCard($student, GradeLevel::Grade9));
         $again = $practice->start($student, GradeLevel::Grade9, $code);
         self::assertSame(1, $this->attemptCount($again->getDelivery()->getId()));
 
@@ -527,10 +537,19 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         $crawler = $client->request('GET', '/ogrenci/testler/'.$code);
         $client->submit($crawler->filter('#student-test-start')->form());
         $client->followRedirect();
+        $client->request('GET', '/ogrenci');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$code.'/coz"]');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Devam ediyor');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', $institutionName);
+        $dashboardHtml = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('correctStableKey', $dashboardHtml);
+        self::assertStringNotContainsString('ciphertext', $dashboardHtml);
+        self::assertStringNotContainsString('Doğru cevap', $dashboardHtml);
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
         $solve = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('correctStableKey', $solve);
         self::assertStringNotContainsString('ciphertext', $solve);
-        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
         $client->request('POST', '/ogrenci/testler/'.$code.'/cevap', [
             '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
             'position' => '1',
@@ -544,6 +563,8 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         self::assertStringContainsString('2,5', (string) $client->getResponse()->getContent());
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
     }
 
     private function login(\Symfony\Bundle\FrameworkBundle\KernelBrowser $client, string $email): void

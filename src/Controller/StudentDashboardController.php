@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Service\InstitutionWorkspaceQuery;
+use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -19,6 +20,7 @@ final class StudentDashboardController extends AbstractController
     public function __construct(
         private readonly StudentProfileManager $profiles,
         private readonly InstitutionWorkspaceQuery $institutions,
+        private readonly StudentAssessmentPractice $practice,
     ) {
     }
 
@@ -38,6 +40,7 @@ final class StudentDashboardController extends AbstractController
         return $this->render('student/dashboard.html.twig', [
             'user' => $user,
             'profile' => $profile,
+            'continue_test' => $this->practice->continueCard($user, $profile->getGradeLevel()),
             'quickLinks' => [
                 [
                     'label' => 'Dersler',

@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Assessment\AssessmentScore;
 use App\Attempt\Answer\AttemptAnswerReader;
 use App\Attempt\Answer\AttemptStudentAnswerValidator;
+use App\Dto\StudentContinueTestCard;
 use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
 use App\Entity\AssessmentAttemptAnswer;
@@ -52,6 +53,7 @@ use App\Time\UtcInstant;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Student self-serve practice over published platform assessments.
@@ -91,21 +93,66 @@ final class StudentAssessmentPractice
     ) {
     }
 
+    public function continueCard(User $student, GradeLevel $grade): ?StudentContinueTestCard
+    {
+        $this->assertStudent($student);
+        $now = UtcInstant::ensure($this->clock->now());
+        /** @var list<array{code: string, title: string, subject: string, institution: ?string, classroom: ?string, startedAt: \DateTimeImmutable, attemptId: Uuid}> $candidates */
+        $candidates = [];
+        $visible = $this->publishedPlatformRows($grade);
+        $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
+        $attempts = $this->attemptsByAssessment($student, $assessments);
+        foreach ($visible as $row) {
+            $attempt = $attempts[$row['assessment']->getId()->toRfc4122()] ?? null;
+            if (!$attempt instanceof AssessmentAttempt || !$this->isContinuableAttempt($attempt, $now)) {
+                continue;
+            }
+            $candidates[] = [
+                'code' => $row['assessment']->getCode(),
+                'title' => $row['revision']->getTitle(),
+                'subject' => $this->presentation->subjectName($row['assessment']->getSubject()),
+                'institution' => null,
+                'classroom' => null,
+                'startedAt' => UtcInstant::ensure($attempt->getStartedAt()),
+                'attemptId' => $attempt->getId(),
+            ];
+        }
+        foreach ($this->assignedTests->continuableInProgress($student, $now) as $row) {
+            $candidates[] = $row;
+        }
+        if ([] === $candidates) {
+            return null;
+        }
+        usort(
+            $candidates,
+            static function (array $left, array $right): int {
+                $started = $right['startedAt'] <=> $left['startedAt'];
+                if (0 !== $started) {
+                    return $started;
+                }
+
+                return $right['attemptId']->compare($left['attemptId']);
+            },
+        );
+        $chosen = $candidates[0];
+
+        return new StudentContinueTestCard(
+            $chosen['code'],
+            $chosen['title'],
+            $chosen['subject'],
+            'Devam ediyor',
+            $chosen['institution'],
+            $chosen['classroom'],
+        );
+    }
+
     /**
      * @return list<array{code: string, title: string, subject: string, question_count: int, duration_label: string, state: string}>
      */
     public function listFor(User $student, GradeLevel $grade): array
     {
         $this->assertStudent($student);
-        /** @var list<array{assessment: Assessment, revision: AssessmentRevision}> $visible */
-        $visible = [];
-        foreach ($this->assessments->findPublishedPlatformForGrade($grade) as $assessment) {
-            $revision = $assessment->getPublishedRevision();
-            if (!$revision instanceof AssessmentRevision) {
-                continue;
-            }
-            $visible[] = ['assessment' => $assessment, 'revision' => $revision];
-        }
+        $visible = $this->publishedPlatformRows($grade);
         $revisions = array_map(static fn (array $row): AssessmentRevision => $row['revision'], $visible);
         $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
         $counts = $this->itemCounts($revisions);
@@ -344,6 +391,29 @@ final class StudentAssessmentPractice
         return $assessment;
     }
 
+    /**
+     * @return list<array{assessment: Assessment, revision: AssessmentRevision}>
+     */
+    private function publishedPlatformRows(GradeLevel $grade): array
+    {
+        $visible = [];
+        foreach ($this->assessments->findPublishedPlatformForGrade($grade) as $assessment) {
+            $revision = $assessment->getPublishedRevision();
+            if (!$revision instanceof AssessmentRevision) {
+                continue;
+            }
+            $visible[] = ['assessment' => $assessment, 'revision' => $revision];
+        }
+
+        return $visible;
+    }
+
+    private function isContinuableAttempt(AssessmentAttempt $attempt, \DateTimeImmutable $now): bool
+    {
+        return AssessmentAttemptStatus::InProgress === $attempt->getStatus()
+            && $now < UtcInstant::ensure($attempt->getExpiresAt());
+    }
+
     private function assertStudent(User $student): void
     {
         if (!\in_array('ROLE_STUDENT', $student->getRoles(), true) || !$this->activeUsers->isActiveAndVerified($student)) {
@@ -542,7 +612,7 @@ final class StudentAssessmentPractice
         $counts = [];
         foreach ($rows as $row) {
             $id = $row['revisionId'];
-            $key = $id instanceof \Symfony\Component\Uid\Uuid ? $id->toRfc4122() : (string) $id;
+            $key = $id instanceof Uuid ? $id->toRfc4122() : (string) $id;
             $counts[$key] = (int) $row['itemCount'];
         }
 

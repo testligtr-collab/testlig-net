@@ -72,6 +72,54 @@ final class StudentAssignedTestCatalog
         return $cards;
     }
 
+    /**
+     * Visible classroom assignments the student can still resume. Read-only; does not expire attempts.
+     *
+     * @return list<array{
+     *     code: string,
+     *     title: string,
+     *     subject: string,
+     *     institution: ?string,
+     *     classroom: ?string,
+     *     startedAt: \DateTimeImmutable,
+     *     attemptId: \Symfony\Component\Uid\Uuid
+     * }>
+     */
+    public function continuableInProgress(User $student, \DateTimeImmutable $now): array
+    {
+        $recipients = $this->recipients($student);
+        if ([] === $recipients) {
+            return [];
+        }
+        $attempts = $this->ownedAttempts($student, $recipients);
+        $rows = [];
+        foreach ($recipients as $recipient) {
+            $delivery = $recipient->getDelivery();
+            $attempt = $attempts[$delivery->getId()->toRfc4122()] ?? null;
+            if (!$attempt instanceof AssessmentAttempt || AssessmentAttemptStatus::InProgress !== $attempt->getStatus()) {
+                continue;
+            }
+            if ($now >= UtcInstant::ensure($attempt->getExpiresAt())) {
+                continue;
+            }
+            $revision = $delivery->getAssessmentPublication()->getAssessmentRevision();
+            $classroom = $delivery->getClassroom();
+            $classroomName = $classroom instanceof Classroom ? $classroom->getName() : '';
+
+            $rows[] = [
+                'code' => $this->hasher->studentAssignmentCode($delivery->getId()),
+                'title' => $revision->getTitle(),
+                'subject' => $this->presentation->subjectName($delivery->getAssessment()->getSubject()),
+                'institution' => $delivery->getInstitution()->getName(),
+                'classroom' => '' === $classroomName ? null : $classroomName,
+                'startedAt' => UtcInstant::ensure($attempt->getStartedAt()),
+                'attemptId' => $attempt->getId(),
+            ];
+        }
+
+        return $rows;
+    }
+
     public function deliveryFor(User $student, string $code): ?AssessmentDelivery
     {
         $code = strtolower($code);
