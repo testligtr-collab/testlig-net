@@ -64,7 +64,7 @@
         <p><strong>Mevcut durum:</strong> {{ access_policy_label }}</p>
         <p class="muted">Bu politika testin erişim ayarını belirler. Öğrenci erişim akışına uygulanması ayrı geliştirme adımıdır.</p>
         {% if can_set_access_policy %}
-            <p class="muted">Varsayılan kapalı kalır. Ücretsiz yalnız açık onay ile işaretlenir.</p>
+            <p class="muted">Ücretsiz seçimi açık onay gerektirir.</p>
             <form method="post" action="{{ path('app_admin_test_policy', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
                 <input type="hidden" name="_token" value="{{ csrf_token('assessment_access_policy_' ~ assessment.id.toRfc4122) }}">
                 <label>Politika

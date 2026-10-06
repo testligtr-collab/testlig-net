@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Entity\Assessment;
 use App\Entity\AssessmentAccessPolicy;
 use App\Entity\Institution;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
+use App\Entity\SecurityAuditEvent;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
@@ -27,9 +29,11 @@ use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Question\Content\QuestionContentDocument;
 use App\Repository\AssessmentAccessPolicyRepository;
+use App\Repository\AssessmentRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\SecurityAuditEventRepository;
 use App\Repository\UserRepository;
+use App\Service\AccessPackageManager;
 use App\Service\AssessmentManager;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
@@ -45,6 +49,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class AdminTestAccessPolicyControllerTest extends WebTestCase
@@ -61,6 +66,8 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertSelectorTextContains('#access-policy-heading', 'Erişim politikası');
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
         self::assertSelectorTextContains('body', 'Öğrenci erişim akışına uygulanması ayrı geliştirme adımıdır.');
+        self::assertSelectorTextContains('body', 'Ücretsiz seçimi açık onay gerektirir.');
+        self::assertSelectorTextNotContains('body', 'Varsayılan kapalı kalır');
         self::assertSelectorExists('form[action$="/erisim"]');
 
         $token = $crawler->filter('form[action$="/erisim"] input[name="_token"]')->attr('value');
@@ -77,6 +84,11 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertSelectorTextNotContains('body', 'Politika tanımlanmamış');
         self::assertSame(ResourceAccessClass::EntitlementRequired, $this->policyClass($seed['id']));
         self::assertSame($before + 1, $this->auditCount());
+        $this->assertLatestPolicyAudit(
+            $seed['id'],
+            ResourceAccessClass::EntitlementRequired->value,
+            'admin_set_entitlement',
+        );
 
         $crawler = $client->request('GET', $seed['path']);
         $token = $crawler->filter('form[action$="/erisim"] input[name="_token"]')->attr('value');
@@ -91,6 +103,11 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Ücretsiz');
         self::assertSame(ResourceAccessClass::Free, $this->policyClass($seed['id']));
         self::assertSame($before + 2, $this->auditCount());
+        $this->assertLatestPolicyAudit(
+            $seed['id'],
+            ResourceAccessClass::Free->value,
+            'admin_set_free',
+        );
     }
 
     public function testFreeWithoutConfirmIsRejectedAndPolicyUnchanged(): void
@@ -114,32 +131,57 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
         self::assertNull($this->policyClass($seed['id']));
         self::assertSame($before, $this->auditCount());
+
+        $this->setPolicyDirectly($seed['id'], 'tapfree-admin@example.com', ResourceAccessClass::EntitlementRequired, 'seed_required');
+        self::assertSame(ResourceAccessClass::EntitlementRequired, $this->policyClass($seed['id']));
+        $afterRequired = $this->auditCount();
+        self::assertSame($before + 1, $afterRequired);
+
+        $client = $this->newClient();
+        $this->login($client, 'tapfree-admin@example.com');
+        $crawler = $client->request('GET', $seed['path']);
+        $token = $crawler->filter('form[action$="/erisim"] input[name="_token"]')->attr('value');
+        self::assertNotNull($token);
+        $client->request('POST', $seed['path'].'/erisim', [
+            '_token' => $token,
+            'access_class' => ResourceAccessClass::Free->value,
+        ]);
+        self::assertResponseRedirects($seed['path']);
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'onay kutusu');
+        self::assertSelectorTextContains('body', 'Lisans gerekli');
+        self::assertSame(ResourceAccessClass::EntitlementRequired, $this->policyClass($seed['id']));
+        self::assertSame($afterRequired, $this->auditCount());
     }
 
     public function testUnauthorizedModeratorCannotSeeFormOrPost(): void
     {
         $seed = $this->seedPlatformDraft('tapmod');
         $this->createPrivileged('tapmod-mod@example.com', UserRole::Moderator);
+        $before = $this->auditCount();
         $client = $this->newClient();
         $this->login($client, 'tapmod-mod@example.com');
         $client->request('GET', $seed['path']);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
         self::assertSelectorNotExists('form[action$="/erisim"]');
+        $token = $this->csrfToken($client, $seed['id']);
 
         $client->request('POST', $seed['path'].'/erisim', [
-            '_token' => 'ignored',
+            '_token' => $token,
             'access_class' => ResourceAccessClass::Free->value,
             'confirm_free' => '1',
         ]);
         self::assertResponseStatusCodeSame(403);
         self::assertNull($this->policyClass($seed['id']));
+        self::assertSame($before, $this->auditCount());
     }
 
     public function testInvalidCsrfIsDenied(): void
     {
         $seed = $this->seedPlatformDraft('tapcsrf');
         $this->createPrivileged('tapcsrf-admin@example.com', UserRole::Admin);
+        $before = $this->auditCount();
         $client = $this->newClient();
         $this->login($client, 'tapcsrf-admin@example.com');
         $client->request('POST', $seed['path'].'/erisim', [
@@ -148,24 +190,28 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         ]);
         self::assertResponseStatusCodeSame(403);
         self::assertNull($this->policyClass($seed['id']));
+        self::assertSame($before, $this->auditCount());
     }
 
     public function testInstitutionAssessmentPolicyPostIsDenied(): void
     {
         $seed = $this->seedInstitutionDraft('tapinst');
+        $before = $this->auditCount();
         $client = $this->newClient();
         $this->login($client, 'tapinst-sa@example.com');
         $client->request('GET', $seed['path']);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
         self::assertSelectorNotExists('form[action$="/erisim"]');
+        $token = $this->csrfToken($client, $seed['id']);
 
         $client->request('POST', $seed['path'].'/erisim', [
-            '_token' => 'ignored',
+            '_token' => $token,
             'access_class' => ResourceAccessClass::EntitlementRequired->value,
         ]);
         self::assertResponseStatusCodeSame(403);
         self::assertNull($this->policyClass($seed['id']));
+        self::assertSame($before, $this->auditCount());
     }
 
     /**
@@ -398,6 +444,63 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return $ids;
+    }
+
+    private function csrfToken(KernelBrowser $client, string $assessmentId): string
+    {
+        /** @var CsrfTokenManagerInterface $tokens */
+        $tokens = $client->getContainer()->get('security.csrf.token_manager');
+
+        return $tokens->getToken('assessment_access_policy_'.$assessmentId)->getValue();
+    }
+
+    private function setPolicyDirectly(
+        string $assessmentId,
+        string $actorEmail,
+        ResourceAccessClass $accessClass,
+        string $reasonCode,
+    ): void {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $container = static::getContainer();
+        /** @var AccessPackageManager $packages */
+        $packages = $container->get(AccessPackageManager::class);
+        /** @var AssessmentRepository $assessments */
+        $assessments = $container->get(AssessmentRepository::class);
+        /** @var UserRepository $users */
+        $users = $container->get(UserRepository::class);
+        $assessment = $assessments->findOneById(Uuid::fromString($assessmentId));
+        $actor = $users->findOneByNormalizedEmail(mb_strtolower($actorEmail));
+        self::assertInstanceOf(Assessment::class, $assessment);
+        self::assertInstanceOf(User::class, $actor);
+        $packages->setAssessmentAccessPolicy($assessment, $actor, $accessClass, $reasonCode);
+        self::ensureKernelShutdown();
+    }
+
+    private function assertLatestPolicyAudit(string $assessmentId, string $accessClass, string $reasonCode): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $event = $em->createQueryBuilder()
+            ->select('e')
+            ->from(SecurityAuditEvent::class, 'e')
+            ->where('e.action = :action')
+            ->setParameter('action', SecurityAuditAction::AssessmentAccessPolicySet)
+            ->orderBy('e.occurredAt', 'DESC')
+            ->addOrderBy('e.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+        self::assertInstanceOf(SecurityAuditEvent::class, $event);
+        $metadata = $event->getMetadata();
+        self::assertSame($assessmentId, $metadata['assessment_id'] ?? null);
+        self::assertSame($assessmentId, $metadata['resource_id'] ?? null);
+        self::assertSame('assessment', $metadata['resource_type'] ?? null);
+        self::assertSame($accessClass, $metadata['access_class'] ?? null);
+        self::assertSame($reasonCode, $metadata['reason_code'] ?? null);
+        self::ensureKernelShutdown();
     }
 
     private function policyClass(string $assessmentId): ?ResourceAccessClass
