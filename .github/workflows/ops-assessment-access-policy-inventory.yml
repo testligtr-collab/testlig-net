@@ -1,0 +1,166 @@
+name: Ops assessment access policy inventory (VDS)
+
+# Read-only inventory of published platform assessment access policies.
+# Manual workflow_dispatch only. No write, import, apply, publish, or deploy.
+# Opens one SSH session when VDS_SSH_PAUSED is not true. SELECT counts only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_test_details:
+        description: "If true, also list published title, student code, grade, subject code, item count, platform InProgress count per published platform assessment. Default false."
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "Inventory skipped because SSH paused"
+          {
+            echo "## Inventory skipped because SSH paused"
+            echo "No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  vds:
+    name: VDS assessment access policy inventory
+    if: vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote read-only inventory
+        env:
+          INCLUDE_TEST_DETAILS: ${{ inputs.include_test_details }}
+        run: |
+          set -euo pipefail
+          set +e
+          ssh testlig-vds "export INCLUDE_TEST_DETAILS=$(printf %q "$INCLUDE_TEST_DETAILS"); bash -s" <<'EOS'
+          set -euo pipefail
+          APP_ROOT=/home/testlig.net/app
+          PHP_BIN=/usr/local/lsws/lsphp83/bin/php
+          APP_USER=testl3865
+          cd "$APP_ROOT"
+          run_app() {
+            runuser -u "$APP_USER" -- env HOME=/home/testlig.net APP_ENV=prod "$@"
+          }
+          # Returns a single integer or "err". Never prints SQL stderr (may contain DSN).
+          sql_count() {
+            local sql="$1"
+            local out rc
+            set +e
+            out="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/tmp/testlig-aap-inv-sql.err)"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              echo "err"
+              return 0
+            fi
+            printf '%s\n' "$out" | tr -d '\r' | awk '
+              /^[[:space:]]*[0-9]+[[:space:]]*$/ { v=$1 }
+              END { if (v != "") print v; else print "err" }
+            '
+          }
+          # Prints a successful tabular SELECT; fails the remote script on SQL error.
+          sql_table() {
+            local sql="$1"
+            local out rc
+            set +e
+            out="$(run_app "$PHP_BIN" bin/console dbal:run-sql --no-interaction "$sql" 2>/tmp/testlig-aap-inv-sql.err)"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              echo "ERROR: detail query failed"
+              exit 1
+            fi
+            printf '%s\n' "$out" | tr -d '\r'
+          }
+          require_count() {
+            local name="$1"
+            local value="$2"
+            if [ "$value" = "err" ] || ! printf '%s' "$value" | grep -Eq '^[0-9]+$'; then
+              echo "ERROR: ${name} count failed"
+              exit 1
+            fi
+            echo "${name}=${value}"
+          }
+
+          echo "mode=verify"
+          echo "revision=$(basename "$(readlink -f "$APP_ROOT")")"
+          echo "policy_counts_scope=published_platform_assessments"
+          echo "policy_join=assessment_access_policies PK assessment_id (no row multiplication)"
+          echo "attempt_total_scope=platform practice InProgress for platform-scope assessments (any assessment status; not limited to published)"
+          echo "attempt_join=assessment_platform_practices on delivery_id+user_id; classroom deliveries excluded"
+          echo "test_details_scope=published_platform_assessments_only"
+          echo "in_progress_includes_unfinalized_expired=1"
+          echo "note=platform_in_progress_attempts counts status=in_progress only; expires_at is not applied, so deadline-passed but unfinalized attempts are included"
+
+          PUBLISHED="$(sql_count "SELECT COUNT(*) AS c FROM assessments a WHERE a.scope = 'platform' AND a.status = 'published'")"
+          require_count published_platform_assessments "$PUBLISHED"
+
+          MISSING="$(sql_count "SELECT COUNT(*) AS c FROM assessments a LEFT JOIN assessment_access_policies p ON p.assessment_id = a.id WHERE a.scope = 'platform' AND a.status = 'published' AND p.assessment_id IS NULL")"
+          require_count policy_missing "$MISSING"
+
+          FREE="$(sql_count "SELECT COUNT(*) AS c FROM assessments a INNER JOIN assessment_access_policies p ON p.assessment_id = a.id WHERE a.scope = 'platform' AND a.status = 'published' AND p.access_class = 'free'")"
+          require_count policy_free "$FREE"
+
+          REQUIRED="$(sql_count "SELECT COUNT(*) AS c FROM assessments a INNER JOIN assessment_access_policies p ON p.assessment_id = a.id WHERE a.scope = 'platform' AND a.status = 'published' AND p.access_class = 'entitlement_required'")"
+          require_count policy_entitlement_required "$REQUIRED"
+
+          # Total includes non-published platform assessments that still have practice InProgress rows.
+          INPROG="$(sql_count "SELECT COUNT(*) AS c FROM assessment_attempts aa INNER JOIN assessment_platform_practices pp ON pp.delivery_id = aa.delivery_id AND pp.user_id = aa.user_id INNER JOIN assessments a ON a.id = aa.assessment_id WHERE aa.status = 'in_progress' AND a.scope = 'platform'")"
+          require_count platform_in_progress_attempts "$INPROG"
+
+          if [ "$PUBLISHED" != "$((MISSING + FREE + REQUIRED))" ]; then
+            echo "ERROR: policy partition does not sum to published_platform_assessments"
+            exit 1
+          fi
+          echo "policy_partition_ok=1"
+
+          case "${INCLUDE_TEST_DETAILS:-false}" in
+            true|TRUE|True|1)
+              echo "include_test_details=1"
+              echo "--- test_details begin ---"
+              sql_table "SELECT rev.title AS title, a.code AS code, a.grade_level AS grade_level, COALESCE(s.code, '') AS subject_code, (SELECT COUNT(*) FROM assessment_items i WHERE i.assessment_revision_id = a.published_revision_id) AS item_count, (SELECT COUNT(*) FROM assessment_attempts aa INNER JOIN assessment_platform_practices pp ON pp.delivery_id = aa.delivery_id AND pp.user_id = aa.user_id WHERE aa.assessment_id = a.id AND aa.status = 'in_progress') AS platform_in_progress_attempts FROM assessments a INNER JOIN assessment_revisions rev ON rev.id = a.published_revision_id LEFT JOIN subjects s ON s.id = a.subject_id WHERE a.scope = 'platform' AND a.status = 'published' ORDER BY a.grade_level ASC, a.code ASC"
+              echo "--- test_details end ---"
+              ;;
+            *)
+              echo "include_test_details=0"
+              ;;
+          esac
+          EOS
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi
