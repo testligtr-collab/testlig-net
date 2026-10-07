@@ -818,7 +818,7 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $versions->addAssessmentGrant($version, $assessment, $sa, 'add_grant');
         $version = $versions->activate($version, $sa, 'activate_v');
         $validUntil = $endsAt instanceof \DateTimeImmutable ? $endsAt : new \DateTimeImmutable($endsAt);
-        $licenses->createUserLicense(
+        $license = $licenses->createUserLicense(
             $version,
             $student,
             $sa,
@@ -827,6 +827,7 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
             $validUntil,
             'grant_'.$suffix,
         );
+        $licenses->activate($license, $sa, 'activate_lic_'.$suffix);
         self::ensureKernelShutdown();
     }
 
