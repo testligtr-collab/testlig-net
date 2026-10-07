@@ -918,7 +918,10 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         return $user;
     }
 
-    private function attachSqlQueryCounter(): AbstractLogger
+    /**
+     * @return object{count: int}&AbstractLogger
+     */
+    private function attachSqlQueryCounter(): object
     {
         $counter = new class extends AbstractLogger {
             public int $count = 0;
