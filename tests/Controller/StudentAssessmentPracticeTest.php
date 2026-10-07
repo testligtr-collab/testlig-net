@@ -23,6 +23,7 @@ use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionOrderMode;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionType;
+use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
@@ -34,6 +35,7 @@ use App\Repository\AssessmentPlatformPracticeRepository;
 use App\Repository\AssessmentRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\UserRepository;
+use App\Service\AccessPackageManager;
 use App\Service\AssessmentAttemptManager;
 use App\Service\AssessmentManager;
 use App\Service\CurriculumLearningOutcomeManager;
@@ -763,6 +765,14 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         if ($publish) {
             $assessments->submitForReview($assessment, $author, 'ready_for_review');
             $assessments->publish($assessment, $publisher, 'publish_approved');
+            /** @var AccessPackageManager $packages */
+            $packages = static::getContainer()->get(AccessPackageManager::class);
+            $packages->setAssessmentAccessPolicy(
+                $assessment,
+                $publisher,
+                ResourceAccessClass::Free,
+                'test_seed_free',
+            );
         }
 
         return $assessment;

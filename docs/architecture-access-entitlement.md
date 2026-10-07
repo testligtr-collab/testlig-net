@@ -87,6 +87,21 @@ entitlement. Classroom `AssessmentDeliveryAccessGate` delivery window/recipient 
 remain **separate** from package entitlement (package covers “published assessment resource”
 access, not delivery attempt eligibility).
 
+### Platform student assessment practice (A/B/C)
+
+Wired in `StudentAssessmentPractice` via `EntitlementAccessGate::evaluateAssessment`
+(request-scoped in-memory cache; `ResetInterface` clears it). Not wired into
+`AssessmentAttemptManager`.
+
+| Path | Rule |
+|---|---|
+| **A — discovery / new start** | Granted required. Missing policy or deny → omit from `/ogrenci/testler` list; detail/new start → opaque 404. Gate runs before `bireysel-deneme` workspace / delivery / attempt create. |
+| **B — own InProgress** | Ownership + grade/publish + `expiresAt`. Policy change or license expiry does not cut solve/answer/finish or dashboard Continue. Expired attempt is not continuable. |
+| **C — own completed result/history** | No current entitlement requirement. History remains reachable when discovery omits the test. |
+
+LC `LearningContentAccessPolicy` (including `free`) never grants assessment access.
+Platform entitlement deny must not fall through to institution assignment routes.
+
 ## Audit policy
 
 Mutation audits are mandatory (same-TX, `flush: false`). High-volume access **allows**

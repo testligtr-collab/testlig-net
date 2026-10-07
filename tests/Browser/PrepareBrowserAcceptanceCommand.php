@@ -300,6 +300,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         );
         $this->assessments->submitForReview($assessment, $teacher, 'browser_submit');
         $this->assessments->publish($assessment, $admin, 'browser_publish');
+        $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
 
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,

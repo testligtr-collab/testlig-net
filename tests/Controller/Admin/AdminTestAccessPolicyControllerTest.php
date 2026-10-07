@@ -66,7 +66,7 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#access-policy-heading', 'Erişim politikası');
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
-        self::assertSelectorTextContains('body', 'Öğrenci erişim akışına uygulanması ayrı geliştirme adımıdır.');
+        self::assertSelectorTextContains('body', 'platform öğrenci keşfi ve yeni deneme başlangıcına uygulanır');
         self::assertSelectorTextContains('body', 'Ücretsiz seçimi açık onay gerektirir.');
         self::assertSelectorTextNotContains('body', 'Varsayılan kapalı kalır');
         self::assertSelectorExists('form[action$="/erisim"]');

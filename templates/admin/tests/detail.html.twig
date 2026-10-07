@@ -62,7 +62,7 @@
     <section class="admin-section" aria-labelledby="access-policy-heading">
         <h2 id="access-policy-heading">Erişim politikası</h2>
         <p><strong>Mevcut durum:</strong> {{ access_policy_label }}</p>
-        <p class="muted">Bu politika testin erişim ayarını belirler. Öğrenci erişim akışına uygulanması ayrı geliştirme adımıdır.</p>
+        <p class="muted">Bu politika platform öğrenci keşfi ve yeni deneme başlangıcına uygulanır. Öğrencinin kendi devam eden veya tamamlanmış denemesi politika değişikliğinden kesilmez. Kurum atamaları bu politikadan bağımsızdır.</p>
         {% if can_set_access_policy %}
             <p class="muted">Ücretsiz seçimi açık onay gerektirir.</p>
             <form method="post" action="{{ path('app_admin_test_policy', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
