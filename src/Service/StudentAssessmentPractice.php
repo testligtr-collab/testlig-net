@@ -50,6 +50,7 @@ use App\Repository\InstitutionMembershipRepository;
 use App\Repository\InstitutionRepository;
 use App\Repository\QuestionRevisionOptionRepository;
 use App\Time\UtcInstant;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -610,30 +611,38 @@ final class StudentAssessmentPractice implements ResetInterface
             return;
         }
 
-        // Partial objects: only id/type/points/penalty/position — not question body or answer key.
-        /** @var list<AssessmentItem> $items */
-        $items = $this->entityManager->createQueryBuilder()
-            ->select('partial item.{id, points, penaltyPoints, position}')
-            ->addSelect('partial revision.{id}')
-            ->addSelect('partial qr.{id, type}')
-            ->from(AssessmentItem::class, 'item')
-            ->innerJoin('item.assessmentRevision', 'revision')
-            ->innerJoin('item.questionRevision', 'qr')
-            ->andWhere('revision IN (:revisions)')
-            ->setParameter('revisions', array_values($missing))
-            ->orderBy('item.position', 'ASC')
-            ->getQuery()
-            ->getResult();
+        $binaries = [];
+        foreach ($missing as $revision) {
+            $binaries[] = $revision->getId()->toBinary();
+        }
+        // Column-level SQL avoids hydrating question body / answer-key JSON.
+        $sql = <<<'SQL'
+SELECT ai.assessment_revision_id AS revision_id,
+       ai.points AS points,
+       ai.penalty_points AS penalty_points,
+       qr.type AS question_type,
+       ai.position AS position
+FROM assessment_items ai
+INNER JOIN question_revisions qr ON qr.id = ai.question_revision_id
+WHERE ai.assessment_revision_id IN (?)
+ORDER BY ai.position ASC
+SQL;
+        /** @var list<array{revision_id: string, points: string, penalty_points: string, question_type: string, position: int|string}> $rows */
+        $rows = $this->entityManager->getConnection()->executeQuery(
+            $sql,
+            [$binaries],
+            [ArrayParameterType::BINARY],
+        )->fetchAllAssociative();
 
         /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
         $grouped = [];
-        foreach ($items as $item) {
-            $key = $item->getAssessmentRevision()->getId()->toRfc4122();
+        foreach ($rows as $row) {
+            $key = Uuid::fromBinary($row['revision_id'])->toRfc4122();
             $grouped[$key][] = [
-                'points' => $item->getPoints(),
-                'penaltyPoints' => $item->getPenaltyPoints(),
-                'questionType' => $item->getQuestionRevision()->getType(),
-                'position' => $item->getPosition(),
+                'points' => (string) $row['points'],
+                'penaltyPoints' => (string) $row['penalty_points'],
+                'questionType' => (string) $row['question_type'],
+                'position' => (int) $row['position'],
             ];
         }
 
