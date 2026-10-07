@@ -10,7 +10,7 @@ namespace App\Dto;
 final class StudentTopicDetail
 {
     /**
-     * @param list<CatalogTopicLessonListItem> $lessons
+     * @param list<CatalogTopicLessonListItem>   $lessons
      * @param list<StudentTopicPracticeTestCard> $practiceTests
      */
     public function __construct(
