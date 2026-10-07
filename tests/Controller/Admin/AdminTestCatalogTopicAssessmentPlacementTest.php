@@ -126,6 +126,8 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
         ]);
         self::assertResponseStatusCodeSame(403);
 
+        $client = $this->newClient();
+        $this->login($client, 'atp-admin@example.com');
         $crawler = $client->request('GET', $path);
         $archiveForm = $crawler->filter('form[action$="/arsivle"]')->first();
         $client->request('POST', (string) $archiveForm->attr('action'), [

@@ -79,8 +79,8 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $path = $this->topicPath($bundle);
         $crawler = $client->request('GET', $path);
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h2', 'Kendini dene');
-        self::assertSelectorTextContains('body', 'Kendini dene kartı');
+        self::assertSelectorTextContains('h2:contains("Kendini dene")', 'Kendini dene');
+        self::assertSelectorTextContains('.student-topic-practice-tests', 'Kendini dene kartı');
         $detailHref = $crawler->filter('.student-topic-practice-tests a')->attr('href');
         self::assertNotNull($detailHref);
         self::assertStringContainsString('/ogrenci/testler/'.$bundle['code'], $detailHref);
@@ -209,13 +209,19 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $client = static::createClient();
         $this->login($client, 'ptc-ent@example.com');
         $client->request('GET', $this->topicPath($bundle));
-        self::assertSelectorNotExists('h2:contains("Kendini dene")');
+        self::assertSelectorNotExists('.student-topic-practice-tests');
+
+        $this->setAssessmentAccessPolicy($bundle['assessmentId'], ResourceAccessClass::EntitlementRequired, 'ptc_ent_policy');
+        $client = static::createClient();
+        $this->login($client, 'ptc-ent@example.com');
+        $client->request('GET', $this->topicPath($bundle));
+        self::assertSelectorNotExists('.student-topic-practice-tests');
 
         $this->grantAssessmentLicense($bundle['assessmentId'], 'ptc-ent@example.com', '+30 days', 'ptc_ent_ok');
         $client = static::createClient();
         $this->login($client, 'ptc-ent@example.com');
         $client->request('GET', $this->topicPath($bundle));
-        self::assertSelectorTextContains('body', 'Lisanslı kart');
+        self::assertSelectorTextContains('.student-topic-practice-tests', 'Lisanslı kart');
     }
 
     public function testLearningContentFreeDoesNotOpenAssessmentOrShowCardWithoutPolicy(): void
@@ -470,15 +476,108 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         ?string $titleSuffix = null,
         QuestionType $questionType = QuestionType::SingleChoice,
     ): array {
-        $extra = $this->seedTopicWithPublishedAssessment($prefix, $policy, $titleSuffix, $questionType);
-        $extra['topicId'] = $bundle['topicId'];
-        $extra['subjectSlug'] = $bundle['subjectSlug'];
-        $extra['unitSlug'] = $bundle['unitSlug'];
-        $extra['topicSlug'] = $bundle['topicSlug'];
-        $extra['catalogSubjectId'] = $bundle['catalogSubjectId'];
-        $extra['admin'] = $bundle['admin'];
-        $extra['adminEmail'] = $bundle['adminEmail'];
-        $extra['canonicalSubjectId'] = $bundle['canonicalSubjectId'];
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $container = static::getContainer();
+        $sa = $this->freshUser(str_replace('-pub@', '-sa@', $bundle['adminEmail']));
+        $publisher = $this->freshUser($bundle['adminEmail']);
+        /** @var EntityManagerInterface $em */
+        $em = $container->get(EntityManagerInterface::class);
+        $subject = $em->find(Subject::class, $bundle['canonicalSubjectId']);
+        self::assertInstanceOf(Subject::class, $subject);
+        /** @var CurriculumProgramRepository $programs */
+        $programs = $container->get(CurriculumProgramRepository::class);
+        /** @var CurriculumLearningOutcomeRepository $outcomes */
+        $outcomes = $container->get(CurriculumLearningOutcomeRepository::class);
+        /** @var QuestionManager $questions */
+        $questions = $container->get(QuestionManager::class);
+        /** @var AssessmentManager $assessments */
+        $assessments = $container->get(AssessmentManager::class);
+        $published = $programs->findPublishedForSubjectAndGrade($subject, GradeLevel::Grade1);
+        self::assertNotEmpty($published);
+        $los = $outcomes->findByProgram($published[0]);
+        self::assertNotEmpty($los);
+        $outcome = $los[0];
+
+        $question = $questions->createDraftQuestion(
+            $sa,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            $questionType,
+            QuestionContentDocument::paragraph('Soru '.$prefix.'?'),
+            null,
+            QuestionType::SingleChoice === $questionType ? [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('A'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('B'), 'position' => 2],
+            ] : [],
+            QuestionType::SingleChoice === $questionType ? ['correctStableKey' => 'opt_b'] : ['correct' => true],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'create_q_'.$prefix,
+        );
+        $questions->submitForReview($question, $sa, 'ready_for_review');
+        $questions->publish($question, $publisher, 'publish_approved');
+        /** @var QuestionRevisionRepository $revisions */
+        $revisions = $container->get(QuestionRevisionRepository::class);
+        $revision = $revisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        self::assertInstanceOf(QuestionRevision::class, $revision);
+
+        $assessmentTitle = 'Gate testi '.($titleSuffix ?? $prefix);
+        $assessment = $assessments->createDraftAssessment(
+            $sa,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            $assessmentTitle,
+            null,
+            null,
+            600,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bölüm',
+                'position' => 1,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $question->getId(),
+                    'questionRevisionId' => $revision->getId(),
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'create_a_'.$prefix,
+            $subject,
+        );
+        $assessments->submitForReview($assessment, $sa, 'ready_for_review');
+        $assessments->publish($assessment, $publisher, 'publish_approved');
+        if ($policy instanceof ResourceAccessClass) {
+            /** @var AccessPackageManager $packages */
+            $packages = $container->get(AccessPackageManager::class);
+            $packages->setAssessmentAccessPolicy($assessment, $publisher, $policy, 'seed_policy');
+        }
+
+        $extra = [
+            'subjectSlug' => $bundle['subjectSlug'],
+            'unitSlug' => $bundle['unitSlug'],
+            'topicSlug' => $bundle['topicSlug'],
+            'topicId' => $bundle['topicId'],
+            'catalogSubjectId' => $bundle['catalogSubjectId'],
+            'assessmentId' => $assessment->getId(),
+            'revisionId' => $assessment->getPublishedRevision()?->getId(),
+            'code' => $assessment->getCode(),
+            'admin' => $publisher,
+            'adminEmail' => $bundle['adminEmail'],
+            'canonicalSubjectId' => $bundle['canonicalSubjectId'],
+        ];
+        self::ensureKernelShutdown();
 
         return $extra;
     }
@@ -494,8 +593,8 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         self::bootKernel();
         /** @var SubjectManager $subjects */
         $subjects = static::getContainer()->get(SubjectManager::class);
-        $admin = $this->freshUser($bundle['adminEmail']);
-        $other = $subjects->create($admin, $prefix.'_other_s', 'Other', 'create_other');
+        $sa = $this->freshUser(str_replace('-pub@', '-sa@', $bundle['adminEmail']));
+        $other = $subjects->create($sa, $prefix.'_other_s', 'Other', 'create_other');
         /** @var EntityManagerInterface $em */
         $em = static::getContainer()->get(EntityManagerInterface::class);
         $em->getConnection()->executeStatement(
@@ -664,6 +763,22 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         /** @var CatalogWriteService $catalog */
         $catalog = static::getContainer()->get(CatalogWriteService::class);
         $catalog->archiveSubject($catalogSubjectId);
+        self::ensureKernelShutdown();
+    }
+
+    private function setAssessmentAccessPolicy(Uuid $assessmentId, ResourceAccessClass $policy, string $reason): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        /** @var AssessmentRepository $assessments */
+        $assessments = static::getContainer()->get(AssessmentRepository::class);
+        $assessment = $assessments->findOneById($assessmentId);
+        self::assertInstanceOf(Assessment::class, $assessment);
+        $publisherEmail = str_replace('-sa@', '-pub@', $assessment->getCreatedBy()->getEmail());
+        $publisher = $this->freshUser($publisherEmail);
+        /** @var AccessPackageManager $packages */
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        $packages->setAssessmentAccessPolicy($assessment, $publisher, $policy, $reason);
         self::ensureKernelShutdown();
     }
 
