@@ -142,9 +142,10 @@ class CatalogTopicAssessmentRepository extends ServiceEntityRepository
     {
         /** @var list<CatalogTopicAssessment> $rows */
         $rows = $this->createQueryBuilder('a')
-            ->addSelect('asmt', 'pubRev')
+            ->addSelect('asmt', 'pubRev', 'subj')
             ->innerJoin('a.assessment', 'asmt')
             ->leftJoin('asmt.publishedRevision', 'pubRev')
+            ->leftJoin('asmt.subject', 'subj')
             ->andWhere('IDENTITY(a.catalogTopic) = :topicId')
             ->andWhere('a.visibilityStatus = :status')
             ->setParameter('topicId', $topic->getId(), 'uuid')
