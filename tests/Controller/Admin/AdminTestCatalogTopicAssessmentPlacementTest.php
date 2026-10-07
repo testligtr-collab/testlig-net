@@ -577,8 +577,6 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
             'create_a_'.$prefix,
             $subject,
         );
-        $assessments->submitForReview($assessment, $sa, 'ready_for_review');
-        $assessments->publish($assessment, $publisher, 'publish_approved');
 
         $result = [
             'assessmentId' => $assessment->getId()->toRfc4122(),

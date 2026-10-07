@@ -606,15 +606,16 @@ final class StudentAssessmentPractice implements ResetInterface
         /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
         $rows = $this->entityManager->createQueryBuilder()
             ->select(
-                'IDENTITY(item.assessmentRevision) AS revisionId',
+                'revision.id AS revisionId',
                 'item.points AS points',
                 'item.penaltyPoints AS penaltyPoints',
                 'qr.type AS questionType',
                 'item.position AS position',
             )
             ->from(AssessmentItem::class, 'item')
+            ->innerJoin('item.assessmentRevision', 'revision')
             ->innerJoin('item.questionRevision', 'qr')
-            ->andWhere('item.assessmentRevision IN (:revisionIds)')
+            ->andWhere('revision.id IN (:revisionIds)')
             ->setParameter('revisionIds', $missing)
             ->orderBy('item.position', 'ASC')
             ->getQuery()
@@ -623,8 +624,7 @@ final class StudentAssessmentPractice implements ResetInterface
         /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
         $grouped = [];
         foreach ($rows as $row) {
-            $revisionId = $row['revisionId'];
-            $key = $revisionId instanceof Uuid ? $revisionId->toRfc4122() : (string) $revisionId;
+            $key = $this->uuidKey($row['revisionId']);
             $grouped[$key][] = [
                 'points' => (string) $row['points'],
                 'penaltyPoints' => (string) $row['penaltyPoints'],
@@ -637,6 +637,23 @@ final class StudentAssessmentPractice implements ResetInterface
             $key = $revisionId->toRfc4122();
             $this->discoveryPracticeMetaCache[$key] = $this->evaluatePracticeDiscoveryMeta($grouped[$key] ?? []);
         }
+    }
+
+    private function uuidKey(mixed $id): string
+    {
+        if ($id instanceof Uuid) {
+            return $id->toRfc4122();
+        }
+        if (\is_string($id)) {
+            if (Uuid::isValid($id)) {
+                return Uuid::fromString($id)->toRfc4122();
+            }
+            if (16 === \strlen($id)) {
+                return Uuid::fromBinary($id)->toRfc4122();
+            }
+        }
+
+        return (string) $id;
     }
 
     /**
@@ -818,9 +835,7 @@ final class StudentAssessmentPractice implements ResetInterface
         $rows = $builder->getQuery()->getArrayResult();
         $counts = [];
         foreach ($rows as $row) {
-            $id = $row['revisionId'];
-            $key = $id instanceof Uuid ? $id->toRfc4122() : (string) $id;
-            $counts[$key] = (int) $row['itemCount'];
+            $counts[$this->uuidKey($row['revisionId'])] = (int) $row['itemCount'];
         }
 
         return $counts;
