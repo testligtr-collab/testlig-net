@@ -281,8 +281,9 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         // Platform code matches grade; entitlement deny must stay platform-scoped 404 (not assigned detail).
         $client->request('GET', '/ogrenci/testler/'.$seed['code']);
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('Kurum', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('Sınıf', (string) $client->getResponse()->getContent());
+        // Opaque platform deny must not render the assigned-test detail chrome.
+        self::assertSelectorNotExists('dt');
+        self::assertSelectorNotExists('form[action$="/baslat"]');
     }
 
     /**
@@ -576,13 +577,14 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
 
     private function countRows(string $table): int
     {
-        if (!static::$booted) {
-            self::bootKernel();
-        }
+        self::ensureKernelShutdown();
+        self::bootKernel();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $count = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM '.$table);
+        self::ensureKernelShutdown();
 
-        return (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM '.$table);
+        return $count;
     }
 
     private function purge(): void
