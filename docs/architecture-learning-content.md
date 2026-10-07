@@ -123,6 +123,13 @@ Catalog topic show (`/yonetim/mufredat/konu/{id}`) lists placements and creates 
 `CatalogTopicLessonManager`; publish placement is a separate confirmed POST; archive is
 irreversible. Duplicate slug/position/content → flash.
 
+Platform assessment catalog placements (`CatalogTopicAssessment`) bind published platform
+quizzes/practice tests to catalog topics for navigation only (same placement fields as
+`CatalogTopicLesson`, but FK → `Assessment`). Admin create/publish/archive from test detail
+(`/yonetim/testler/{id}`) via `CatalogTopicAssessmentManager`; grade and canonical subject
+must match the catalog subject (fail-closed). Student topic **Kendini dene** cards reuse
+Gate A assessment entitlement — LC access policy does not grant assessment discovery.
+
 Student topic page (`StudentTopicContentQuery`) keeps the AND visibility chain, then
 normalizes sealed published revision bodies via `StudentContentBlockNormalizer` into
 immutable `StudentContentBlockView` DTOs (heading/paragraph/list/quote/math/callout/video/document).

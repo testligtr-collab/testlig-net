@@ -118,6 +118,7 @@ final class StudentCourseCatalogController extends AbstractController
             'unit' => $detail->unit,
             'topic' => $detail->topic,
             'lessons' => $detail->lessons,
+            'practiceTests' => $detail->practiceTests,
         ]);
     }
 

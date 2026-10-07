@@ -82,6 +82,91 @@
         {% endif %}
     </section>
 
+    <section class="admin-section" aria-labelledby="placements-heading">
+        <h2 id="placements-heading">Katalog yerleşimleri</h2>
+        <p class="muted">Yerleşim yalnızca navigasyondur; öğrenci test gövdesi burada gösterilmez.</p>
+        {% if placements is empty %}
+            <p class="muted">Henüz yerleşim yok.</p>
+        {% else %}
+            <div class="admin-table-wrap">
+                <table class="admin-table">
+                    <thead><tr><th>Konu</th><th>Başlık</th><th>Slug</th><th>Sıra</th><th>Durum</th><th></th></tr></thead>
+                    <tbody>
+                        {% for p in placements %}
+                            <tr>
+                                <td>
+                                    {% if is_granted('ADMIN_CATALOG_VIEW') %}
+                                        <a href="{{ path('app_admin_catalog_topic', {id: p.catalogTopic.id.toRfc4122}) }}">{{ p.catalogTopic.unit.subject.name }} / {{ p.catalogTopic.unit.name }} / {{ p.catalogTopic.name }}</a>
+                                    {% else %}
+                                        {{ p.catalogTopic.unit.subject.name }} / {{ p.catalogTopic.unit.name }} / {{ p.catalogTopic.name }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ p.displayTitle }}</td>
+                                <td><code>{{ p.slug }}</code></td>
+                                <td>{{ p.position }}</td>
+                                <td>{{ p.visibilityStatus.value|workflow_label('status') }}</td>
+                                <td>
+                                    {% if is_granted('CATALOG_TOPIC_ASSESSMENT_PUBLISH', p) and p.visibilityStatus.value == 'draft' %}
+                                        <form method="post" action="{{ path('app_admin_test_placement_publish', {placementId: p.id.toRfc4122}) }}" class="stack-sm u-inline-block" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Yerleşimi yayımlamak istediğinize emin misiniz?">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('test_placement_publish_' ~ p.id.toRfc4122) }}">
+                                            <input type="hidden" name="note" value="{{ reason_placement_publish }}">
+                                            <label>
+                                                <input type="checkbox" name="confirm_publish" value="1" required>
+                                                Onaylıyorum
+                                            </label>
+                                            <button type="submit" class="btn btn--primary">Yerleşimi yayımla</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if is_granted('CATALOG_TOPIC_ASSESSMENT_ARCHIVE', p) and p.visibilityStatus.value != 'archived' %}
+                                        <form method="post" action="{{ path('app_admin_test_placement_archive', {placementId: p.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-action="submit->confirm-submit#submit" data-confirm-submit-message-value="Arşivleme geri alınamaz. Devam?">
+                                            <input type="hidden" name="_token" value="{{ csrf_token('test_placement_archive_' ~ p.id.toRfc4122) }}">
+                                            <input type="hidden" name="note" value="{{ reason_placement_archive }}">
+                                            <button type="submit" class="btn btn--ghost">Arşivle</button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% if can_create_placement %}
+            <h3 id="placement-form">Yerleşim ekle</h3>
+            {% if bindable_topics is empty %}
+                <p class="muted">Eşlenmiş katalog konusu yok. Önce müfredatta canonical eşleme yapın ve test ders/sınıfı ile uyuşan konuları yayımlayın.</p>
+            {% else %}
+                <form method="post" action="{{ path('app_admin_test_placement_create', {id: assessment.id.toRfc4122}) }}" class="stack-sm" id="placement-create-form" data-controller="placement-defaults">
+                    <input type="hidden" name="_token" value="{{ csrf_token('test_placement_' ~ assessment.id.toRfc4122) }}">
+                    <input type="hidden" name="note" value="{{ reason_placement_create }}">
+                    <label>Katalog konusu
+                        <select name="catalog_topic_id" id="placement-topic" required>
+                            <option value="">Seçin</option>
+                            {% for t in bindable_topics %}
+                                <option value="{{ t.id.toRfc4122 }}" data-next-position="{{ suggested_positions[t.id.toRfc4122]|default(0) }}">{{ t.unit.subject.name }} / {{ t.unit.name }} / {{ t.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Görünen başlık
+                        <input type="text" name="display_title" required minlength="2" maxlength="200" value="{{ revision.title }}">
+                    </label>
+                    <p class="muted">Kısa adres başlıktan otomatik üretilir.</p>
+                    <label>Özet
+                        <textarea name="summary" maxlength="3000" rows="3" class="revision-text"></textarea>
+                    </label>
+                    <label>Sıra
+                        <input type="number" name="position" id="placement-position" required value="0" min="0" step="1">
+                    </label>
+                    <label>İşlem notu (opsiyonel)
+                        <textarea name="operator_note" maxlength="500" rows="2"></textarea>
+                    </label>
+                    <button type="submit" class="btn btn--primary">Taslak yerleşim oluştur</button>
+                </form>
+            {% endif %}
+        {% endif %}
+    </section>
+
     {% if progress.next.kind == 'submit' %}
         <form method="post" action="{{ path('app_admin_test_submit', {id: assessment.id.toRfc4122}) }}" class="stack-sm">
             <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">

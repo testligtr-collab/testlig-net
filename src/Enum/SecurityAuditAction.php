@@ -155,6 +155,10 @@ enum SecurityAuditAction: string
     case CatalogTopicLessonUpdated = 'catalog_topic_lesson_updated';
     case CatalogTopicLessonPublished = 'catalog_topic_lesson_published';
     case CatalogTopicLessonArchived = 'catalog_topic_lesson_archived';
+    case CatalogTopicAssessmentCreated = 'catalog_topic_assessment_created';
+    case CatalogTopicAssessmentUpdated = 'catalog_topic_assessment_updated';
+    case CatalogTopicAssessmentPublished = 'catalog_topic_assessment_published';
+    case CatalogTopicAssessmentArchived = 'catalog_topic_assessment_archived';
     case CatalogSubjectCanonicalMapped = 'catalog_subject_canonical_mapped';
     case CommercialOfferCreated = 'commercial_offer_created';
     case CommercialOfferUpdated = 'commercial_offer_updated';

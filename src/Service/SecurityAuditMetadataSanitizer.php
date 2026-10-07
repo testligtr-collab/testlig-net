@@ -102,6 +102,7 @@ final class SecurityAuditMetadataSanitizer
         'content_id',
         'catalog_topic_id',
         'catalog_topic_lesson_id',
+        'catalog_topic_assessment_id',
         'catalog_subject_id',
         'canonical_subject_id',
         'previous_canonical_subject_id',

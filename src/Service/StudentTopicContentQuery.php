@@ -10,18 +10,26 @@ use App\Dto\CatalogTopicListItem;
 use App\Dto\CatalogUnitListItem;
 use App\Dto\StudentContent\StudentContentBlockView;
 use App\Dto\StudentTopicDetail;
+use App\Dto\StudentTopicPracticeTestCard;
+use App\Entity\Assessment;
+use App\Entity\AssessmentRevision;
 use App\Entity\CatalogSubject;
 use App\Entity\CatalogTopic;
+use App\Entity\CatalogTopicAssessment;
 use App\Entity\CatalogTopicLesson;
 use App\Entity\CatalogUnit;
 use App\Entity\LearningDocumentAsset;
+use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\AssessmentScope;
+use App\Enum\AssessmentStatus;
 use App\Enum\CatalogPublicationStatus;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentStatus;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\LearningContent\StudentView\StudentContentBlockNormalizer;
 use App\Repository\CatalogSubjectRepository;
+use App\Repository\CatalogTopicAssessmentRepository;
 use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CatalogUnitRepository;
@@ -43,7 +51,9 @@ final class StudentTopicContentQuery
         private readonly CatalogUnitRepository $units,
         private readonly CatalogTopicRepository $topics,
         private readonly CatalogTopicLessonRepository $lessons,
+        private readonly CatalogTopicAssessmentRepository $topicAssessments,
         private readonly LearningContentAccessGate $accessGate,
+        private readonly StudentAssessmentPractice $assessmentPractice,
         private readonly StudentContentBlockNormalizer $blockNormalizer,
         private readonly LearningDocumentAssetRepository $documents,
         private readonly UrlGeneratorInterface $urls,
@@ -132,7 +142,102 @@ final class StudentTopicContentQuery
             CatalogUnitListItem::fromEntity($unit),
             CatalogTopicListItem::fromEntity($topic),
             $lessonItems,
+            $this->practiceTestCards($topic, $subject, $grade, $actor),
         );
+    }
+
+    /**
+     * @return list<StudentTopicPracticeTestCard>
+     */
+    private function practiceTestCards(
+        CatalogTopic $topic,
+        CatalogSubject $catalogSubject,
+        GradeLevel $grade,
+        User $actor,
+    ): array {
+        $placements = $this->topicAssessments->findPublishedOrderedByTopic($topic);
+        if ([] === $placements) {
+            return [];
+        }
+
+        /** @var list<array{placement: CatalogTopicAssessment, assessment: Assessment, revision: AssessmentRevision}> $eligible */
+        $eligible = [];
+        foreach ($placements as $placement) {
+            $assessment = $placement->getAssessment();
+            if (!$this->isTopicPracticeAssessmentEligible($catalogSubject, $grade, $assessment)) {
+                continue;
+            }
+            $revision = $assessment->getPublishedRevision();
+            if (!$revision instanceof AssessmentRevision || !$revision->isSealed()) {
+                continue;
+            }
+            if (!$this->assessmentPractice->revisionEligibleForPracticeDiscovery($revision)) {
+                continue;
+            }
+            if (!$this->assessmentPractice->isDiscoveryEntitlementGranted($actor, $assessment)) {
+                continue;
+            }
+            $eligible[] = [
+                'placement' => $placement,
+                'assessment' => $assessment,
+                'revision' => $revision,
+            ];
+        }
+        if ([] === $eligible) {
+            return [];
+        }
+
+        $revisions = array_map(static fn (array $row): AssessmentRevision => $row['revision'], $eligible);
+        $counts = $this->assessmentPractice->itemCountsForRevisions($revisions);
+
+        $cards = [];
+        foreach ($eligible as $row) {
+            $revision = $row['revision'];
+            $assessment = $row['assessment'];
+            $placement = $row['placement'];
+            $count = $counts[$revision->getId()->toRfc4122()] ?? 0;
+            if ($count <= 0) {
+                continue;
+            }
+            $cards[] = new StudentTopicPracticeTestCard(
+                $placement->getDisplayTitle(),
+                $assessment->getCode(),
+                $count,
+                $this->assessmentPractice->practiceDurationLabel($revision),
+            );
+        }
+
+        return $cards;
+    }
+
+    private function isTopicPracticeAssessmentEligible(
+        CatalogSubject $catalogSubject,
+        GradeLevel $grade,
+        Assessment $assessment,
+    ): bool {
+        if (AssessmentScope::Platform !== $assessment->getScope()) {
+            return false;
+        }
+        if (null !== $assessment->getInstitution()) {
+            return false;
+        }
+        if (AssessmentStatus::Published !== $assessment->getStatus()) {
+            return false;
+        }
+        if ($assessment->getGradeLevel() !== $grade || $catalogSubject->getGradeLevel() !== $grade) {
+            return false;
+        }
+
+        $canonical = $catalogSubject->getCanonicalSubject();
+        if (!$canonical instanceof Subject) {
+            return false;
+        }
+        $assessmentSubject = $assessment->getSubject();
+        if (!$assessmentSubject instanceof Subject) {
+            return false;
+        }
+
+        return $canonical->getId()->equals($assessmentSubject->getId());
     }
 
     /**

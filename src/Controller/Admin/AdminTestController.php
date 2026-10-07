@@ -9,6 +9,8 @@ use App\Entity\Assessment;
 use App\Entity\AssessmentItem;
 use App\Entity\AssessmentRevision;
 use App\Entity\AssessmentSection;
+use App\Entity\CatalogTopic;
+use App\Entity\CatalogTopicAssessment;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
 use App\Entity\Subject;
@@ -26,8 +28,10 @@ use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
 use App\Exception\AccessEntitlementException;
 use App\Exception\AssessmentException;
+use App\Exception\CatalogException;
 use App\Exception\LearningContentException;
 use App\Presentation\ContentWorkflowReason;
+use App\Presentation\PlacementPosition;
 use App\Presentation\ResultPresentation;
 use App\Presentation\TestWorkflowProgress;
 use App\Repository\AssessmentAccessPolicyRepository;
@@ -35,6 +39,8 @@ use App\Repository\AssessmentItemRepository;
 use App\Repository\AssessmentRepository;
 use App\Repository\AssessmentRevisionRepository;
 use App\Repository\AssessmentSectionRepository;
+use App\Repository\CatalogTopicAssessmentRepository;
+use App\Repository\CatalogTopicRepository;
 use App\Repository\QuestionRepository;
 use App\Repository\QuestionRevisionOptionRepository;
 use App\Repository\QuestionRevisionRepository;
@@ -43,7 +49,9 @@ use App\Security\AccessPackageAuthorization;
 use App\Security\AdminAuthorization;
 use App\Security\AdminPermission;
 use App\Security\AssessmentPermission;
+use App\Security\CatalogTopicAssessmentPermission;
 use App\Service\AccessPackageManager;
+use App\Service\CatalogTopicAssessmentManager;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\AssessmentManager;
 use App\Service\AssessmentResultReportGate;
@@ -76,6 +84,9 @@ final class AdminTestController extends AdminBaseController
         private readonly TestWorkflowProgress $workflowProgress,
         private readonly AssessmentResultReportGate $resultReportGate,
         private readonly ResultPresentation $presentation,
+        private readonly CatalogTopicAssessmentManager $assessmentPlacements,
+        private readonly CatalogTopicAssessmentRepository $assessmentPlacementRepo,
+        private readonly CatalogTopicRepository $catalogTopics,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -122,6 +133,15 @@ final class AdminTestController extends AdminBaseController
         $isAuthor = $revision->getCreatedBy()->getId()->equals($actor->getId());
         $policy = $this->accessPolicies->findForAssessment($assessment->getId());
         $canSetPolicy = $this->canManageAssessmentAccessPolicy($actor, $assessment);
+        $placements = $this->assessmentPlacementRepo->findOrderedByAssessment($assessment);
+        $bindableTopics = $this->bindableTopicsForAssessment($assessment);
+        $suggestedPositions = [];
+        foreach ($bindableTopics as $topic) {
+            $suggestedPositions[$topic->getId()->toRfc4122()] = PlacementPosition::next(
+                $this->assessmentPlacementRepo->highestPositionForTopic($topic->getId()),
+            );
+        }
+        $canCreatePlacement = $this->canCreateAssessmentPlacement($assessment);
 
         return $this->renderAdmin('admin/tests/detail.html.twig', [
             'assessment' => $assessment,
@@ -139,6 +159,13 @@ final class AdminTestController extends AdminBaseController
             'access_policy' => $policy,
             'access_policy_label' => $this->accessPolicyLabel($policy?->getAccessClass()),
             'can_set_access_policy' => $canSetPolicy,
+            'placements' => $placements,
+            'bindable_topics' => $bindableTopics,
+            'suggested_positions' => $suggestedPositions,
+            'can_create_placement' => $canCreatePlacement,
+            'reason_placement_create' => ContentWorkflowReason::PLACEMENT_CREATE,
+            'reason_placement_publish' => ContentWorkflowReason::PLACEMENT_PUBLISH,
+            'reason_placement_archive' => ContentWorkflowReason::PLACEMENT_ARCHIVE,
             'progress' => $this->workflowProgress->summarize([
                 'status' => $assessment->getStatus()->value,
                 'can_edit' => $this->canEdit($assessment),
@@ -194,6 +221,151 @@ final class AdminTestController extends AdminBaseController
         }
 
         return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/testler/{id}/yerlesim', name: 'app_admin_test_placement_create', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
+    public function createPlacementFromTest(Request $request, string $id): Response
+    {
+        $assessment = $this->visibleAssessment($id);
+        $this->denyAccessUnlessGranted(CatalogTopicAssessmentPermission::CREATE);
+        $this->assertPlacementCsrf($request, $id, 'test_placement_');
+
+        if (!$this->canCreateAssessmentPlacement($assessment)) {
+            throw $this->createAccessDeniedException();
+        }
+
+        $topicIdRaw = (string) $request->request->get('catalog_topic_id', '');
+        $displayTitle = trim((string) $request->request->get('display_title', ''));
+        $slug = trim((string) $request->request->get('slug', ''));
+        $summaryRaw = trim((string) $request->request->get('summary', ''));
+
+        try {
+            $topicUuid = Uuid::fromString($topicIdRaw);
+            $topic = $this->catalogTopics->findOneById($topicUuid);
+            if (!$topic instanceof CatalogTopic || !$this->isBindableTopicForAssessment($topic, $assessment)) {
+                $this->addFlash('error', 'Geçersiz katalog konusu.');
+
+                return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+            }
+            if ($this->assessmentPlacementRepo->existsAssessmentForTopic($topic, $assessment)) {
+                $this->addFlash('success', 'Yerleşim zaten mevcut.');
+
+                return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+            }
+            $revision = $this->currentRevision($assessment);
+            if ('' === $displayTitle) {
+                $displayTitle = $revision->getTitle();
+            }
+            $positionRaw = trim((string) $request->request->get('position', ''));
+            $position = '' === $positionRaw
+                ? PlacementPosition::next($this->assessmentPlacementRepo->highestPositionForTopic($topicUuid))
+                : (int) $positionRaw;
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_CREATE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
+            $this->assessmentPlacements->create(
+                $this->requireActorUser(),
+                $topicUuid,
+                $assessment->getId(),
+                $displayTitle,
+                '' === $summaryRaw ? null : $summaryRaw,
+                $position,
+                $reason['code'],
+                '' === $slug ? null : $slug,
+                $reason['operator_note'],
+            );
+            $this->addFlash('success', 'Yerleşim taslağı oluşturuldu.');
+        } catch (\InvalidArgumentException) {
+            $this->addFlash('error', 'Geçersiz katalog konusu.');
+        } catch (LearningContentException) {
+            $this->addFlash('error', 'İşlem notu geçersiz.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_test_show', ['id' => $id]);
+    }
+
+    #[Route('/yonetim/testler/yerlesim/{placementId}/yayimla', name: 'app_admin_test_placement_publish', methods: ['POST'], requirements: ['placementId' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
+    public function publishPlacementFromTest(Request $request, string $placementId): Response
+    {
+        $placement = $this->requireAssessmentPlacement($placementId);
+        $assessmentId = $placement->getAssessment()->getId()->toRfc4122();
+        $this->visibleAssessment($assessmentId);
+        $this->denyAccessUnlessGranted(CatalogTopicAssessmentPermission::PUBLISH, $placement);
+        $this->assertPlacementCsrf($request, $placementId, 'test_placement_publish_');
+        if ('1' !== (string) $request->request->get('confirm_publish')) {
+            $this->addFlash('error', 'Yayımlama için onay kutusu zorunludur.');
+
+            return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
+        }
+        if ($placement->isPublished()) {
+            $this->addFlash('success', 'Yerleşim zaten yayımlanmış.');
+
+            return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
+        }
+
+        $reason = $this->workflowReason->resolve(
+            ContentWorkflowReason::PLACEMENT_PUBLISH,
+            $request->request->get('note'),
+            $request->request->get('operator_note'),
+        );
+        try {
+            $this->assessmentPlacements->publish(
+                $this->requireActorUser(),
+                $placement->getId(),
+                $reason['code'],
+                $reason['operator_note'],
+            );
+            $this->addFlash('success', 'Yerleşim yayımlandı.');
+        } catch (LearningContentException) {
+            $this->addFlash('error', 'İşlem notu geçersiz.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
+    }
+
+    #[Route('/yonetim/testler/yerlesim/{placementId}/arsivle', name: 'app_admin_test_placement_archive', methods: ['POST'], requirements: ['placementId' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
+    public function archivePlacementFromTest(Request $request, string $placementId): Response
+    {
+        $placement = $this->requireAssessmentPlacement($placementId);
+        $assessmentId = $placement->getAssessment()->getId()->toRfc4122();
+        $this->visibleAssessment($assessmentId);
+        $this->denyAccessUnlessGranted(CatalogTopicAssessmentPermission::ARCHIVE, $placement);
+        $this->assertPlacementCsrf($request, $placementId, 'test_placement_archive_');
+        if ($placement->isArchived()) {
+            $this->addFlash('success', 'Yerleşim zaten arşivlenmiş.');
+
+            return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
+        }
+
+        $reason = $this->workflowReason->resolve(
+            ContentWorkflowReason::PLACEMENT_ARCHIVE,
+            $request->request->get('note'),
+            $request->request->get('operator_note'),
+        );
+        try {
+            $this->assessmentPlacements->archive(
+                $this->requireActorUser(),
+                $placement->getId(),
+                $reason['code'],
+                $reason['operator_note'],
+            );
+            $this->addFlash('success', 'Yerleşim arşivlendi (geri açılamaz).');
+        } catch (LearningContentException) {
+            $this->addFlash('error', 'İşlem notu geçersiz.');
+        } catch (CatalogException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
     }
 
     #[Route('/yonetim/testler/{id}/duzenle', name: 'app_admin_test_edit', methods: ['GET', 'POST'])]
@@ -905,5 +1077,68 @@ final class AdminTestController extends AdminBaseController
             'archive' => 'Test arşivlendi.',
             default => 'Test kaydedildi.',
         };
+    }
+
+    private function assertPlacementCsrf(Request $request, string $id, string $prefix): void
+    {
+        $this->requireCsrfTokenPresent($request->request->all());
+        if (!$this->isCsrfTokenValid($prefix.$id, (string) $request->request->get('_token'))) {
+            throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
+        }
+    }
+
+    private function requireAssessmentPlacement(string $id): CatalogTopicAssessment
+    {
+        try {
+            $uuid = Uuid::fromString($id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $placement = $this->assessmentPlacementRepo->findOneById($uuid);
+        if (!$placement instanceof CatalogTopicAssessment) {
+            throw $this->createNotFoundException();
+        }
+
+        return $placement;
+    }
+
+    private function canCreateAssessmentPlacement(Assessment $assessment): bool
+    {
+        return $this->isGranted(CatalogTopicAssessmentPermission::CREATE)
+            && AssessmentScope::Platform === $assessment->getScope()
+            && null === $assessment->getInstitution()
+            && AssessmentStatus::Archived !== $assessment->getStatus();
+    }
+
+    /**
+     * @return list<CatalogTopic>
+     */
+    private function bindableTopicsForAssessment(Assessment $assessment): array
+    {
+        $subject = $assessment->getSubject();
+        if (!$subject instanceof Subject) {
+            return [];
+        }
+        if (AssessmentScope::Platform !== $assessment->getScope() || null !== $assessment->getInstitution()) {
+            return [];
+        }
+        $grade = $assessment->getGradeLevel();
+        $topics = $this->catalogTopics->findBindableForCanonicalSubject($subject);
+
+        return array_values(array_filter(
+            $topics,
+            static fn (CatalogTopic $topic): bool => $topic->getUnit()->getSubject()->getGradeLevel() === $grade,
+        ));
+    }
+
+    private function isBindableTopicForAssessment(CatalogTopic $topic, Assessment $assessment): bool
+    {
+        foreach ($this->bindableTopicsForAssessment($assessment) as $bindable) {
+            if ($bindable->getId()->equals($topic->getId())) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

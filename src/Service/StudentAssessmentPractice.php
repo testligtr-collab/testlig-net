@@ -462,6 +462,37 @@ final class StudentAssessmentPractice implements ResetInterface
         throw StudentPracticeException::notFound();
     }
 
+    public function isDiscoveryEntitlementGranted(User $student, Assessment $assessment): bool
+    {
+        return $this->isAssessmentEntitlementGranted($student, $assessment);
+    }
+
+    public function revisionEligibleForPracticeDiscovery(AssessmentRevision $revision): bool
+    {
+        try {
+            $this->assertPracticeItems($revision);
+
+            return true;
+        } catch (StudentPracticeException) {
+            return false;
+        }
+    }
+
+    /**
+     * @param list<AssessmentRevision> $revisions
+     *
+     * @return array<string, int>
+     */
+    public function itemCountsForRevisions(array $revisions): array
+    {
+        return $this->itemCounts($revisions);
+    }
+
+    public function practiceDurationLabel(AssessmentRevision $revision): string
+    {
+        return $this->durationLabel($revision);
+    }
+
     private function isAssessmentEntitlementGranted(User $student, Assessment $assessment): bool
     {
         $key = $student->getId()->toRfc4122().'|'.$assessment->getId()->toRfc4122();
