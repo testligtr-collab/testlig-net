@@ -54,18 +54,24 @@ use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Student self-serve practice over published platform assessments.
  *
- * Access is the student's completed profile grade. Institution-scoped assessments stay on deliveries.
+ * Platform discovery/new-start requires EntitlementAccessGate::evaluateAssessment (fail-closed).
+ * Own InProgress / completed attempts keep ownership + deadline rules without re-checking entitlement.
+ * Institution-scoped assessments stay on deliveries (StudentAssignedTestCatalog); not gated here.
  * Attempts, encrypted answers, and scores stay on the existing assessment stack.
  */
-final class StudentAssessmentPractice
+final class StudentAssessmentPractice implements ResetInterface
 {
     private const WORKSPACE_NAME = 'Bireysel deneme';
 
     private const WORKSPACE_SLUG = 'bireysel-deneme';
+
+    /** @var array<string, bool> */
+    private array $assessmentEntitlementCache = [];
 
     public function __construct(
         private readonly AssessmentRepository $assessments,
@@ -90,7 +96,13 @@ final class StudentAssessmentPractice
         private readonly ClockInterface $clock,
         private readonly StudentAssignedTestCatalog $assignedTests,
         private readonly ResultPresentation $presentation,
+        private readonly EntitlementAccessGate $entitlementAccessGate,
     ) {
+    }
+
+    public function reset(): void
+    {
+        $this->assessmentEntitlementCache = [];
     }
 
     public function continueCard(User $student, GradeLevel $grade): ?StudentContinueTestCard
@@ -99,6 +111,7 @@ final class StudentAssessmentPractice
         $now = UtcInstant::ensure($this->clock->now());
         /** @var list<array{code: string, title: string, subject: string, institution: ?string, classroom: ?string, startedAt: \DateTimeImmutable, attemptId: Uuid}> $candidates */
         $candidates = [];
+        // B: dashboard Continue uses own InProgress even when discovery entitlement would deny.
         $visible = $this->publishedPlatformRows($grade);
         $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
         $attempts = $this->attemptsByAssessment($student, $assessments);
@@ -152,7 +165,7 @@ final class StudentAssessmentPractice
     public function listFor(User $student, GradeLevel $grade): array
     {
         $this->assertStudent($student);
-        $visible = $this->publishedPlatformRows($grade);
+        $visible = $this->discoverablePlatformRows($student, $grade);
         $revisions = array_map(static fn (array $row): AssessmentRevision => $row['revision'], $visible);
         $assessments = array_map(static fn (array $row): Assessment => $row['assessment'], $visible);
         $counts = $this->itemCounts($revisions);
@@ -197,8 +210,9 @@ final class StudentAssessmentPractice
             return $this->assignedDetail($student, $code);
         }
         $assessment = $this->visible($student, $grade, $code);
-        $revision = $this->publishedRevision($assessment);
         $attempt = $this->attemptFor($student, $assessment);
+        $this->assertPlatformDetailAccess($student, $assessment, $attempt);
+        $revision = $this->publishedRevision($assessment);
 
         return [
             'code' => $assessment->getCode(),
@@ -220,7 +234,12 @@ final class StudentAssessmentPractice
         $assessment = $this->visible($student, $grade, $code);
         $existing = $this->attemptFor($student, $assessment);
         if ($existing instanceof AssessmentAttempt) {
+            // B/C: resume or reopen finished path without re-checking entitlement.
             return $existing;
+        }
+        // A: entitlement before workspace / delivery / attempt creation.
+        if (!$this->isAssessmentEntitlementGranted($student, $assessment)) {
+            throw StudentPracticeException::notFound();
         }
         $revision = $this->publishedRevision($assessment);
         $this->assertPracticeItems($revision);
@@ -392,6 +411,9 @@ final class StudentAssessmentPractice
     }
 
     /**
+     * Platform publish+grade match only. Entitlement deny must not fold into this
+     * (would make isPlatform false and fall through to institution assignment paths).
+     *
      * @return list<array{assessment: Assessment, revision: AssessmentRevision}>
      */
     private function publishedPlatformRows(GradeLevel $grade): array
@@ -406,6 +428,50 @@ final class StudentAssessmentPractice
         }
 
         return $visible;
+    }
+
+    /**
+     * A: discovery list — only entitlement-granted platform tests (plus assigned catalog elsewhere).
+     *
+     * @return list<array{assessment: Assessment, revision: AssessmentRevision}>
+     */
+    private function discoverablePlatformRows(User $student, GradeLevel $grade): array
+    {
+        $rows = [];
+        foreach ($this->publishedPlatformRows($grade) as $row) {
+            if (!$this->isAssessmentEntitlementGranted($student, $row['assessment'])) {
+                continue;
+            }
+            $rows[] = $row;
+        }
+
+        return $rows;
+    }
+
+    private function assertPlatformDetailAccess(User $student, Assessment $assessment, ?AssessmentAttempt $attempt): void
+    {
+        if ($this->isAssessmentEntitlementGranted($student, $assessment)) {
+            return;
+        }
+        // B/C: own attempt (InProgress or terminal) may open detail without current entitlement.
+        // Expired InProgress is still own attempt for detail/result paths; Continue uses isContinuableAttempt.
+        if ($attempt instanceof AssessmentAttempt && $attempt->getUser()->getId()->equals($student->getId())) {
+            return;
+        }
+
+        throw StudentPracticeException::notFound();
+    }
+
+    private function isAssessmentEntitlementGranted(User $student, Assessment $assessment): bool
+    {
+        $key = $student->getId()->toRfc4122().'|'.$assessment->getId()->toRfc4122();
+        if (\array_key_exists($key, $this->assessmentEntitlementCache)) {
+            return $this->assessmentEntitlementCache[$key];
+        }
+        $granted = $this->entitlementAccessGate->evaluateAssessment($assessment->getId(), $student)->granted;
+        $this->assessmentEntitlementCache[$key] = $granted;
+
+        return $granted;
     }
 
     private function isContinuableAttempt(AssessmentAttempt $attempt, \DateTimeImmutable $now): bool
