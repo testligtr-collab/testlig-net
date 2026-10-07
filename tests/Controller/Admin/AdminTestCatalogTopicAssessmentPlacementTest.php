@@ -619,7 +619,7 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
 
     private function placementIdFromActionUrl(string $actionUrl): string
     {
-        if (preg_match('#/yerlesim/([0-9a-fA-F-]{36})/#', $actionUrl, $matches) !== 1) {
+        if (1 !== preg_match('#/yerlesim/([0-9a-fA-F-]{36})/#', $actionUrl, $matches)) {
             self::fail('Placement id not found in action URL: '.$actionUrl);
         }
 
