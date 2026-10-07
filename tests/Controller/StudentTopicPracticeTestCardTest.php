@@ -110,9 +110,6 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         self::assertCount(2, $ordered);
         self::assertSame(0, $ordered[0]->getPosition());
         self::assertSame(2, $ordered[1]->getPosition());
-        if ($ordered[0]->getPosition() === $ordered[1]->getPosition()) {
-            self::assertLessThan(0, $ordered[0]->getId()->compareTo($ordered[1]->getId()));
-        }
         self::ensureKernelShutdown();
 
         $this->onboardStudent('ptc-ord@example.com', GradeLevel::Grade1);
@@ -499,14 +496,15 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $subjects = static::getContainer()->get(SubjectManager::class);
         $admin = $this->freshUser($bundle['adminEmail']);
         $other = $subjects->create($admin, $prefix.'_other_s', 'Other', 'create_other');
-        /** @var AssessmentRepository $assessments */
-        $assessments = static::getContainer()->get(AssessmentRepository::class);
-        $assessment = $assessments->findOneById($bundle['assessmentId']);
-        self::assertInstanceOf(Assessment::class, $assessment);
-        $assessment->setSubject($other);
         /** @var EntityManagerInterface $em */
         $em = static::getContainer()->get(EntityManagerInterface::class);
-        $em->flush();
+        $em->getConnection()->executeStatement(
+            'UPDATE assessments SET subject_id = :subjectId WHERE id = :id',
+            [
+                'subjectId' => $other->getId()->toBinary(),
+                'id' => $bundle['assessmentId']->toBinary(),
+            ],
+        );
         self::ensureKernelShutdown();
 
         return $bundle;
@@ -654,7 +652,7 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $manager = static::getContainer()->get(AssessmentManager::class);
         $assessment = $assessments->findOneById($assessmentId);
         self::assertInstanceOf(Assessment::class, $assessment);
-        $publisher = $this->freshUser($assessment->getCreatedBy()?->getEmail() ?? 'ptc_vis-pub@example.com');
+        $publisher = $this->freshUser($assessment->getCreatedBy()->getEmail());
         $manager->archive($assessment, $publisher, 'archive_test');
         self::ensureKernelShutdown();
     }
