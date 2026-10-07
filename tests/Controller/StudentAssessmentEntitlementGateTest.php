@@ -246,6 +246,7 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         $practice = static::getContainer()->get(StudentAssessmentPractice::class);
         self::assertInstanceOf(StudentAssessmentPractice::class, $practice);
         $practice->start($this->freshUser('egidor-a@example.com'), GradeLevel::Grade1, $seed['code']);
+        self::ensureKernelShutdown();
 
         $client = static::createClient();
         $this->login($client, 'egidor-b@example.com');
