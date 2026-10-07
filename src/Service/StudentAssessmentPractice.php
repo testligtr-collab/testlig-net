@@ -574,13 +574,20 @@ final class StudentAssessmentPractice implements ResetInterface
 
     private function assertPracticeItems(AssessmentRevision $revision): void
     {
-        $this->ensureDiscoveryPracticeMetaLoaded([$revision]);
         $key = $revision->getId()->toRfc4122();
-        $meta = $this->discoveryPracticeMetaCache[$key] ?? [
-            'eligible' => false,
-            'itemCount' => 0,
-            'rejectReason' => 'empty',
-        ];
+        if (!\array_key_exists($key, $this->discoveryPracticeMetaCache)) {
+            $rows = [];
+            foreach ($this->revisionItems($revision) as $item) {
+                $rows[] = [
+                    'points' => $item->getPoints(),
+                    'penaltyPoints' => $item->getPenaltyPoints(),
+                    'questionType' => $item->getQuestionRevision()->getType(),
+                    'position' => $item->getPosition(),
+                ];
+            }
+            $this->discoveryPracticeMetaCache[$key] = $this->evaluatePracticeDiscoveryMeta($rows);
+        }
+        $meta = $this->discoveryPracticeMetaCache[$key];
         if (!$meta['eligible']) {
             throw StudentPracticeException::rejected($meta['rejectReason'] ?? 'empty');
         }
@@ -591,20 +598,19 @@ final class StudentAssessmentPractice implements ResetInterface
      */
     private function ensureDiscoveryPracticeMetaLoaded(array $revisions): void
     {
-        /** @var list<Uuid> $missing */
+        /** @var array<string, AssessmentRevision> $missing */
         $missing = [];
         foreach ($revisions as $revision) {
             $key = $revision->getId()->toRfc4122();
             if (!\array_key_exists($key, $this->discoveryPracticeMetaCache)) {
-                $missing[] = $revision->getId();
+                $missing[$key] = $revision;
             }
         }
         if ([] === $missing) {
             return;
         }
 
-        /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
+        $builder = $this->entityManager->createQueryBuilder()
             ->select(
                 'revision.id AS revisionId',
                 'item.points AS points',
@@ -615,11 +621,19 @@ final class StudentAssessmentPractice implements ResetInterface
             ->from(AssessmentItem::class, 'item')
             ->innerJoin('item.assessmentRevision', 'revision')
             ->innerJoin('item.questionRevision', 'qr')
-            ->andWhere('revision.id IN (:revisionIds)')
-            ->setParameter('revisionIds', $missing)
-            ->orderBy('item.position', 'ASC')
-            ->getQuery()
-            ->getArrayResult();
+            ->orderBy('item.position', 'ASC');
+        $matches = [];
+        $index = 0;
+        foreach ($missing as $revision) {
+            $name = 'revision'.$index;
+            ++$index;
+            $matches[] = 'revision = :'.$name;
+            $builder->setParameter($name, $revision->getId(), 'uuid');
+        }
+        $builder->andWhere('('.implode(' OR ', $matches).')');
+
+        /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
+        $rows = $builder->getQuery()->getArrayResult();
 
         /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
         $grouped = [];
@@ -633,8 +647,7 @@ final class StudentAssessmentPractice implements ResetInterface
             ];
         }
 
-        foreach ($missing as $revisionId) {
-            $key = $revisionId->toRfc4122();
+        foreach ($missing as $key => $_revision) {
             $this->discoveryPracticeMetaCache[$key] = $this->evaluatePracticeDiscoveryMeta($grouped[$key] ?? []);
         }
     }
