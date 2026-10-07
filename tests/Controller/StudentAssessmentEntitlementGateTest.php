@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Dto\StudentProfileRequest;
 use App\Entity\Assessment;
+use App\Entity\AssessmentAttempt;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\LearningContent;
 use App\Entity\QuestionRevision;
@@ -13,6 +14,7 @@ use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AccessLicenseSourceType;
 use App\Enum\AccessPackageTargetType;
+use App\Enum\AssessmentAttemptStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
@@ -31,6 +33,8 @@ use App\Enum\UserStatus;
 use App\Exception\StudentPracticeException;
 use App\LearningContent\Content\LearningContentDocument;
 use App\Question\Content\QuestionContentDocument;
+use App\Repository\AssessmentAttemptRepository;
+use App\Repository\AssessmentPlatformPracticeRepository;
 use App\Repository\AssessmentRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\UserRepository;
@@ -56,6 +60,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class StudentAssessmentEntitlementGateTest extends WebTestCase
@@ -80,6 +86,8 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         $beforeDeliveries = $this->countRows('assessment_deliveries');
         $beforePractices = $this->countRows('assessment_platform_practices');
         $beforeAttempts = $this->countRows('assessment_attempts');
+        $beforeInstitutions = $this->countRows('institutions');
+        $beforeMemberships = $this->countRows('institution_memberships');
 
         $client = static::createClient();
         $this->login($client, 'egmiss-stu@example.com');
@@ -103,6 +111,8 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         self::assertSame($beforeDeliveries, $this->countRows('assessment_deliveries'));
         self::assertSame($beforePractices, $this->countRows('assessment_platform_practices'));
         self::assertSame($beforeAttempts, $this->countRows('assessment_attempts'));
+        self::assertSame($beforeInstitutions, $this->countRows('institutions'));
+        self::assertSame($beforeMemberships, $this->countRows('institution_memberships'));
     }
 
     public function testFreePolicyAllowsDiscoveryAndStart(): void
@@ -167,7 +177,7 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
-    public function testInProgressSurvivesPolicyChangeAndLicenseExpiry(): void
+    public function testInProgressSurvivesPolicyChangeToRequired(): void
     {
         $seed = $this->seedPublished('eginp', ResourceAccessClass::Free);
         $this->onboardStudent('eginp-stu@example.com', GradeLevel::Grade1);
@@ -185,12 +195,90 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         $client->request('GET', '/ogrenci');
         self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['code'].'/coz"]');
 
-        // License never granted after flip — still B continue.
+        // After flip to required without a license, discovery hides the test but B continue remains.
         $client->request('GET', '/ogrenci/testler');
         self::assertStringNotContainsString('Gate testi', (string) $client->getResponse()->getContent());
         $client->request('GET', '/ogrenci/testler/'.$seed['code']);
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href$="/coz"]');
+    }
+
+    public function testInProgressSurvivesLicenseExpiryWhileAttemptWindowOpen(): void
+    {
+        $clock = new MockClock(new \DateTimeImmutable('2026-10-07 12:00:00', new \DateTimeZone('UTC')));
+        Clock::set($clock);
+        $seed = $this->seedPublished('eglic', ResourceAccessClass::EntitlementRequired, durationSeconds: 3600);
+        $this->onboardStudent('eglic-stu@example.com', GradeLevel::Grade1);
+        $this->grantAssessmentLicense(
+            $seed['id'],
+            'eglic-stu@example.com',
+            $clock->now()->modify('+30 minutes'),
+            'eglic_ok',
+            $clock->now()->modify('-1 day'),
+        );
+
+        $client = static::createClient();
+        $this->login($client, 'eglic-stu@example.com');
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['code']);
+        self::assertResponseIsSuccessful();
+        $token = $crawler->filter('form[action$="/baslat"] input[name="_token"]')->attr('value');
+        self::assertNotNull($token);
+        $client->request('POST', '/ogrenci/testler/'.$seed['code'].'/baslat', ['_token' => $token]);
+        self::assertResponseRedirects('/ogrenci/testler/'.$seed['code'].'/coz');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+
+        $attemptId = $this->attemptIdFor('eglic-stu@example.com', $seed['code']);
+        $beforeDeliveries = $this->countRows('assessment_deliveries');
+        $beforeAttempts = $this->countRows('assessment_attempts');
+
+        // License ends; attempt window (1h) is still open.
+        $clock->modify('+45 minutes');
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->login($client, 'eglic-stu@example.com');
+
+        $client->request('GET', '/ogrenci/testler');
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('Gate testi', (string) $client->getResponse()->getContent());
+
+        $client->request('GET', '/ogrenci');
+        self::assertSelectorExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['code'].'/coz"]');
+
+        $client->request('GET', '/ogrenci/testler/'.$seed['code']);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href$="/coz"]');
+        $client->request('POST', '/ogrenci/testler/'.$seed['code'].'/baslat', [
+            '_token' => $this->studentCsrf($client),
+        ]);
+        self::assertResponseRedirects('/ogrenci/testler/'.$seed['code'].'/coz');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSame($attemptId, $this->attemptIdFor('eglic-stu@example.com', $seed['code']));
+
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['code'].'/coz?s=1');
+        self::assertResponseIsSuccessful();
+        $client->request('POST', '/ogrenci/testler/'.$seed['code'].'/cevap', [
+            '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
+            'position' => '1',
+            'choice' => '2',
+            'expected_version' => (string) $crawler->filter('input[name="expected_version"]')->attr('value'),
+        ]);
+        $client->followRedirect();
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['code'].'/coz?s=1');
+        self::assertResponseIsSuccessful();
+        $client->request('POST', '/ogrenci/testler/'.$seed['code'].'/bitir', [
+            '_token' => (string) $crawler->filter('#student-test-finish input[name="_token"]')->attr('value'),
+            'confirm' => '1',
+        ]);
+        self::assertResponseRedirects('/ogrenci/testler/'.$seed['code'].'/sonuc');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+
+        self::assertSame($attemptId, $this->attemptIdFor('eglic-stu@example.com', $seed['code']));
+        self::assertSame($beforeDeliveries, $this->countRows('assessment_deliveries'));
+        self::assertSame($beforeAttempts, $this->countRows('assessment_attempts'));
+        Clock::set(new NativeClock());
     }
 
     public function testExpiredAttemptIsNotContinuableWithoutEntitlement(): void
@@ -204,13 +292,38 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         $practice = static::getContainer()->get(StudentAssessmentPractice::class);
         self::assertInstanceOf(StudentAssessmentPractice::class, $practice);
         $practice->start($this->freshUser('egexp-stu@example.com'), GradeLevel::Grade1, $seed['code']);
+        $attemptId = $this->attemptIdFor('egexp-stu@example.com', $seed['code']);
+        $beforeAttempts = $this->countRows('assessment_attempts');
         $this->setPolicy($seed['id'], ResourceAccessClass::EntitlementRequired, 'flip_after_start');
         $clock->modify('+2 minutes');
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->login($client, 'egexp-stu@example.com');
 
         $client->request('GET', '/ogrenci');
         self::assertSelectorNotExists('section[aria-labelledby="continue-heading"] a[href="/ogrenci/testler/'.$seed['code'].'/coz"]');
         $client->request('GET', '/ogrenci/testler');
         self::assertStringNotContainsString('Gate testi', (string) $client->getResponse()->getContent());
+
+        // Own expired attempt may open detail, but solve finalizes — no continued answering session.
+        $client->request('GET', '/ogrenci/testler/'.$seed['code']);
+        self::assertResponseIsSuccessful();
+        $client->request('GET', '/ogrenci/testler/'.$seed['code'].'/coz');
+        self::assertResponseRedirects('/ogrenci/testler/'.$seed['code'].'/sonuc');
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+
+        $client->request('GET', '/ogrenci/testler/'.$seed['code']);
+        self::assertResponseIsSuccessful();
+        $client->request('POST', '/ogrenci/testler/'.$seed['code'].'/baslat', [
+            '_token' => $this->studentCsrf($client),
+        ]);
+        self::assertResponseRedirects('/ogrenci/testler/'.$seed['code'].'/sonuc');
+        self::assertSame($attemptId, $this->attemptIdFor('egexp-stu@example.com', $seed['code']));
+        self::assertSame($beforeAttempts, $this->countRows('assessment_attempts'));
+        $attempt = $this->attemptFor('egexp-stu@example.com', $seed['code']);
+        self::assertNotSame(AssessmentAttemptStatus::InProgress, $attempt->getStatus());
         Clock::set(new NativeClock());
     }
 
@@ -446,9 +559,9 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
     private function grantAssessmentLicense(
         string $assessmentId,
         string $studentEmail,
-        string $endsAtRelative,
+        string|\DateTimeImmutable $endsAt,
         string $suffix,
-        string $startsAt = '-1 day',
+        string|\DateTimeImmutable $startsAt = '-1 day',
     ): void {
         self::ensureKernelShutdown();
         self::bootKernel();
@@ -479,17 +592,65 @@ final class StudentAssessmentEntitlementGateTest extends WebTestCase
         $version = $versions->createDraftVersion($package, $sa, 30, null, 'create_v');
         $versions->addAssessmentGrant($version, $assessment, $sa, 'add_grant');
         $version = $versions->activate($version, $sa, 'activate_v');
+        $validFrom = $startsAt instanceof \DateTimeImmutable ? $startsAt : new \DateTimeImmutable($startsAt);
+        $validUntil = $endsAt instanceof \DateTimeImmutable ? $endsAt : new \DateTimeImmutable($endsAt);
         $license = $licenses->createUserLicense(
             $version,
             $student,
             $sa,
             AccessLicenseSourceType::Manual,
-            new \DateTimeImmutable($startsAt),
-            new \DateTimeImmutable($endsAtRelative),
+            $validFrom,
+            $validUntil,
             'lic_'.$suffix,
         );
         $licenses->activate($license, $sa, 'activate_lic');
         self::ensureKernelShutdown();
+    }
+
+    private function attemptFor(string $email, string $code): AssessmentAttempt
+    {
+        if (!static::$booted) {
+            self::bootKernel();
+        }
+        $student = $this->freshUser($email);
+        /** @var AssessmentRepository $assessments */
+        $assessments = static::getContainer()->get(AssessmentRepository::class);
+        $assessment = $assessments->findOneBy(['code' => $code]);
+        self::assertInstanceOf(Assessment::class, $assessment);
+        /** @var AssessmentPlatformPracticeRepository $practices */
+        $practices = static::getContainer()->get(AssessmentPlatformPracticeRepository::class);
+        $practice = $practices->findForUserAndAssessment($student, $assessment);
+        self::assertNotNull($practice);
+        /** @var AssessmentAttemptRepository $attempts */
+        $attempts = static::getContainer()->get(AssessmentAttemptRepository::class);
+        $attempt = $attempts->findOwnedForDelivery($practice->getDelivery()->getId(), $student->getId());
+        self::assertInstanceOf(AssessmentAttempt::class, $attempt);
+
+        return $attempt;
+    }
+
+    private function attemptIdFor(string $email, string $code): string
+    {
+        return $this->attemptFor($email, $code)->getId()->toRfc4122();
+    }
+
+    private function studentCsrf(KernelBrowser $client): string
+    {
+        $request = $client->getRequest();
+        $session = $request->getSession();
+        /** @var RequestStack $stack */
+        $stack = $client->getContainer()->get('request_stack');
+        $stack->push($request);
+        try {
+            /** @var CsrfTokenManagerInterface $tokens */
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
+            $value = $tokens->getToken('student_test')->getValue();
+            $session->save();
+
+            return $value;
+        } finally {
+            $stack->pop();
+        }
     }
 
     private function setPolicy(string $assessmentId, ResourceAccessClass $class, string $reason): void
