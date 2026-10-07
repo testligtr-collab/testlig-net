@@ -610,16 +610,12 @@ final class StudentAssessmentPractice implements ResetInterface
             return;
         }
 
-        // Scalar fields only — do not hydrate question body / answer-key columns.
-        /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
-        $rows = $this->entityManager->createQueryBuilder()
-            ->select(
-                'revision.id AS revisionId',
-                'item.points AS points',
-                'item.penaltyPoints AS penaltyPoints',
-                'qr.type AS questionType',
-                'item.position AS position',
-            )
+        // Partial objects: only id/type/points/penalty/position — not question body or answer key.
+        /** @var list<AssessmentItem> $items */
+        $items = $this->entityManager->createQueryBuilder()
+            ->select('partial item.{id, points, penaltyPoints, position}')
+            ->addSelect('partial revision.{id}')
+            ->addSelect('partial qr.{id, type}')
             ->from(AssessmentItem::class, 'item')
             ->innerJoin('item.assessmentRevision', 'revision')
             ->innerJoin('item.questionRevision', 'qr')
@@ -627,17 +623,17 @@ final class StudentAssessmentPractice implements ResetInterface
             ->setParameter('revisions', array_values($missing))
             ->orderBy('item.position', 'ASC')
             ->getQuery()
-            ->getArrayResult();
+            ->getResult();
 
         /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
         $grouped = [];
-        foreach ($rows as $row) {
-            $key = $this->uuidKey($row['revisionId']);
+        foreach ($items as $item) {
+            $key = $item->getAssessmentRevision()->getId()->toRfc4122();
             $grouped[$key][] = [
-                'points' => (string) $row['points'],
-                'penaltyPoints' => (string) $row['penaltyPoints'],
-                'questionType' => $row['questionType'],
-                'position' => (int) $row['position'],
+                'points' => $item->getPoints(),
+                'penaltyPoints' => $item->getPenaltyPoints(),
+                'questionType' => $item->getQuestionRevision()->getType(),
+                'position' => $item->getPosition(),
             ];
         }
 
