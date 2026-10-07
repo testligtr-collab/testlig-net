@@ -160,8 +160,10 @@ final class StudentTopicContentQuery
             return [];
         }
 
-        /** @var list<array{placement: CatalogTopicAssessment, assessment: Assessment, revision: AssessmentRevision}> $eligible */
-        $eligible = [];
+        /** @var list<array{placement: CatalogTopicAssessment, assessment: Assessment, revision: AssessmentRevision}> $candidates */
+        $candidates = [];
+        /** @var list<AssessmentRevision> $candidateRevisions */
+        $candidateRevisions = [];
         foreach ($placements as $placement) {
             $assessment = $placement->getAssessment();
             if (!$this->isTopicPracticeAssessmentEligible($catalogSubject, $grade, $assessment)) {
@@ -171,17 +173,31 @@ final class StudentTopicContentQuery
             if (!$revision instanceof AssessmentRevision || !$revision->isSealed()) {
                 continue;
             }
-            if (!$this->assessmentPractice->revisionEligibleForPracticeDiscovery($revision)) {
-                continue;
-            }
-            if (!$this->assessmentPractice->isDiscoveryEntitlementGranted($actor, $assessment)) {
-                continue;
-            }
-            $eligible[] = [
+            $candidates[] = [
                 'placement' => $placement,
                 'assessment' => $assessment,
                 'revision' => $revision,
             ];
+            $candidateRevisions[] = $revision;
+        }
+        if ([] === $candidates) {
+            return [];
+        }
+
+        $discoveryEligible = $this->assessmentPractice->discoveryEligibilityByRevisionIds($candidateRevisions);
+
+        /** @var list<array{placement: CatalogTopicAssessment, assessment: Assessment, revision: AssessmentRevision}> $eligible */
+        $eligible = [];
+        foreach ($candidates as $row) {
+            $revision = $row['revision'];
+            $revisionKey = $revision->getId()->toRfc4122();
+            if (!($discoveryEligible[$revisionKey] ?? false)) {
+                continue;
+            }
+            if (!$this->assessmentPractice->isDiscoveryEntitlementGranted($actor, $row['assessment'])) {
+                continue;
+            }
+            $eligible[] = $row;
         }
         if ([] === $eligible) {
             return [];

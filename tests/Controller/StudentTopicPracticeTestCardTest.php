@@ -54,6 +54,9 @@ use App\Service\LearningContentManager;
 use App\Service\QuestionManager;
 use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
+use App\Service\StudentTopicContentQuery;
+use Doctrine\DBAL\Logging\Middleware as LoggingMiddleware;
+use Psr\Log\AbstractLogger;
 use App\Service\SubjectManager;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
@@ -89,6 +92,62 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $client->request('GET', $detailHref);
         self::assertResponseIsSuccessful();
         self::assertSame($beforeAttempts, $this->countRows('assessment_attempts'));
+    }
+
+    public function testPracticeDiscoveryItemLoadQueriesDoNotScaleWithPlacementCount(): void
+    {
+        $bundle = $this->seedTopicWithPublishedAssessment('ptc_qb_a', ResourceAccessClass::Free, 'QB-A');
+        $this->publishPlacement($bundle['admin'], $bundle['topicId'], $bundle['assessmentId'], 'Birinci', 0, 'pub_qb_a');
+        $second = $this->appendAssessmentToTopic($bundle, 'ptc_qb_b', ResourceAccessClass::Free, 'QB-B');
+        $this->publishPlacement($bundle['admin'], $bundle['topicId'], $second['assessmentId'], 'İkinci', 1, 'pub_qb_b');
+
+        $this->onboardStudent('ptc-qb@example.com', GradeLevel::Grade1);
+        self::bootKernel();
+        $student = $this->freshUser('ptc-qb@example.com');
+        $counter = $this->attachSqlQueryCounter();
+
+        /** @var StudentTopicContentQuery $query */
+        $query = static::getContainer()->get(StudentTopicContentQuery::class);
+        $before = $counter->count;
+        $detailTwo = $query->getPublishedTopicDetail(
+            GradeLevel::Grade1,
+            $bundle['subjectSlug'],
+            $bundle['unitSlug'],
+            $bundle['topicSlug'],
+            $student,
+        );
+        $queriesWithTwoPlacements = $counter->count - $before;
+        self::assertNotNull($detailTwo);
+        self::assertCount(2, $detailTwo->practiceTests);
+
+        $third = $this->appendAssessmentToTopic($bundle, 'ptc_qb_c', ResourceAccessClass::Free, 'QB-C');
+        $fourth = $this->appendAssessmentToTopic($bundle, 'ptc_qb_d', ResourceAccessClass::Free, 'QB-D');
+        $this->publishPlacement($bundle['admin'], $bundle['topicId'], $third['assessmentId'], 'Üçüncü', 2, 'pub_qb_c');
+        $this->publishPlacement($bundle['admin'], $bundle['topicId'], $fourth['assessmentId'], 'Dördüncü', 3, 'pub_qb_d');
+
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $student = $this->freshUser('ptc-qb@example.com');
+        $counter = $this->attachSqlQueryCounter();
+        /** @var StudentTopicContentQuery $queryFour */
+        $queryFour = static::getContainer()->get(StudentTopicContentQuery::class);
+        $before = $counter->count;
+        $detailFour = $queryFour->getPublishedTopicDetail(
+            GradeLevel::Grade1,
+            $bundle['subjectSlug'],
+            $bundle['unitSlug'],
+            $bundle['topicSlug'],
+            $student,
+        );
+        $queriesWithFourPlacements = $counter->count - $before;
+        self::assertNotNull($detailFour);
+        self::assertCount(4, $detailFour->practiceTests);
+
+        self::assertLessThan(
+            3,
+            $queriesWithFourPlacements - $queriesWithTwoPlacements,
+            'Practice discovery should batch-load assessment items/types (no per-assessment N+1).',
+        );
     }
 
     public function testMultiplePlacementsOrderedByPositionThenStableId(): void
@@ -857,6 +916,29 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         self::assertInstanceOf(User::class, $user);
 
         return $user;
+    }
+
+    private function attachSqlQueryCounter(): AbstractLogger
+    {
+        $counter = new class extends AbstractLogger {
+            public int $count = 0;
+
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                ++$this->count;
+            }
+        };
+        /** @var EntityManagerInterface $em */
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        $connection = $em->getConnection();
+        $configuration = $connection->getConfiguration();
+        $configuration->setMiddlewares(array_merge(
+            [new LoggingMiddleware($counter)],
+            $configuration->getMiddlewares(),
+        ));
+        $connection->close();
+
+        return $counter;
     }
 
     private function login(KernelBrowser $client, string $email): void

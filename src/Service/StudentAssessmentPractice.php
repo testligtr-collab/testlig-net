@@ -73,6 +73,9 @@ final class StudentAssessmentPractice implements ResetInterface
     /** @var array<string, bool> */
     private array $assessmentEntitlementCache = [];
 
+    /** @var array<string, array{eligible: bool, itemCount: int, rejectReason: ?string}> */
+    private array $discoveryPracticeMetaCache = [];
+
     public function __construct(
         private readonly AssessmentRepository $assessments,
         private readonly AssessmentPlatformPracticeRepository $practices,
@@ -103,6 +106,7 @@ final class StudentAssessmentPractice implements ResetInterface
     public function reset(): void
     {
         $this->assessmentEntitlementCache = [];
+        $this->discoveryPracticeMetaCache = [];
     }
 
     public function continueCard(User $student, GradeLevel $grade): ?StudentContinueTestCard
@@ -469,13 +473,27 @@ final class StudentAssessmentPractice implements ResetInterface
 
     public function revisionEligibleForPracticeDiscovery(AssessmentRevision $revision): bool
     {
-        try {
-            $this->assertPracticeItems($revision);
+        $this->ensureDiscoveryPracticeMetaLoaded([$revision]);
+        $key = $revision->getId()->toRfc4122();
 
-            return true;
-        } catch (StudentPracticeException) {
-            return false;
+        return $this->discoveryPracticeMetaCache[$key]['eligible'] ?? false;
+    }
+
+    /**
+     * @param list<AssessmentRevision> $revisions
+     *
+     * @return array<string, bool> RFC4122 revision id => eligible for topic practice discovery
+     */
+    public function discoveryEligibilityByRevisionIds(array $revisions): array
+    {
+        $this->ensureDiscoveryPracticeMetaLoaded($revisions);
+        $result = [];
+        foreach ($revisions as $revision) {
+            $key = $revision->getId()->toRfc4122();
+            $result[$key] = $this->discoveryPracticeMetaCache[$key]['eligible'] ?? false;
         }
+
+        return $result;
     }
 
     /**
@@ -485,7 +503,22 @@ final class StudentAssessmentPractice implements ResetInterface
      */
     public function itemCountsForRevisions(array $revisions): array
     {
-        return $this->itemCounts($revisions);
+        if ([] === $revisions) {
+            return [];
+        }
+        $this->ensureDiscoveryPracticeMetaLoaded($revisions);
+        $counts = [];
+        foreach ($revisions as $revision) {
+            $key = $revision->getId()->toRfc4122();
+            $meta = $this->discoveryPracticeMetaCache[$key] ?? [
+                'eligible' => false,
+                'itemCount' => 0,
+                'rejectReason' => 'empty',
+            ];
+            $counts[$key] = $meta['eligible'] ? $meta['itemCount'] : 0;
+        }
+
+        return $counts;
     }
 
     public function practiceDurationLabel(AssessmentRevision $revision): string
@@ -541,29 +574,106 @@ final class StudentAssessmentPractice implements ResetInterface
 
     private function assertPracticeItems(AssessmentRevision $revision): void
     {
-        $items = $this->revisionItems($revision);
+        $this->ensureDiscoveryPracticeMetaLoaded([$revision]);
+        $key = $revision->getId()->toRfc4122();
+        $meta = $this->discoveryPracticeMetaCache[$key] ?? [
+            'eligible' => false,
+            'itemCount' => 0,
+            'rejectReason' => 'empty',
+        ];
+        if (!$meta['eligible']) {
+            throw StudentPracticeException::rejected($meta['rejectReason'] ?? 'empty');
+        }
+    }
+
+    /**
+     * @param list<AssessmentRevision> $revisions
+     */
+    private function ensureDiscoveryPracticeMetaLoaded(array $revisions): void
+    {
+        /** @var list<Uuid> $missing */
+        $missing = [];
+        foreach ($revisions as $revision) {
+            $key = $revision->getId()->toRfc4122();
+            if (!\array_key_exists($key, $this->discoveryPracticeMetaCache)) {
+                $missing[] = $revision->getId();
+            }
+        }
+        if ([] === $missing) {
+            return;
+        }
+
+        /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select(
+                'IDENTITY(item.assessmentRevision) AS revisionId',
+                'item.points AS points',
+                'item.penaltyPoints AS penaltyPoints',
+                'qr.type AS questionType',
+                'item.position AS position',
+            )
+            ->from(AssessmentItem::class, 'item')
+            ->innerJoin('item.questionRevision', 'qr')
+            ->andWhere('item.assessmentRevision IN (:revisionIds)')
+            ->setParameter('revisionIds', $missing)
+            ->orderBy('item.position', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
+        $grouped = [];
+        foreach ($rows as $row) {
+            $revisionId = $row['revisionId'];
+            $key = $revisionId instanceof Uuid ? $revisionId->toRfc4122() : (string) $revisionId;
+            $grouped[$key][] = [
+                'points' => (string) $row['points'],
+                'penaltyPoints' => (string) $row['penaltyPoints'],
+                'questionType' => $row['questionType'],
+                'position' => (int) $row['position'],
+            ];
+        }
+
+        foreach ($missing as $revisionId) {
+            $key = $revisionId->toRfc4122();
+            $this->discoveryPracticeMetaCache[$key] = $this->evaluatePracticeDiscoveryMeta($grouped[$key] ?? []);
+        }
+    }
+
+    /**
+     * @param list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $items
+     *
+     * @return array{eligible: bool, itemCount: int, rejectReason: ?string}
+     */
+    private function evaluatePracticeDiscoveryMeta(array $items): array
+    {
         if ([] === $items) {
-            throw StudentPracticeException::rejected('empty');
+            return ['eligible' => false, 'itemCount' => 0, 'rejectReason' => 'empty'];
         }
         $total = '0.00';
         foreach ($items as $item) {
-            if (QuestionType::SingleChoice !== $item->getQuestionRevision()->getType()) {
-                throw StudentPracticeException::rejected('not_single_choice');
+            $questionType = $item['questionType'];
+            if (!$questionType instanceof QuestionType) {
+                $questionType = QuestionType::from((string) $questionType);
+            }
+            if (QuestionType::SingleChoice !== $questionType) {
+                return ['eligible' => false, 'itemCount' => 0, 'rejectReason' => 'not_single_choice'];
             }
             try {
-                $points = AssessmentScore::normalizePoints($item->getPoints());
-                $penalty = AssessmentScore::normalizePenalty($item->getPenaltyPoints(), $points);
+                $points = AssessmentScore::normalizePoints($item['points']);
+                $penalty = AssessmentScore::normalizePenalty($item['penaltyPoints'], $points);
             } catch (AssessmentException) {
-                throw StudentPracticeException::rejected('points');
+                return ['eligible' => false, 'itemCount' => 0, 'rejectReason' => 'points'];
             }
             if (0 !== bccomp($penalty, '0', 2)) {
-                throw StudentPracticeException::rejected('penalty');
+                return ['eligible' => false, 'itemCount' => 0, 'rejectReason' => 'penalty'];
             }
             $total = bcadd($total, $points, 2);
         }
         if (1 !== bccomp($total, '0', 2)) {
-            throw StudentPracticeException::rejected('points');
+            return ['eligible' => false, 'itemCount' => 0, 'rejectReason' => 'points'];
         }
+
+        return ['eligible' => true, 'itemCount' => \count($items), 'rejectReason' => null];
     }
 
     private function provision(User $student, Assessment $assessment, AssessmentRevision $revision): AssessmentDelivery

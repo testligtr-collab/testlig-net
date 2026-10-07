@@ -309,12 +309,12 @@ final class AdminTestController extends AdminBaseController
             return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
         }
 
-        $reason = $this->workflowReason->resolve(
-            ContentWorkflowReason::PLACEMENT_PUBLISH,
-            $request->request->get('note'),
-            $request->request->get('operator_note'),
-        );
         try {
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_PUBLISH,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->assessmentPlacements->publish(
                 $this->requireActorUser(),
                 $placement->getId(),
@@ -346,12 +346,12 @@ final class AdminTestController extends AdminBaseController
             return $this->redirectToRoute('app_admin_test_show', ['id' => $assessmentId]);
         }
 
-        $reason = $this->workflowReason->resolve(
-            ContentWorkflowReason::PLACEMENT_ARCHIVE,
-            $request->request->get('note'),
-            $request->request->get('operator_note'),
-        );
         try {
+            $reason = $this->workflowReason->resolve(
+                ContentWorkflowReason::PLACEMENT_ARCHIVE,
+                $request->request->get('note'),
+                $request->request->get('operator_note'),
+            );
             $this->assessmentPlacements->archive(
                 $this->requireActorUser(),
                 $placement->getId(),
