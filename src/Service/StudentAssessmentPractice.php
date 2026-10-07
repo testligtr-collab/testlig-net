@@ -610,40 +610,27 @@ final class StudentAssessmentPractice implements ResetInterface
             return;
         }
 
-        $builder = $this->entityManager->createQueryBuilder()
-            ->select(
-                'revision.id AS revisionId',
-                'item.points AS points',
-                'item.penaltyPoints AS penaltyPoints',
-                'qr.type AS questionType',
-                'item.position AS position',
-            )
+        /** @var list<AssessmentItem> $items */
+        $items = $this->entityManager->createQueryBuilder()
+            ->select('item', 'revision', 'qr')
             ->from(AssessmentItem::class, 'item')
             ->innerJoin('item.assessmentRevision', 'revision')
             ->innerJoin('item.questionRevision', 'qr')
-            ->orderBy('item.position', 'ASC');
-        $matches = [];
-        $index = 0;
-        foreach ($missing as $revision) {
-            $name = 'revision'.$index;
-            ++$index;
-            $matches[] = 'revision = :'.$name;
-            $builder->setParameter($name, $revision->getId(), 'uuid');
-        }
-        $builder->andWhere('('.implode(' OR ', $matches).')');
-
-        /** @var list<array{revisionId: mixed, points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}> $rows */
-        $rows = $builder->getQuery()->getArrayResult();
+            ->andWhere('revision IN (:revisions)')
+            ->setParameter('revisions', array_values($missing))
+            ->orderBy('item.position', 'ASC')
+            ->getQuery()
+            ->getResult();
 
         /** @var array<string, list<array{points: string, penaltyPoints: string, questionType: QuestionType|string, position: int}>> $grouped */
         $grouped = [];
-        foreach ($rows as $row) {
-            $key = $this->uuidKey($row['revisionId']);
+        foreach ($items as $item) {
+            $key = $item->getAssessmentRevision()->getId()->toRfc4122();
             $grouped[$key][] = [
-                'points' => (string) $row['points'],
-                'penaltyPoints' => (string) $row['penaltyPoints'],
-                'questionType' => $row['questionType'],
-                'position' => (int) $row['position'],
+                'points' => $item->getPoints(),
+                'penaltyPoints' => $item->getPenaltyPoints(),
+                'questionType' => $item->getQuestionRevision()->getType(),
+                'position' => $item->getPosition(),
             ];
         }
 
