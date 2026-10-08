@@ -62,9 +62,8 @@ use App\Tests\Support\AccessEntitlementDbCleanup;
 use App\Tests\Support\AssessmentDbCleanup;
 use App\Tests\Support\LearningContentDbCleanup;
 use App\Tests\Support\QuestionBankDbCleanup;
-use Doctrine\DBAL\Logging\Middleware as LoggingMiddleware;
 use Doctrine\ORM\EntityManagerInterface;
-use Psr\Log\AbstractLogger;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -104,11 +103,10 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         $this->onboardStudent('ptc-qb@example.com', GradeLevel::Grade1);
         self::bootKernel();
         $student = $this->freshUser('ptc-qb@example.com');
-        $counter = $this->attachSqlQueryCounter();
+        $this->resetDoctrineQueryLog();
 
         /** @var StudentTopicContentQuery $query */
         $query = static::getContainer()->get(StudentTopicContentQuery::class);
-        $before = $counter->count;
         $detailTwo = $query->getPublishedTopicDetail(
             GradeLevel::Grade1,
             $bundle['subjectSlug'],
@@ -116,9 +114,11 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
             $bundle['topicSlug'],
             $student,
         );
-        $queriesWithTwoPlacements = $counter->count - $before;
         self::assertNotNull($detailTwo);
         self::assertCount(2, $detailTwo->practiceTests);
+        $countsTwo = $this->doctrineQueryCounts();
+        self::assertGreaterThan(0, $countsTwo['statements'], 'SQL counter must observe statements; a 0/0 reading is not evidence.');
+        self::assertSame(1, $countsTwo['metadataSelects'], 'Two placements must share one assessment_items/question_revisions metadata SELECT.');
 
         $third = $this->appendAssessmentToTopic($bundle, 'ptc_qb_c', ResourceAccessClass::Free, 'QB-C');
         $fourth = $this->appendAssessmentToTopic($bundle, 'ptc_qb_d', ResourceAccessClass::Free, 'QB-D');
@@ -128,10 +128,9 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         self::ensureKernelShutdown();
         self::bootKernel();
         $student = $this->freshUser('ptc-qb@example.com');
-        $counter = $this->attachSqlQueryCounter();
+        $this->resetDoctrineQueryLog();
         /** @var StudentTopicContentQuery $queryFour */
         $queryFour = static::getContainer()->get(StudentTopicContentQuery::class);
-        $before = $counter->count;
         $detailFour = $queryFour->getPublishedTopicDetail(
             GradeLevel::Grade1,
             $bundle['subjectSlug'],
@@ -139,15 +138,11 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
             $bundle['topicSlug'],
             $student,
         );
-        $queriesWithFourPlacements = $counter->count - $before;
         self::assertNotNull($detailFour);
         self::assertCount(4, $detailFour->practiceTests);
-
-        self::assertLessThan(
-            3,
-            $queriesWithFourPlacements - $queriesWithTwoPlacements,
-            'Practice discovery should batch-load assessment items/types (no per-assessment N+1).',
-        );
+        $countsFour = $this->doctrineQueryCounts();
+        self::assertGreaterThan(0, $countsFour['statements'], 'SQL counter must observe statements; a 0/0 reading is not evidence.');
+        self::assertSame(1, $countsFour['metadataSelects'], 'Four placements must share one assessment_items/question_revisions metadata SELECT.');
     }
 
     public function testMultiplePlacementsOrderedByPositionThenStableId(): void
@@ -918,30 +913,51 @@ final class StudentTopicPracticeTestCardTest extends WebTestCase
         return $user;
     }
 
-    /**
-     * @return object{count: int}&AbstractLogger
-     */
-    private function attachSqlQueryCounter(): object
+    private function resetDoctrineQueryLog(): void
     {
-        $counter = new class extends AbstractLogger {
-            public int $count = 0;
+        $this->doctrineDebugDataHolder()->reset();
+    }
 
-            public function log($level, \Stringable|string $message, array $context = []): void
-            {
-                ++$this->count;
+    /**
+     * @return array{statements: int, metadataSelects: int}
+     */
+    private function doctrineQueryCounts(): array
+    {
+        $statements = 0;
+        $metadataSelects = 0;
+        foreach ($this->doctrineDebugDataHolder()->getData() as $queries) {
+            foreach ($queries as $query) {
+                $sql = $query['sql'] ?? null;
+                if (!\is_string($sql) || '' === trim($sql)) {
+                    continue;
+                }
+                ++$statements;
+                $collapsed = preg_replace('/\s+/', ' ', $sql);
+                $normalized = strtolower(\is_string($collapsed) ? $collapsed : $sql);
+                if (
+                    str_starts_with(ltrim($normalized), 'select')
+                    && str_contains($normalized, 'from assessment_items')
+                    && str_contains($normalized, 'join question_revisions')
+                    && str_contains($normalized, 'penalty_points')
+                    && str_contains($normalized, 'qr.type')
+                ) {
+                    ++$metadataSelects;
+                }
             }
-        };
-        /** @var EntityManagerInterface $em */
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        $connection = $em->getConnection();
-        $configuration = $connection->getConfiguration();
-        $configuration->setMiddlewares(array_merge(
-            [new LoggingMiddleware($counter)],
-            $configuration->getMiddlewares(),
-        ));
-        $connection->close();
+        }
 
-        return $counter;
+        return [
+            'statements' => $statements,
+            'metadataSelects' => $metadataSelects,
+        ];
+    }
+
+    private function doctrineDebugDataHolder(): DebugDataHolder
+    {
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+
+        return $holder;
     }
 
     private function login(KernelBrowser $client, string $email): void
