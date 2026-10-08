@@ -21,6 +21,7 @@ use App\Enum\SubjectStatus;
 use App\Enum\UserRole;
 use App\Exception\CatalogException;
 use App\Repository\CatalogSubjectRepository;
+use App\Repository\CatalogTopicAssessmentRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CatalogUnitRepository;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -40,6 +41,7 @@ final class CatalogWriteService
         private readonly CatalogSubjectRepository $subjects,
         private readonly CatalogUnitRepository $units,
         private readonly CatalogTopicRepository $topics,
+        private readonly CatalogTopicAssessmentRepository $topicAssessments,
         private readonly CatalogSlugger $slugger,
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
@@ -360,7 +362,10 @@ final class CatalogWriteService
                 && !$previousId->equals($canonicalSubjectId);
 
             if ($clearing || $changing) {
-                if ($this->hasTopicLessonsForCatalogSubject($catalogSubjectId)) {
+                if (
+                    $this->hasTopicLessonsForCatalogSubject($catalogSubjectId)
+                    || $this->topicAssessments->existsForCatalogSubject($catalogSubjectId)
+                ) {
                     throw CatalogException::conflict(
                         'Bu ders altında konu yerleşimi varken canonical eşleme değiştirilemez veya kaldırılamaz.',
                     );

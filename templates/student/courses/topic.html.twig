@@ -45,5 +45,20 @@
             {% endfor %}
         </ol>
     {% endif %}
+
+    {% if practiceTests is not empty %}
+        <h2 class="student-section-title">Kendini dene</h2>
+        <ul class="student-catalog-grid student-topic-practice-tests">
+            {% for test in practiceTests %}
+                <li>
+                    <a class="student-catalog-card" href="{{ path('app_student_test_show', {code: test.code}) }}">
+                        <span class="student-catalog-card__title">{{ test.title }}</span>
+                        <span class="student-catalog-card__meta">{{ test.questionCount }} soru · {{ test.durationLabel }}</span>
+                        <span class="student-test-state">Kendini dene</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
 </section>
 {% endblock %}

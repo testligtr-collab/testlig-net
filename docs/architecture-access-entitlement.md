@@ -95,12 +95,13 @@ Wired in `StudentAssessmentPractice` via `EntitlementAccessGate::evaluateAssessm
 
 | Path | Rule |
 |---|---|
-| **A — discovery / new start** | Granted required. Missing policy or deny → omit from `/ogrenci/testler` list; detail/new start → opaque 404. Gate runs before `bireysel-deneme` workspace / delivery / attempt create. |
+| **A — discovery / new start** | Granted required. Missing policy or deny → omit from `/ogrenci/testler` list and from topic **Kendini dene** cards (`StudentTopicContentQuery`); detail/new start → opaque 404. Topic GET does not create attempts. Gate runs before `bireysel-deneme` workspace / delivery / attempt create. |
 | **B — own InProgress** | Ownership + grade/publish + `expiresAt`. Policy change or license expiry does not cut solve/answer/finish or dashboard Continue. Expired attempt is not continuable. |
 | **C — own completed result/history** | No current entitlement requirement. History remains reachable when discovery omits the test. |
 
 LC `LearningContentAccessPolicy` (including `free`) never grants assessment access.
-Platform entitlement deny must not fall through to institution assignment routes.
+Platform entitlement deny must not fall through to institution assignment routes
+(`StudentAssignedTestCatalog` remains separate from topic discovery).
 
 ## Audit policy
 

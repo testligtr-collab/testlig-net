@@ -10,13 +10,15 @@ namespace App\Dto;
 final class StudentTopicDetail
 {
     /**
-     * @param list<CatalogTopicLessonListItem> $lessons
+     * @param list<CatalogTopicLessonListItem>   $lessons
+     * @param list<StudentTopicPracticeTestCard> $practiceTests
      */
     public function __construct(
         public readonly CatalogSubjectListItem $subject,
         public readonly CatalogUnitListItem $unit,
         public readonly CatalogTopicListItem $topic,
         public readonly array $lessons,
+        public readonly array $practiceTests = [],
     ) {
     }
 }
