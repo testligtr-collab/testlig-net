@@ -221,3 +221,16 @@ Browser credential and file-picker security is not relaxed.
 - MariaDB cannot defer foreign keys: content INSERT cannot require `current_revision_id NOT NULL`
   before the first revision exists. Integrity relies on same-transaction revision INSERT +
   `trg_lcr_ai_sync_current`, never a committed content-only row with revisions but null current.
+
+## Production checkpoint (MAT.1.3.3 assessment)
+
+External observation from a ChatGPT production admin/student browser. Not re-verified in this change.
+
+- Assessment `01a11c00-d688-7513-b841-d0cd2cffed2f`: **Nesnelerin Biçimsel Özellikleri — 5 Soruluk Test**. Grade 1 Mathematics, 5 questions, 10 minutes, 5 points total.
+- SuperAdmin created the draft and submitted it for review. A different Expert Teacher account published it.
+- The assessment access policy was saved as free. The learning-content free policy is a separate record.
+- A placement was created and published on Nesnelerin Geometrisi (2) / Nesnelerin Biçimsel Özellikleri.
+- The student topic **Kendini dene** card opened that test detail, and **Teste başla** was visible. Topic HTML showed no answer-key, `storageKey`, or raw UUID.
+- ChatGPT verified the solve and result flow: the test was started, five answers were saved, and the test was finished. Result: 5 correct, 0 wrong, 0 blank; 5/5, 100%. Geçmişim showed a Tamamlandı record and a result link. The attempt was created with the user's approval for this test. This checkout did not re-check production.
+- The audit screen was not verified for this publish.
+- Mobile/tablet 390px and 768px remain not accepted. The desktop observation does not replace that check.
