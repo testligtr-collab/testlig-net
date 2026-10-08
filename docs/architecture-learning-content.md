@@ -231,5 +231,6 @@ External observation from a ChatGPT production admin/student browser. Not re-ver
 - The assessment access policy was saved as free. The learning-content free policy is a separate record.
 - A placement was created and published on Nesnelerin Geometrisi (2) / Nesnelerin Biçimsel Özellikleri.
 - The student topic **Kendini dene** card opened that test detail, and **Teste başla** was visible. Topic HTML showed no answer-key, `storageKey`, or raw UUID.
-- No new attempt was started. Solve and result flow for this test were not verified. The audit screen was not verified for this publish.
+- ChatGPT verified the solve and result flow: the test was started, five answers were saved, and the test was finished. Result: 5 correct, 0 wrong, 0 blank; 5/5, 100%. Geçmişim showed a Tamamlandı record and a result link. The attempt was created with the user's approval for this test. This checkout did not re-check production.
+- The audit screen was not verified for this publish.
 - Mobile/tablet 390px and 768px remain not accepted. The desktop observation does not replace that check.
