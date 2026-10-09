@@ -1,0 +1,73 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Eğitim dönemleri — Testlig{% endblock %}
+
+{% block institution_content %}
+<section>
+    <h1>Eğitim dönemleri</h1>
+    <p><a href="{{ path('app_institution_classroom_new') }}">Sınıf oluşturmaya dön</a></p>
+    {% if error %}
+        <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if years is empty %}
+        <p class="student-form-card">Henüz eğitim dönemi yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="institution-table">
+                <thead>
+                    <tr>
+                        <th>Dönem</th>
+                        <th>Başlangıç</th>
+                        <th>Bitiş</th>
+                        <th>Durum</th>
+                        <th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for year in years %}
+                        <tr>
+                            <td data-label="Dönem">{{ year.name }}</td>
+                            <td data-label="Başlangıç">{{ year.startsOn }}</td>
+                            <td data-label="Bitiş">{{ year.endsOn }}</td>
+                            <td data-label="Durum">{{ year.statusLabel }}</td>
+                            <td data-label="İşlem">
+                                {% if year.canActivate %}
+                                    <form method="post" action="{{ path('app_institution_academic_year_activate', {reference: year.reference}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('institution_year_activate') }}">
+                                        <label>
+                                            <input type="checkbox" name="confirm" value="1">
+                                            Aktif yap. Kurumun açık aktif dönemi varsa kapanır.
+                                        </label>
+                                        <button type="submit">Aktifleştir</button>
+                                    </form>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+<section class="student-form-card">
+    <h2>Yeni dönem</h2>
+    <form method="post" action="{{ path('app_institution_academic_years') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('institution_year_create') }}">
+        <p>
+            <label for="year-name">Dönem adı</label>
+            <input id="year-name" name="name" maxlength="180" required value="{{ values.name }}">
+        </p>
+        <p>
+            <label for="year-starts">Başlangıç</label>
+            <input id="year-starts" name="starts_on" type="date" required value="{{ values.starts_on }}">
+        </p>
+        <p>
+            <label for="year-ends">Bitiş</label>
+            <input id="year-ends" name="ends_on" type="date" required value="{{ values.ends_on }}">
+        </p>
+        <button type="submit">Dönemi oluştur</button>
+    </form>
+</section>
+{% endblock %}

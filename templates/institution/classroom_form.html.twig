@@ -8,8 +8,11 @@
     {% if error %}
         <p class="form-errors" role="alert">{{ error }}</p>
     {% endif %}
+    {% if mode == 'create' %}
+        <p><a href="{{ path('app_institution_academic_years') }}">Eğitim dönemlerini yönet</a></p>
+    {% endif %}
     {% if mode == 'create' and years is empty %}
-        <p>Sınıf oluşturmak için bu kurumda açık bir eğitim dönemi gerekir. Dönem oluşturma bu ekranda yok.</p>
+        <p>Sınıf oluşturmak için bu kurumda açık bir eğitim dönemi gerekir.</p>
     {% else %}
         <form method="post">
             <input type="hidden" name="_token" value="{{ csrf_token('institution_classroom') }}">

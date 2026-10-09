@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Dto\InstitutionWorkspaceDecision;
 use App\Entity\Institution;
 use App\Entity\User;
+use App\Enum\AcademicYearFailureReason;
 use App\Enum\ClassroomFailureReason;
 use App\Enum\ClassroomStatus;
 use App\Enum\ClassroomStudentFailureReason;
@@ -14,11 +15,13 @@ use App\Enum\ClassroomTeacherFailureReason;
 use App\Enum\GradeLevel;
 use App\Enum\InstitutionStudentInviteFailureReason;
 use App\Enum\InstitutionTeacherInviteFailureReason;
+use App\Exception\AcademicYearException;
 use App\Exception\ClassroomException;
 use App\Exception\ClassroomStudentEnrollmentException;
 use App\Exception\ClassroomTeacherAssignmentException;
 use App\Exception\InstitutionStudentInviteException;
 use App\Exception\InstitutionTeacherInviteException;
+use App\Service\AcademicYearManager;
 use App\Service\InstitutionClassroomEditor;
 use App\Service\InstitutionClassroomStudentEditor;
 use App\Service\InstitutionClassroomTeacherEditor;
@@ -46,6 +49,7 @@ final class InstitutionWorkspaceController extends AbstractController
         private readonly InstitutionTeacherInvitationManager $teacherInvites,
         private readonly InstitutionStudentInvitationManager $studentInvites,
         private readonly InstitutionClassroomStudentEditor $studentEnrollments,
+        private readonly AcademicYearManager $academicYearManager,
     ) {
     }
 
@@ -552,6 +556,70 @@ final class InstitutionWorkspaceController extends AbstractController
         ]));
     }
 
+    #[Route('/akademik-yillar', name: 'app_institution_academic_years', methods: ['GET', 'POST'])]
+    public function academicYears(Request $request): Response
+    {
+        $institution = $this->institution();
+        $values = ['name' => '', 'starts_on' => '', 'ends_on' => ''];
+        if (!$request->isMethod('POST')) {
+            return $this->yearPage($institution, null, $values);
+        }
+        if (!$this->isCsrfTokenValid('institution_year_create', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+
+        $values = [
+            'name' => trim((string) $request->request->get('name', '')),
+            'starts_on' => trim((string) $request->request->get('starts_on', '')),
+            'ends_on' => trim((string) $request->request->get('ends_on', '')),
+        ];
+        $starts = self::calendarDate($values['starts_on']);
+        $ends = self::calendarDate($values['ends_on']);
+        if (!$starts instanceof \DateTimeImmutable || !$ends instanceof \DateTimeImmutable) {
+            return $this->yearPage($institution, 'Başlangıç ve bitiş tarihleri geçerli olmalıdır.', $values);
+        }
+
+        try {
+            $this->academicYearManager->createPlanned(
+                $institution,
+                $this->account(),
+                $values['name'],
+                $starts,
+                $ends,
+                'panel_year_create',
+            );
+        } catch (AcademicYearException $exception) {
+            return $this->presentYearFailure($institution, $exception, $values);
+        }
+
+        return $this->redirectToRoute('app_institution_academic_years');
+    }
+
+    #[Route('/akademik-yillar/{reference}/aktiflestir', name: 'app_institution_academic_year_activate', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
+    public function activateAcademicYear(Request $request, string $reference): Response
+    {
+        $institution = $this->institution();
+        if (!$this->isCsrfTokenValid('institution_year_activate', (string) $request->request->get('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        $year = $this->query->academicYear($institution, strtolower($reference));
+        if (null === $year) {
+            throw new NotFoundHttpException('Not Found');
+        }
+        $values = ['name' => '', 'starts_on' => '', 'ends_on' => ''];
+        if ('1' !== (string) $request->request->get('confirm')) {
+            return $this->yearPage($institution, 'Dönemi aktifleştirmek için onay kutusunu işaretleyin.', $values);
+        }
+
+        try {
+            $this->academicYearManager->activate($year, $this->account(), 'panel_year_activate');
+        } catch (AcademicYearException $exception) {
+            return $this->presentYearFailure($institution, $exception, $values);
+        }
+
+        return $this->redirectToRoute('app_institution_academic_years');
+    }
+
     #[Route('/baglam', name: 'app_institution_context', methods: ['POST'])]
     public function context(Request $request): Response
     {
@@ -632,6 +700,51 @@ final class InstitutionWorkspaceController extends AbstractController
             'can_switch' => \count($decision->options) > 1,
             'options' => $decision->options,
         ];
+    }
+
+    /**
+     * @param array{name: string, starts_on: string, ends_on: string} $values
+     */
+    private function yearPage(Institution $institution, ?string $error, array $values): Response
+    {
+        return $this->render('institution/academic_years.html.twig', $this->frame($this->gate->resolve($this->account()), 'classrooms', [
+            'years' => $this->query->academicYears($institution),
+            'error' => $error,
+            'values' => $values,
+        ]));
+    }
+
+    /**
+     * @param array{name: string, starts_on: string, ends_on: string} $values
+     */
+    private function presentYearFailure(Institution $institution, AcademicYearException $exception, array $values): Response
+    {
+        if (AcademicYearFailureReason::InstitutionNotOperable === $exception->getReason()) {
+            throw new AccessDeniedHttpException('Kurum bu işlem için uygun değil.');
+        }
+        $error = match ($exception->getReason()) {
+            AcademicYearFailureReason::InvalidInput => 'Dönem adı ve tarihleri geçerli olmalıdır. Bitiş, başlangıçtan önce olamaz.',
+            AcademicYearFailureReason::Conflict => 'Bu adla bir dönem zaten var.',
+            AcademicYearFailureReason::DateOverlap => 'Bu tarihler kurumdaki başka bir dönemle çakışıyor.',
+            AcademicYearFailureReason::InvalidTransition, AcademicYearFailureReason::YearNotOperable => 'Bu dönem aktifleştirilemez.',
+            default => null,
+        };
+        if (null === $error) {
+            throw new NotFoundHttpException('Not Found');
+        }
+
+        return $this->yearPage($institution, $error, $values);
+    }
+
+    private static function calendarDate(string $value): ?\DateTimeImmutable
+    {
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = \DateTimeImmutable::getLastErrors();
+        if (!$date instanceof \DateTimeImmutable || (false !== $errors && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            return null;
+        }
+
+        return $date;
     }
 
     private function pageNumber(Request $request): int
