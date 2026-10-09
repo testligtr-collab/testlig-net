@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Dto\InstitutionAcademicYearRow;
 use App\Dto\InstitutionAccountMembership;
 use App\Dto\InstitutionAssignedTeacher;
 use App\Dto\InstitutionClassroomDetail;
@@ -15,6 +16,7 @@ use App\Dto\InstitutionTeacherInviteRow;
 use App\Dto\InstitutionTestRow;
 use App\Dto\InstitutionTransferTarget;
 use App\Dto\InstitutionWorkspaceOverview;
+use App\Entity\AcademicYear;
 use App\Entity\Assessment;
 use App\Entity\AssessmentDelivery;
 use App\Entity\AssessmentItem;
@@ -27,6 +29,7 @@ use App\Entity\InstitutionStudentInvitation;
 use App\Entity\InstitutionTeacherInvitation;
 use App\Entity\StudentProfile;
 use App\Entity\User;
+use App\Enum\AcademicYearStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
@@ -599,6 +602,66 @@ final class InstitutionWorkspaceQuery
         return $map;
     }
 
+    /**
+     * @return list<InstitutionAcademicYearRow>
+     */
+    public function academicYears(Institution $institution): array
+    {
+        /** @var list<AcademicYear> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('y')
+            ->from(AcademicYear::class, 'y')
+            ->andWhere('y.institution = :institution')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->orderBy('y.startsAt', 'DESC')
+            ->addOrderBy('y.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+        $list = [];
+        foreach ($rows as $year) {
+            $list[] = new InstitutionAcademicYearRow(
+                $this->hasher->workspaceReference('academic_year', $year->getId()),
+                $year->getName(),
+                self::academicYearStatusLabel($year->getStatus()),
+                $year->getStartsAt()->format('d.m.Y'),
+                $year->getEndsAt()->format('d.m.Y'),
+                AcademicYearStatus::Planned === $year->getStatus(),
+            );
+        }
+
+        return $list;
+    }
+
+    public function academicYear(Institution $institution, string $reference): ?AcademicYear
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+
+        /** @var list<array{id: mixed}> $ids */
+        $ids = $this->entityManager->createQueryBuilder()
+            ->select('y.id AS id')
+            ->from(AcademicYear::class, 'y')
+            ->andWhere('y.institution = :institution')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($ids as $row) {
+            $id = self::uuid($row['id']);
+            if (!$id instanceof Uuid || !hash_equals($this->hasher->workspaceReference('academic_year', $id), $reference)) {
+                continue;
+            }
+
+            $year = $this->entityManager->find(AcademicYear::class, $id);
+
+            return $year instanceof AcademicYear && $year->getInstitution()->getId()->equals($institution->getId())
+                ? $year
+                : null;
+        }
+
+        return null;
+    }
+
     private function classroomEntity(Institution $institution, string $reference): ?Classroom
     {
         /** @var list<array{id: mixed}> $ids */
@@ -824,6 +887,15 @@ final class InstitutionWorkspaceQuery
             ->setParameter('status', StudentEnrollmentStatus::Active)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    private static function academicYearStatusLabel(AcademicYearStatus $status): string
+    {
+        return match ($status) {
+            AcademicYearStatus::Active => 'Aktif',
+            AcademicYearStatus::Planned => 'Planlandı',
+            AcademicYearStatus::Closed => 'Kapandı',
+        };
     }
 
     private static function uuid(mixed $value): ?Uuid
