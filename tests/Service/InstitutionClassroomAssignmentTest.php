@@ -689,7 +689,7 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             foreach ($row->getElementsByTagName('td') as $cell) {
                 $cells[] = trim($cell->textContent ?? '');
             }
-            self::assertCount(4, $cells);
+            self::assertCount(7, $cells);
             if ('Tamamlandı' === $cells[1]) {
                 $completed = $cells;
             }
@@ -697,8 +697,8 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
                 $idleRow = $cells;
             }
         }
-        self::assertSame(['A U', 'Tamamlandı', '2,5 / 2,5', '%100'], $completed);
-        self::assertSame(['Bos Ogrenci', 'Başlamadı', '—', '—'], $idleRow);
+        self::assertSame(['A U', 'Tamamlandı', '1', '0', '0', '2,5 / 2,5', '%100'], $completed);
+        self::assertSame(['Bos Ogrenci', 'Başlamadı', '—', '—', '—', '—', '—'], $idleRow);
         self::assertStringNotContainsString($practiceTitle, $html);
         self::assertStringNotContainsString('Diger Sinif', $html);
         self::assertStringNotContainsString($studentEmail, $html);

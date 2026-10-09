@@ -27,6 +27,9 @@
                 <tr>
                     <th>Öğrenci</th>
                     <th>Durum</th>
+                    <th>Doğru</th>
+                    <th>Yanlış</th>
+                    <th>Boş</th>
                     <th>Puan</th>
                     <th>Yüzde</th>
                 </tr>
@@ -36,6 +39,9 @@
                     <tr>
                         <td data-label="Öğrenci">{{ student.name }}</td>
                         <td data-label="Durum">{{ student.statusLabel }}</td>
+                        <td data-label="Doğru">{{ student.correct is null ? '—' : student.correct }}</td>
+                        <td data-label="Yanlış">{{ student.incorrect is null ? '—' : student.incorrect }}</td>
+                        <td data-label="Boş">{{ student.unanswered is null ? '—' : student.unanswered }}</td>
                         <td data-label="Puan">{{ student.earned is null ? '—' : student.earned ~ ' / ' ~ student.maximum }}</td>
                         <td data-label="Yüzde">{{ student.percentage|default('—') }}</td>
                     </tr>
