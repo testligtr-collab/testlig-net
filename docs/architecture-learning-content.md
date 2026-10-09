@@ -232,5 +232,6 @@ External observation from a ChatGPT production admin/student browser. Not re-ver
 - A placement was created and published on Nesnelerin Geometrisi (2) / Nesnelerin Biçimsel Özellikleri.
 - The student topic **Kendini dene** card opened that test detail, and **Teste başla** was visible. Topic HTML showed no answer-key, `storageKey`, or raw UUID.
 - ChatGPT verified the solve and result flow: the test was started, five answers were saved, and the test was finished. Result: 5 correct, 0 wrong, 0 blank; 5/5, 100%. Geçmişim showed a Tamamlandı record and a result link. The attempt was created with the user's approval for this test. This checkout did not re-check production.
-- The audit screen was not verified for this publish.
+- On 8 October 2026, a ChatGPT production SuperAdmin browser verified these audit records as success, with matching sources. This checkout did not re-check production. `assessment_published` names assessment `01a11c00-d688-7513-b841-d0cd2cffed2f` and revision `01a11c00-d689-7447-a7f2-6ecd920c620f`. `assessment_access_policy_set` records `access_class=free` for that assessment. `catalog_topic_assessment_created` and `catalog_topic_assessment_published` share placement `01a11c31-ac50-7f0f-9e30-df6a3da6229b` on topic `01a0cebb-8c06-7d2a-b9ab-bb2373242175`.
+- The audit screen showed the actor only as `user`, so author and publisher identity separation was not separately verified from that screen.
 - Mobile/tablet 390px and 768px remain not accepted. The desktop observation does not replace that check.
