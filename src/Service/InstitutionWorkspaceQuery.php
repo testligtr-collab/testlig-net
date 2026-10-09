@@ -11,6 +11,7 @@ use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
 use App\Dto\InstitutionEnrolledStudent;
 use App\Dto\InstitutionPersonRow;
+use App\Dto\InstitutionQuestionOption;
 use App\Dto\InstitutionStudentInviteRow;
 use App\Dto\InstitutionTeacherInviteRow;
 use App\Dto\InstitutionTestRow;
@@ -27,6 +28,8 @@ use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
 use App\Entity\InstitutionStudentInvitation;
 use App\Entity\InstitutionTeacherInvitation;
+use App\Entity\Question;
+use App\Entity\QuestionRevision;
 use App\Entity\StudentProfile;
 use App\Entity\User;
 use App\Enum\AcademicYearStatus;
@@ -34,10 +37,14 @@ use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\ClassroomStatus;
+use App\Enum\GradeLevel;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
+use App\Enum\QuestionScope;
+use App\Enum\QuestionStatus;
+use App\Enum\QuestionType;
 use App\Enum\StudentEnrollmentStatus;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
@@ -383,6 +390,86 @@ final class InstitutionWorkspaceQuery
                     }
                 }
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{can_submit: bool, can_publish: bool}
+     */
+    public function testActions(Institution $institution, string $reference, User $actor): array
+    {
+        $assessment = $this->institutionAssessment($institution, $reference);
+        $revision = $assessment?->getCurrentRevision();
+        $author = $revision?->getCreatedBy();
+        $isAuthor = $author instanceof User && $author->getId()->equals($actor->getId());
+
+        return [
+            'can_submit' => $assessment instanceof Assessment && AssessmentStatus::Draft === $assessment->getStatus(),
+            'can_publish' => $assessment instanceof Assessment
+                && AssessmentStatus::InReview === $assessment->getStatus()
+                && !$isAuthor,
+        ];
+    }
+
+    public function institutionAssessment(Institution $institution, string $reference): ?Assessment
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+        $id = $this->matchingAssessmentId($institution, $reference);
+        if (!$id instanceof Uuid) {
+            return null;
+        }
+        $assessment = $this->entityManager->find(Assessment::class, $id);
+
+        return $assessment instanceof Assessment
+            && AssessmentScope::Institution === $assessment->getScope()
+            && $assessment->getInstitution()?->getId()->equals($institution->getId())
+            ? $assessment
+            : null;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function selectableGrades(Institution $institution): array
+    {
+        $grades = [];
+        foreach ($this->selectableQuestionRows($institution, null) as $row) {
+            $grades[$row->grade] = $row->grade;
+        }
+        $values = array_values($grades);
+        sort($values);
+
+        return $values;
+    }
+
+    /**
+     * @return list<InstitutionQuestionOption>
+     */
+    public function selectableQuestions(Institution $institution, GradeLevel $grade): array
+    {
+        return $this->selectableQuestionRows($institution, $grade);
+    }
+
+    public function selectableQuestion(Institution $institution, GradeLevel $grade, string $reference): ?Question
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+        foreach ($this->selectableQuestionRows($institution, $grade) as $row) {
+            if (!hash_equals($row->reference, $reference)) {
+                continue;
+            }
+            $question = $this->questionByReference($institution, $reference);
+
+            return $question instanceof Question
+                && $question->getGradeLevel() === $grade
+                && QuestionType::SingleChoice === $this->currentRevision($question)?->getType()
+                ? $question
+                : null;
         }
 
         return null;
@@ -887,6 +974,141 @@ final class InstitutionWorkspaceQuery
             ->setParameter('status', StudentEnrollmentStatus::Active)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    private function matchingAssessmentId(Institution $institution, string $reference): ?Uuid
+    {
+        /** @var list<array{id: mixed}> $ids */
+        $ids = $this->entityManager->createQueryBuilder()
+            ->select('a.id AS id')
+            ->from(Assessment::class, 'a')
+            ->andWhere('a.institution = :institution')
+            ->andWhere('a.scope = :scope')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('scope', AssessmentScope::Institution)
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($ids as $row) {
+            $id = self::uuid($row['id']);
+            if ($id instanceof Uuid && hash_equals($this->hasher->workspaceReference('assessment', $id), $reference)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<InstitutionQuestionOption>
+     */
+    private function selectableQuestionRows(Institution $institution, ?GradeLevel $grade): array
+    {
+        $builder = $this->entityManager->createQueryBuilder()
+            ->select('q', 's')
+            ->from(Question::class, 'q')
+            ->innerJoin('q.subject', 's')
+            ->innerJoin(
+                QuestionRevision::class,
+                'r',
+                'WITH',
+                'r.question = q AND r.revisionNumber = q.currentRevisionNumber',
+            )
+            ->andWhere('q.scope = :scope')
+            ->andWhere('q.institution = :institution')
+            ->andWhere('q.status = :status')
+            ->andWhere('r.type = :type')
+            ->setParameter('scope', QuestionScope::Institution)
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('status', QuestionStatus::Published)
+            ->setParameter('type', QuestionType::SingleChoice)
+            ->orderBy('q.code', 'ASC');
+        if ($grade instanceof GradeLevel) {
+            $builder->andWhere('q.gradeLevel = :grade')->setParameter('grade', $grade);
+        }
+        $questions = $builder->getQuery()->getResult();
+        $list = [];
+        foreach ($questions as $question) {
+            if (!$question instanceof Question) {
+                continue;
+            }
+            $revision = $this->currentRevision($question);
+            if (!$revision instanceof QuestionRevision || QuestionType::SingleChoice !== $revision->getType()) {
+                continue;
+            }
+            $list[] = new InstitutionQuestionOption(
+                $this->hasher->workspaceReference('question', $question->getId()),
+                $question->getCode(),
+                self::stemLine($revision->getStemContent()),
+                $question->getSubject()->getName(),
+                $question->getGradeLevel()->value,
+            );
+        }
+
+        return $list;
+    }
+
+    private function questionByReference(Institution $institution, string $reference): ?Question
+    {
+        /** @var list<array{id: mixed}> $ids */
+        $ids = $this->entityManager->createQueryBuilder()
+            ->select('q.id AS id')
+            ->from(Question::class, 'q')
+            ->andWhere('q.institution = :institution')
+            ->andWhere('q.scope = :scope')
+            ->andWhere('q.status = :status')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('scope', QuestionScope::Institution)
+            ->setParameter('status', QuestionStatus::Published)
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($ids as $row) {
+            $id = self::uuid($row['id']);
+            if (!$id instanceof Uuid || !hash_equals($this->hasher->workspaceReference('question', $id), $reference)) {
+                continue;
+            }
+            $question = $this->entityManager->find(Question::class, $id);
+
+            return $question instanceof Question
+                && QuestionScope::Institution === $question->getScope()
+                && $question->getInstitution()?->getId()->equals($institution->getId())
+                && QuestionStatus::Published === $question->getStatus()
+                ? $question
+                : null;
+        }
+
+        return null;
+    }
+
+    private function currentRevision(Question $question): ?QuestionRevision
+    {
+        $revision = $this->entityManager->getRepository(QuestionRevision::class)->findOneBy([
+            'question' => $question,
+            'revisionNumber' => $question->getCurrentRevisionNumber(),
+        ]);
+
+        return $revision instanceof QuestionRevision ? $revision : null;
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     */
+    private static function stemLine(array $document): string
+    {
+        $blocks = $document['blocks'] ?? null;
+        if (!\is_array($blocks)) {
+            return '';
+        }
+        foreach ($blocks as $block) {
+            if (!\is_array($block)) {
+                continue;
+            }
+            $text = $block['text'] ?? null;
+            if (\is_string($text) && '' !== trim($text)) {
+                return mb_substr(trim($text), 0, 160);
+            }
+        }
+
+        return '';
     }
 
     private static function academicYearStatusLabel(AcademicYearStatus $status): string

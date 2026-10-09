@@ -5,6 +5,7 @@
 {% block institution_content %}
 <section>
     <h1>Kurum testleri</h1>
+    <p><a class="btn btn--cta" href="{{ path('app_institution_test_new') }}">Yeni test</a></p>
     {% if tests is empty %}
         <p class="student-form-card">Henüz kurum testi yok.</p>
     {% else %}

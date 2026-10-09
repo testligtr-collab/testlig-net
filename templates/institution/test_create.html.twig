@@ -1,0 +1,63 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Yeni kurum testi — Testlig{% endblock %}
+
+{% block institution_content %}
+<section class="student-form-card">
+    <h1>Yeni kurum testi</h1>
+    <p><a href="{{ path('app_institution_tests') }}">Test listesine dön</a></p>
+    {% if error %}
+        <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if grades is empty %}
+        <p>Henüz kullanılabilir yayımlı kurum sorusu yok.</p>
+    {% else %}
+        <form method="get" action="{{ path('app_institution_test_new') }}">
+            <p>
+                <label for="test-grade-filter">Sınıf</label>
+                <select id="test-grade-filter" name="sinif" onchange="this.form.submit()">
+                    {% for grade in grades %}
+                        <option value="{{ grade }}" {% if values.grade == grade ~ '' %}selected{% endif %}>{{ grade }}. sınıf</option>
+                    {% endfor %}
+                </select>
+            </p>
+        </form>
+        {% if questions is empty %}
+            <p>Henüz kullanılabilir yayımlı kurum sorusu yok.</p>
+        {% else %}
+            <form method="post" action="{{ path('app_institution_test_new') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_test_create') }}">
+                <input type="hidden" name="grade" value="{{ values.grade }}">
+                <p>
+                    <label for="test-title">Test adı</label>
+                    <input id="test-title" name="title" required maxlength="180" value="{{ values.title }}">
+                </p>
+                <p>
+                    <label for="test-instructions">Yönerge</label>
+                    <textarea id="test-instructions" name="instructions" maxlength="2000">{{ values.instructions }}</textarea>
+                </p>
+                <p>
+                    <label for="test-duration">Süre (dakika, isteğe bağlı)</label>
+                    <input id="test-duration" name="duration_minutes" inputmode="numeric" value="{{ values.duration_minutes }}">
+                </p>
+                <p>
+                    <label for="test-points">Soru puanı</label>
+                    <input id="test-points" name="points" required value="{{ values.points }}">
+                </p>
+                <fieldset>
+                    <legend>Sorular</legend>
+                    {% for question in questions %}
+                        <p>
+                            <label>
+                                <input type="checkbox" name="question_refs[]" value="{{ question.reference }}">
+                                {{ question.code }} — {{ question.stem }} ({{ question.subjectName }})
+                            </label>
+                        </p>
+                    {% endfor %}
+                </fieldset>
+                <button class="btn btn--cta" type="submit">Taslağı oluştur</button>
+            </form>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}
