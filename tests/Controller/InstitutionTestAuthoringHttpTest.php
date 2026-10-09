@@ -157,9 +157,10 @@ final class InstitutionTestAuthoringHttpTest extends WebTestCase
         $list = (string) $manager->getResponse()->getContent();
         self::assertStringContainsString('Kurum Quizi', $list);
         self::assertStringContainsString('Yayında', $list);
-        $manager->request('GET', '/kurum/testler/'.$reference.'/ata');
+        $assign = $manager->request('GET', '/kurum/testler/'.$reference.'/ata');
         self::assertStringContainsString('1 A', (string) $manager->getResponse()->getContent());
-        $manager->submit($manager->getCrawler()->selectButton('Sınıfa ata')->form());
+        $classroom = (string) $assign->filter('select[name="classroom"] option')->eq(1)->attr('value');
+        $manager->submit($assign->selectButton('Sınıfa ata')->form(['classroom' => $classroom]));
         self::assertResponseRedirects();
         $manager->followRedirect();
         self::assertStringContainsString('1 A', (string) $manager->getResponse()->getContent());

@@ -15,11 +15,12 @@
         <form method="get" action="{{ path('app_institution_test_new') }}">
             <p>
                 <label for="test-grade-filter">Sınıf</label>
-                <select id="test-grade-filter" name="sinif" onchange="this.form.submit()">
+                <select id="test-grade-filter" name="sinif">
                     {% for grade in grades %}
                         <option value="{{ grade }}" {% if values.grade == grade ~ '' %}selected{% endif %}>{{ grade }}. sınıf</option>
                     {% endfor %}
                 </select>
+                <button type="submit">Soruları listele</button>
             </p>
         </form>
         {% if questions is empty %}
