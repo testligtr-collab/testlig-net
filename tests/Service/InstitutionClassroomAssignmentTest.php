@@ -711,14 +711,11 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         foreach ([$wideReference, $practiceReference, $otherReference, str_repeat('a', 20)] as $hidden) {
             $client->request('GET', '/ogretmen/atamalar/'.$hidden.'/sonuclar');
             self::assertResponseStatusCodeSame(404);
-            self::assertStringNotContainsString('Bos Ogrenci', (string) $client->getResponse()->getContent());
-            self::assertStringNotContainsString('2,5', (string) $client->getResponse()->getContent());
-            self::assertStringNotContainsString($attemptId, (string) $client->getResponse()->getContent());
+            $this->assertResultTableAbsent((string) $client->getResponse()->getContent());
         }
         $client->request('GET', '/yonetim/testler/'.$practiceAssessmentId.'/sonuclar');
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('Bos Ogrenci', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('2,5 / 2,5', (string) $client->getResponse()->getContent());
+        $this->assertResultTableAbsent((string) $client->getResponse()->getContent());
         $this->rebindDeliveryFixtures();
         self::assertSame($before, $this->attemptScoreReleaseFingerprint());
 
@@ -733,15 +730,10 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
             $this->login($client, $email);
             $client->request('GET', '/ogretmen/atamalar/'.$deliveryReference.'/sonuclar');
             self::assertResponseStatusCodeSame(404, $email);
-            $denied = (string) $client->getResponse()->getContent();
-            self::assertStringNotContainsString('Bos Ogrenci', $denied);
-            self::assertStringNotContainsString('A U', $denied);
-            self::assertStringNotContainsString('2,5', $denied);
-            self::assertStringNotContainsString($attemptId, $denied);
-            self::assertStringNotContainsString('ciphertext', $denied);
-            self::assertStringNotContainsString('storageKey', $denied);
+            $this->assertResultTableAbsent((string) $client->getResponse()->getContent());
             $client->request('GET', '/yonetim/testler/'.$practiceAssessmentId.'/sonuclar');
             self::assertResponseStatusCodeSame(403, $email);
+            $this->assertResultTableAbsent((string) $client->getResponse()->getContent());
         }
         $this->rebindDeliveryFixtures();
         self::assertSame($before, $this->attemptScoreReleaseFingerprint());
@@ -1311,6 +1303,16 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
                 'required' => $section['items'][0]['required'],
             ]],
         ];
+    }
+
+    private function assertResultTableAbsent(string $html): void
+    {
+        self::assertStringNotContainsString('institution-table', $html);
+        self::assertStringNotContainsString('data-label="Puan"', $html);
+        self::assertStringNotContainsString('2,5 / 2,5', $html);
+        self::assertStringNotContainsString('ciphertext', $html);
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
     }
 
     private function namedActiveUser(string $email, string $firstName, string $lastName, UserRole $role): User
