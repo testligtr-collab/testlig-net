@@ -6,8 +6,6 @@ namespace App\Controller;
 
 use App\Assessment\AssessmentScore;
 use App\Entity\Institution;
-use App\Entity\Question;
-use App\Entity\QuestionRevision;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentFailureReason;
@@ -17,10 +15,9 @@ use App\Enum\GradeLevel;
 use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionOrderMode;
-use App\Enum\QuestionType;
 use App\Enum\ResultReleasePolicy;
 use App\Exception\AssessmentException;
-use App\Repository\QuestionRevisionRepository;
+use App\Repository\SubjectRepository;
 use App\Service\AssessmentManager;
 use App\Service\InstitutionWorkspaceGate;
 use App\Service\InstitutionWorkspaceQuery;
@@ -32,6 +29,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 #[Route('/kurum')]
 #[IsGranted('ROLE_USER')]
@@ -41,7 +39,7 @@ final class InstitutionTestAuthoringController extends AbstractController
         private readonly InstitutionWorkspaceGate $gate,
         private readonly InstitutionWorkspaceQuery $query,
         private readonly AssessmentManager $assessments,
-        private readonly QuestionRevisionRepository $questionRevisions,
+        private readonly SubjectRepository $subjects,
         private readonly InvitationCodeDigestHasher $hasher,
     ) {
     }
@@ -76,9 +74,6 @@ final class InstitutionTestAuthoringController extends AbstractController
         if (!$grade instanceof GradeLevel || !\in_array($grade->value, $grades, true)) {
             return $this->form($institution, null, 'Sınıf düzeyi geçerli olmalıdır.', $values);
         }
-        if ([] === $this->query->selectableQuestions($institution, $grade)) {
-            return $this->form($institution, $grade, 'Henüz kullanılabilir yayımlı kurum sorusu yok.', $values);
-        }
         if ($this->hasMarkup($values['title']) || $this->hasMarkup($values['instructions']) || '' === $values['title']) {
             return $this->form($institution, $grade, 'Test adı geçerli olmalıdır.', $values);
         }
@@ -86,7 +81,10 @@ final class InstitutionTestAuthoringController extends AbstractController
             $duration = $this->durationSeconds($values['duration_minutes']);
             $points = AssessmentScore::normalizePoints('' === $values['points'] ? '1' : $values['points']);
             $resolved = $this->resolveItems($institution, $grade, $request->request->all('question_refs'), $points);
-            if (null === $resolved) {
+            if ('empty' === $resolved) {
+                return $this->form($institution, $grade, 'Henüz kullanılabilir yayımlı kurum sorusu yok.', $values);
+            }
+            if ('none' === $resolved) {
                 return $this->form($institution, $grade, 'En az bir soru seçin.', $values);
             }
             $assessment = $this->assessments->createDraftAssessment(
@@ -228,45 +226,37 @@ final class InstitutionTestAuthoringController extends AbstractController
     }
 
     /**
-     * @return array{subject: Subject, items: list<array{questionId: string, questionRevisionId: string, position: int, points: string, penaltyPoints: string, required: bool}>}|null
+     * @return array{subject: Subject, items: list<array{questionId: string, questionRevisionId: string, position: int, points: string, penaltyPoints: string, required: bool}>}|'empty'|'none'
      */
-    private function resolveItems(Institution $institution, GradeLevel $grade, mixed $references, string $points): ?array
+    private function resolveItems(Institution $institution, GradeLevel $grade, mixed $references, string $points): array|string
     {
         if (!\is_array($references) || [] === $references) {
-            return null;
+            return 'none';
         }
-        $items = [];
-        $subject = null;
-        $position = 1;
-        $seen = [];
-        foreach ($references as $reference) {
-            if (!\is_string($reference)) {
-                throw new NotFoundHttpException('Not Found');
-            }
-            $reference = strtolower($reference);
-            if (isset($seen[$reference])) {
-                throw new NotFoundHttpException('Not Found');
-            }
-            $seen[$reference] = true;
-            $question = $this->query->selectableQuestion($institution, $grade, $reference);
-            if (!$question instanceof Question) {
-                throw new NotFoundHttpException('Not Found');
-            }
-            $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
-            if (!$revision instanceof QuestionRevision
-                || QuestionType::SingleChoice !== $revision->getType()
-                || $revision->getRevisionNumber() !== $question->getCurrentRevisionNumber()
-            ) {
-                throw new NotFoundHttpException('Not Found');
-            }
-            $questionSubject = $question->getSubject();
-            if ($subject instanceof Subject && !$subject->getId()->equals($questionSubject->getId())) {
+        $resolved = $this->query->resolveSelectableQuestions($institution, $grade, $references);
+        if ($resolved->catalogEmpty) {
+            return 'empty';
+        }
+        if ($resolved->rejected || [] === $resolved->items) {
+            throw new NotFoundHttpException('Not Found');
+        }
+        $subjectId = null;
+        foreach ($resolved->items as $selection) {
+            if (null !== $subjectId && $subjectId !== $selection->subjectId) {
                 throw AssessmentException::subjectMismatch();
             }
-            $subject = $questionSubject;
+            $subjectId = $selection->subjectId;
+        }
+        $subject = $this->subjects->findOneById(Uuid::fromString($subjectId));
+        if (!$subject instanceof Subject) {
+            throw new NotFoundHttpException('Not Found');
+        }
+        $items = [];
+        $position = 1;
+        foreach ($resolved->items as $selection) {
             $items[] = [
-                'questionId' => $question->getId()->toRfc4122(),
-                'questionRevisionId' => $revision->getId()->toRfc4122(),
+                'questionId' => $selection->questionId,
+                'questionRevisionId' => $selection->revisionId,
                 'position' => $position,
                 'points' => $points,
                 'penaltyPoints' => '0',

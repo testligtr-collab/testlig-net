@@ -19,8 +19,10 @@ use App\Enum\QuestionType;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Question\Content\QuestionContentDocument;
+use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\InstitutionMembershipRepository;
 use App\Repository\InstitutionRepository;
+use App\Repository\SubjectRepository;
 use App\Repository\UserRepository;
 use App\Service\AcademicYearManager;
 use App\Service\ClassroomManager;
@@ -32,6 +34,7 @@ use App\Service\CurriculumUnitManager;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
+use App\Service\InstitutionWorkspaceQuery;
 use App\Service\InvitationCodeDigestHasher;
 use App\Service\QuestionManager;
 use App\Service\SubjectManager;
@@ -39,6 +42,7 @@ use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -327,6 +331,22 @@ final class InstitutionTestAuthoringHttpTest extends WebTestCase
         self::assertSame(0, $this->auditCount('assessment_published'));
     }
 
+    public function testPickerAndResolutionQueriesDoNotGrowWithQuestionCount(): void
+    {
+        $this->bootPeople();
+        $first = $this->seedBoundQuestions(2, 0);
+        $small = $this->measureBoundQueries($first, 1);
+        $second = $this->seedBoundQuestions(4, 2);
+        $large = $this->measureBoundQueries(array_merge($first, $second), 4);
+        self::assertGreaterThan(0, $small['picker']);
+        self::assertGreaterThan(0, $small['resolve']);
+        self::assertSame($small, $large);
+        $this->rejectUnusableReferences($first[0]);
+        self::assertSame(0, $this->assessmentCount());
+        self::assertSame(0, $this->auditCount('assessment_created'));
+        self::assertSame(0, $this->auditCount('assessment_published'));
+    }
+
     private function bootPeople(): void
     {
         $this->createActive('quiz-sa@example.com', UserRole::SuperAdmin);
@@ -377,6 +397,151 @@ final class InstitutionTestAuthoringHttpTest extends WebTestCase
         });
 
         return \is_array($refs) ? $refs : [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function seedBoundQuestions(int $count, int $offset): array
+    {
+        $refs = $this->withKernel(function () use ($count, $offset): array {
+            $author = $this->user('quiz-sa@example.com');
+            $publisher = $this->user('quiz-manager@example.com');
+            $institution = $this->institution('Ada Koleji');
+            $subjects = static::getContainer()->get(SubjectRepository::class);
+            $outcomes = static::getContainer()->get(CurriculumLearningOutcomeRepository::class);
+            self::assertInstanceOf(SubjectRepository::class, $subjects);
+            self::assertInstanceOf(CurriculumLearningOutcomeRepository::class, $outcomes);
+            $subject = $subjects->findOneByCode('math_bound');
+            $outcome = $outcomes->findOneBy(['code' => 'lo_bound']);
+            if (!$subject instanceof Subject) {
+                $subject = $this->subject($author, 'math_bound', 'Matematik Olcu');
+            }
+            if (!$outcome instanceof CurriculumLearningOutcome) {
+                $outcome = $this->outcome($author, $subject, GradeLevel::Grade1, 'bound');
+            }
+            $references = [];
+            for ($index = 0; $index < $count; ++$index) {
+                $number = $offset + $index;
+                $references[] = $this->question(
+                    $author,
+                    $publisher,
+                    $institution,
+                    $subject,
+                    $outcome,
+                    GradeLevel::Grade1,
+                    QuestionType::SingleChoice,
+                    'Olcu sorusu '.$number,
+                    true,
+                );
+            }
+
+            return $references;
+        });
+
+        return \is_array($refs) ? array_values($refs) : [];
+    }
+
+    /**
+     * @param list<string> $references
+     *
+     * @return array{picker: int, resolve: int}
+     */
+    private function measureBoundQueries(array $references, int $selected): array
+    {
+        $measured = $this->withKernel(function () use ($references, $selected): array {
+            $query = static::getContainer()->get(InstitutionWorkspaceQuery::class);
+            self::assertInstanceOf(InstitutionWorkspaceQuery::class, $query);
+            $institution = $this->institution('Ada Koleji');
+            $this->doctrineDebugDataHolder()->reset();
+            $options = $query->selectableQuestions($institution, GradeLevel::Grade1);
+            $picker = $this->recordedStatements();
+            self::assertCount(\count($references), $options);
+            $pickerSql = $this->recordedSql();
+            $this->doctrineDebugDataHolder()->reset();
+            $resolved = $query->resolveSelectableQuestions(
+                $institution,
+                GradeLevel::Grade1,
+                \array_slice($references, 0, $selected),
+            );
+            $resolve = $this->recordedStatements();
+            self::assertFalse($resolved->rejected);
+            self::assertFalse($resolved->catalogEmpty);
+            self::assertCount($selected, $resolved->items);
+
+            return [
+                'picker' => $picker,
+                'resolve' => $resolve,
+                'pickerSql' => $pickerSql,
+                'resolveSql' => $this->recordedSql(),
+            ];
+        });
+        self::assertIsArray($measured);
+        $pickerSql = \is_array($measured['pickerSql'] ?? null) ? implode("\n", $measured['pickerSql']) : '';
+        $resolveSql = \is_array($measured['resolveSql'] ?? null) ? implode("\n", $measured['resolveSql']) : '';
+        foreach ([$pickerSql, $resolveSql] as $sql) {
+            self::assertStringNotContainsString('explanation_content', $sql);
+            self::assertStringNotContainsString('question_answer_keys', $sql);
+            self::assertStringNotContainsString('question_revision_options', $sql);
+        }
+        self::assertStringNotContainsString('stem_content', $resolveSql);
+
+        return [
+            'picker' => \is_int($measured['picker'] ?? null) ? $measured['picker'] : 0,
+            'resolve' => \is_int($measured['resolve'] ?? null) ? $measured['resolve'] : 0,
+        ];
+    }
+
+    private function rejectUnusableReferences(string $validReference): void
+    {
+        $this->withKernel(function () use ($validReference): void {
+            $query = static::getContainer()->get(InstitutionWorkspaceQuery::class);
+            self::assertInstanceOf(InstitutionWorkspaceQuery::class, $query);
+            $institution = $this->institution('Ada Koleji');
+            $duplicate = $query->resolveSelectableQuestions($institution, GradeLevel::Grade1, [$validReference, $validReference]);
+            $broken = $query->resolveSelectableQuestions($institution, GradeLevel::Grade1, ['not-a-reference']);
+            $unknown = $query->resolveSelectableQuestions($institution, GradeLevel::Grade1, ['0123456789abcdef0123']);
+            self::assertTrue($duplicate->rejected);
+            self::assertTrue($broken->rejected);
+            self::assertTrue($unknown->rejected);
+            self::assertSame([], $duplicate->items);
+            self::assertSame([], $broken->items);
+            self::assertSame([], $unknown->items);
+        });
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function recordedSql(): array
+    {
+        $sql = [];
+        foreach ($this->doctrineDebugDataHolder()->getData() as $queries) {
+            if (!\is_array($queries)) {
+                continue;
+            }
+            foreach ($queries as $query) {
+                $statement = \is_array($query) ? ($query['sql'] ?? null) : null;
+                if (\is_string($statement) && '' !== trim($statement)) {
+                    $sql[] = $statement;
+                }
+            }
+        }
+
+        return $sql;
+    }
+
+    private function recordedStatements(): int
+    {
+        return \count($this->recordedSql());
+    }
+
+    private function doctrineDebugDataHolder(): DebugDataHolder
+    {
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+
+        return $holder;
     }
 
     private function seedClassroom(): void
