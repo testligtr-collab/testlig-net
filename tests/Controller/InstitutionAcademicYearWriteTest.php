@@ -51,7 +51,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         $this->addMember('year-owner@example.com', 'year-manager@example.com', InstitutionMembershipRole::Manager, 'Ada Koleji');
         $foreignId = $this->institutionId('Bora Koleji');
 
-        $owner = static::createClient();
+        $owner = $this->browser();
         $this->login($owner, 'year-owner@example.com');
         $owner->request('GET', '/kurum/akademik-yillar');
         self::assertResponseIsSuccessful();
@@ -71,13 +71,14 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         self::assertStringNotContainsString('Dönem oluşturma bu ekranda yok.', (string) $owner->getResponse()->getContent());
 
         $crawler = $owner->request('GET', '/kurum/akademik-yillar');
-        $values = $crawler->selectButton('Dönemi oluştur')->form()->getValues();
-        $owner->request('POST', '/kurum/akademik-yillar', $values + [
+        $form = $crawler->selectButton('Dönemi oluştur')->form([
             'name' => 'Pilot Donemi',
             'starts_on' => '2026-09-01',
             'ends_on' => '2027-06-15',
-            'institution_id' => $foreignId,
         ]);
+        $owner->request($form->getMethod(), $form->getUri(), array_merge($form->getValues(), [
+            'institution_id' => $foreignId,
+        ]));
         self::assertResponseRedirects('/kurum/akademik-yillar');
         $owner->followRedirect();
         $html = (string) $owner->getResponse()->getContent();
@@ -166,7 +167,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         self::assertStringContainsString('Sonraki Donem', $classroom);
         self::assertStringNotContainsString('Pilot Donemi', $classroom);
 
-        $manager = static::createClient();
+        $manager = $this->browser();
         $this->login($manager, 'year-manager@example.com');
         $crawler = $manager->request('GET', '/kurum/akademik-yillar');
         self::assertResponseIsSuccessful();
@@ -193,7 +194,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         $this->createActive('year-sa@example.com', UserRole::SuperAdmin);
         $this->createActive('year-owner@example.com', UserRole::User, 'Ada', 'Yılmaz');
         $this->openInstitution('year-owner@example.com', 'Ada Koleji');
-        $client = static::createClient();
+        $client = $this->browser();
         $this->login($client, 'year-owner@example.com');
 
         $client->request('POST', '/kurum/akademik-yillar', [
@@ -306,7 +307,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         $this->addMember('year-owner@example.com', 'year-student@example.com', InstitutionMembershipRole::Student, 'Ada Koleji');
         $this->addMember('year-owner@example.com', 'year-staff@example.com', InstitutionMembershipRole::Staff, 'Ada Koleji');
 
-        $owner = static::createClient();
+        $owner = $this->browser();
         $this->login($owner, 'year-owner@example.com');
         $crawler = $owner->request('GET', '/kurum/akademik-yillar');
         $owner->submit($crawler->selectButton('Dönemi oluştur')->form([
@@ -318,7 +319,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         $reference = $this->activateReference((string) $owner->getResponse()->getContent());
         $created = $this->auditCount('academic_year_created');
 
-        $anonymous = static::createClient();
+        $anonymous = $this->browser();
         $anonymous->request('GET', '/kurum/akademik-yillar');
         self::assertResponseRedirects('/giris');
         $anonymous->request('POST', '/kurum/akademik-yillar', ['name' => 'Gizli']);
@@ -330,7 +331,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
             'year-staff@example.com',
             'year-global@example.com',
         ] as $email) {
-            $client = static::createClient();
+            $client = $this->browser();
             $this->login($client, $email);
             $client->request('GET', '/kurum/akademik-yillar');
             self::assertResponseStatusCodeSame(403);
@@ -344,7 +345,7 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
             self::assertResponseStatusCodeSame(403);
         }
 
-        $other = static::createClient();
+        $other = $this->browser();
         $this->login($other, 'year-other@example.com');
         $crawler = $other->request('GET', '/kurum/akademik-yillar');
         self::assertResponseIsSuccessful();
@@ -369,6 +370,13 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         self::assertSame('planned', $this->yearStatus('Bora Donemi'));
         self::assertSame($created + 1, $this->auditCount('academic_year_created'));
         self::assertSame(0, $this->auditCount('academic_year_activated'));
+    }
+
+    private function browser(): KernelBrowser
+    {
+        self::ensureKernelShutdown();
+
+        return static::createClient();
     }
 
     private function activateReference(string $html): string
