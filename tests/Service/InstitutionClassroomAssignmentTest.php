@@ -9,6 +9,8 @@ use App\Entity\Assessment;
 use App\Entity\AssessmentAttempt;
 use App\Entity\AssessmentDelivery;
 use App\Entity\AssessmentDeliveryRecipient;
+use App\Entity\AssessmentPublication;
+use App\Entity\AssessmentScoringRun;
 use App\Entity\Classroom;
 use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\Institution;
@@ -19,6 +21,7 @@ use App\Entity\SecurityAuditEvent;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
+use App\Enum\AssessmentDeliveryAudienceType;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
@@ -27,14 +30,21 @@ use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionOrderMode;
 use App\Enum\QuestionType;
+use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
+use App\Enum\ResultReleaseStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\StudentEnrollmentStatus;
+use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserRole;
+use App\Enum\UserStatus;
 use App\Exception\InstitutionTestAssignmentException;
 use App\Exception\StudentPracticeException;
 use App\Repository\AssessmentAttemptRepository;
+use App\Repository\AssessmentPublicationRepository;
 use App\Repository\QuestionRevisionRepository;
+use App\Service\AccessPackageManager;
+use App\Service\AssessmentResultReleaseManager;
 use App\Service\InstitutionClassroomTestAssigner;
 use App\Service\InstitutionDeliveryReport;
 use App\Service\InvitationCodeDigestHasher;
@@ -571,6 +581,170 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
         self::assertStringContainsString('2,5', (string) $client->getResponse()->getContent());
         $client->request('GET', '/ogrenci');
         self::assertSelectorTextContains('section[aria-labelledby="continue-heading"]', 'Şu anda devam eden bir testin yok.');
+    }
+
+    public function testTeacherClassroomResultHttpDoesNotLeakOrWrite(): void
+    {
+        $ctx = $this->institutionClass('httpr');
+        $idle = $this->namedActiveUser('httpr-idle@example.com', 'Bos', 'Ogrenci', UserRole::Student);
+        $idleMembership = $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $idle, InstitutionMembershipRole::Student, 'add_idle');
+        $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $idleMembership, 'enroll_idle');
+        $otherStudent = $this->namedActiveUser('httpr-other-student@example.com', 'Diger', 'Sinif', UserRole::Student);
+        $otherMembership = $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $otherStudent, InstitutionMembershipRole::Student, 'add_other_s');
+        $otherClassroom = $this->classroomManager()->create(
+            $ctx['classroom']->getAcademicYear(),
+            $ctx['owner'],
+            'Diger Sinif',
+            GradeLevel::Grade9,
+            'other',
+            'B',
+            30,
+        );
+        $this->enrollmentManager()->enroll($otherClassroom, $ctx['owner'], $otherMembership, 'enroll_other');
+        $otherTeacher = $this->namedActiveUser('httpr-other-teacher@example.com', 'Diger', 'Ogretmen', UserRole::Student);
+        $otherTeacherMembership = $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $otherTeacher, InstitutionMembershipRole::Teacher, 'add_other_t');
+        $this->teacherManager()->assign($otherClassroom, $ctx['owner'], $otherTeacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'assign_other_t');
+        $staff = $this->namedActiveUser('httpr-staff@example.com', 'Yetkisiz', 'Personel', UserRole::Student);
+        $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $staff, InstitutionMembershipRole::Staff, 'add_staff');
+        $globalTeacher = $this->namedActiveUser('httpr-global-teacher@example.com', 'Global', 'Ogretmen', UserRole::Teacher);
+        [$outsider] = $this->readyClassroom('httprout');
+
+        $refs = $this->references($ctx['assessment'], $ctx['classroom']);
+        $deliveryReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $refs['assessment'], $refs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $deliveryReference);
+        $otherRefs = $this->references($ctx['assessment'], $otherClassroom);
+        $otherReference = $this->assigner()->createDraft($ctx['owner'], $ctx['institution'], $otherRefs['assessment'], $otherRefs['classroom'], null, null, null);
+        $this->assigner()->activate($ctx['owner'], $ctx['institution'], $otherReference);
+
+        $student = $this->fresh($ctx['student']);
+        $cards = $this->catalog()->listFor($student);
+        self::assertCount(1, $cards);
+        $code = $cards[0]['code'];
+        $this->practice()->start($student, GradeLevel::Grade9, $code);
+        $this->practice()->saveChoice($student, GradeLevel::Grade9, $code, 1, 2, 0);
+        $this->practice()->finish($student, GradeLevel::Grade9, $code);
+        $delivery = $this->requireDelivery($ctx['institution'], $deliveryReference);
+        $attempt = $this->em->getRepository(AssessmentAttempt::class)->findOneBy([
+            'delivery' => $delivery,
+            'user' => $student,
+        ]);
+        self::assertInstanceOf(AssessmentAttempt::class, $attempt);
+        $run = $this->em->find(AssessmentScoringRun::class, $this->scoringRunId($attempt));
+        self::assertInstanceOf(AssessmentScoringRun::class, $run);
+        $release = $this->releaseManager()->release($run, $this->fresh($ctx['owner']), 'release_httpr');
+        self::assertSame(ResultReleaseStatus::Released, $release->getStatus());
+
+        $publication = $this->publicationFor($ctx['assessment']);
+        [$opens, $closes] = $this->defaultWindow();
+        $wide = $this->deliveries()->createDraft(
+            $ctx['institution'],
+            $publication,
+            AssessmentDeliveryAudienceType::Institution,
+            null,
+            null,
+            $ctx['owner'],
+            $opens,
+            $closes,
+            1,
+            null,
+            null,
+            'wide_httpr',
+        );
+        $this->deliveries()->activate($wide, $ctx['owner'], 'wide_act_httpr');
+        $wide = $this->em->find(AssessmentDelivery::class, $wide->getId());
+        self::assertInstanceOf(AssessmentDelivery::class, $wide);
+
+        $practiceAssessment = $this->publishFreePracticeAssessment($this->fresh($ctx['sa']), 'httpr_prac');
+        $idleFresh = $this->fresh($idle);
+        $practiceAttempt = $this->practice()->start($idleFresh, GradeLevel::Grade9, $practiceAssessment->getCode());
+        $practiceDelivery = $practiceAttempt->getDelivery();
+
+        $attemptId = $attempt->getId()->toRfc4122();
+        $teacherEmail = $ctx['teacher']->getEmail();
+        $studentEmail = $ctx['student']->getEmail();
+        $idleEmail = $idle->getEmail();
+        $practiceTitle = 'Bireysel Pratik Disi';
+        $practiceReference = $this->hasher()->workspaceReference('delivery', $practiceDelivery->getId());
+        $wideReference = $this->hasher()->workspaceReference('delivery', $wide->getId());
+        $practiceAssessmentId = $practiceAssessment->getId()->toRfc4122();
+        self::assertGreaterThan(0, $this->countRows('assessment_attempts'));
+        self::assertGreaterThan(0, $this->countRows('assessment_scoring_runs'));
+        self::assertGreaterThan(0, $this->countRows('assessment_result_releases'));
+        $before = $this->attemptScoreReleaseFingerprint();
+        self::ensureKernelShutdown();
+
+        $client = static::createClient();
+        $this->login($client, $teacherEmail);
+        $crawler = $client->request('GET', '/ogretmen/atamalar/'.$deliveryReference.'/sonuclar');
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Kurum testi httpr_inst', $html);
+        self::assertStringContainsString('%50', $html);
+        self::assertStringContainsString('%100', $html);
+        $completed = null;
+        $idleRow = null;
+        foreach ($crawler->filter('table.institution-table tbody tr') as $row) {
+            self::assertInstanceOf(\DOMElement::class, $row);
+            $cells = [];
+            foreach ($row->getElementsByTagName('td') as $cell) {
+                $cells[] = trim($cell->textContent ?? '');
+            }
+            self::assertCount(4, $cells);
+            if ('Tamamlandı' === $cells[1]) {
+                $completed = $cells;
+            }
+            if ('Bos Ogrenci' === $cells[0]) {
+                $idleRow = $cells;
+            }
+        }
+        self::assertSame(['A U', 'Tamamlandı', '2,5 / 2,5', '%100'], $completed);
+        self::assertSame(['Bos Ogrenci', 'Başlamadı', '—', '—'], $idleRow);
+        self::assertStringNotContainsString($practiceTitle, $html);
+        self::assertStringNotContainsString('Diger Sinif', $html);
+        self::assertStringNotContainsString($studentEmail, $html);
+        self::assertStringNotContainsString($idleEmail, $html);
+        self::assertStringNotContainsString($attemptId, $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('storageKey', $html);
+        self::assertStringNotContainsString('ciphertext', $html);
+        self::assertDoesNotMatchRegularExpression('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i', $html);
+        foreach ([$wideReference, $practiceReference, $otherReference, str_repeat('a', 20)] as $hidden) {
+            $client->request('GET', '/ogretmen/atamalar/'.$hidden.'/sonuclar');
+            self::assertResponseStatusCodeSame(404);
+            self::assertStringNotContainsString('Bos Ogrenci', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString('2,5', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString($attemptId, (string) $client->getResponse()->getContent());
+        }
+        $client->request('GET', '/yonetim/testler/'.$practiceAssessmentId.'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+        self::assertStringNotContainsString('Bos Ogrenci', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('2,5 / 2,5', (string) $client->getResponse()->getContent());
+        $this->rebindDeliveryFixtures();
+        self::assertSame($before, $this->attemptScoreReleaseFingerprint());
+
+        foreach ([
+            $otherTeacher->getEmail(),
+            $staff->getEmail(),
+            $globalTeacher->getEmail(),
+            $outsider->getEmail(),
+        ] as $email) {
+            self::ensureKernelShutdown();
+            $client = static::createClient();
+            $this->login($client, $email);
+            $client->request('GET', '/ogretmen/atamalar/'.$deliveryReference.'/sonuclar');
+            self::assertResponseStatusCodeSame(404, $email);
+            $denied = (string) $client->getResponse()->getContent();
+            self::assertStringNotContainsString('Bos Ogrenci', $denied);
+            self::assertStringNotContainsString('A U', $denied);
+            self::assertStringNotContainsString('2,5', $denied);
+            self::assertStringNotContainsString($attemptId, $denied);
+            self::assertStringNotContainsString('ciphertext', $denied);
+            self::assertStringNotContainsString('storageKey', $denied);
+            $client->request('GET', '/yonetim/testler/'.$practiceAssessmentId.'/sonuclar');
+            self::assertResponseStatusCodeSame(403, $email);
+        }
+        $this->rebindDeliveryFixtures();
+        self::assertSame($before, $this->attemptScoreReleaseFingerprint());
     }
 
     public function testDashboardHidesAssignedContinueWhenDeliveryIsCancelled(): void
@@ -1137,6 +1311,109 @@ final class InstitutionClassroomAssignmentTest extends WebTestCase
                 'required' => $section['items'][0]['required'],
             ]],
         ];
+    }
+
+    private function namedActiveUser(string $email, string $firstName, string $lastName, UserRole $role): User
+    {
+        $user = $this->factory->createAndPersist($email, 'Guclu-Parola-123!', $firstName, $lastName, $role);
+        $user->markEmailVerified(new \DateTimeImmutable('now'));
+        $user->transitionTo(UserStatus::Active);
+        $this->users->save($user);
+
+        return $user;
+    }
+
+    private function publicationFor(Assessment $assessment): AssessmentPublication
+    {
+        $publications = static::getContainer()->get(AssessmentPublicationRepository::class);
+        self::assertInstanceOf(AssessmentPublicationRepository::class, $publications);
+        $publication = $publications->findOneBy(['assessment' => $assessment, 'publicationNumber' => 1]);
+        self::assertInstanceOf(AssessmentPublication::class, $publication);
+
+        return $publication;
+    }
+
+    private function publishFreePracticeAssessment(User $author, string $suffix): Assessment
+    {
+        $reviewer = $this->activeUser($suffix.'-prev@example.com', UserRole::HeadTeacher);
+        $subject = $this->subjects()->create($author, 'math_'.$suffix, 'Math '.$suffix, 'subj_'.$suffix);
+        $draft = $this->programs()->createDraft($subject, $author, GradeLevel::Grade9, 'math_'.$suffix, 'Math', '1.0', 'prog_'.$suffix);
+        $unit = $this->units()->create($draft, $author, 'u1', 'Unit', 1, 'unit_'.$suffix);
+        $topic = $this->topics()->createRoot($unit, $author, 't1', 'Topic', 1, 'topic_'.$suffix);
+        $outcome = $this->outcomes()->create($topic, $author, 'lo_'.$suffix, 'Outcome', 1, 'outcome_'.$suffix);
+        $this->programs()->publish($draft, $author, 'pub_'.$suffix);
+        $question = $this->createPublishedPlatformQuestion($author, $reviewer, $subject, $outcome, $suffix);
+        $revisions = static::getContainer()->get(QuestionRevisionRepository::class);
+        self::assertInstanceOf(QuestionRevisionRepository::class, $revisions);
+        $revision = $revisions->findForQuestionNumber($question, 1);
+        self::assertInstanceOf(QuestionRevision::class, $revision);
+        $assessment = $this->assessments()->createDraftAssessment(
+            $author,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade9,
+            'Bireysel Pratik Disi',
+            null,
+            null,
+            3600,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Immediate,
+            null,
+            [$this->sectionWithPenalty($question, $revision, '0.00')],
+            'create_'.$suffix,
+            $subject,
+        );
+        $this->assessments()->submitForReview($assessment, $author, 'submit_'.$suffix);
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+        $publisher = $this->users->find($reviewer->getId());
+        self::assertInstanceOf(User::class, $publisher);
+        $this->assessments()->publish($assessment, $publisher, 'publish_'.$suffix);
+        $assessment = $this->em->find(Assessment::class, $assessment->getId());
+        self::assertInstanceOf(Assessment::class, $assessment);
+        $actor = $this->users->find($author->getId());
+        self::assertInstanceOf(User::class, $actor);
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        self::assertInstanceOf(AccessPackageManager::class, $packages);
+        $packages->setAssessmentAccessPolicy($assessment, $actor, ResourceAccessClass::Free, 'free_'.$suffix);
+
+        return $assessment;
+    }
+
+    private function scoringRunId(AssessmentAttempt $attempt): \Symfony\Component\Uid\Uuid
+    {
+        $run = $this->em->getRepository(AssessmentScoringRun::class)->findOneBy(['attempt' => $attempt]);
+        self::assertInstanceOf(AssessmentScoringRun::class, $run);
+
+        return $run->getId();
+    }
+
+    private function releaseManager(): AssessmentResultReleaseManager
+    {
+        $service = static::getContainer()->get(AssessmentResultReleaseManager::class);
+        self::assertInstanceOf(AssessmentResultReleaseManager::class, $service);
+
+        return $service;
+    }
+
+    private function countRows(string $table): int
+    {
+        return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM '.$table);
+    }
+
+    private function attemptScoreReleaseFingerprint(): string
+    {
+        $connection = $this->em->getConnection();
+        $payload = [
+            $connection->fetchAllAssociative('SELECT HEX(id) AS id, status, updated_at, submitted_at FROM assessment_attempts ORDER BY id'),
+            $connection->fetchAllAssociative('SELECT HEX(id) AS id, status, updated_at, final_points, percentage FROM assessment_scoring_runs ORDER BY id'),
+            $connection->fetchAllAssociative('SELECT HEX(id) AS id, status, updated_at FROM assessment_result_releases ORDER BY id'),
+        ];
+
+        return hash('sha256', json_encode($payload, \JSON_THROW_ON_ERROR));
     }
 
     private function hasher(): InvitationCodeDigestHasher
