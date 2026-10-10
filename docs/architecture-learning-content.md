@@ -210,6 +210,17 @@ answer keys through `QuestionManager`. A second apply is a noop. Review, publish
 and assessment links stay separate SoD steps. Production dispatch needs a separate approval.
 Browser credential and file-picker security is not relaxed.
 
+## Production checkpoint (2026-10-06, ChatGPT SuperAdmin/öğrenci)
+
+External observation. Not re-verified from this repository checkout. Do not re-run import/apply.
+
+- Content `01a10bdc-1b0b-7ddb-872f-d9ae7cf56917`, revision `01a10bdc-1b0f-737e-afcb-15de2cbadd44`, publication `01a110a4-7375-7c58-8352-a042e2585fb4` published **free**.
+- Placement `01a110a5-d675-71cb-96f4-f821dbe531fd` on catalog topic `01a0cebb-8c06-7d2a-b9ab-bb2373242175` published.
+- Five bank questions published (C–A–D–B–C). That does not create a student assessment.
+- Student saw the topic body; desktop overflow/answer-key/`storageKey`/revision-id checks passed.
+- Mobile/tablet 390px and 768px: **not accepted.** Production login from this environment is forbidden. Local Playwright stack was blocked (Docker daemon down, `browser/node_modules` missing, no `var/browser-acceptance.json`). Synthetic browser-acceptance topic is not the production MAT.1.3.3 revision. See `docs/product-inventory.md`.
+- Product inventory: `docs/product-inventory.md`.
+
 ## Limitations
 
 - No CDN/S3 or antivirus. PDF approval is a manual admin ready mark, not a scan result.
