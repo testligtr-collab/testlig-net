@@ -10,6 +10,7 @@ use App\Dto\InstitutionAssignedTeacher;
 use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
 use App\Dto\InstitutionEnrolledStudent;
+use App\Dto\InstitutionOutcomeChoice;
 use App\Dto\InstitutionPersonRow;
 use App\Dto\InstitutionQuestionOption;
 use App\Dto\InstitutionQuestionResolution;
@@ -26,6 +27,7 @@ use App\Entity\AssessmentItem;
 use App\Entity\Classroom;
 use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherAssignment;
+use App\Entity\CurriculumLearningOutcome;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
 use App\Entity\InstitutionStudentInvitation;
@@ -33,12 +35,15 @@ use App\Entity\InstitutionTeacherInvitation;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
 use App\Entity\StudentProfile;
+use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AcademicYearStatus;
 use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\ClassroomStatus;
+use App\Enum\CurriculumContentStatus;
+use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
@@ -516,6 +521,60 @@ final class InstitutionWorkspaceQuery
         }
 
         return new InstitutionQuestionResolution(false, false, $items);
+    }
+
+    /**
+     * @return list<InstitutionOutcomeChoice>
+     */
+    public function publishedOutcomeChoices(Subject $subject, GradeLevel $grade): array
+    {
+        $choices = [];
+        foreach ($this->publishedOutcomeRows($subject, $grade) as $row) {
+            $choices[] = new InstitutionOutcomeChoice($row['reference'], $row['code'], $row['description']);
+        }
+
+        return $choices;
+    }
+
+    public function publishedOutcomeId(Subject $subject, GradeLevel $grade, string $reference): ?Uuid
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+        $reference = strtolower($reference);
+        foreach ($this->publishedOutcomeRows($subject, $grade) as $row) {
+            if (hash_equals($row['reference'], $reference)) {
+                return Uuid::fromString($row['id']);
+            }
+        }
+
+        return null;
+    }
+
+    public function institutionQuestionId(Institution $institution, string $reference): ?Uuid
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+        $reference = strtolower($reference);
+        /** @var list<array{id: mixed}> $rows */
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('q.id AS id')
+            ->from(Question::class, 'q')
+            ->andWhere('q.scope = :scope')
+            ->andWhere('q.institution = :institution')
+            ->setParameter('scope', QuestionScope::Institution)
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($rows as $row) {
+            $id = self::uuid($row['id']);
+            if ($id instanceof Uuid && hash_equals($this->hasher->workspaceReference('question', $id), $reference)) {
+                return $id;
+            }
+        }
+
+        return null;
     }
 
     public function applicationMessage(User $user): ?string
@@ -1039,6 +1098,50 @@ final class InstitutionWorkspaceQuery
         }
 
         return null;
+    }
+
+    /**
+     * @return list<array{id: string, reference: string, code: string, description: string}>
+     */
+    private function publishedOutcomeRows(Subject $subject, GradeLevel $grade): array
+    {
+        $rows = $this->entityManager->createQueryBuilder()
+            ->select('o.id AS outcomeId, o.code AS code, o.description AS description')
+            ->from(CurriculumLearningOutcome::class, 'o')
+            ->innerJoin('o.curriculumProgram', 'p')
+            ->innerJoin('o.topic', 't')
+            ->andWhere('p.subject = :subject')
+            ->andWhere('p.gradeLevel = :grade')
+            ->andWhere('p.status = :published')
+            ->andWhere('o.status = :active')
+            ->andWhere('t.status = :active')
+            ->setParameter('subject', $subject->getId(), 'uuid')
+            ->setParameter('grade', $grade)
+            ->setParameter('published', CurriculumStatus::Published)
+            ->setParameter('active', CurriculumContentStatus::Active)
+            ->orderBy('o.code', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+        $catalog = [];
+        foreach ($rows as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+            $outcomeId = self::uuid($row['outcomeId'] ?? null);
+            $code = $row['code'] ?? null;
+            $description = $row['description'] ?? null;
+            if (!$outcomeId instanceof Uuid || !\is_string($code) || !\is_string($description)) {
+                continue;
+            }
+            $catalog[] = [
+                'id' => $outcomeId->toRfc4122(),
+                'reference' => $this->hasher->workspaceReference('learning_outcome', $outcomeId),
+                'code' => $code,
+                'description' => mb_substr(trim($description), 0, 160),
+            ];
+        }
+
+        return $catalog;
     }
 
     private function eligibleQuestions(Institution $institution, ?GradeLevel $grade): QueryBuilder

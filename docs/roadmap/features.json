@@ -430,14 +430,17 @@
       "id": "M11-institution-questions",
       "module": "M11",
       "title": "Kurum soru oluşturma/inceleme/yayın ekranı",
-      "status": "planned",
-      "source": "V2 domain mevcut; AdminQuestionController yalnız Platform",
+      "status": "review",
+      "source": "src/Controller/InstitutionQuestionAuthoringController.php",
       "depends_on": [],
       "evidence": [
-        "V2 domain mevcut; AdminQuestionController yalnız Platform"
+        "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde.",
+        "İnceleme düzeltmesi 1d8edf8255919334c3f8994c8730aa730bbb5762. CI run 38049335033 Quality & tests ve Browser acceptance success. Roadmap coverage run 38049335028 success. POST subject_ref ve sınıf katı doğrulanır. Production kurum sorusu yazılmadı."
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/114"
+      ],
+      "acceptance": "İnceleme bekliyor. Main merge, deploy ve production kabulü ayrı kanıttır. X08-classroom-pilot ve 390/768 kabulü açık kalır.",
       "scope_decision": null
     },
     {

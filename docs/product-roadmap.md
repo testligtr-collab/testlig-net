@@ -61,7 +61,7 @@ PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision ya
 | M08 | Öğrenci: öğrenme, sınav, oyun, simülasyon, Q&A, ödeme, canlı ders | Katalog/öğrenme/test/sonuç/continue mevcut | İçerik etkinlik/ilerleme takibi ve diğer ürün modülleri |
 | M09 | Veli: çocuk link, rapor, aktivite, mesaj, bildirim | Bağlantı/çocuk/test özeti mevcut | Çalışma etkinliği raporu, mesaj ve bildirim; ödeme/paket görünümü ayrıca |
 | M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si; tüm hedef seviyelerde içerik envanteri |
-| M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut | Kurum soru editörü/yayını; AI destekli PDF/Word çıkarımı ve kontrollü inceleme |
+| M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut; kurum soru ekranı incelemede | AI destekli PDF/Word çıkarımı |
 | M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı PR #112 kodunda | Kurum sorusu; gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
 | M13 | Raporlama: öğrenci/öğretmen/kurum/admin, achievement | Sonuç/geçmiş ve sınıf raporu mevcut; analytics domain hazır | Kazanım/madde/öğrenci gelişimi ekranları, güvenli filtreler ve dışa aktarma |
 | M14 | Canlı ders: Request/Package/Review, Zoom/BBB/Jitsi webhook | Ürün karşılığı bulunamadı | Talep, yetkili onay, kredi, takvim/oda, katılım, yoklama/kayıt/tekrar; provider seçimi |
@@ -212,4 +212,4 @@ https://github.com/testligtr-collab/testlig-net/pull/112
 
 ## 9. Bir sonraki tek aktif iş
 
-Kurum test ekranının kod incelemesi edaef809 HEAD’inde geçti. Bu teslim o ekranı main’e alır. Production kurum testi oluşturulmadı. Kurum soru yazma ekranı ve gerçek pilot kabulü açık. Sonraki geliştirme bu teslimde başlatılmadı.
+Kurum test ekranı main’de. Kurum soru ekranı incelemede; production soru yazımı, sınıf pilotu ve 390/768 kabulü açık.
