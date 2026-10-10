@@ -1,0 +1,1030 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-10-10",
+  "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
+  "active_feature_ids": [
+    "M12-institution-authoring"
+  ],
+  "features": [
+    {
+      "id": "M01-email-registration",
+      "module": "M01",
+      "title": "Öğrenci/veli kayıt ve e-posta doğrulama",
+      "status": "present",
+      "source": "src/Controller/RegistrationController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/RegistrationController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M01-applications",
+      "module": "M01",
+      "title": "Öğretmen/kurum başvurusu ve onayla yetki açma",
+      "status": "partial",
+      "source": "src/Controller/OnboardingApplicationController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/OnboardingApplicationController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M01-trial",
+      "module": "M01",
+      "title": "Süreli deneme üyeliği",
+      "status": "planned",
+      "source": "V1: StudentRegistrationTrialApplicator",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentRegistrationTrialApplicator"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M02-email-login",
+      "module": "M02",
+      "title": "E-posta giriş, çıkış ve parola işlemleri",
+      "status": "present",
+      "source": "src/Controller/SecurityController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/SecurityController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M02-member-code",
+      "module": "M02",
+      "title": "Üye koduyla giriş",
+      "status": "planned",
+      "source": "V1: MemberCodeService",
+      "depends_on": [],
+      "evidence": [
+        "V1: MemberCodeService"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M02-sms",
+      "module": "M02",
+      "title": "Telefon/SMS ile giriş ve doğrulama",
+      "status": "partial",
+      "source": "src/Service/PhoneVerificationClaimManager.php",
+      "depends_on": [],
+      "evidence": [
+        "PhoneVerificationClaimManager yalnız telefon claim altyapısıdır; SMS gönderimi ve SMS giriş ekranı doğrulanmadı."
+      ],
+      "pr_links": [],
+      "acceptance": "SMS sağlayıcısı, giriş/doğrulama ekranı ve hatalı kod/süre kontrolleri tamamlanmalı. Partial yalnız claim altyapısını ifade eder.",
+      "scope_decision": null
+    },
+    {
+      "id": "M02-oauth",
+      "module": "M02",
+      "title": "Sosyal OAuth giriş",
+      "status": "planned",
+      "source": "V1: SocialAuth",
+      "depends_on": [],
+      "evidence": [
+        "V1: SocialAuth"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M02-guest-claim",
+      "module": "M02",
+      "title": "Misafir/kodla sınav ve hesaba attempt claim",
+      "status": "planned",
+      "source": "V1: GuestExamLoginService / GuestAttemptClaimSubscriber",
+      "depends_on": [],
+      "evidence": [
+        "V1: GuestExamLoginService / GuestAttemptClaimSubscriber"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M03-user-admin",
+      "module": "M03",
+      "title": "Kullanıcı rol/durum yönetimi",
+      "status": "present",
+      "source": "src/Controller/Admin/AdminUserController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/Admin/AdminUserController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M03-bulk-import",
+      "module": "M03",
+      "title": "Toplu kullanıcı aktarımı",
+      "status": "planned",
+      "source": "V1: BulkUserImporter",
+      "depends_on": [],
+      "evidence": [
+        "V1: BulkUserImporter"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M03-group-transition",
+      "module": "M03",
+      "title": "Öğrenci grupları ve geçiş yönetimi",
+      "status": "planned",
+      "source": "V1: StudentGroup / GroupTransition",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentGroup / GroupTransition"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M03-module-permissions",
+      "module": "M03",
+      "title": "Moderatör modül izin yönetimi",
+      "status": "planned",
+      "source": "V1: AdminModulePermission",
+      "depends_on": [],
+      "evidence": [
+        "V1: AdminModulePermission"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M04-workspace",
+      "module": "M04",
+      "title": "Kurum üyeliği ve seçili çalışma alanı",
+      "status": "present",
+      "source": "src/Controller/InstitutionWorkspaceController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/InstitutionWorkspaceController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M05-branches",
+      "module": "M05",
+      "title": "Kurum şube/kampüs yönetimi",
+      "status": "planned",
+      "source": "V1: InstitutionBranch / Hierarchy",
+      "depends_on": [],
+      "evidence": [
+        "V1: InstitutionBranch / Hierarchy"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M05-bank-data",
+      "module": "M05",
+      "title": "Kurum/şube banka bilgilerinin ihtiyaç ve mahremiyet kararı",
+      "status": "decision_needed",
+      "source": "V1: BankAccount / BranchPii",
+      "depends_on": [],
+      "evidence": [
+        "V1: BankAccount / BranchPii"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M06-institution-classrooms",
+      "module": "M06",
+      "title": "Kurum sınıfı, davet ve enrollment",
+      "status": "present",
+      "source": "src/Controller/InstitutionWorkspaceController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/InstitutionWorkspaceController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M06-academic-years",
+      "module": "M06",
+      "title": "Akademik yıl oluşturma/aktifleştirme",
+      "status": "present",
+      "source": "src/Controller/InstitutionWorkspaceController.php (#111)",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/InstitutionWorkspaceController.php (#111)"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M06-independent-classes",
+      "module": "M06",
+      "title": "Bağımsız öğretmen sınıfı ve katılım kodu",
+      "status": "decision_needed",
+      "source": "V1: TeacherClass / TeacherClassJoinService",
+      "depends_on": [],
+      "evidence": [
+        "V1: TeacherClass / TeacherClassJoinService"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M07-teacher-workspace",
+      "module": "M07",
+      "title": "Öğretmen içerik çalışma alanı ve atanmış sınıflar",
+      "status": "present",
+      "source": "src/Controller/WorkspaceDashboardController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/WorkspaceDashboardController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M07-profile",
+      "module": "M07",
+      "title": "Öğretmen mesleki profil/onay akışı",
+      "status": "partial",
+      "source": "src/Service/TeacherApplicationManager.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Service/TeacherApplicationManager.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M07-student-notes",
+      "module": "M07",
+      "title": "Öğrenciye öğretmen notu ve geri bildirim",
+      "status": "planned",
+      "source": "V1: StudentTeacherNote",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentTeacherNote"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M07-editorial-panels",
+      "module": "M07",
+      "title": "Uzman/baş öğretmen ekip-kuyruk özel panelleri",
+      "status": "partial",
+      "source": "V1: panel_head / panel_expert; V2 ortak workspace",
+      "depends_on": [],
+      "evidence": [
+        "V1: panel_head / panel_expert; V2 ortak workspace"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M08-student-learning",
+      "module": "M08",
+      "title": "Öğrenci konu içeriği ve test gezinmesi",
+      "status": "present",
+      "source": "src/Controller/StudentCourseCatalogController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/StudentCourseCatalogController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M08-continue-test",
+      "module": "M08",
+      "title": "Kendi süresi dolmamış sınavına devam kartı",
+      "status": "present",
+      "source": "src/Service/StudentAssessmentPractice.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Service/StudentAssessmentPractice.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M08-lesson-progress",
+      "module": "M08",
+      "title": "Ders etkinliği, son ders ve ilerleme",
+      "status": "planned",
+      "source": "V1: StudentContentActivity; V2 test kartı ayrı",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentContentActivity; V2 test kartı ayrı"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M09-parent-link",
+      "module": "M09",
+      "title": "Veli bağlantısı, çocuk listesi ve sınav özeti",
+      "status": "present",
+      "source": "src/Controller/ParentDashboardController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/ParentDashboardController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M09-parent-activity",
+      "module": "M09",
+      "title": "Veli çalışma/aktivite ve haftalık raporu",
+      "status": "partial",
+      "source": "V1: parent report/activity; V2 sınav özeti",
+      "depends_on": [],
+      "evidence": [
+        "V1: parent report/activity; V2 sınav özeti"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M10-curriculum",
+      "module": "M10",
+      "title": "Katalog, canonical eşleme, program/kazanım yönetimi",
+      "status": "partial",
+      "source": "src/Controller/Admin/AdminCatalogController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/Admin/AdminCatalogController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M11-platform-questions",
+      "module": "M11",
+      "title": "Platform soru editörü ve yayın",
+      "status": "present",
+      "source": "src/Controller/Admin/AdminQuestionController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/Admin/AdminQuestionController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M11-csv-import",
+      "module": "M11",
+      "title": "Soru CSV/onaylı paket import",
+      "status": "present",
+      "source": "src/Controller/Admin/AdminQuestionImportController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/Admin/AdminQuestionImportController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M11-institution-questions",
+      "module": "M11",
+      "title": "Kurum soru oluşturma/inceleme/yayın ekranı",
+      "status": "planned",
+      "source": "V2 domain mevcut; AdminQuestionController yalnız Platform",
+      "depends_on": [],
+      "evidence": [
+        "V2 domain mevcut; AdminQuestionController yalnız Platform"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M11-ai-import",
+      "module": "M11",
+      "title": "AI ile PDF/Word soru aktarımı",
+      "status": "planned",
+      "source": "V1: QuestionImportAi",
+      "depends_on": [
+        "M17-ai-provider"
+      ],
+      "evidence": [
+        "V1: QuestionImportAi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M12-platform-tests",
+      "module": "M12",
+      "title": "Platform test yazımı ve öğrenci çözme/sonuç",
+      "status": "present",
+      "source": "src/Controller/StudentAssessmentController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/StudentAssessmentController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M12-institution-authoring",
+      "module": "M12",
+      "title": "Kurum test oluşturma/inceleme/yayın ekranı",
+      "status": "review",
+      "source": "PR #112 edaef8090506da51a384d5af62f71d052547647a",
+      "depends_on": [
+        "M11-institution-questions"
+      ],
+      "evidence": [
+        "PR #112 edaef8090506da51a384d5af62f71d052547647a: run 37980804189 Quality & tests ve Browser acceptance success; bağımsız inceleme geçti."
+      ],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/112"
+      ],
+      "acceptance": "Merge/main teslimi ayrı doğrulanmalı. Production kurum quiz pilotu M11-institution-questions ekranına bağlıdır; oluşturma, farklı revision yazarıyla yayın ve sınıfa atama ayrıca kanıtlanmalı.",
+      "scope_decision": null
+    },
+    {
+      "id": "M12-classroom-delivery",
+      "module": "M12",
+      "title": "Kurum testini sınıfa atama/etkinleştirme",
+      "status": "present",
+      "source": "src/Controller/InstitutionTestAssignmentController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/InstitutionTestAssignmentController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M12-entitlement",
+      "module": "M12",
+      "title": "Test politika UI ve A/B/C öğrenci entitlement",
+      "status": "present",
+      "source": "src/Service/StudentAssessmentPractice.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Service/StudentAssessmentPractice.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M13-results",
+      "module": "M13",
+      "title": "Öğrenci geçmişi ve öğretmen sınıf sonuçları",
+      "status": "present",
+      "source": "src/Controller/TeacherClassroomController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/TeacherClassroomController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M13-analytics",
+      "module": "M13",
+      "title": "Kazanım/madde/gelişim analytics ekranları",
+      "status": "partial",
+      "source": "src/Service/AssessmentAnalyticsReader.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Service/AssessmentAnalyticsReader.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M13-manual-review",
+      "module": "M13",
+      "title": "Manuel not/regrade/release/review politika ekranları",
+      "status": "partial",
+      "source": "V2 scoring ve review domain",
+      "depends_on": [],
+      "evidence": [
+        "V2 scoring ve review domain"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M13-export",
+      "module": "M13",
+      "title": "Yetkili PDF/Excel sonuç dışa aktarma",
+      "status": "planned",
+      "source": "5 Ekim devir hedefi",
+      "depends_on": [],
+      "evidence": [
+        "5 Ekim devir hedefi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M14-live-lessons",
+      "module": "M14",
+      "title": "Canlı ders talep, kredi, oda, yoklama ve tekrar",
+      "status": "planned",
+      "source": "V1: LiveLesson / Request / Package / Review",
+      "depends_on": [
+        "M25-notifications"
+      ],
+      "evidence": [
+        "V1: LiveLesson / Request / Package / Review"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M15-commerce-core",
+      "module": "M15",
+      "title": "Ödeme/lisans/webhook/mutabakat temeli",
+      "status": "present",
+      "source": "src/Controller/PaymentWebhookController.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/PaymentWebhookController.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M15-checkout",
+      "module": "M15",
+      "title": "Paket satış ve gerçek provider checkout",
+      "status": "partial",
+      "source": "src/Commerce/PaymentProviderAdapterInterface.php",
+      "depends_on": [
+        "M15-commerce-core"
+      ],
+      "evidence": [
+        "PaymentProviderAdapterInterface sağlayıcı sözleşmesidir; gerçek checkout ve paket satış ekranı doğrulanmadı."
+      ],
+      "pr_links": [],
+      "acceptance": "Paket seçimi, gerçek checkout, webhook ve hak tanımlama zinciri doğrulanmalı. Partial mevcut ödeme altyapısını ifade eder.",
+      "scope_decision": null
+    },
+    {
+      "id": "M15-coupons",
+      "module": "M15",
+      "title": "Kupon/kampanya ve havale ürün akışı",
+      "status": "planned",
+      "source": "V1: Coupon / BankAccount",
+      "depends_on": [],
+      "evidence": [
+        "V1: Coupon / BankAccount"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M16-sms-provider",
+      "module": "M16",
+      "title": "SMS provider ve gönderim yönetimi",
+      "status": "planned",
+      "source": "V1: Netgsm / İleti Merkezi / Vatan",
+      "depends_on": [],
+      "evidence": [
+        "V1: Netgsm / İleti Merkezi / Vatan"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M17-ai-provider",
+      "module": "M17",
+      "title": "AI sağlayıcı, ayar, kota/maliyet ve onaylı üretim",
+      "status": "planned",
+      "source": "V1: SimAiSetting / SimAiProvider / AiGenerator",
+      "depends_on": [],
+      "evidence": [
+        "V1: SimAiSetting / SimAiProvider / AiGenerator"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M18-cloud-storage",
+      "module": "M18",
+      "title": "S3/R2/Bunny depolama bağlantısı ve dosya yönetimi",
+      "status": "partial",
+      "source": "src/Enum/StoredMediaStorageProvider.php (SDK değil)",
+      "depends_on": [],
+      "evidence": [
+        "StoredMediaStorageProvider enum'u sağlayıcı adlarını tanımlar; SDK bağlantısı veya bulut dosya yönetimi kanıtı değildir."
+      ],
+      "pr_links": [],
+      "acceptance": "S3/R2/Bunny bağlantı yapılandırması, bağlantı testi ve yetkili dosya işlemleri tamamlanmalı. Partial yalnız sağlayıcı metadata temelini ifade eder.",
+      "scope_decision": null
+    },
+    {
+      "id": "M18-local-pdf",
+      "module": "M18",
+      "title": "Özel yerel PDF saklama ve erişim",
+      "status": "present",
+      "source": "src/LearningContent/Document/LearningDocumentStorage.php",
+      "depends_on": [],
+      "evidence": [
+        "src/LearningContent/Document/LearningDocumentStorage.php"
+      ],
+      "pr_links": [],
+      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "scope_decision": null
+    },
+    {
+      "id": "M18-personal-files",
+      "module": "M18",
+      "title": "Kişisel/kurumsal Dosyalarım, klasör/kota/paylaşım",
+      "status": "decision_needed",
+      "source": "Kullanıcı kapsamı; V1 admin storage bunu kanıtlamıyor",
+      "depends_on": [],
+      "evidence": [
+        "Kullanıcı kapsamı; V1 admin storage bunu kanıtlamıyor"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M19-documents",
+      "module": "M19",
+      "title": "Bağımsız doküman kütüphanesi ve önizleme",
+      "status": "partial",
+      "source": "V2 document block mevcut; V1 LearningDocument / Ghostscript",
+      "depends_on": [
+        "M18-local-pdf"
+      ],
+      "evidence": [
+        "V2 document block mevcut; V1 LearningDocument / Ghostscript"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M20-video-library",
+      "module": "M20",
+      "title": "Video kütüphanesi ve dosya video/streaming",
+      "status": "partial",
+      "source": "V2 YT/Vimeo block; V1 LearningVideo/file",
+      "depends_on": [
+        "M18-cloud-storage"
+      ],
+      "evidence": [
+        "V2 YouTube/Vimeo ders blokları mevcut; dosya video kütüphanesi ve streaming doğrulanmadı."
+      ],
+      "pr_links": [],
+      "acceptance": "Dosya video yükleme, kütüphane ve yetkili streaming ayrıca tamamlanmalı. Partial mevcut YouTube/Vimeo bloklarını ifade eder.",
+      "scope_decision": null
+    },
+    {
+      "id": "M21-simulations",
+      "module": "M21",
+      "title": "Simülasyon motoru ve kataloğu",
+      "status": "planned",
+      "source": "V1: Simulation / QuizQuestion / QuizOption",
+      "depends_on": [],
+      "evidence": [
+        "V1: Simulation / QuizQuestion / QuizOption"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M22-games",
+      "module": "M22",
+      "title": "Eğitsel oyun kataloğu ve oyun skoru",
+      "status": "planned",
+      "source": "V1: GameCatalog / GameScore",
+      "depends_on": [],
+      "evidence": [
+        "V1: GameCatalog / GameScore"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M23-qna",
+      "module": "M23",
+      "title": "Soru-cevap ve uzman moderasyonu",
+      "status": "planned",
+      "source": "V1: StudentQuestion / QuestionAnswer / PublicQna",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentQuestion / QuestionAnswer / PublicQna"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M24-messaging",
+      "module": "M24",
+      "title": "Öğretmen/veli ve izinli mesajlaşma",
+      "status": "planned",
+      "source": "V1: Teacher/Message / ParentMessage",
+      "depends_on": [
+        "M09-parent-link"
+      ],
+      "evidence": [
+        "V1: Teacher/Message / ParentMessage"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M25-notifications",
+      "module": "M25",
+      "title": "Bildirim merkezi, tercih, okundu ve kanallar",
+      "status": "planned",
+      "source": "V1: StudentNotification",
+      "depends_on": [],
+      "evidence": [
+        "V1: StudentNotification"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M26-support",
+      "module": "M26",
+      "title": "İletişim/destek/feedback ve spam yönetimi",
+      "status": "planned",
+      "source": "V1: SupportMessage / SupportAdmin / SpamAttemptLog",
+      "depends_on": [],
+      "evidence": [
+        "V1: SupportMessage / SupportAdmin / SpamAttemptLog"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M27-news",
+      "module": "M27",
+      "title": "Haber/blog yayın ve kategoriler",
+      "status": "planned",
+      "source": "V1: Content / NewsCategory",
+      "depends_on": [],
+      "evidence": [
+        "V1: Content / NewsCategory"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M28-seo",
+      "module": "M28",
+      "title": "İçerik SEO/SchemaOrg ve yönetim",
+      "status": "partial",
+      "source": "src/Controller/PublicCatalogController.php sitemap/robots mevcut",
+      "depends_on": [],
+      "evidence": [
+        "src/Controller/PublicCatalogController.php sitemap/robots mevcut"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M29-cms",
+      "module": "M29",
+      "title": "Sayfa/menü/footer/slider/bölüm ve site ayarları CMS",
+      "status": "partial",
+      "source": "V1: Page/Nav/HomeSection; V2 HomepageView statik",
+      "depends_on": [],
+      "evidence": [
+        "V1: Page/Nav/HomeSection; V2 HomepageView statik"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M30-mobile-api",
+      "module": "M30",
+      "title": "Mobil API, auth/refresh/device sözleşmesi",
+      "status": "planned",
+      "source": "V1: Api/V1 / ApiRefreshToken",
+      "depends_on": [],
+      "evidence": [
+        "V1: Api/V1 / ApiRefreshToken"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "M31-traffic-ads",
+      "module": "M31",
+      "title": "Site trafik analitiği ve reklam/slot yönetimi",
+      "status": "decision_needed",
+      "source": "V1: SiteVisitLog / AdSlot / AdImpression; çocuk consent ayrı",
+      "depends_on": [],
+      "evidence": [
+        "V1: SiteVisitLog / AdSlot / AdImpression; çocuk consent ayrı"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X01-homework",
+      "module": "X01",
+      "title": "Ödev/proje, dosya teslimi ve rubrik",
+      "status": "planned",
+      "source": "5 Ekim devir hedefi",
+      "depends_on": [
+        "M18-local-pdf"
+      ],
+      "evidence": [
+        "5 Ekim devir hedefi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X02-study-tools",
+      "module": "X02",
+      "title": "Günlük plan, yanlış defteri, favori/not, adaptif tekrar",
+      "status": "planned",
+      "source": "5 Ekim devir hedefi",
+      "depends_on": [],
+      "evidence": [
+        "5 Ekim devir hedefi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X03-gamification",
+      "module": "X03",
+      "title": "Seri/rozet/görev/seviye/ödül",
+      "status": "planned",
+      "source": "5 Ekim devir hedefi",
+      "depends_on": [],
+      "evidence": [
+        "5 Ekim devir hedefi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X04-guidance",
+      "module": "X04",
+      "title": "Rehberlik ürün kapsamı",
+      "status": "decision_needed",
+      "source": "5 Ekim devirde ana hedef, ayrıntı eksik",
+      "depends_on": [],
+      "evidence": [
+        "5 Ekim devirde ana hedef, ayrıntı eksik"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X05-flutter",
+      "module": "X05",
+      "title": "Flutter telefon/tablet, offline/push ve mağaza",
+      "status": "planned",
+      "source": "5 Ekim devir hedefi",
+      "depends_on": [
+        "M30-mobile-api"
+      ],
+      "evidence": [
+        "5 Ekim devir hedefi"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X06-quality",
+      "module": "X06",
+      "title": "Backup/restore, gözlemleme, erişilebilirlik ve kapasite",
+      "status": "partial",
+      "source": "V2 CI/deploy temeli; tam kabul değil",
+      "depends_on": [],
+      "evidence": [
+        "V2 CI/deploy temeli; tam kabul değil"
+      ],
+      "pr_links": [],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "scope_decision": null
+    },
+    {
+      "id": "X07-mobile-acceptance",
+      "module": "X07",
+      "title": "Production 390/768 öğrenci konu kabulü",
+      "status": "blocked",
+      "source": "Önceki handoff: uygun ölçülebilir oturum eksik",
+      "depends_on": [],
+      "evidence": [
+        "Kontrol tarayıcısında uygun production öğrenci oturumu sağlanamadı; üç konu için 390/768 ölçümleri yapılmadı. Sentetik CI production kabulü değildir."
+      ],
+      "pr_links": [],
+      "acceptance": "1. sınıf öğrenci oturumunda üç konu x 390/768 için gövde/kart, taşma, bağlantı, hassas HTML verisi ve ekran kanıtı kaydet. Ölçülmeyen satır geçti sayılmaz.",
+      "scope_decision": null
+    },
+    {
+      "id": "X08-classroom-pilot",
+      "module": "X08",
+      "title": "Gerçek kurum öğretmen sonuç pilotu",
+      "status": "blocked",
+      "source": "Kurum sorusu+test+sınıf teslimatı bağımlılıkları",
+      "depends_on": [
+        "M11-institution-questions",
+        "M12-institution-authoring",
+        "M12-classroom-delivery"
+      ],
+      "evidence": [
+        "Öğretmen sonuç kodu ve regresyonları mevcut; production sınıf pilotu doğrulanmadı. Kurum soru ekranı yok, kurum test PR #112 incelemede."
+      ],
+      "pr_links": [],
+      "acceptance": "Kurum soru/test ekranları kullanılabilir olduktan sonra aktif yıl, sınıf, öğretmen ve öğrenciyle pilot yap. Kayıtlı doğru/yanlış/boş, puan/yüzde ve başka sınıf reddi doğrulanmalı. Platform MAT testi kullanılmaz.",
+      "scope_decision": null
+    },
+    {
+      "id": "X09-roadmap-governance",
+      "module": "X09",
+      "title": "Kanonik kapsam kaydı, AGENTS yönergesi ve CI roadmap kontrolü",
+      "status": "review",
+      "source": "10 Ekim kullanıcı talimatı: yol haritası kaybına karşı tedbir",
+      "depends_on": [],
+      "evidence": [
+        "31 modül/71 kayıt. PR #113 3eacc48ee2b525715855b07d3869e1f4c9762265: roadmap run 38036057075, Quality & tests/Browser acceptance run 38036056989 success. Bağımsız inceleme ve 10 guard testi geçti."
+      ],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/113"
+      ],
+      "acceptance": "Son HEAD için üç CI kontrolü gerekli; yeni metin commit'i eski CI ile geçti sayılmaz. Merge öncesi yönergeler main'de etkin değildir. Guard kanıt doğruluğu, branch protection veya production kabulü garantisi değildir.",
+      "scope_decision": null
+    }
+  ]
+}
