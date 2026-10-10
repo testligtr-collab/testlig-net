@@ -430,17 +430,18 @@
       "id": "M11-institution-questions",
       "module": "M11",
       "title": "Kurum soru oluşturma/inceleme/yayın ekranı",
-      "status": "review",
+      "status": "present",
       "source": "src/Controller/InstitutionQuestionAuthoringController.php",
       "depends_on": [],
       "evidence": [
         "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde.",
-        "İnceleme düzeltmesi 1d8edf8255919334c3f8994c8730aa730bbb5762. CI run 38049335033 Quality & tests ve Browser acceptance success. Roadmap coverage run 38049335028 success. POST subject_ref ve sınıf katı doğrulanır. Production kurum sorusu yazılmadı."
+        "PR #114 merge SHA ff4cd745b4e479edbcf0bcf284000846ee12182b. Main CI run 38051969843 success. Roadmap coverage run 38051969849 success. Auto-deploy run 38053237728 success.",
+        "Production kurum sorusu yazılmadı. X08-classroom-pilot uygulanmadı. 390/768 kabulü açık."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/114"
       ],
-      "acceptance": "İnceleme bekliyor. Main merge, deploy ve production kabulü ayrı kanıttır. X08-classroom-pilot ve 390/768 kabulü açık kalır.",
+      "acceptance": "Ekran kodu main'de. Production soru yazımı, sınıf pilotu ve 390/768 kabulü bu kaydı kapatmaz.",
       "scope_decision": null
     },
     {
@@ -484,7 +485,7 @@
       ],
       "evidence": [
         "src/Controller/InstitutionTestAuthoringController.php: kurum quiz taslağı, incelemeye gönderme ve farklı revision yazarıyla yayın. PR #112 kod HEAD edaef8090506da51a384d5af62f71d052547647a, CI run 37980804189 Quality & tests ve Browser acceptance success; bağımsız inceleme geçti.",
-        "Production kurum testi oluşturulmadı. Kurum soru ekranı yok. Gerçek sınıf pilotu X08-classroom-pilot kaydında açık."
+        "Production kurum testi oluşturulmadı. Kurum soru ekranı PR #114 ile main'de. Ekran teslimi X08-classroom-pilot kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/112"
@@ -1008,7 +1009,7 @@
         "M12-classroom-delivery"
       ],
       "evidence": [
-        "Öğretmen sonuç kodu ve regresyonları mevcut; production sınıf pilotu doğrulanmadı. Kurum soru ekranı yok. Kurum test ekranı PR #112 kodunda; production kurum testi oluşturulmadı."
+        "Öğretmen sonuç kodu mevcut. Kurum soru ekranı PR #114 merge SHA ff4cd745b4e479edbcf0bcf284000846ee12182b, main CI 38051969843, coverage 38051969849 ve deploy 38053237728 ile main'de. Kurum test ekranı PR #112 ile main'de. Engel ekran eksikliği değil: production kurum, üyelik, sınıf ve kazanım kayıtları ile uygun oturum doğrulanmadı. Pilot planı uygulanmadı."
       ],
       "pr_links": [],
       "acceptance": "Kurum soru/test ekranları kullanılabilir olduktan sonra aktif yıl, sınıf, öğretmen ve öğrenciyle pilot yap. Kayıtlı doğru/yanlış/boş, puan/yüzde ve başka sınıf reddi doğrulanmalı. Platform MAT testi kullanılmaz.",

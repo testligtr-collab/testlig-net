@@ -45,7 +45,7 @@ Amaç: V1 envanterindeki ürün yeteneklerini V2 ile eşleştirmek, yapılmış 
 | Ana sayfa, yasal sayfa yüzeyi, public ders katalog adları, sitemap/robots | HomeController, LegalPageController, PublicCatalogController; haber/CMS ürünlerinin varlığını kanıtlamaz |
 | CI/deploy ve erişim/DB bütünlüğü | Mevcut delivery omurgası; production mobil/tablet kabulünden ayrıdır |
 
-PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision yazarıyla yayın kodu bu teslimde main’e girer. Production kurum testi oluşturulmadı. Production pilotu kurum soru yazma ekranına bağlı.
+PR #112 kurum test ekranını main’e aldı. PR #114 merge SHA ff4cd745b4e479edbcf0bcf284000846ee12182b kurum soru ekranını main’e aldı. Main CI 38051969843, Roadmap coverage 38051969849 ve deploy 38053237728 success. Production kurum sorusu ve testi oluşturulmadı. Pilot uygulanmadı.
 
 ## 3. V1 modüllerinin tamamı için karşılaştırma
 
@@ -61,8 +61,8 @@ PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision ya
 | M08 | Öğrenci: öğrenme, sınav, oyun, simülasyon, Q&A, ödeme, canlı ders | Katalog/öğrenme/test/sonuç/continue mevcut | İçerik etkinlik/ilerleme takibi ve diğer ürün modülleri |
 | M09 | Veli: çocuk link, rapor, aktivite, mesaj, bildirim | Bağlantı/çocuk/test özeti mevcut | Çalışma etkinliği raporu, mesaj ve bildirim; ödeme/paket görünümü ayrıca |
 | M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si; tüm hedef seviyelerde içerik envanteri |
-| M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut; kurum soru ekranı incelemede | AI destekli PDF/Word çıkarımı |
-| M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı PR #112 kodunda | Kurum sorusu; gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
+| M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut; kurum soru ekranı main’de | AI destekli PDF/Word çıkarımı; production soru yazımı ve pilot ayrı |
+| M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı main’de | Gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
 | M13 | Raporlama: öğrenci/öğretmen/kurum/admin, achievement | Sonuç/geçmiş ve sınıf raporu mevcut; analytics domain hazır | Kazanım/madde/öğrenci gelişimi ekranları, güvenli filtreler ve dışa aktarma |
 | M14 | Canlı ders: Request/Package/Review, Zoom/BBB/Jitsi webhook | Ürün karşılığı bulunamadı | Talep, yetkili onay, kredi, takvim/oda, katılım, yoklama/kayıt/tekrar; provider seçimi |
 | M15 | Ödeme: Plan, Coupon, Order, iyzico/PayTR/havale | Ticaret/lisans/domain+ops mevcut; sandbox seam | Paket/teklif UI, checkout, gerçek provider adapter, havale operasyonu, kupon/kampanya |
@@ -136,9 +136,9 @@ Aynı anda tek aktif uygulama işi tutulacak. Aşağıdaki paketler birer PR de�
 | Sıra | Paket / yapılacaklar | Ön koşul | Bitiş kanıtı |
 |---|---|---|---|
 | 0 | Bu karşılaştırmayı kanonik envantere işle; V1 alt özelliklerinde belirsiz olanları Cursor yerel kodundan salt okunur teyit et | V1 kaynak klasörü + bu rapor; V2 main ve #112 ayrımı | Her satırda kaynak, durum, bağımlılık ve kabul bulunur; hiçbir konu sessiz kaybolmaz |
-| 1 | #112 kurum test ekranını teslim et | edaef809 CI ve inceleme | Main CI/deploy kanıtı; production kurum testi ve pilot ayrı |
-| 2 | Kurum soru oluşturma/inceleme/yayın ekranı | Mevcut QuestionManager, aynı tenant, revision SoD | Yayımlı kurum sorusu → kurum quiz seçicisi; negatif scope/CSRF/SoD testleri |
-| 3 | Tek kurum pilotu ve açık kabulleri kapatma | Aktif yıl/sınıf, farklı yazar-yayıncı, öğretmen/öğrenci | Kurum quiz→atama→çözme→sonuç sütunları; production 390/768 ve audit ayrı ölçülür |
+| 1 | #112 kurum test ekranı | Teslim edildi | Production kurum testi ve pilot ayrı |
+| 2 | #114 kurum soru ekranı | Merge ff4cd745b4e479edbcf0bcf284000846ee12182b; CI 38051969843; coverage 38051969849; deploy 38053237728 | Production soru yazımı ve pilot ayrı |
+| 3 | Tek kurum pilotu | Production kayıtları ve oturum doğrulanmadı | Bölüm 9 sırası uygulanmadı; 390/768 ayrı ölçülür |
 | 4 | Başvuru onayı ve rol/üyelik provisioning; öğretmen profil akışı | Mevcut application/identity manager'lar | Onay yetkisi, tekrar güvenliği, reddin erişim vermemesi, başka kullanıcı/kurum izolasyonu |
 | 5 | Depolama ve medya altyapısı: provider abstraction, bağlantı yönetimi, tarama/lifecycle, mevcut PDF uyumu | Tenant/entitlement ve dosya politikası | Local+seçilen bulut provider, özel erişim, storageKey sızmaması, integrity; ücretli provider seçimi ayrı |
 | 6 | Doküman/video kütüphaneleri ve öğretmen materyal kuyruğu | Medya altyapısı + mevcut LC editör/publish | Bağımsız katalog/filtre ve ders bağlama; öğretmen kendi yüklemesini kendisi onaylamaz |
@@ -159,7 +159,7 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.
-- Öğretmen sonuç tablosunun gerçek pilot kabulü uygun sınıf/teslimat olmadığı için açık; platform bireysel practice öğretmene açılmaz.
+- Öğretmen sonuç tablosunun gerçek pilot kabulü açık. Engel ekran eksikliği değil; production kayıtları ve uygun oturum doğrulanmadı. Bölüm 9 planı uygulanmadı. Platform MAT testi kurum testinin yerine kullanılmaz.
 - Başvuru onayı kullanıcıya kendi kendine rol verme değildir. Yetki ve SoD gevşetilmez.
 - PR #101 ürün envanteri main'de değil; eski doküman ayrı açık PR olarak duruyor. Bu görevde ona veya #112'ye yazılmadı.
 - Local/S3/R2/Bunny enum üyelerinin varlığı SDK veya çalışan bağlantı kanıtı değildir.
@@ -210,6 +210,22 @@ https://github.com/testligtr-collab/testlig-net/tree/2a615f1113126ad5b023b4a2893
 PR #112:
 https://github.com/testligtr-collab/testlig-net/pull/112
 
-## 9. Bir sonraki tek aktif iş
+## 9. Tek kurum pilotu
 
-Kurum test ekranı main’de. Kurum soru ekranı incelemede; production soru yazımı, sınıf pilotu ve 390/768 kabulü açık.
+Bu plan uygulanmadı. Production soru, test, sınıf veya attempt yazılmadı. 390/768 kabulü açık. Öncelik mevcut kayıtları kullanmaktır. Eksik kayıt bu belgeyle oluşturulmaz. Platform MAT testi kurum testinin yerine kullanılmaz.
+
+1. Mevcut aktif kurumu kullan. Aktif kurum yoksa pilot başlamaz.
+2. Aynı kurumda iki ayrı aktif owner veya manager kullan. Biri soru ve test revision’ını yazar. Diğeri yayımlar. Yazar kendi revision’ını yayımlamaz.
+3. Mevcut aktif akademik yılı kullan.
+4. Bu yıldaki mevcut 1. sınıfı kullan.
+5. Bu sınıfa atanmış mevcut öğretmeni kullan.
+6. Bu sınıfa kayıtlı mevcut öğrenciyi kullan.
+7. 1. sınıf ve seçilen ders için mevcut yayımlı programın aktif kazanımını kullan. Kazanım yoksa soru yazılmaz.
+8. Yazar en az üç tek seçenekli kurum sorusunu yazıp incelemeye gönderir. Yayıncı bu soruları yayımlar.
+9. Yazar yalnız bu yayımlı sorulardan 1. sınıf kurum testini yazıp incelemeye gönderir. Yayıncı testi yayımlar.
+10. Yayımlı testi bu 1. sınıfa atar ve etkinleştirir.
+11. Öğrenci bir soruyu doğru, birini yanlış cevaplar, birini boş bırakıp testi bitirir.
+12. Atanmış öğretmen sonuçta Doğru, Yanlış, Boş, puan ve yüzdeyi okur.
+13. Yalnız başka sınıfa atanmış öğretmen aynı teslimat sonucunda reddedilir.
+
+10 Ekim salt okunur kontrolünde production oturumu yoktu. Kurum, üyelik, sınıf ve kazanım kayıtları doğrulanamadı.
