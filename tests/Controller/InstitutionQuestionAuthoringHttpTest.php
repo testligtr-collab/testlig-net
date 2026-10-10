@@ -184,18 +184,18 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
     public function testOutcomeListQueryCountDoesNotGrow(): void
     {
         $this->bootPeople();
-        $this->seedMeasuredOutcomes(2);
-        $small = $this->outcomeQueries();
-        $this->seedMeasuredOutcomes(6);
-        $large = $this->outcomeQueries();
+        $this->seedMeasuredOutcomes(2, GradeLevel::Grade1);
+        $small = $this->outcomeQueries(GradeLevel::Grade1);
+        $this->seedMeasuredOutcomes(6, GradeLevel::Grade2);
+        $large = $this->outcomeQueries(GradeLevel::Grade2);
 
         self::assertGreaterThan(0, $small);
         self::assertSame($small, $large);
     }
 
-    private function outcomeQueries(): int
+    private function outcomeQueries(GradeLevel $grade): int
     {
-        return $this->withKernel(static function (): int {
+        return $this->withKernel(static function () use ($grade): int {
             $holder = static::getContainer()->get('doctrine.debug_data_holder');
             $query = static::getContainer()->get(InstitutionWorkspaceQuery::class);
             $subjects = static::getContainer()->get(SubjectRepository::class);
@@ -205,7 +205,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
             $subject = $subjects->findOneByCode('math');
             self::assertInstanceOf(Subject::class, $subject);
             $holder->reset();
-            $query->publishedOutcomeChoices($subject, GradeLevel::Grade1);
+            $query->publishedOutcomeChoices($subject, $grade);
             $count = 0;
             foreach ($holder->getData() as $queries) {
                 if (!\is_array($queries)) {
@@ -250,9 +250,9 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         return $refs;
     }
 
-    private function seedMeasuredOutcomes(int $count): void
+    private function seedMeasuredOutcomes(int $count, GradeLevel $grade): void
     {
-        $this->withKernel(function () use ($count): void {
+        $this->withKernel(function () use ($count, $grade): void {
             $actor = $this->user('q-sa@example.com');
             $math = $this->subject($actor, 'math', 'Matematik');
             $programs = static::getContainer()->get(CurriculumProgramManager::class);
@@ -263,7 +263,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
             self::assertInstanceOf(CurriculumUnitManager::class, $units);
             self::assertInstanceOf(CurriculumTopicManager::class, $topics);
             self::assertInstanceOf(CurriculumLearningOutcomeManager::class, $outcomes);
-            $program = $programs->createDraft($math, $actor, GradeLevel::Grade1, 'prog_'.$count, 'Program '.$count, '1.0', 'prog_'.$count);
+            $program = $programs->createDraft($math, $actor, $grade, 'prog_'.$count, 'Program '.$count, '1.0', 'prog_'.$count);
             $unit = $units->create($program, $actor, 'u_'.$count, 'Unite', 1, 'unit_'.$count);
             $topic = $topics->createRoot($unit, $actor, 't_'.$count, 'Konu', 1, 'topic_'.$count);
             for ($index = 1; $index <= $count; ++$index) {
@@ -400,15 +400,20 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
 
     private function csrf(KernelBrowser $client, string $intention): string
     {
-        return $this->withKernel(static function () use ($client, $intention): string {
-            $stack = static::getContainer()->get(RequestStack::class);
-            $tokens = static::getContainer()->get(CsrfTokenManagerInterface::class);
-            self::assertInstanceOf(RequestStack::class, $stack);
+        $session = $client->getRequest()->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $stack->push($client->getRequest());
+        try {
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
             self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
-            $stack->push($client->getRequest());
+            $value = $tokens->getToken($intention)->getValue();
+            $session->save();
 
-            return $tokens->getToken($intention)->getValue();
-        });
+            return $value;
+        } finally {
+            $stack->pop();
+        }
     }
 
     private function countTable(string $table): int
