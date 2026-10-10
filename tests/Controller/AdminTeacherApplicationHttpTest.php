@@ -103,15 +103,23 @@ final class AdminTeacherApplicationHttpTest extends WebTestCase
 
         $client = $this->browser();
         $this->login($client, 'appq-sa@example.com');
-        $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingA);
-        $token = $this->csrf($client, 'teacher_application_approve');
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+        $approve = $this->csrf($client, 'teacher_application_approve');
+        $reject = $this->csrf($client, 'teacher_application_reject');
         $this->setStatus('appq-sa@example.com', UserStatus::Suspended);
-        $before = $this->privilegeSnapshot();
-        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingA.'/onayla', ['_token' => $token]);
+        $before = $this->decisionSnapshot();
 
-        self::assertSame(OnboardingApplicationStatus::Pending->value, $this->applicationStatus($this->pendingA));
-        self::assertSame(0, $this->auditCount('teacher_application_approved'));
-        self::assertSame($before, $this->privilegeSnapshot());
+        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingA.'/onayla', [
+            '_token' => $approve,
+        ]);
+        self::assertResponseRedirects('/giris');
+        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingB.'/reddet', [
+            '_token' => $reject,
+            'reason_code' => 'incomplete_documents',
+        ]);
+        self::assertResponseRedirects('/giris');
+        self::assertSame($before, $this->decisionSnapshot());
     }
 
     public function testBrokenOrMissingReferenceDoesNotChangeAnotherApplication(): void
@@ -218,20 +226,51 @@ final class AdminTeacherApplicationHttpTest extends WebTestCase
     {
         $client = $this->browser();
         $this->login($client, $email);
-        $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingA);
-        $token = '';
-        if (200 === $client->getResponse()->getStatusCode()) {
-            $token = $this->csrf($client, 'teacher_application_approve');
-        }
-        $before = $this->privilegeSnapshot();
-        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingA.'/onayla', [
-            '_token' => '' !== $token ? $token : 'invalid',
-        ]);
+        $client->request('GET', '/hesabim');
+        self::assertResponseIsSuccessful();
+        $approve = $this->csrf($client, 'teacher_application_approve');
+        $reject = $this->csrf($client, 'teacher_application_reject');
+        $before = $this->decisionSnapshot();
 
-        self::assertNotSame(200, $client->getResponse()->getStatusCode());
-        self::assertSame(OnboardingApplicationStatus::Pending->value, $this->applicationStatus($this->pendingA));
-        self::assertSame(0, $this->auditCount('teacher_application_approved'));
-        self::assertSame($before, $this->privilegeSnapshot());
+        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingA.'/onayla', [
+            '_token' => $approve,
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingB.'/reddet', [
+            '_token' => $reject,
+            'reason_code' => 'incomplete_documents',
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame($before, $this->decisionSnapshot());
+    }
+
+    /**
+     * @return array{
+     *     statuses: array<string, string>,
+     *     approved_audits: int,
+     *     rejected_audits: int,
+     *     roles: array<string, list<string>>,
+     *     privileges: array<string, int>
+     * }
+     */
+    private function decisionSnapshot(): array
+    {
+        return [
+            'statuses' => [
+                $this->pendingA => $this->applicationStatus($this->pendingA),
+                $this->pendingB => $this->applicationStatus($this->pendingB),
+            ],
+            'approved_audits' => $this->auditCount('teacher_application_approved'),
+            'rejected_audits' => $this->auditCount('teacher_application_rejected'),
+            'roles' => [
+                'appq-sa@example.com' => $this->roles('appq-sa@example.com'),
+                'appq-admin@example.com' => $this->roles('appq-admin@example.com'),
+                'appq-teacher@example.com' => $this->roles('appq-teacher@example.com'),
+                'appq-a@example.com' => $this->roles('appq-a@example.com'),
+                'appq-b@example.com' => $this->roles('appq-b@example.com'),
+            ],
+            'privileges' => $this->privilegeSnapshot(),
+        ];
     }
 
     private function seed(): void
