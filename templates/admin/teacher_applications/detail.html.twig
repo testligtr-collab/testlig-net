@@ -1,0 +1,37 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Öğretmen başvurusu — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_teacher_applications') }}">Öğretmen başvuruları</a>
+        <span aria-hidden="true">/</span>
+        <span>Başvuru</span>
+    </nav>
+    <h1 class="panel-greeting">Öğretmen başvurusu</h1>
+    <p>Başvuru onayı öğretmen rolü vermez.</p>
+    <dl>
+        <dt>Başvuran</dt>
+        <dd>{{ application.user.firstName }} {{ application.user.lastName }}</dd>
+        <dt>E-posta</dt>
+        <dd>{{ application.user.email }}</dd>
+        <dt>Durum</dt>
+        <dd>{{ application.status.value }}</dd>
+    </dl>
+    {% if application.status.value == 'pending' %}
+        <form method="post" action="{{ path('app_admin_teacher_application_approve', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_approve') }}">
+            <button type="submit">Onayla</button>
+        </form>
+        <form method="post" action="{{ path('app_admin_teacher_application_reject', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_reject') }}">
+            <p>
+                <label for="teacher-application-reason">Ret nedeni</label>
+                <input id="teacher-application-reason" name="reason_code" maxlength="64" autocomplete="off">
+            </p>
+            <button type="submit">Reddet</button>
+        </form>
+    {% endif %}
+{% endblock %}

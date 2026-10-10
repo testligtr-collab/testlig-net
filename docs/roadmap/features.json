@@ -28,10 +28,11 @@
       "source": "src/Controller/OnboardingApplicationController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/OnboardingApplicationController.php"
+        "src/Controller/OnboardingApplicationController.php",
+        "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü, kurum ve üyelik vermez. Kurum başvurusu incelemesi, M07-profile ve rol provisioning bu dilimde yok."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Dar dilim: SuperAdmin öğretmen başvuru kuyruğu. Bütün başvuru ürünü tamamlanmış sayılmaz. Kurum başvurusu, mesleki profil ve rol provisioning açık kalır. Production kabulü ayrıdır.",
       "scope_decision": null
     },
     {
