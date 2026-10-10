@@ -11,6 +11,9 @@ use App\Dto\InstitutionClassroomDetail;
 use App\Dto\InstitutionClassroomRow;
 use App\Dto\InstitutionEnrolledStudent;
 use App\Dto\InstitutionPersonRow;
+use App\Dto\InstitutionQuestionOption;
+use App\Dto\InstitutionQuestionResolution;
+use App\Dto\InstitutionQuestionSelection;
 use App\Dto\InstitutionStudentInviteRow;
 use App\Dto\InstitutionTeacherInviteRow;
 use App\Dto\InstitutionTestRow;
@@ -27,6 +30,8 @@ use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
 use App\Entity\InstitutionStudentInvitation;
 use App\Entity\InstitutionTeacherInvitation;
+use App\Entity\Question;
+use App\Entity\QuestionRevision;
 use App\Entity\StudentProfile;
 use App\Entity\User;
 use App\Enum\AcademicYearStatus;
@@ -34,16 +39,21 @@ use App\Enum\AssessmentDeliveryStatus;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\ClassroomStatus;
+use App\Enum\GradeLevel;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
+use App\Enum\QuestionScope;
+use App\Enum\QuestionStatus;
+use App\Enum\QuestionType;
 use App\Enum\StudentEnrollmentStatus;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\TeacherAssignmentStatus;
 use App\Repository\InstitutionApplicationRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -386,6 +396,126 @@ final class InstitutionWorkspaceQuery
         }
 
         return null;
+    }
+
+    /**
+     * @return array{can_submit: bool, can_publish: bool}
+     */
+    public function testActions(Institution $institution, string $reference, User $actor): array
+    {
+        $assessment = $this->institutionAssessment($institution, $reference);
+        $revision = $assessment?->getCurrentRevision();
+        $author = $revision?->getCreatedBy();
+        $isAuthor = $author instanceof User && $author->getId()->equals($actor->getId());
+
+        return [
+            'can_submit' => $assessment instanceof Assessment && AssessmentStatus::Draft === $assessment->getStatus(),
+            'can_publish' => $assessment instanceof Assessment
+                && AssessmentStatus::InReview === $assessment->getStatus()
+                && !$isAuthor,
+        ];
+    }
+
+    public function institutionAssessment(Institution $institution, string $reference): ?Assessment
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
+        $id = $this->matchingAssessmentId($institution, $reference);
+        if (!$id instanceof Uuid) {
+            return null;
+        }
+        $assessment = $this->entityManager->find(Assessment::class, $id);
+
+        return $assessment instanceof Assessment
+            && AssessmentScope::Institution === $assessment->getScope()
+            && $assessment->getInstitution()?->getId()->equals($institution->getId())
+            ? $assessment
+            : null;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function selectableGrades(Institution $institution): array
+    {
+        /** @var list<array{grade: mixed}> $rows */
+        $rows = $this->eligibleQuestions($institution, null)
+            ->select('DISTINCT q.gradeLevel AS grade')
+            ->orderBy('q.gradeLevel', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+        $grades = [];
+        foreach ($rows as $row) {
+            $grade = self::gradeValue($row['grade']);
+            if (null !== $grade) {
+                $grades[$grade] = $grade;
+            }
+        }
+        $values = array_values($grades);
+        sort($values);
+
+        return $values;
+    }
+
+    /**
+     * @return list<InstitutionQuestionOption>
+     */
+    public function selectableQuestions(Institution $institution, GradeLevel $grade): array
+    {
+        $options = [];
+        foreach ($this->selectableCatalog($institution, $grade, true) as $row) {
+            $options[] = new InstitutionQuestionOption(
+                $row['reference'],
+                $row['code'],
+                $row['stem'],
+                $row['subjectName'],
+                $row['grade'],
+            );
+        }
+
+        return $options;
+    }
+
+    /**
+     * One catalog query for every posted reference.
+     *
+     * @param array<mixed> $references
+     */
+    public function resolveSelectableQuestions(Institution $institution, GradeLevel $grade, array $references): InstitutionQuestionResolution
+    {
+        $wanted = [];
+        foreach ($references as $reference) {
+            if (!\is_string($reference) || 1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+                return new InstitutionQuestionResolution(false, true, []);
+            }
+            $reference = strtolower($reference);
+            if (isset($wanted[$reference])) {
+                return new InstitutionQuestionResolution(false, true, []);
+            }
+            $wanted[$reference] = true;
+        }
+        if ([] === $wanted) {
+            return new InstitutionQuestionResolution(false, false, []);
+        }
+
+        $catalog = [];
+        foreach ($this->selectableCatalog($institution, $grade, false) as $row) {
+            $catalog[$row['reference']] = $row;
+        }
+        if ([] === $catalog) {
+            return new InstitutionQuestionResolution(true, true, []);
+        }
+        $items = [];
+        foreach (array_keys($wanted) as $reference) {
+            $row = $catalog[$reference] ?? null;
+            if (null === $row) {
+                return new InstitutionQuestionResolution(false, true, []);
+            }
+            $items[] = new InstitutionQuestionSelection($row['questionId'], $row['revisionId'], $row['subjectId']);
+        }
+
+        return new InstitutionQuestionResolution(false, false, $items);
     }
 
     public function applicationMessage(User $user): ?string
@@ -887,6 +1017,184 @@ final class InstitutionWorkspaceQuery
             ->setParameter('status', StudentEnrollmentStatus::Active)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    private function matchingAssessmentId(Institution $institution, string $reference): ?Uuid
+    {
+        /** @var list<array{id: mixed}> $ids */
+        $ids = $this->entityManager->createQueryBuilder()
+            ->select('a.id AS id')
+            ->from(Assessment::class, 'a')
+            ->andWhere('a.institution = :institution')
+            ->andWhere('a.scope = :scope')
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('scope', AssessmentScope::Institution)
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($ids as $row) {
+            $id = self::uuid($row['id']);
+            if ($id instanceof Uuid && hash_equals($this->hasher->workspaceReference('assessment', $id), $reference)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    private function eligibleQuestions(Institution $institution, ?GradeLevel $grade): QueryBuilder
+    {
+        $builder = $this->entityManager->createQueryBuilder()
+            ->from(Question::class, 'q')
+            ->innerJoin('q.subject', 's')
+            ->innerJoin(
+                QuestionRevision::class,
+                'r',
+                'WITH',
+                'r.question = q AND r.revisionNumber = q.currentRevisionNumber',
+            )
+            ->andWhere('q.scope = :scope')
+            ->andWhere('q.institution = :institution')
+            ->andWhere('q.status = :status')
+            ->andWhere('r.type = :type')
+            ->setParameter('scope', QuestionScope::Institution)
+            ->setParameter('institution', $institution->getId(), 'uuid')
+            ->setParameter('status', QuestionStatus::Published)
+            ->setParameter('type', QuestionType::SingleChoice);
+        if ($grade instanceof GradeLevel) {
+            $builder->andWhere('q.gradeLevel = :grade')->setParameter('grade', $grade);
+        }
+
+        return $builder;
+    }
+
+    /**
+     * @return list<array{reference: string, questionId: string, revisionId: string, code: string, grade: int, subjectId: string, subjectName: string, stem: string}>
+     */
+    private function selectableCatalog(Institution $institution, GradeLevel $grade, bool $includeStem): array
+    {
+        $builder = $this->eligibleQuestions($institution, $grade)
+            ->select('q.id AS questionId')
+            ->addSelect('q.code AS code')
+            ->addSelect('q.gradeLevel AS grade')
+            ->addSelect('q.currentRevisionNumber AS currentRevisionNumber')
+            ->addSelect('s.id AS subjectId')
+            ->addSelect('s.name AS subjectName')
+            ->addSelect('r.id AS revisionId')
+            ->addSelect('r.revisionNumber AS revisionNumber')
+            ->addSelect('r.type AS revisionType')
+            ->orderBy('q.code', 'ASC');
+        if ($includeStem) {
+            $builder->addSelect('r.stemContent AS stemContent');
+        }
+        $rows = $builder->getQuery()->getArrayResult();
+        $catalog = [];
+        foreach ($rows as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+            $questionId = self::uuid($row['questionId'] ?? null);
+            $revisionId = self::uuid($row['revisionId'] ?? null);
+            $subjectId = self::uuid($row['subjectId'] ?? null);
+            $gradeValue = self::gradeValue($row['grade'] ?? null);
+            $currentRevisionNumber = self::intValue($row['currentRevisionNumber'] ?? null);
+            $revisionNumber = self::intValue($row['revisionNumber'] ?? null);
+            $type = self::questionTypeValue($row['revisionType'] ?? null);
+            $code = $row['code'] ?? null;
+            $subjectName = $row['subjectName'] ?? null;
+            if (!$questionId instanceof Uuid
+                || !$revisionId instanceof Uuid
+                || !$subjectId instanceof Uuid
+                || null === $gradeValue
+                || null === $currentRevisionNumber
+                || $currentRevisionNumber !== $revisionNumber
+                || QuestionType::SingleChoice->value !== $type
+                || !\is_string($code)
+                || !\is_string($subjectName)
+            ) {
+                continue;
+            }
+            $stem = '';
+            if ($includeStem) {
+                $stemContent = $row['stemContent'] ?? null;
+                if (\is_string($stemContent)) {
+                    $decoded = json_decode($stemContent, true);
+                    $stemContent = \is_array($decoded) ? $decoded : null;
+                }
+                $stem = \is_array($stemContent) ? self::stemLine($stemContent) : '';
+            }
+            $catalog[] = [
+                'reference' => $this->hasher->workspaceReference('question', $questionId),
+                'questionId' => $questionId->toRfc4122(),
+                'revisionId' => $revisionId->toRfc4122(),
+                'code' => $code,
+                'grade' => $gradeValue,
+                'subjectId' => $subjectId->toRfc4122(),
+                'subjectName' => $subjectName,
+                'stem' => $stem,
+            ];
+        }
+
+        return $catalog;
+    }
+
+    private static function gradeValue(mixed $value): ?int
+    {
+        if ($value instanceof GradeLevel) {
+            return $value->value;
+        }
+        if (\is_int($value) || (\is_string($value) && 1 === preg_match('/^\d+$/', $value))) {
+            $grade = GradeLevel::tryFrom((int) $value);
+
+            return $grade?->value;
+        }
+
+        return null;
+    }
+
+    private static function intValue(mixed $value): ?int
+    {
+        if (\is_int($value)) {
+            return $value;
+        }
+        if (\is_string($value) && 1 === preg_match('/^\d+$/', $value)) {
+            return (int) $value;
+        }
+
+        return null;
+    }
+
+    private static function questionTypeValue(mixed $value): ?string
+    {
+        if ($value instanceof QuestionType) {
+            return $value->value;
+        }
+        if (\is_string($value)) {
+            return $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     */
+    private static function stemLine(array $document): string
+    {
+        $blocks = $document['blocks'] ?? null;
+        if (!\is_array($blocks)) {
+            return '';
+        }
+        foreach ($blocks as $block) {
+            if (!\is_array($block)) {
+                continue;
+            }
+            $text = $block['text'] ?? null;
+            if (\is_string($text) && '' !== trim($text)) {
+                return mb_substr(trim($text), 0, 160);
+            }
+        }
+
+        return '';
     }
 
     private static function academicYearStatusLabel(AcademicYearStatus $status): string

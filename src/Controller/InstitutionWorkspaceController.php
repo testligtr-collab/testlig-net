@@ -551,8 +551,12 @@ final class InstitutionWorkspaceController extends AbstractController
             throw new NotFoundHttpException('Not Found');
         }
 
+        $actions = $this->query->testActions($institution, strtolower($reference), $this->account());
+
         return $this->render('institution/test.html.twig', $this->frame($this->gate->resolve($this->account()), 'tests', [
             'test' => $row,
+            'can_submit' => $actions['can_submit'],
+            'can_publish' => $actions['can_publish'],
         ]));
     }
 

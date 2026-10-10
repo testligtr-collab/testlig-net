@@ -9,6 +9,18 @@
     <p>Soru sayısı: {{ test.itemCount }}</p>
     <p>Yayın: {{ test.publishedAtLabel|default('—') }}</p>
     <p>Teslimat: {{ test.deliveryLabel|default('—') }}</p>
+    {% if can_submit %}
+        <form method="post" action="{{ path('app_institution_test_submit', {reference: test.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_test_submit') }}">
+            <button class="btn btn--cta" type="submit">İncelemeye gönder</button>
+        </form>
+    {% endif %}
+    {% if can_publish %}
+        <form method="post" action="{{ path('app_institution_test_publish', {reference: test.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_test_publish') }}">
+            <button class="btn btn--cta" type="submit">Yayınla</button>
+        </form>
+    {% endif %}
     {% if test.statusLabel == 'Yayında' %}
         <p><a class="btn btn--cta" href="{{ path('app_institution_test_assign', {reference: test.reference}) }}">Sınıfa ata</a></p>
     {% endif %}

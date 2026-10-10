@@ -45,7 +45,7 @@ Amaç: V1 envanterindeki ürün yeteneklerini V2 ile eşleştirmek, yapılmış 
 | Ana sayfa, yasal sayfa yüzeyi, public ders katalog adları, sitemap/robots | HomeController, LegalPageController, PublicCatalogController; haber/CMS ürünlerinin varlığını kanıtlamaz |
 | CI/deploy ve erişim/DB bütünlüğü | Mevcut delivery omurgası; production mobil/tablet kabulünden ayrıdır |
 
-PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision yazarıyla yayın kodu dalda var. Main'deki “yapıldı” satırlarına henüz eklenmedi. Production pilotu kurum soru yazma ekranına bağlı.
+PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision yazarıyla yayın kodu bu teslimde main’e girer. Production kurum testi oluşturulmadı. Production pilotu kurum soru yazma ekranına bağlı.
 
 ## 3. V1 modüllerinin tamamı için karşılaştırma
 
@@ -62,7 +62,7 @@ PR #112 için: kurum quiz taslağı, incelemeye gönderme ve farklı revision ya
 | M09 | Veli: çocuk link, rapor, aktivite, mesaj, bildirim | Bağlantı/çocuk/test özeti mevcut | Çalışma etkinliği raporu, mesaj ve bildirim; ödeme/paket görünümü ayrıca |
 | M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si; tüm hedef seviyelerde içerik envanteri |
 | M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut | Kurum soru editörü/yayını; AI destekli PDF/Word çıkarımı ve kontrollü inceleme |
-| M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum yazımı #112'de | #112 teslimi; kurum sorusu; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
+| M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı PR #112 kodunda | Kurum sorusu; gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
 | M13 | Raporlama: öğrenci/öğretmen/kurum/admin, achievement | Sonuç/geçmiş ve sınıf raporu mevcut; analytics domain hazır | Kazanım/madde/öğrenci gelişimi ekranları, güvenli filtreler ve dışa aktarma |
 | M14 | Canlı ders: Request/Package/Review, Zoom/BBB/Jitsi webhook | Ürün karşılığı bulunamadı | Talep, yetkili onay, kredi, takvim/oda, katılım, yoklama/kayıt/tekrar; provider seçimi |
 | M15 | Ödeme: Plan, Coupon, Order, iyzico/PayTR/havale | Ticaret/lisans/domain+ops mevcut; sandbox seam | Paket/teklif UI, checkout, gerçek provider adapter, havale operasyonu, kupon/kampanya |
@@ -136,7 +136,7 @@ Aynı anda tek aktif uygulama işi tutulacak. Aşağıdaki paketler birer PR de�
 | Sıra | Paket / yapılacaklar | Ön koşul | Bitiş kanıtı |
 |---|---|---|---|
 | 0 | Bu karşılaştırmayı kanonik envantere işle; V1 alt özelliklerinde belirsiz olanları Cursor yerel kodundan salt okunur teyit et | V1 kaynak klasörü + bu rapor; V2 main ve #112 ayrımı | Her satırda kaynak, durum, bağımlılık ve kabul bulunur; hiçbir konu sessiz kaybolmaz |
-| 1 | #112 son toplu sorgu düzeltmesini incele, onaylı teslim zinciriyle kapat | Aynı HEAD CI ve review | Merge/main CI/deploy kanıtı; ikinci deploy/SSH yok |
+| 1 | #112 kurum test ekranını teslim et | edaef809 CI ve inceleme | Main CI/deploy kanıtı; production kurum testi ve pilot ayrı |
 | 2 | Kurum soru oluşturma/inceleme/yayın ekranı | Mevcut QuestionManager, aynı tenant, revision SoD | Yayımlı kurum sorusu → kurum quiz seçicisi; negatif scope/CSRF/SoD testleri |
 | 3 | Tek kurum pilotu ve açık kabulleri kapatma | Aktif yıl/sınıf, farklı yazar-yayıncı, öğretmen/öğrenci | Kurum quiz→atama→çözme→sonuç sütunları; production 390/768 ve audit ayrı ölçülür |
 | 4 | Başvuru onayı ve rol/üyelik provisioning; öğretmen profil akışı | Mevcut application/identity manager'lar | Onay yetkisi, tekrar güvenliği, reddin erişim vermemesi, başka kullanıcı/kurum izolasyonu |
@@ -212,4 +212,4 @@ https://github.com/testligtr-collab/testlig-net/pull/112
 
 ## 9. Bir sonraki tek aktif iş
 
-Yeni büyük modül başlatmadan önce #112'nin edaef809 HEAD'inde selector/POST toplu sorgu düzeltmesinin bağımsız incelemesini tamamlamak. Sonra kurum soru yazma ekranı. Bu rapor merge veya production yazma işlemi başlatmadı.
+Kurum test ekranının kod incelemesi edaef809 HEAD’inde geçti. Bu teslim o ekranı main’e alır. Production kurum testi oluşturulmadı. Kurum soru yazma ekranı ve gerçek pilot kabulü açık. Sonraki geliştirme bu teslimde başlatılmadı.
