@@ -430,14 +430,14 @@
       "id": "M11-institution-questions",
       "module": "M11",
       "title": "Kurum soru oluşturma/inceleme/yayın ekranı",
-      "status": "planned",
-      "source": "V2 domain mevcut; AdminQuestionController yalnız Platform",
+      "status": "review",
+      "source": "src/Controller/InstitutionQuestionAuthoringController.php",
       "depends_on": [],
       "evidence": [
-        "V2 domain mevcut; AdminQuestionController yalnız Platform"
+        "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde. Production kurum sorusu yazılmadı."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "İnceleme bekliyor. Main merge, deploy ve production kabulü ayrı kanıttır. X08-classroom-pilot ve 390/768 kabulü açık kalır.",
       "scope_decision": null
     },
     {

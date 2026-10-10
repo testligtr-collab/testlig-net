@@ -11,6 +11,7 @@
     {% endif %}
     {% if grades is empty %}
         <p>Henüz kullanılabilir yayımlı kurum sorusu yok.</p>
+        <p><a href="{{ path('app_institution_question_new') }}">Soru yaz</a></p>
     {% else %}
         <form method="get" action="{{ path('app_institution_test_new') }}">
             <p>
@@ -25,6 +26,7 @@
         </form>
         {% if questions is empty %}
             <p>Henüz kullanılabilir yayımlı kurum sorusu yok.</p>
+        <p><a href="{{ path('app_institution_question_new') }}">Soru yaz</a></p>
         {% else %}
             <form method="post" action="{{ path('app_institution_test_new') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('institution_test_create') }}">

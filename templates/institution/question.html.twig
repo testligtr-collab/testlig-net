@@ -1,0 +1,34 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Kurum sorusu — Testlig{% endblock %}
+
+{% block institution_content %}
+<article class="student-form-card">
+    <h1>{{ question.stem }}</h1>
+    <p>{{ question.subject_name }} · {{ question.grade }}. sınıf · {{ question.status_label }}</p>
+    <ol>
+        {% for option in question.options %}
+            <li>
+                {{ option.text }}
+                {% if show_answer and option.correct %}
+                    <span>Doğru seçenek</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+    {% if can_submit %}
+        <form method="post" action="{{ path('app_institution_question_submit', {reference: question.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_question_submit') }}">
+            <button class="btn btn--cta" type="submit">İncelemeye gönder</button>
+        </form>
+    {% endif %}
+    {% if can_publish %}
+        <form method="post" action="{{ path('app_institution_question_publish', {reference: question.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_question_publish') }}">
+            <button class="btn btn--cta" type="submit">Yayınla</button>
+        </form>
+    {% endif %}
+    <p><a href="{{ path('app_institution_question_new') }}">Yeni soru</a></p>
+    <p><a href="{{ path('app_institution_tests') }}">Test listesine dön</a></p>
+</article>
+{% endblock %}

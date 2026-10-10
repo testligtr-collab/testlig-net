@@ -1,0 +1,76 @@
+{% extends 'institution/layout.html.twig' %}
+
+{% block title %}Yeni kurum sorusu — Testlig{% endblock %}
+
+{% block institution_content %}
+<section class="student-form-card">
+    <h1>Yeni kurum sorusu</h1>
+    <p><a href="{{ path('app_institution_tests') }}">Test listesine dön</a></p>
+    {% if error %}
+        <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+    {% if subjects is empty %}
+        <p>Ders geçerli olmalıdır.</p>
+    {% else %}
+        <form method="get" action="{{ path('app_institution_question_new') }}">
+            <p>
+                <label for="question-subject">Ders</label>
+                <select id="question-subject" name="ders">
+                    {% for subject in subjects %}
+                        <option value="{{ subject.reference }}" {% if values.subject_ref == subject.reference %}selected{% endif %}>{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </p>
+            <p>
+                <label for="question-grade">Sınıf</label>
+                <select id="question-grade" name="sinif">
+                    {% for item in grades %}
+                        <option value="{{ item }}" {% if grade == item %}selected{% endif %}>{{ item }}. sınıf</option>
+                    {% endfor %}
+                </select>
+                <button type="submit">Kazanımları listele</button>
+            </p>
+        </form>
+        {% if outcomes is empty %}
+            <p>Bu sınıf ve ders için kullanılabilir kazanım yok.</p>
+        {% else %}
+            <form method="post" action="{{ path('app_institution_question_new') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('institution_question_create') }}">
+                <input type="hidden" name="subject_ref" value="{{ values.subject_ref }}">
+                <input type="hidden" name="grade" value="{{ values.grade }}">
+                <input type="hidden" name="institution_id" value="">
+                <p>
+                    <label for="question-stem">Soru</label>
+                    <textarea id="question-stem" name="stem" required maxlength="4000">{{ values.stem }}</textarea>
+                </p>
+                {% for index in 1..6 %}
+                    <p>
+                        <label for="question-option-{{ index }}">Seçenek {{ index }}</label>
+                        <input id="question-option-{{ index }}" name="option_{{ index }}" maxlength="500" value="{{ attribute(values, 'option_' ~ index) }}">
+                    </p>
+                {% endfor %}
+                <p>
+                    <label for="question-correct">Doğru seçenek</label>
+                    <select id="question-correct" name="correct">
+                        {% for index in 1..6 %}
+                            <option value="{{ index }}" {% if values.correct == index ~ '' %}selected{% endif %}>{{ index }}</option>
+                        {% endfor %}
+                    </select>
+                </p>
+                <fieldset>
+                    <legend>Kazanım</legend>
+                    {% for outcome in outcomes %}
+                        <p>
+                            <label>
+                                <input type="radio" name="outcome_ref" value="{{ outcome.reference }}" {% if loop.first %}required{% endif %}>
+                                {{ outcome.code }} — {{ outcome.description }}
+                            </label>
+                        </p>
+                    {% endfor %}
+                </fieldset>
+                <button class="btn btn--cta" type="submit">Taslağı oluştur</button>
+            </form>
+        {% endif %}
+    {% endif %}
+</section>
+{% endblock %}
