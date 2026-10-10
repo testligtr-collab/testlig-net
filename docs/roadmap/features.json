@@ -434,7 +434,8 @@
       "source": "src/Controller/InstitutionQuestionAuthoringController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde. Production kurum sorusu yazılmadı."
+        "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde.",
+        "İnceleme düzeltmesi 1d8edf8255919334c3f8994c8730aa730bbb5762. CI run 38049335033 Quality & tests ve Browser acceptance success. Roadmap coverage run 38049335028 success. POST subject_ref ve sınıf katı doğrulanır. Production kurum sorusu yazılmadı."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/114"
