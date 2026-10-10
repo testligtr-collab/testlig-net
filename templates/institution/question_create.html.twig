@@ -32,7 +32,9 @@
             </p>
         </form>
         {% if outcomes is empty %}
-            <p>Bu sınıf ve ders için kullanılabilir kazanım yok.</p>
+            {% if error is empty %}
+                <p>Bu sınıf ve ders için kullanılabilir kazanım yok.</p>
+            {% endif %}
         {% else %}
             <form method="post" action="{{ path('app_institution_question_new') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('institution_question_create') }}">

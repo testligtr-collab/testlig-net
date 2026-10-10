@@ -62,34 +62,29 @@ final class InstitutionQuestionAuthoringController extends AbstractController
         $institution = $this->institution();
         $subjectRows = $this->subjectRepository->findActiveOrdered();
         $subjects = $this->subjectChoices($subjectRows);
-        $grade = $this->selectedGrade($request);
-        $subject = $this->selectedSubject($request, $subjectRows, $subjects);
-        $outcomes = $subject instanceof Subject ? $this->query->publishedOutcomeChoices($subject, $grade) : [];
-        $values = [
-            'stem' => '',
-            'option_1' => '',
-            'option_2' => '',
-            'option_3' => '',
-            'option_4' => '',
-            'option_5' => '',
-            'option_6' => '',
-            'correct' => '1',
-            'subject_ref' => $subject instanceof Subject ? $this->hasher->workspaceReference('subject', $subject->getId()) : '',
-            'grade' => (string) $grade->value,
-            'outcome_ref' => '',
-        ];
         if (!$request->isMethod('POST')) {
-            return $this->form($grade, $subjects, $outcomes, null, $values);
+            $grade = $this->selectedGrade($request);
+            $subject = $this->selectedSubject($request, $subjectRows, $subjects);
+            $outcomes = $subject instanceof Subject ? $this->query->publishedOutcomeChoices($subject, $grade) : [];
+
+            return $this->form($grade, $subjects, $outcomes, null, $this->blankValues($subject, $grade));
         }
         if (!$this->isCsrfTokenValid('institution_question_create', $request->request->getString('_token'))) {
             throw new AccessDeniedHttpException('Geçersiz istek.');
         }
-        foreach (['stem', 'option_1', 'option_2', 'option_3', 'option_4', 'option_5', 'option_6', 'correct', 'outcome_ref'] as $field) {
+        $grade = $this->postedGrade($request->request->getString('grade'));
+        $subject = $this->postedSubject($request, $subjectRows);
+        $values = $this->blankValues($subject, $grade ?? GradeLevel::Grade1);
+        foreach (['stem', 'option_1', 'option_2', 'option_3', 'option_4', 'option_5', 'option_6', 'correct', 'outcome_ref', 'subject_ref', 'grade'] as $field) {
             $values[$field] = trim($request->request->getString($field));
         }
         if (!$subject instanceof Subject) {
-            return $this->form($grade, $subjects, [], 'Ders geçerli olmalıdır.', $values);
+            return $this->form($grade ?? GradeLevel::Grade1, $subjects, [], 'Ders geçerli olmalıdır.', $values);
         }
+        if (!$grade instanceof GradeLevel) {
+            return $this->form(GradeLevel::Grade1, $subjects, [], 'Sınıf geçerli olmalıdır.', $values);
+        }
+        $outcomes = $this->query->publishedOutcomeChoices($subject, $grade);
         if ([] === $outcomes) {
             return $this->form($grade, $subjects, [], 'Bu sınıf ve ders için kullanılabilir kazanım yok.', $values);
         }
@@ -349,12 +344,37 @@ final class InstitutionQuestionAuthoringController extends AbstractController
      */
     private function selectedSubject(Request $request, array $subjects, array $choices): ?Subject
     {
-        $raw = strtolower(trim($request->isMethod('POST') ? $request->request->getString('subject_ref') : $request->query->getString('ders')));
+        $raw = strtolower(trim($request->query->getString('ders')));
         if (1 !== preg_match('/^[0-9a-f]{20}$/', $raw)) {
             $raw = $choices[0]['reference'] ?? '';
         }
+
+        return $this->matchSubject($subjects, $raw);
+    }
+
+    /**
+     * @param list<Subject> $subjects
+     */
+    private function postedSubject(Request $request, array $subjects): ?Subject
+    {
+        $raw = strtolower(trim($request->request->getString('subject_ref')));
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $raw)) {
+            return null;
+        }
+
+        return $this->matchSubject($subjects, $raw);
+    }
+
+    /**
+     * @param list<Subject> $subjects
+     */
+    private function matchSubject(array $subjects, string $reference): ?Subject
+    {
+        if (1 !== preg_match('/^[0-9a-f]{20}$/', $reference)) {
+            return null;
+        }
         foreach ($subjects as $subject) {
-            if (hash_equals($this->hasher->workspaceReference('subject', $subject->getId()), $raw)) {
+            if (hash_equals($this->hasher->workspaceReference('subject', $subject->getId()), $reference)) {
                 return $subject;
             }
         }
@@ -364,10 +384,41 @@ final class InstitutionQuestionAuthoringController extends AbstractController
 
     private function selectedGrade(Request $request): GradeLevel
     {
-        $raw = $request->isMethod('POST') ? $request->request->getString('grade') : $request->query->getString('sinif');
-        $grade = GradeLevel::tryFrom((int) $raw);
+        return $this->exactGrade($request->query->getString('sinif')) ?? GradeLevel::Grade1;
+    }
 
-        return $grade instanceof GradeLevel ? $grade : GradeLevel::Grade1;
+    private function postedGrade(string $raw): ?GradeLevel
+    {
+        return $this->exactGrade($raw);
+    }
+
+    private function exactGrade(string $raw): ?GradeLevel
+    {
+        if (1 !== preg_match('/^(?:[1-9]|1[0-2])$/', trim($raw))) {
+            return null;
+        }
+
+        return GradeLevel::tryFrom((int) $raw);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function blankValues(?Subject $subject, GradeLevel $grade): array
+    {
+        return [
+            'stem' => '',
+            'option_1' => '',
+            'option_2' => '',
+            'option_3' => '',
+            'option_4' => '',
+            'option_5' => '',
+            'option_6' => '',
+            'correct' => '1',
+            'subject_ref' => $subject instanceof Subject ? $this->hasher->workspaceReference('subject', $subject->getId()) : '',
+            'grade' => (string) $grade->value,
+            'outcome_ref' => '',
+        ];
     }
 
     private function hasMarkup(string $value): bool

@@ -138,11 +138,37 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
             $client->request('GET', '/kurum/sorular/yeni');
             self::assertResponseStatusCodeSame($status);
         }
+        foreach (['q-teacher@example.com', 'q-student@example.com', 'q-staff@example.com'] as $email) {
+            $client = $this->browser();
+            $this->login($client, $email);
+            $client->request('GET', '/kurum/sorular/yeni');
+            self::assertResponseStatusCodeSame(403);
+            $client->request('POST', '/kurum/sorular/yeni', $this->validCreatePayload($client, $refs));
+            self::assertResponseStatusCodeSame(403);
+            $client->request('POST', '/kurum/sorular/'.$foreign['platform'].'/incelemeye-gonder', [
+                '_token' => $this->csrf($client, 'institution_question_submit'),
+            ]);
+            self::assertResponseStatusCodeSame(403);
+            $client->request('POST', '/kurum/sorular/'.$foreign['platform'].'/yayinla', [
+                '_token' => $this->csrf($client, 'institution_question_publish'),
+            ]);
+            self::assertResponseStatusCodeSame(403);
+        }
 
         $owner = $this->browser();
         $this->login($owner, 'q-owner@example.com');
         foreach ([$foreign['platform'], $foreign['foreign'], 'not-a-reference'] as $reference) {
             $owner->request('GET', '/kurum/sorular/'.$reference);
+            self::assertResponseStatusCodeSame(404);
+        }
+        foreach ([$foreign['platform'], $foreign['foreign']] as $reference) {
+            $owner->request('POST', '/kurum/sorular/'.$reference.'/incelemeye-gonder', [
+                '_token' => $this->csrf($owner, 'institution_question_submit'),
+            ]);
+            self::assertResponseStatusCodeSame(404);
+            $owner->request('POST', '/kurum/sorular/'.$reference.'/yayinla', [
+                '_token' => $this->csrf($owner, 'institution_question_publish'),
+            ]);
             self::assertResponseStatusCodeSame(404);
         }
         $owner->request('POST', '/kurum/sorular/yeni', ['_token' => 'bad']);
@@ -179,6 +205,35 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         self::assertSame($keys, $this->countTable('question_answer_keys'));
         self::assertSame($created, $this->auditCount('question_created'));
         self::assertSame($published, $this->auditCount('question_published'));
+    }
+
+    public function testInvalidSubjectAndGradeDoNotUseDefaults(): void
+    {
+        $this->bootPeople();
+        $refs = $this->seedCurriculum();
+        $owner = $this->browser();
+        $this->login($owner, 'q-owner@example.com');
+        $before = $this->recordCounts();
+        $owner->request('GET', '/kurum/sorular/yeni');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Fen kazanimi', (string) $owner->getResponse()->getContent());
+        self::assertGreaterThan(0, $owner->getCrawler()->selectButton('Taslağı oluştur')->count());
+        $payload = $this->validCreatePayload($owner, $refs);
+        $payload['subject_ref'] = $refs['science_subject'];
+        $payload['outcome_ref'] = $refs['science_outcome'];
+        foreach ([
+            ['subject_ref' => ''],
+            ['subject_ref' => 'not-a-subject'],
+            ['subject_ref' => str_repeat('a', 20)],
+            ['grade' => ''],
+            ['grade' => '1abc'],
+            ['grade' => '13'],
+        ] as $override) {
+            $owner->request('POST', '/kurum/sorular/yeni', array_merge($payload, $override));
+            self::assertResponseIsSuccessful();
+        }
+
+        self::assertSame($before, $this->recordCounts());
     }
 
     public function testOutcomeListQueryCountDoesNotGrow(): void
@@ -224,11 +279,11 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
     }
 
     /**
-     * @return array{subject: string, outcome: string, outcome_id: string, science_outcome: string}
+     * @return array{subject: string, science_subject: string, outcome: string, outcome_id: string, science_outcome: string}
      */
     private function seedCurriculum(): array
     {
-        /** @var array{subject: string, outcome: string, outcome_id: string, science_outcome: string} $refs */
+        /** @var array{subject: string, science_subject: string, outcome: string, outcome_id: string, science_outcome: string} $refs */
         $refs = $this->withKernel(function (): array {
             $actor = $this->user('q-sa@example.com');
             $math = $this->subject($actor, 'math', 'Matematik');
@@ -241,6 +296,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
 
             return [
                 'subject' => $hasher->workspaceReference('subject', $math->getId()),
+                'science_subject' => $hasher->workspaceReference('subject', $science->getId()),
                 'outcome' => $hasher->workspaceReference('learning_outcome', $outcome->getId()),
                 'outcome_id' => $outcome->getId()->toRfc4122(),
                 'science_outcome' => $hasher->workspaceReference('learning_outcome', $other->getId()),
@@ -414,6 +470,41 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         } finally {
             $stack->pop();
         }
+    }
+
+    /**
+     * @param array{subject: string, outcome: string, science_outcome: string} $refs
+     *
+     * @return array<string, string>
+     */
+    private function validCreatePayload(KernelBrowser $client, array $refs): array
+    {
+        return [
+            '_token' => $this->csrf($client, 'institution_question_create'),
+            'subject_ref' => $refs['subject'],
+            'grade' => '1',
+            'stem' => 'Gecerli soru',
+            'option_1' => 'Bir',
+            'option_2' => 'Iki',
+            'correct' => '1',
+            'outcome_ref' => $refs['outcome'],
+        ];
+    }
+
+    /**
+     * @return array<string, int>
+     */
+    private function recordCounts(): array
+    {
+        return [
+            'questions' => $this->countTable('questions'),
+            'revisions' => $this->countTable('question_revisions'),
+            'options' => $this->countTable('question_revision_options'),
+            'keys' => $this->countTable('question_answer_keys'),
+            'created' => $this->auditCount('question_created'),
+            'submitted' => $this->auditCount('question_submitted_for_review'),
+            'published' => $this->auditCount('question_published'),
+        ];
     }
 
     private function countTable(string $table): int
