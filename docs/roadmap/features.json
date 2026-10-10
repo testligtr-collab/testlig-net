@@ -474,18 +474,19 @@
       "id": "M12-institution-authoring",
       "module": "M12",
       "title": "Kurum test oluşturma/inceleme/yayın ekranı",
-      "status": "review",
-      "source": "PR #112 edaef8090506da51a384d5af62f71d052547647a",
+      "status": "present",
+      "source": "src/Controller/InstitutionTestAuthoringController.php",
       "depends_on": [
         "M11-institution-questions"
       ],
       "evidence": [
-        "PR #112 edaef8090506da51a384d5af62f71d052547647a: run 37980804189 Quality & tests ve Browser acceptance success; bağımsız inceleme geçti."
+        "src/Controller/InstitutionTestAuthoringController.php: kurum quiz taslağı, incelemeye gönderme ve farklı revision yazarıyla yayın. PR #112 kod HEAD edaef8090506da51a384d5af62f71d052547647a, CI run 37980804189 Quality & tests ve Browser acceptance success; bağımsız inceleme geçti.",
+        "Production kurum testi oluşturulmadı. Kurum soru ekranı yok. Gerçek sınıf pilotu X08-classroom-pilot kaydında açık."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/112"
       ],
-      "acceptance": "Merge/main teslimi ayrı doğrulanmalı. Production kurum quiz pilotu M11-institution-questions ekranına bağlıdır; oluşturma, farklı revision yazarıyla yayın ve sınıfa atama ayrıca kanıtlanmalı.",
+      "acceptance": "Ekran kodu bu PR ile teslim edilir. Production kurum quiz oluşturulması, main deploy sonrası pilot ve 390/768 kabulü bu kaydı kapatmaz. Kullanılabilir kurum sorusu M11-institution-questions ekranına bağlıdır.",
       "scope_decision": null
     },
     {
@@ -1004,7 +1005,7 @@
         "M12-classroom-delivery"
       ],
       "evidence": [
-        "Öğretmen sonuç kodu ve regresyonları mevcut; production sınıf pilotu doğrulanmadı. Kurum soru ekranı yok, kurum test PR #112 incelemede."
+        "Öğretmen sonuç kodu ve regresyonları mevcut; production sınıf pilotu doğrulanmadı. Kurum soru ekranı yok. Kurum test ekranı PR #112 kodunda; production kurum testi oluşturulmadı."
       ],
       "pr_links": [],
       "acceptance": "Kurum soru/test ekranları kullanılabilir olduktan sonra aktif yıl, sınıf, öğretmen ve öğrenciyle pilot yap. Kayıtlı doğru/yanlış/boş, puan/yüzde ve başka sınıf reddi doğrulanmalı. Platform MAT testi kullanılmaz.",
@@ -1014,16 +1015,16 @@
       "id": "X09-roadmap-governance",
       "module": "X09",
       "title": "Kanonik kapsam kaydı, AGENTS yönergesi ve CI roadmap kontrolü",
-      "status": "review",
+      "status": "present",
       "source": "10 Ekim kullanıcı talimatı: yol haritası kaybına karşı tedbir",
       "depends_on": [],
       "evidence": [
-        "31 modül/71 kayıt. PR #113 3eacc48ee2b525715855b07d3869e1f4c9762265: roadmap run 38036057075, Quality & tests/Browser acceptance run 38036056989 success. Bağımsız inceleme ve 10 guard testi geçti."
+        "31 modül/71 kayıt. PR #113 merge SHA 0229586eb235e6321a816c332004ced33da8e88a. Main CI run 38040170722 ve otomatik deploy run 38041358200 success."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/113"
       ],
-      "acceptance": "Son HEAD için üç CI kontrolü gerekli; yeni metin commit'i eski CI ile geçti sayılmaz. Merge öncesi yönergeler main'de etkin değildir. Guard kanıt doğruluğu, branch protection veya production kabulü garantisi değildir.",
+      "acceptance": "Kayıt kaybı kontrolü main'de. Guard kanıt doğruluğu, branch protection veya production kabulü garantisi değildir.",
       "scope_decision": null
     }
   ]
