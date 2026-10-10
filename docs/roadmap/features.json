@@ -84,10 +84,10 @@
       "source": "src/Service/PhoneVerificationClaimManager.php",
       "depends_on": [],
       "evidence": [
-        "src/Service/PhoneVerificationClaimManager.php"
+        "PhoneVerificationClaimManager yalnız telefon claim altyapısıdır; SMS gönderimi ve SMS giriş ekranı doğrulanmadı."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "SMS sağlayıcısı, giriş/doğrulama ekranı ve hatalı kod/süre kontrolleri tamamlanmalı. Partial yalnız claim altyapısını ifade eder.",
       "scope_decision": null
     },
     {
@@ -480,12 +480,12 @@
         "M11-institution-questions"
       ],
       "evidence": [
-        "PR #112 edaef8090506da51a384d5af62f71d052547647a"
+        "PR #112 edaef8090506da51a384d5af62f71d052547647a: run 37980804189 Quality & tests ve Browser acceptance success; bağımsız inceleme geçti."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/112"
       ],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Merge/main teslimi ayrı doğrulanmalı. Production kurum quiz pilotu M11-institution-questions ekranına bağlıdır; oluşturma, farklı revision yazarıyla yayın ve sınıfa atama ayrıca kanıtlanmalı.",
       "scope_decision": null
     },
     {
@@ -612,10 +612,10 @@
         "M15-commerce-core"
       ],
       "evidence": [
-        "src/Commerce/PaymentProviderAdapterInterface.php"
+        "PaymentProviderAdapterInterface sağlayıcı sözleşmesidir; gerçek checkout ve paket satış ekranı doğrulanmadı."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Paket seçimi, gerçek checkout, webhook ve hak tanımlama zinciri doğrulanmalı. Partial mevcut ödeme altyapısını ifade eder.",
       "scope_decision": null
     },
     {
@@ -668,10 +668,10 @@
       "source": "src/Enum/StoredMediaStorageProvider.php (SDK değil)",
       "depends_on": [],
       "evidence": [
-        "src/Enum/StoredMediaStorageProvider.php (SDK değil)"
+        "StoredMediaStorageProvider enum'u sağlayıcı adlarını tanımlar; SDK bağlantısı veya bulut dosya yönetimi kanıtı değildir."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "S3/R2/Bunny bağlantı yapılandırması, bağlantı testi ve yetkili dosya işlemleri tamamlanmalı. Partial yalnız sağlayıcı metadata temelini ifade eder.",
       "scope_decision": null
     },
     {
@@ -728,10 +728,10 @@
         "M18-cloud-storage"
       ],
       "evidence": [
-        "V2 YT/Vimeo block; V1 LearningVideo/file"
+        "V2 YouTube/Vimeo ders blokları mevcut; dosya video kütüphanesi ve streaming doğrulanmadı."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Dosya video yükleme, kütüphane ve yetkili streaming ayrıca tamamlanmalı. Partial mevcut YouTube/Vimeo bloklarını ifade eder.",
       "scope_decision": null
     },
     {
@@ -986,10 +986,10 @@
       "source": "Önceki handoff: uygun ölçülebilir oturum eksik",
       "depends_on": [],
       "evidence": [
-        "Önceki handoff: uygun ölçülebilir oturum eksik"
+        "Kontrol tarayıcısında uygun production öğrenci oturumu sağlanamadı; üç konu için 390/768 ölçümleri yapılmadı. Sentetik CI production kabulü değildir."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "1. sınıf öğrenci oturumunda üç konu x 390/768 için gövde/kart, taşma, bağlantı, hassas HTML verisi ve ekran kanıtı kaydet. Ölçülmeyen satır geçti sayılmaz.",
       "scope_decision": null
     },
     {
@@ -1004,10 +1004,10 @@
         "M12-classroom-delivery"
       ],
       "evidence": [
-        "Kurum sorusu+test+sınıf teslimatı bağımlılıkları"
+        "Öğretmen sonuç kodu ve regresyonları mevcut; production sınıf pilotu doğrulanmadı. Kurum soru ekranı yok, kurum test PR #112 incelemede."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Kurum soru/test ekranları kullanılabilir olduktan sonra aktif yıl, sınıf, öğretmen ve öğrenciyle pilot yap. Kayıtlı doğru/yanlış/boş, puan/yüzde ve başka sınıf reddi doğrulanmalı. Platform MAT testi kullanılmaz.",
       "scope_decision": null
     },
     {
@@ -1018,11 +1018,12 @@
       "source": "10 Ekim kullanıcı talimatı: yol haritası kaybına karşı tedbir",
       "depends_on": [],
       "evidence": [
-        "Yerel stdlib guard regresyonları: 10 test geçti",
-        "31 V1 modülü ve ayrıntılı feature kayıtları; draft PR hazırlanıyor"
+        "31 modül/71 kayıt. PR #113 3eacc48ee2b525715855b07d3869e1f4c9762265: roadmap run 38036057075, Quality & tests/Browser acceptance run 38036056989 success. Bağımsız inceleme ve 10 guard testi geçti."
       ],
-      "pr_links": [],
-      "acceptance": "Aynı HEAD CI ve bağımsız inceleme; merge öncesi yönergeler henüz main için etkin sayılmaz.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/113"
+      ],
+      "acceptance": "Son HEAD için üç CI kontrolü gerekli; yeni metin commit'i eski CI ile geçti sayılmaz. Merge öncesi yönergeler main'de etkin değildir. Guard kanıt doğruluğu, branch protection veya production kabulü garantisi değildir.",
       "scope_decision": null
     }
   ]
