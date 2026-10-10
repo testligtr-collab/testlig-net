@@ -436,7 +436,9 @@
       "evidence": [
         "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde. Production kurum sorusu yazılmadı."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/114"
+      ],
       "acceptance": "İnceleme bekliyor. Main merge, deploy ve production kabulü ayrı kanıttır. X08-classroom-pilot ve 390/768 kabulü açık kalır.",
       "scope_decision": null
     },
