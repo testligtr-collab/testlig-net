@@ -278,6 +278,7 @@ final class AdminTeacherApplicationHttpTest extends WebTestCase
                 return;
             }
             $em->getConnection()->executeStatement('DELETE FROM teacher_applications WHERE user_id IN (?)', [$ids], [ArrayParameterType::BINARY]);
+            $em->getConnection()->executeStatement('DELETE FROM security_audit_events WHERE actor_user_id IN (?)', [$ids], [ArrayParameterType::BINARY]);
             $em->getConnection()->executeStatement('DELETE FROM users WHERE email LIKE ?', ['appq-%']);
         });
     }
