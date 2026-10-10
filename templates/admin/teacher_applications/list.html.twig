@@ -1,0 +1,37 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Öğretmen başvuruları — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Öğretmen başvuruları</span>
+    </nav>
+    <h1 class="panel-greeting">Öğretmen başvuruları</h1>
+    <p>Başvuru onayı öğretmen rolü vermez.</p>
+    {% if applications is empty %}
+        <p>Bekleyen öğretmen başvurusu yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Başvuran</th>
+                        <th>Durum</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for application in applications %}
+                        <tr>
+                            <td>{{ application.user.firstName }} {{ application.user.lastName }}</td>
+                            <td>Bekliyor</td>
+                            <td><a href="{{ path('app_admin_teacher_application', {id: application.id}) }}">İncele</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

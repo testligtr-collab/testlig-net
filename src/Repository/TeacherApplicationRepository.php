@@ -23,6 +23,25 @@ class TeacherApplicationRepository extends ServiceEntityRepository
         parent::__construct($registry, TeacherApplication::class);
     }
 
+    /**
+     * @return list<TeacherApplication>
+     */
+    public function findPendingOrdered(): array
+    {
+        /** @var list<TeacherApplication> $rows */
+        $rows = $this->createQueryBuilder('a')
+            ->addSelect('u')
+            ->innerJoin('a.user', 'u')
+            ->andWhere('a.status = :status')
+            ->setParameter('status', OnboardingApplicationStatus::Pending)
+            ->orderBy('a.submittedAt', 'ASC')
+            ->addOrderBy('a.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findOneById(Uuid $id): ?TeacherApplication
     {
         return $this->find($id);
