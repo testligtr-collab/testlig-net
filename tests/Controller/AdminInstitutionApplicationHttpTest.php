@@ -213,12 +213,16 @@ final class AdminInstitutionApplicationHttpTest extends WebTestCase
         $client = $this->browser();
         $client->disableReboot();
         $this->login($client, 'instq-sa@example.com');
+        $client->request('GET', '/yonetim/kurum-basvurulari');
+        self::assertResponseIsSuccessful();
         $small = $this->listQueryCount($client);
         $this->addPendingApplications($client, 4);
         $large = $this->listQueryCount($client);
 
-        self::assertGreaterThan(0, $small);
-        self::assertSame($small, $large);
+        self::assertSame(1, $small['applications']);
+        self::assertSame(1, $large['applications']);
+        self::assertSame($small['users'], $large['users']);
+        self::assertGreaterThan(0, $small['applications'] + $small['users']);
     }
 
     public function testSuspendedApplicantDecisionStaysOnTheExistingContract(): void
@@ -330,14 +334,18 @@ final class AdminInstitutionApplicationHttpTest extends WebTestCase
         }
     }
 
-    private function listQueryCount(KernelBrowser $client): int
+    /**
+     * @return array{applications: int, users: int}
+     */
+    private function listQueryCount(KernelBrowser $client): array
     {
         $holder = $client->getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $holder);
         $holder->reset();
         $client->request('GET', '/yonetim/kurum-basvurulari');
         self::assertResponseIsSuccessful();
-        $count = 0;
+        $applications = 0;
+        $users = 0;
         $joined = false;
         foreach ($holder->getData() as $queries) {
             if (!\is_array($queries)) {
@@ -348,15 +356,19 @@ final class AdminInstitutionApplicationHttpTest extends WebTestCase
                 if (!\is_string($statement) || '' === trim($statement)) {
                     continue;
                 }
-                ++$count;
-                if (str_contains($statement, 'institution_applications') && str_contains($statement, 'users')) {
-                    $joined = true;
+                if (str_contains($statement, 'institution_applications')) {
+                    ++$applications;
+                    $joined = $joined || str_contains($statement, 'users');
+                    continue;
+                }
+                if (str_contains($statement, 'users')) {
+                    ++$users;
                 }
             }
         }
         self::assertTrue($joined);
 
-        return $count;
+        return ['applications' => $applications, 'users' => $users];
     }
 
     private function createActive(string $email, UserRole $role, string $first, string $last): void
