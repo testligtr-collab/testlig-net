@@ -1,0 +1,29 @@
+name: Roadmap coverage
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roadmap-coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test scope guard
+        run: python3 .github/scripts/test-roadmap-guard.py
+      - name: Check scope and PR references
+        run: python3 .github/scripts/check-roadmap.py --event "$GITHUB_EVENT_PATH"
