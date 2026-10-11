@@ -34,7 +34,8 @@
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/116",
-        "https://github.com/testligtr-collab/testlig-net/pull/117"
+        "https://github.com/testligtr-collab/testlig-net/pull/117",
+        "https://github.com/testligtr-collab/testlig-net/pull/118"
       ],
       "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları ile onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum oluşturma ve kurum üyelik provisioning açık kalır. Production kabulü ayrıdır.",
       "scope_decision": null
