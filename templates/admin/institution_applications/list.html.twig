@@ -1,0 +1,41 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kurum başvuruları — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Kurum başvuruları</span>
+    </nav>
+    <h1 class="panel-greeting">Kurum başvuruları</h1>
+    <p>Başvuru onayı kurum, üyelik veya rol vermez.</p>
+    {% if applications is empty %}
+        <p>Bekleyen kurum başvurusu yok.</p>
+    {% else %}
+        <div class="table-scroll">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Başvuran</th>
+                        <th>Kurum</th>
+                        <th>Tür</th>
+                        <th>Durum</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for application in applications %}
+                        <tr>
+                            <td>{{ application.user.firstName }} {{ application.user.lastName }}</td>
+                            <td>{{ application.proposedName }}</td>
+                            <td>{{ include('admin/institution_applications/_type.html.twig', { type: application.proposedType.value }, false) }}</td>
+                            <td>Bekliyor</td>
+                            <td><a href="{{ path('app_admin_institution_application', {id: application.id}) }}">İncele</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endblock %}

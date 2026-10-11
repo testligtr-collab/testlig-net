@@ -1,0 +1,41 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Kurum başvurusu — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_institution_applications') }}">Kurum başvuruları</a>
+        <span aria-hidden="true">/</span>
+        <span>Başvuru</span>
+    </nav>
+    <h1 class="panel-greeting">Kurum başvurusu</h1>
+    <p>Başvuru onayı kurum, üyelik veya rol vermez.</p>
+    <dl>
+        <dt>Başvuran</dt>
+        <dd>{{ application.user.firstName }} {{ application.user.lastName }}</dd>
+        <dt>E-posta</dt>
+        <dd>{{ application.user.email }}</dd>
+        <dt>Kurum</dt>
+        <dd>{{ application.proposedName }}</dd>
+        <dt>Tür</dt>
+        <dd>{{ include('admin/institution_applications/_type.html.twig', { type: application.proposedType.value }, false) }}</dd>
+        <dt>Durum</dt>
+        <dd>{{ application.status.value }}</dd>
+    </dl>
+    {% if application.status.value == 'pending' %}
+        <form method="post" action="{{ path('app_admin_institution_application_approve', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_application_approve') }}">
+            <button type="submit">Onayla</button>
+        </form>
+        <form method="post" action="{{ path('app_admin_institution_application_reject', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_application_reject') }}">
+            <p>
+                <label for="institution-application-reason">Ret nedeni</label>
+                <input id="institution-application-reason" name="reason_code" maxlength="64" autocomplete="off">
+            </p>
+            <button type="submit">Reddet</button>
+        </form>
+    {% endif %}
+{% endblock %}

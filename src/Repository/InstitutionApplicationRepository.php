@@ -23,6 +23,25 @@ class InstitutionApplicationRepository extends ServiceEntityRepository
         parent::__construct($registry, InstitutionApplication::class);
     }
 
+    /**
+     * @return list<InstitutionApplication>
+     */
+    public function findPendingOrdered(): array
+    {
+        /** @var list<InstitutionApplication> $rows */
+        $rows = $this->createQueryBuilder('a')
+            ->addSelect('u')
+            ->innerJoin('a.user', 'u')
+            ->andWhere('a.status = :status')
+            ->setParameter('status', OnboardingApplicationStatus::Pending)
+            ->orderBy('a.submittedAt', 'ASC')
+            ->addOrderBy('a.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findOneById(Uuid $id): ?InstitutionApplication
     {
         return $this->find($id);

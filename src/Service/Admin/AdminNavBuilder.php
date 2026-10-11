@@ -68,6 +68,7 @@ final class AdminNavBuilder
         }
         if ($this->adminAuthorization->canManageMemberships($actor)) {
             $items[] = $this->item('teacher_applications', 'Öğretmen başvuruları', 'app_admin_teacher_applications', $currentPath, '/yonetim/ogretmen-basvurulari');
+            $items[] = $this->item('institution_applications', 'Kurum başvuruları', 'app_admin_institution_applications', $currentPath, '/yonetim/kurum-basvurulari');
         }
         if ($canInstitutions) {
             $items[] = $this->item('institutions', 'Kurumlar', 'app_admin_institutions', $currentPath, '/yonetim/kurumlar');
@@ -132,7 +133,7 @@ final class AdminNavBuilder
 
         $groups = [
             ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
-            ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institutions']],
+            ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
             ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms']],
             ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
         ];
