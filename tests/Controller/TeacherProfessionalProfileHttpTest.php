@@ -124,7 +124,7 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
 
     public function testApplicantStudentParentAndAdminAreDenied(): void
     {
-        $this->subject('tprof-mat', 'Matematik');
+        $math = $this->subject('tprof-mat', 'Matematik');
         $this->createActive('tprof-applicant@example.com', UserRole::Student, 'Deniz', 'Kara');
         $this->withKernel(function (): void {
             $applications = static::getContainer()->get(TeacherApplicationManager::class);
@@ -141,18 +141,42 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
             $em->flush();
         });
 
-        foreach ([
+        $emails = [
             'tprof-applicant@example.com',
             'tprof-student@example.com',
             'tprof-parent@example.com',
             'tprof-admin@example.com',
-        ] as $email) {
+        ];
+        $rolesBefore = [];
+        foreach ($emails as $email) {
+            $rolesBefore[$email] = $this->roles($email);
+        }
+        $applicationBefore = $this->applicationStatus('tprof-applicant@example.com');
+        $institutionsBefore = $this->countTable('institutions');
+        $membershipsBefore = $this->countTable('institution_memberships');
+
+        foreach ($emails as $email) {
             $client = $this->browser();
             $this->login($client, $email);
             $client->request('GET', '/ogretmen/profil');
             self::assertResponseStatusCodeSame(403, $email);
+            $token = $this->csrf($client, 'teacher_professional_profile');
+            $client->request('POST', '/ogretmen/profil', [
+                'teacher_profile' => [
+                    '_token' => $token,
+                    'subject' => $math,
+                    'gradeLevels' => ['5'],
+                ],
+            ]);
+            self::assertResponseStatusCodeSame(403, $email);
             self::assertNull($this->profileOf($email));
+            self::assertSame($rolesBefore[$email], $this->roles($email));
         }
+
+        self::assertSame($applicationBefore, $this->applicationStatus('tprof-applicant@example.com'));
+        self::assertSame(OnboardingApplicationStatus::Pending->value, $applicationBefore);
+        self::assertSame($institutionsBefore, $this->countTable('institutions'));
+        self::assertSame($membershipsBefore, $this->countTable('institution_memberships'));
 
         $admin = $this->browser();
         $this->login($admin, 'tprof-admin@example.com');
@@ -237,6 +261,24 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
         ] as $payload) {
             $client->request('POST', '/ogretmen/profil', ['teacher_profile' => $payload]);
             self::assertNull($this->profileOf('tprof-teacher@example.com'));
+        }
+
+        $this->postProfile($client, $math, ['5', '9']);
+        self::assertResponseRedirects('/ogretmen/profil');
+        $client->followRedirect();
+        $client->request('GET', '/ogretmen/profil');
+        $savedToken = $this->csrf($client, 'teacher_professional_profile');
+        $saved = $this->profileOf('tprof-teacher@example.com');
+        self::assertSame(['subject' => 'tprof-mat', 'grades' => [5, 9]], $saved);
+        foreach ([
+            ['subject' => '00000000-0000-4000-8000-000000000099', 'gradeLevels' => ['6'], '_token' => $savedToken],
+            ['subject' => $archived, 'gradeLevels' => ['6'], '_token' => $savedToken],
+            ['subject' => $math, 'gradeLevels' => [], '_token' => $savedToken],
+            ['subject' => $math, 'gradeLevels' => ['13'], '_token' => $savedToken],
+            ['subject' => $math, 'gradeLevels' => ['6', '7'], '_token' => 'bad-token'],
+        ] as $payload) {
+            $client->request('POST', '/ogretmen/profil', ['teacher_profile' => $payload]);
+            self::assertSame($saved, $this->profileOf('tprof-teacher@example.com'));
         }
     }
 
