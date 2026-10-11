@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\User;
+use App\Enum\UserRole;
 use App\Presentation\AdminGreetingName;
 use App\Presentation\AdminIconCatalog;
 use App\Presentation\WorkspaceRoleLabels;
 use App\Security\AdminAuthorization;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Role\RoleHierarchyInterface;
 
 /**
  * Builds permission-filtered admin sidebar / mobile nav items.
@@ -27,6 +29,7 @@ final class AdminNavBuilder
         private readonly AdminIconCatalog $icons,
         private readonly ContentWorkspaceSummary $workspaceSummary,
         private readonly AdminGreetingName $greetingName,
+        private readonly RoleHierarchyInterface $roleHierarchy,
     ) {
     }
 
@@ -92,6 +95,9 @@ final class AdminNavBuilder
         if ($classroomCount > 0) {
             $items[] = $this->item('classrooms', 'Sınıflarım', 'app_teacher_classrooms', $currentPath, '/ogretmen/siniflarim');
         }
+        if ($this->holdsTeacherProfile($actor)) {
+            $items[] = $this->item('teacher_profile', 'Mesleki profil', 'app_teacher_profile', $currentPath, '/ogretmen/profil');
+        }
 
         if ($isSa) {
             $items[] = $this->item('payments', 'Ödemeler', 'app_admin_payments', $currentPath, '/yonetim/odemeler');
@@ -134,7 +140,7 @@ final class AdminNavBuilder
         $groups = [
             ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
             ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
-            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms']],
+            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
             ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
         ];
 
@@ -176,6 +182,15 @@ final class AdminNavBuilder
             'current' => $current,
             'icon' => $this->icons->resolve($id),
         ];
+    }
+
+    private function holdsTeacherProfile(User $actor): bool
+    {
+        return \in_array(
+            UserRole::Teacher->value,
+            $this->roleHierarchy->getReachableRoleNames($actor->getRoles()),
+            true,
+        );
     }
 
     private function initials(User $actor): string

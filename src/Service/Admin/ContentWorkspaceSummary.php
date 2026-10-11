@@ -28,6 +28,7 @@ use App\Repository\QuestionRepository;
 use App\Security\AdminAuthorization;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Component\Security\Core\Role\RoleHierarchyInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -48,6 +49,7 @@ final class ContentWorkspaceSummary
         private readonly EntityManagerInterface $entityManager,
         private readonly UrlGeneratorInterface $urls,
         private readonly ContentWorkflowLabels $labels,
+        private readonly RoleHierarchyInterface $roleHierarchy,
     ) {
     }
 
@@ -198,6 +200,9 @@ final class ContentWorkspaceSummary
         }
         if ($classrooms > 0) {
             $actions[] = new WorkspaceDashboardAction('Sınıflarım', $this->urls->generate('app_teacher_classrooms'));
+        }
+        if (\in_array(UserRole::Teacher->value, $this->roleHierarchy->getReachableRoleNames($actor->getRoles()), true)) {
+            $actions[] = new WorkspaceDashboardAction('Mesleki profil', $this->urls->generate('app_teacher_profile'));
         }
 
         return new WorkspaceDashboardView(

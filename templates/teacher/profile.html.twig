@@ -1,0 +1,32 @@
+{% extends 'teacher/layout.html.twig' %}
+
+{% block title %}Mesleki profil — Testlig{% endblock %}
+
+{% block teacher_content %}
+<section class="workspace-card">
+    <h1>Mesleki profil</h1>
+    <p class="muted">Branşını ve öğrettiğin sınıfları buradan kaydedersin. Ad, e-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
+    <p>Bu kayıt başvuru onayı, öğretmen rolü veya kurum üyeliği vermez.</p>
+    {% if profile %}
+        <p>Kayıtlı branş: {{ profile.subject.name }}</p>
+    {% endif %}
+    {% if not catalog_open %}
+        <p>Seçilebilecek aktif branş yok. Profil kaydı kapalı.</p>
+    {% else %}
+        {{ form_start(form, {attr: {novalidate: 'novalidate'}}) }}
+            {{ form_errors(form) }}
+            <div class="form-row">
+                {{ form_label(form.subject) }}
+                {{ form_widget(form.subject) }}
+                {{ form_errors(form.subject) }}
+            </div>
+            <div class="form-row">
+                {{ form_label(form.gradeLevels) }}
+                {{ form_widget(form.gradeLevels) }}
+                {{ form_errors(form.gradeLevels) }}
+            </div>
+            <button class="btn" type="submit">Kaydet</button>
+        {{ form_end(form) }}
+    {% endif %}
+</section>
+{% endblock %}

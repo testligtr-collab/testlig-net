@@ -2,8 +2,8 @@
   "schema_version": 1,
   "updated_at": "2026-10-11",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
-  "active_feature_ids": [
-    "M01-applications"
+      "active_feature_ids": [
+    "M07-profile"
   ],
   "features": [
     {
@@ -287,10 +287,10 @@
       "source": "src/Service/TeacherApplicationManager.php",
       "depends_on": [],
       "evidence": [
-        "src/Service/TeacherApplicationManager.php"
+        "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını görür ve kaydeder. Okul/il/ilçe, banka, belge, diploma, public profil, yeni onay süreci, V1 branş kilidi ve profil tamamlama yönlendirmesi bu dilimde yok. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
     },
     {
