@@ -16,10 +16,12 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
 
 /**
- * Pending institution onboarding application. Does not create Institution or membership (Stage 2.22.3).
+ * Institution onboarding application. Approval does not create an institution.
+ * A later explicit action may link one created institution; the link is not cleared.
  */
 #[ORM\Entity(repositoryClass: InstitutionApplicationRepository::class)]
 #[ORM\Table(name: 'institution_applications')]
+#[ORM\UniqueConstraint(name: 'uniq_inst_app_created_institution', columns: ['created_institution_id'])]
 #[ORM\Index(name: 'idx_inst_app_user_status', columns: ['user_id', 'status'])]
 #[ORM\Index(name: 'idx_inst_app_status_created', columns: ['status', 'created_at'])]
 #[ORM\Index(name: 'idx_inst_app_normalized_name', columns: ['proposed_normalized_name'])]
@@ -32,6 +34,10 @@ class InstitutionApplication
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'user_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private User $user;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'created_institution_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Institution $createdInstitution = null;
 
     #[ORM\Column(name: 'proposed_name', length: 180)]
     private string $proposedName;
@@ -102,6 +108,12 @@ class InstitutionApplication
     public function getUser(): User
     {
         return $this->user;
+    }
+
+    #[Ignore]
+    public function getCreatedInstitution(): ?Institution
+    {
+        return $this->createdInstitution;
     }
 
     public function getProposedName(): string
@@ -179,6 +191,21 @@ class InstitutionApplication
     public function markSuperseded(\DateTimeImmutable $now): void
     {
         $this->transition(OnboardingApplicationStatus::Superseded, $now, 'superseded_by_new_application');
+    }
+
+    /**
+     * Records the institution created for this application. Refuses a second link.
+     *
+     * @internal prefer InstitutionApplicationInstitutionCreate
+     */
+    public function linkCreatedInstitution(Institution $institution, \DateTimeImmutable $now): void
+    {
+        if (null !== $this->createdInstitution) {
+            throw OnboardingApplicationException::invalidTransition();
+        }
+
+        $this->createdInstitution = $institution;
+        $this->updatedAt = $now;
     }
 
     private function transition(OnboardingApplicationStatus $target, \DateTimeImmutable $now, ?string $reasonCode): void

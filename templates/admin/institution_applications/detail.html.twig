@@ -38,4 +38,25 @@
             <button type="submit">Reddet</button>
         </form>
     {% endif %}
+    {% if application.createdInstitution %}
+        <p>Bu başvurudan kurum oluşturuldu.</p>
+        <dl>
+            <dt>Oluşturulan kurum</dt>
+            <dd>{{ application.createdInstitution.name }}</dd>
+            <dt>Kurum durumu</dt>
+            <dd>{{ application.createdInstitution.status.value }}</dd>
+        </dl>
+    {% elseif application.status.value == 'approved' %}
+        <form method="post" action="{{ path('app_admin_institution_application_create', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('institution_application_create_institution') }}">
+            <p>Bu işlem pending kurum ve owner üyeliği oluşturur.</p>
+            <p>
+                <label>
+                    <input type="checkbox" name="confirm" value="1">
+                    Kurum oluşturmayı onaylıyorum
+                </label>
+            </p>
+            <button type="submit">Kurum oluştur</button>
+        </form>
+    {% endif %}
 {% endblock %}
