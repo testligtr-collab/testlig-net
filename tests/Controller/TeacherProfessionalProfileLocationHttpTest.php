@@ -62,7 +62,7 @@ final class TeacherProfessionalProfileLocationHttpTest extends WebTestCase
         self::assertResponseRedirects('/ogretmen/profil');
         $client->followRedirect();
         self::assertStringContainsString('Kayıtlı okul: tloc Il / tloc Ilce / tloc Okul', (string) $client->getResponse()->getContent());
-        self::assertSame($this->snapshot($math, [5, 9], $home['school']), $this->profileOf('tloc-teacher@example.com'));
+        self::assertSame($this->snapshot('tloc-mat', [5, 9], $home['school']), $this->profileOf('tloc-teacher@example.com'));
 
         $this->postProfile($client, $science, ['6'], [
             'province' => $home['province'],
