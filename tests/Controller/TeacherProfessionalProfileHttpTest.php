@@ -226,9 +226,8 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
         $this->login($client, 'tprof-teacher@example.com');
         $client->request('GET', '/ogretmen/profil');
         self::assertResponseIsSuccessful();
-        self::assertNull($this->profileOf('tprof-teacher@example.com'));
-
         $token = $this->csrf($client, 'teacher_professional_profile');
+        self::assertNull($this->profileOf('tprof-teacher@example.com'));
         foreach ([
             ['subject' => '00000000-0000-4000-8000-000000000099', 'gradeLevels' => ['5'], '_token' => $token],
             ['subject' => $archived, 'gradeLevels' => ['5'], '_token' => $token],
