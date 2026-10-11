@@ -7,7 +7,8 @@
             <a href="{{ path('app_admin_learning_contents') }}" {% if route starts with 'app_admin_learning_content' %}aria-current="page"{% endif %}>İçerikler</a>
             <a href="{{ path('app_admin_questions') }}" {% if route starts with 'app_admin_question' %}aria-current="page"{% endif %}>Sorular</a>
             <a href="{{ path('app_admin_tests') }}" {% if route starts with 'app_admin_test' %}aria-current="page"{% endif %}>Testler</a>
-            <a href="{{ path('app_teacher_classrooms') }}" {% if route starts with 'app_teacher_' %}aria-current="page"{% endif %}>Sınıflarım</a>
+            <a href="{{ path('app_teacher_classrooms') }}" {% if route starts with 'app_teacher_classroom' or route starts with 'app_teacher_test' %}aria-current="page"{% endif %}>Sınıflarım</a>
+            <a href="{{ path('app_teacher_profile') }}" {% if route == 'app_teacher_profile' %}aria-current="page"{% endif %}>Mesleki profil</a>
             <a href="{{ path('app_account') }}">Hesabım</a>
             <a href="{{ path('app_home') }}">Ana sayfa</a>
         </nav>
@@ -31,6 +32,7 @@
             <a href="{{ path('app_admin_questions') }}">Sorular</a>
             <a href="{{ path('app_admin_tests') }}">Testler</a>
             <a href="{{ path('app_teacher_classrooms') }}">Sınıflarım</a>
+            <a href="{{ path('app_teacher_profile') }}">Mesleki profil</a>
             <a href="{{ path('app_account') }}">Hesabım</a>
             <a href="{{ path('app_home') }}">Ana sayfa</a>
         </nav>
