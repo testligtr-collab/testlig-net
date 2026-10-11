@@ -3,7 +3,7 @@
   "updated_at": "2026-10-10",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
-    "M12-institution-authoring"
+    "M01-applications"
   ],
   "features": [
     {
