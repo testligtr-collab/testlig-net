@@ -407,7 +407,8 @@ final class AdminInstitutionFromApplicationHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/yonetim/kurumlar/yeni');
         $form = $crawler->selectButton('Kurumu oluştur')->form();
         $form['admin_institution_create[name]'] = 'Instc Form Okulu';
-        $form['admin_institution_create[type]'] = 'school';
+        // Choice values are indexes; School is the first InstitutionType case.
+        $form['admin_institution_create[type]'] = '0';
         $form['admin_institution_create[ownerUserId]'] = $ownerId;
         $form['admin_institution_create[reasonCode]'] = 'institution_onboarding';
         $confirm = $form['admin_institution_create[confirm]'];
