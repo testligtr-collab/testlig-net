@@ -289,7 +289,9 @@
       "evidence": [
         "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/120"
+      ],
       "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını görür ve kaydeder. Okul/il/ilçe, banka, belge, diploma, public profil, yeni onay süreci, V1 branş kilidi ve profil tamamlama yönlendirmesi bu dilimde yok. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
     },
