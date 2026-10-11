@@ -287,12 +287,13 @@
       "source": "src/Service/TeacherApplicationManager.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez."
+        "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez. PR #120 merge SHA 291ce515d796a1df3da0ac37d87e67bbfbe262aa, main CI https://github.com/testligtr-collab/testlig-net/actions/runs/38157258280, Roadmap coverage https://github.com/testligtr-collab/testlig-net/actions/runs/38157258285, deploy https://github.com/testligtr-collab/testlig-net/actions/runs/38158546449.",
+        "src/Controller/TeacherProfessionalProfileController.php: aynı ekran il, ilçe ve okul seçer. Saklanan değer yalnız aktif okul zincirinin okul kimliğidir. Geçerli zincir yoksa branş ve sınıf kaydı sürer. Ulusal katalog yükleme bu dilimin dışındadır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/120"
       ],
-      "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını görür ve kaydeder. Okul/il/ilçe, banka, belge, diploma, public profil, yeni onay süreci, V1 branş kilidi ve profil tamamlama yönlendirmesi bu dilimde yok. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
+      "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını kaydeder. Aynı ekranda, katalogda geçerli bir aktif okul zinciri varsa il, ilçe ve okul seçer; yalnız okul kimliği saklanır. Katalog yüklemesi ayrı bir veri bağımlılığıdır ve bu dilime girmez. Okul/il/ilçe modeli banka, belge, diploma, public profil, yeni onay, V1 branş kilidi ve profil tamamlama yönlendirmesini kapsamaz. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
     },
     {

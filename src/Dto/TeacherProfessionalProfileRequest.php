@@ -23,6 +23,12 @@ final class TeacherProfessionalProfileRequest
     #[Assert\Count(min: 1, minMessage: 'En az bir geçerli sınıf seçin.')]
     public array $gradeLevels = [];
 
+    public ?string $provinceId = null;
+
+    public ?string $districtId = null;
+
+    public ?string $schoolId = null;
+
     /**
      * @param list<Subject> $activeSubjects
      */
@@ -37,6 +43,12 @@ final class TeacherProfessionalProfileRequest
                 break;
             }
         }
+        $school = $profile->getSchoolLocation();
+        $district = $school?->getParent();
+        $province = $district?->getParent();
+        $dto->schoolId = $school?->getId()->toRfc4122();
+        $dto->districtId = $district?->getId()->toRfc4122();
+        $dto->provinceId = $province?->getId()->toRfc4122();
 
         return $dto;
     }

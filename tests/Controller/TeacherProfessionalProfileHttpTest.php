@@ -350,6 +350,11 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
             self::assertSame('subject_id', $subjectJoin->joinColumns[0]->name);
             self::assertFalse($subjectJoin->joinColumns[0]->nullable);
             self::assertSame('RESTRICT', $subjectJoin->joinColumns[0]->onDelete);
+            $schoolJoin = $meta->getAssociationMapping('schoolLocation');
+            self::assertInstanceOf(ToOneOwningSideMapping::class, $schoolJoin);
+            self::assertSame('school_location_id', $schoolJoin->joinColumns[0]->name);
+            self::assertTrue($schoolJoin->joinColumns[0]->nullable);
+            self::assertSame('RESTRICT', $schoolJoin->joinColumns[0]->onDelete);
             $unique = $meta->table['uniqueConstraints']['uniq_teacher_professional_profiles_user'] ?? null;
             self::assertIsArray($unique);
             self::assertSame(['user_id'], $unique['columns']);
@@ -647,6 +652,13 @@ final class TeacherProfessionalProfileHttpTest extends WebTestCase
                 $connection->executeStatement('DELETE FROM users WHERE email LIKE ?', ['tprof-%']);
             }
             $connection->executeStatement("DELETE FROM subjects WHERE code LIKE 'tprof-%'");
+            $connection->executeStatement(
+                "DELETE p FROM teacher_professional_profiles p INNER JOIN locations l ON l.id = p.school_location_id WHERE l.name LIKE 'tloc %'",
+            );
+            $connection->executeStatement("DELETE FROM locations WHERE name LIKE 'tloc %' AND level NOT IN ('province', 'district', 'school')");
+            $connection->executeStatement("DELETE FROM locations WHERE name LIKE 'tloc %' AND level = 'school'");
+            $connection->executeStatement("DELETE FROM locations WHERE name LIKE 'tloc %' AND level = 'district'");
+            $connection->executeStatement("DELETE FROM locations WHERE name LIKE 'tloc %' AND level = 'province'");
         });
     }
 }

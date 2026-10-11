@@ -24,6 +24,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Table(name: 'teacher_professional_profiles')]
 #[ORM\UniqueConstraint(name: 'uniq_teacher_professional_profiles_user', columns: ['user_id'])]
 #[ORM\Index(name: 'idx_teacher_professional_profiles_subject', columns: ['subject_id'])]
+#[ORM\Index(name: 'idx_teacher_professional_profiles_school', columns: ['school_location_id'])]
 class TeacherProfessionalProfile
 {
     #[ORM\Id]
@@ -37,6 +38,10 @@ class TeacherProfessionalProfile
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'subject_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private Subject $subject;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'school_location_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?Location $schoolLocation;
 
     /**
      * Sorted unique GradeLevel backing values.
@@ -60,11 +65,13 @@ class TeacherProfessionalProfile
         Subject $subject,
         array $gradeLevels,
         \DateTimeImmutable $now,
+        ?Location $schoolLocation = null,
         ?Uuid $id = null,
     ) {
         $this->id = $id ?? new UuidV7();
         $this->user = $user;
         $this->subject = $subject;
+        $this->schoolLocation = $schoolLocation;
         $this->gradeLevels = self::normalizeGradeValues($gradeLevels);
         $this->createdAt = $now;
         $this->updatedAt = $now;
@@ -80,9 +87,10 @@ class TeacherProfessionalProfile
         Subject $subject,
         array $gradeLevels,
         \DateTimeImmutable $now,
+        ?Location $schoolLocation = null,
         ?Uuid $id = null,
     ): self {
-        return new self($user, $subject, $gradeLevels, $now, $id);
+        return new self($user, $subject, $gradeLevels, $now, $schoolLocation, $id);
     }
 
     public function getId(): Uuid
@@ -99,6 +107,11 @@ class TeacherProfessionalProfile
     public function getSubject(): Subject
     {
         return $this->subject;
+    }
+
+    public function getSchoolLocation(): ?Location
+    {
+        return $this->schoolLocation;
     }
 
     /**
@@ -133,9 +146,10 @@ class TeacherProfessionalProfile
      *
      * @internal prefer TeacherProfessionalProfileManager
      */
-    public function apply(Subject $subject, array $gradeLevels, \DateTimeImmutable $now): void
+    public function apply(Subject $subject, array $gradeLevels, ?Location $schoolLocation, \DateTimeImmutable $now): void
     {
         $this->subject = $subject;
+        $this->schoolLocation = $schoolLocation;
         $this->gradeLevels = self::normalizeGradeValues($gradeLevels);
         $this->updatedAt = $now;
     }

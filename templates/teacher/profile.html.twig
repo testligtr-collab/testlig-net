@@ -5,10 +5,13 @@
 {% block teacher_content %}
 <section class="workspace-card">
     <h1>Mesleki profil</h1>
-    <p class="muted">Branşını ve öğrettiğin sınıfları buradan kaydedersin. Ad, e-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
+    <p class="muted">Branşını, öğrettiğin sınıfları ve okulunu buradan kaydedersin. Ad, e-posta ve parola için <a href="{{ path('app_account') }}">Hesabım</a> sayfasını kullan.</p>
     <p>Bu kayıt başvuru onayı, öğretmen rolü veya kurum üyeliği vermez.</p>
     {% if profile %}
         <p>Kayıtlı branş: {{ profile.subject.name }}</p>
+    {% endif %}
+    {% if school_label %}
+        <p>Kayıtlı okul: {{ school_label }}</p>
     {% endif %}
     {% if not catalog_open %}
         <p>Seçilebilecek aktif branş yok. Profil kaydı kapalı.</p>
@@ -25,6 +28,33 @@
                 {{ form_widget(form.gradeLevels) }}
                 {{ form_errors(form.gradeLevels) }}
             </div>
+            {% if school_catalog_open %}
+                <div
+                    data-controller="location-cascade"
+                    data-location-cascade-url-value="{{ path('app_teacher_profile_locations') }}"
+                    data-location-cascade-province-value="{{ form.provinceId.vars.value|default('') }}"
+                    data-location-cascade-district-value="{{ form.districtId.vars.value|default('') }}"
+                    data-location-cascade-school-value="{{ form.schoolId.vars.value|default('') }}"
+                >
+                    <div class="form-row">
+                        <label for="teacher-province">İl</label>
+                        <select id="teacher-province" data-location-cascade-target="province" data-action="change->location-cascade#provinceChanged"></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="teacher-district">İlçe</label>
+                        <select id="teacher-district" data-location-cascade-target="district" data-action="change->location-cascade#districtChanged"></select>
+                    </div>
+                    <div class="form-row">
+                        <label for="teacher-school">Okul</label>
+                        <select id="teacher-school" data-location-cascade-target="school" data-action="change->location-cascade#schoolChanged"></select>
+                    </div>
+                    {{ form_widget(form.provinceId, {attr: {'data-location-cascade-target': 'provinceId'}}) }}
+                    {{ form_widget(form.districtId, {attr: {'data-location-cascade-target': 'districtId'}}) }}
+                    {{ form_widget(form.schoolId, {attr: {'data-location-cascade-target': 'schoolId'}}) }}
+                </div>
+            {% else %}
+                <p>Seçilebilecek aktif okul yok. Branş ve sınıf kaydı okul seçimi olmadan sürer.</p>
+            {% endif %}
             <button class="btn" type="submit">Kaydet</button>
         {{ form_end(form) }}
     {% endif %}
