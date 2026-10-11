@@ -291,7 +291,8 @@
         "src/Controller/TeacherProfessionalProfileController.php: aynı ekran il, ilçe ve okul seçer. Saklanan değer yalnız aktif okul zincirinin okul kimliğidir. Geçerli zincir yoksa branş ve sınıf kaydı sürer. Ulusal katalog yükleme bu dilimin dışındadır."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/120"
+        "https://github.com/testligtr-collab/testlig-net/pull/120",
+        "https://github.com/testligtr-collab/testlig-net/pull/121"
       ],
       "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını kaydeder. Aynı ekranda, katalogda geçerli bir aktif okul zinciri varsa il, ilçe ve okul seçer; yalnız okul kimliği saklanır. Katalog yüklemesi ayrı bir veri bağımlılığıdır ve bu dilime girmez. Okul/il/ilçe modeli banka, belge, diploma, public profil, yeni onay, V1 branş kilidi ve profil tamamlama yönlendirmesini kapsamaz. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
