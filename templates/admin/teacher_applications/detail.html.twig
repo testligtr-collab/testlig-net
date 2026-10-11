@@ -34,4 +34,17 @@
             <button type="submit">Reddet</button>
         </form>
     {% endif %}
+    {% if application.status.value == 'approved' %}
+        <form method="post" action="{{ path('app_admin_teacher_application_grant_role', {id: application.id}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_grant_role') }}">
+            <p>Bu işlem yalnız öğretmen rolü verir.</p>
+            <p>
+                <label>
+                    <input type="checkbox" name="confirm" value="1">
+                    Öğretmen rolünü vermeyi onaylıyorum
+                </label>
+            </p>
+            <button type="submit">Öğretmen rolü ver</button>
+        </form>
+    {% endif %}
 {% endblock %}
