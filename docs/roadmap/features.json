@@ -29,14 +29,15 @@
       "depends_on": [],
       "evidence": [
         "src/Controller/OnboardingApplicationController.php",
-        "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü, kurum ve üyelik vermez.",
+        "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü vermez. Onaylı başvurudan ayrı POST, UserGlobalRoleManager::addRole ile yalnız ROLE_TEACHER verir.",
         "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. M07-profile ve rol provisioning bu dilimde yok."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/116",
-        "https://github.com/testligtr-collab/testlig-net/pull/117"
+        "https://github.com/testligtr-collab/testlig-net/pull/117",
+        "https://github.com/testligtr-collab/testlig-net/pull/118"
       ],
-      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil ve rol/kurum provisioning açık kalır. Production kabulü ayrıdır.",
+      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları ile onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum oluşturma ve kurum üyelik provisioning açık kalır. Production kabulü ayrıdır.",
       "scope_decision": null
     },
     {
