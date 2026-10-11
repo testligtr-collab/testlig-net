@@ -12,16 +12,24 @@ use App\Enum\InstitutionType;
 use App\Enum\OnboardingApplicationStatus;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Repository\InstitutionApplicationRepository;
 use App\Repository\UserRepository;
+use App\Service\ActiveVerifiedUserPolicy;
+use App\Service\InstitutionalFreshEntityLoader;
+use App\Service\InstitutionApplicationInstitutionCreate;
 use App\Service\InstitutionApplicationManager;
 use App\Service\InstitutionCreator;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use App\Service\UserStatusManager;
+use App\Tests\Support\InstitutionApplicationLinkFlushObserver;
+use App\Tests\Support\LinkBoundaryClock;
+use App\Tests\Support\LinkBoundaryException;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\Exception\ForeignKeyConstraintViolationException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Events;
 use Doctrine\ORM\Mapping\ToOneOwningSideMapping;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -183,6 +191,7 @@ final class AdminInstitutionFromApplicationHttpTest extends WebTestCase
         self::assertNotContains(UserRole::InstitutionManager->value, $this->roles('instc-a@example.com'));
         $detail = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Başvuru onayı kurum, üyelik veya rol vermez.', $detail);
+        self::assertStringContainsString('Bu işlem onay bekleyen bir kurum oluşturur ve başvuranı kurum sahibi yapar.', $detail);
         self::assertStringContainsString('>Kurum oluştur<', $detail);
 
         $client->request('GET', '/yonetim/kurum-basvurulari/'.$this->pendingA);
@@ -216,7 +225,7 @@ final class AdminInstitutionFromApplicationHttpTest extends WebTestCase
         self::assertSame($before['role_changed'], $this->snapshot()['role_changed']);
         $page = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Bu başvurudan kurum oluşturuldu.', $page);
-        self::assertStringContainsString('pending', $page);
+        self::assertStringContainsString('Beklemede', $page);
         self::assertStringNotContainsString('>Kurum oluştur<', $page);
 
         $linked = $this->linkedInstitutionId($this->pendingA);
@@ -265,6 +274,52 @@ final class AdminInstitutionFromApplicationHttpTest extends WebTestCase
         self::assertSame(OnboardingApplicationStatus::Approved->value, $this->applicationStatus($this->pendingA));
         self::assertSame($before, $this->snapshot());
         self::assertSame(0, $this->auditReasonCount('institution_created', 'institution_application_'.str_replace('-', '', $this->pendingA)));
+    }
+
+    public function testOuterTransactionRollsBackWritesWhenTheLinkBoundaryFails(): void
+    {
+        $this->approve($this->pendingA);
+        $before = $this->snapshot();
+        $reason = 'institution_application_'.str_replace('-', '', $this->pendingA);
+        $observer = new InstitutionApplicationLinkFlushObserver();
+        $failedAtBoundary = $this->withKernel(function () use ($observer): bool {
+            $em = static::getContainer()->get(EntityManagerInterface::class);
+            $applications = static::getContainer()->get(InstitutionApplicationRepository::class);
+            $loader = static::getContainer()->get(InstitutionalFreshEntityLoader::class);
+            $creator = static::getContainer()->get(InstitutionCreator::class);
+            $policy = static::getContainer()->get(ActiveVerifiedUserPolicy::class);
+            self::assertInstanceOf(EntityManagerInterface::class, $em);
+            self::assertInstanceOf(InstitutionApplicationRepository::class, $applications);
+            self::assertInstanceOf(InstitutionalFreshEntityLoader::class, $loader);
+            self::assertInstanceOf(InstitutionCreator::class, $creator);
+            self::assertInstanceOf(ActiveVerifiedUserPolicy::class, $policy);
+            $em->getEventManager()->addEventListener(Events::postFlush, $observer);
+            $create = new InstitutionApplicationInstitutionCreate(
+                $em,
+                $loader,
+                $applications,
+                $creator,
+                $policy,
+                new LinkBoundaryClock(),
+            );
+            try {
+                $create->create($this->user('instc-sa@example.com'), Uuid::fromString($this->pendingA));
+            } catch (LinkBoundaryException) {
+                return true;
+            }
+
+            return false;
+        });
+
+        self::assertTrue($failedAtBoundary);
+        self::assertTrue($observer->sawWritesBeforeLink());
+        self::assertNull($this->linkedInstitutionId($this->pendingA));
+        self::assertSame(OnboardingApplicationStatus::Approved->value, $this->applicationStatus($this->pendingA));
+        self::assertSame(OnboardingApplicationStatus::Pending->value, $this->applicationStatus($this->pendingB));
+        self::assertNull($this->linkedInstitutionId($this->pendingB));
+        self::assertSame(0, $this->auditReasonCount('institution_created', $reason));
+        self::assertSame(0, $this->auditReasonCount('institution_member_added', $reason));
+        self::assertSame($before, $this->snapshot());
     }
 
     public function testPendingRejectedWithdrawnAndSupersededApplicationsAreRefused(): void
