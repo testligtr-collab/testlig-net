@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-10",
+  "updated_at": "2026-10-11",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
     "M01-applications"
@@ -30,14 +30,15 @@
       "evidence": [
         "src/Controller/OnboardingApplicationController.php",
         "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü vermez. Onaylı başvurudan ayrı POST, UserGlobalRoleManager::addRole ile yalnız ROLE_TEACHER verir.",
-        "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. M07-profile ve rol provisioning bu dilimde yok."
+        "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. Onaylı başvurudan ayrı POST, InstitutionCreator ile pending kurum ve owner üyeliği oluşturup başvuruya bağlar. Aktivasyon ve manager üyeliği bu dilimde yok."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/116",
         "https://github.com/testligtr-collab/testlig-net/pull/117",
-        "https://github.com/testligtr-collab/testlig-net/pull/118"
+        "https://github.com/testligtr-collab/testlig-net/pull/118",
+        "https://github.com/testligtr-collab/testlig-net/pull/119"
       ],
-      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları ile onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum oluşturma ve kurum üyelik provisioning açık kalır. Production kabulü ayrıdır.",
+      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır.",
       "scope_decision": null
     },
     {

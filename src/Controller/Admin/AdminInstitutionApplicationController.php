@@ -6,11 +6,14 @@ namespace App\Controller\Admin;
 
 use App\Entity\InstitutionApplication;
 use App\Entity\User;
+use App\Enum\InstitutionFailureReason;
+use App\Exception\InstitutionOperationException;
 use App\Exception\OnboardingApplicationException;
 use App\Repository\InstitutionApplicationRepository;
 use App\Security\AdminPermission;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\InstitutionApplicationInstitutionCreate;
 use App\Service\InstitutionApplicationManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,6 +32,7 @@ final class AdminInstitutionApplicationController extends AdminBaseController
         AdminNavBuilder $adminNavBuilder,
         private readonly InstitutionApplicationRepository $applications,
         private readonly InstitutionApplicationManager $applicationManager,
+        private readonly InstitutionApplicationInstitutionCreate $institutionCreate,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
     ) {
         parent::__construct($adminNavBuilder);
@@ -96,6 +100,33 @@ final class AdminInstitutionApplicationController extends AdminBaseController
         return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
     }
 
+    #[Route('/yonetim/kurum-basvurulari/{id}/kurum-olustur', name: 'app_admin_institution_application_create', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
+    public function createInstitution(Request $request, Uuid $id): Response
+    {
+        $actor = $this->requireSuperAdmin();
+        if (!$this->isCsrfTokenValid('institution_application_create_institution', $request->request->getString('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        $this->application($id);
+        if ('1' !== $request->request->getString('confirm')) {
+            $this->addFlash('error', 'Kurum oluşturmak için onay gereklidir.');
+
+            return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
+        }
+
+        try {
+            $created = $this->institutionCreate->create($actor, $id);
+        } catch (OnboardingApplicationException $exception) {
+            return $this->decisionFailure($id, $exception);
+        } catch (InstitutionOperationException $exception) {
+            return $this->createFailure($id, $exception);
+        }
+        $this->addFlash('success', $created ? 'Kurum oluşturuldu.' : 'Bu başvurudan kurum zaten oluşturuldu.');
+
+        return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
+    }
+
     private function requireSuperAdmin(): User
     {
         $actor = $this->requireActorUser();
@@ -125,6 +156,19 @@ final class AdminInstitutionApplicationController extends AdminBaseController
             throw new NotFoundHttpException($exception->getMessage(), $exception);
         }
         $this->addFlash('error', $exception->getMessage());
+
+        return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
+    }
+
+    private function createFailure(Uuid $id, InstitutionOperationException $exception): Response
+    {
+        if (InstitutionFailureReason::Unauthorized === $exception->getReason()) {
+            throw new AccessDeniedHttpException('Bu işlem için yetkiniz yok.', $exception);
+        }
+        if (InstitutionFailureReason::NotFound === $exception->getReason()) {
+            throw new NotFoundHttpException('Başvuru bulunamadı.', $exception);
+        }
+        $this->addFlash('error', 'Kurum oluşturulamadı. Yazım yapılmadı.');
 
         return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
     }
