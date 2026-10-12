@@ -9,6 +9,9 @@ use App\Entity\User;
 use App\Enum\LearningDocumentStorageProvider;
 use App\Enum\UserRole;
 use App\Exception\LearningContentException;
+use App\LearningContent\Document\BunnyLearningDocumentStorage;
+use App\LearningContent\Document\BunnyStorageClient;
+use App\LearningContent\Document\BunnyStorageConfiguration;
 use App\LearningContent\Document\CloudflareR2ObjectClient;
 use App\LearningContent\Document\LearningDocumentByteStore;
 use App\LearningContent\Document\LearningDocumentResponse;
@@ -27,6 +30,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -40,7 +44,7 @@ final class R2LearningDocumentStorageTest extends TestCase
         $fake = new FakeR2ObjectClient();
         $r2 = new R2LearningDocumentStorage($fake, $tempDir, 64);
         $ready = $this->configuration(true);
-        $resolver = new LearningDocumentStoreResolver($local, $r2, $ready, 'r2');
+        $resolver = $this->resolver($local, $r2, $ready, 'r2');
 
         $upload = $resolver->forUpload();
         self::assertSame(LearningDocumentStorageProvider::R2, $upload->provider());
@@ -49,7 +53,7 @@ final class R2LearningDocumentStorageTest extends TestCase
         $localAsset = $this->asset(LearningDocumentStorageProvider::Local);
         self::assertSame($local, $resolver->forAsset($localAsset));
 
-        $localUpload = new LearningDocumentStoreResolver($local, $r2, $ready, 'local');
+        $localUpload = $this->resolver($local, $r2, $ready, 'local');
         self::assertSame(LearningDocumentStorageProvider::Local, $localUpload->forUpload()->provider());
         self::assertSame($r2, $localUpload->forAsset($this->asset(LearningDocumentStorageProvider::R2)));
         self::assertSame(0, $fake->puts);
@@ -58,7 +62,7 @@ final class R2LearningDocumentStorageTest extends TestCase
     public function testMissingR2ConfigurationDoesNotFallBackToLocal(): void
     {
         $localDir = $this->directory('local');
-        $resolver = new LearningDocumentStoreResolver(
+        $resolver = $this->resolver(
             new LearningDocumentStorage($localDir),
             new R2LearningDocumentStorage(new FakeR2ObjectClient(), $this->directory('temp'), 64),
             $this->configuration(false),
@@ -102,7 +106,7 @@ final class R2LearningDocumentStorageTest extends TestCase
         self::assertSame('%PDF-', $partial);
 
         $asset = $this->asset(LearningDocumentStorageProvider::R2, $key, $sha);
-        $resolver = new LearningDocumentStoreResolver(
+        $resolver = $this->resolver(
             new LearningDocumentStorage($this->directory('local')),
             $store,
             $this->configuration(true),
@@ -331,6 +335,26 @@ final class R2LearningDocumentStorageTest extends TestCase
             $sha,
             new \DateTimeImmutable('2026-10-12T12:00:00Z'),
             null,
+            $provider,
+        );
+    }
+
+    private function resolver(
+        LearningDocumentStorage $local,
+        R2LearningDocumentStorage $r2,
+        R2Configuration $r2Configuration,
+        string $provider,
+    ): LearningDocumentStoreResolver {
+        return new LearningDocumentStoreResolver(
+            $local,
+            $r2,
+            new BunnyLearningDocumentStorage(
+                new BunnyStorageClient(new MockHttpClient(), new BunnyStorageConfiguration('', '', '')),
+                $this->directory('bunny-idle'),
+                64,
+            ),
+            $r2Configuration,
+            new BunnyStorageConfiguration('', '', ''),
             $provider,
         );
     }

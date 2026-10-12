@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\EventSubscriber;
 
+use App\LearningContent\Document\BunnyLearningDocumentStorage;
 use App\LearningContent\Document\R2LearningDocumentStorage;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
@@ -15,7 +16,8 @@ use Symfony\Component\HttpKernel\KernelEvents;
 final class LearningDocumentTempCleanupSubscriber implements EventSubscriberInterface
 {
     public function __construct(
-        private readonly R2LearningDocumentStorage $storage,
+        private readonly R2LearningDocumentStorage $r2Storage,
+        private readonly BunnyLearningDocumentStorage $bunnyStorage,
     ) {
     }
 
@@ -26,6 +28,7 @@ final class LearningDocumentTempCleanupSubscriber implements EventSubscriberInte
 
     public function onTerminate(): void
     {
-        $this->storage->releaseVerifiedCopies();
+        $this->r2Storage->releaseVerifiedCopies();
+        $this->bunnyStorage->releaseVerifiedCopies();
     }
 }
