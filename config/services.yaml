@@ -24,6 +24,9 @@ parameters:
     env(R2_ACCESS_KEY_ID): ''
     env(R2_SECRET_ACCESS_KEY): ''
     env(R2_BUCKET): ''
+    env(BUNNY_STORAGE_ZONE): ''
+    env(BUNNY_STORAGE_ACCESS_KEY): ''
+    env(BUNNY_STORAGE_ENDPOINT): ''
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -57,6 +60,16 @@ services:
             $bucket: '%env(R2_BUCKET)%'
 
     App\LearningContent\Document\R2LearningDocumentStorage:
+        arguments:
+            $tempDirectory: '%kernel.project_dir%/var/learning-document-private'
+
+    App\LearningContent\Document\BunnyStorageConfiguration:
+        arguments:
+            $zone: '%env(BUNNY_STORAGE_ZONE)%'
+            $accessKey: '%env(BUNNY_STORAGE_ACCESS_KEY)%'
+            $endpoint: '%env(BUNNY_STORAGE_ENDPOINT)%'
+
+    App\LearningContent\Document\BunnyLearningDocumentStorage:
         arguments:
             $tempDirectory: '%kernel.project_dir%/var/learning-document-private'
 

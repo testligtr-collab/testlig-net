@@ -17,7 +17,9 @@ final class LearningDocumentStoreResolver
     public function __construct(
         private readonly LearningDocumentStorage $local,
         private readonly R2LearningDocumentStorage $r2,
-        private readonly R2Configuration $configuration,
+        private readonly BunnyLearningDocumentStorage $bunny,
+        private readonly R2Configuration $r2Configuration,
+        private readonly BunnyStorageConfiguration $bunnyConfiguration,
         private readonly string $uploadProvider,
     ) {
     }
@@ -28,10 +30,15 @@ final class LearningDocumentStoreResolver
         if ('local' === $provider || '' === $provider) {
             return new LearningDocumentUploadTarget($this->local, LearningDocumentStorageProvider::Local);
         }
+        if ('bunny' === $provider) {
+            $this->bunnyConfiguration->assertReady();
+
+            return new LearningDocumentUploadTarget($this->bunny, LearningDocumentStorageProvider::Bunny);
+        }
         if ('r2' !== $provider) {
             throw LearningContentException::assetInvalid('Doküman kaydedilemedi.');
         }
-        $this->configuration->assertReady();
+        $this->r2Configuration->assertReady();
 
         return new LearningDocumentUploadTarget($this->r2, LearningDocumentStorageProvider::R2);
     }
@@ -41,6 +48,7 @@ final class LearningDocumentStoreResolver
         return match ($asset->getStorageProvider()) {
             LearningDocumentStorageProvider::Local => $this->local,
             LearningDocumentStorageProvider::R2 => $this->r2,
+            LearningDocumentStorageProvider::Bunny => $this->bunny,
         };
     }
 }

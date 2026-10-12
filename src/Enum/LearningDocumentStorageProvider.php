@@ -11,4 +11,5 @@ enum LearningDocumentStorageProvider: string
 {
     case Local = 'local';
     case R2 = 'r2';
+    case Bunny = 'bunny';
 }
