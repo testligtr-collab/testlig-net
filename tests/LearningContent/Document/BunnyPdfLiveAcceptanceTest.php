@@ -16,6 +16,8 @@ use Symfony\Contracts\HttpClient\ResponseStreamInterface;
 
 final class BunnyPdfLiveAcceptanceTest extends TestCase
 {
+    private string $directory = '';
+
     public function testAcceptanceUsesOneDownloadRangeAndReal404(): void
     {
         $pdf = "%PDF-1.4\n%testlig-bunny-live\n";
@@ -49,6 +51,99 @@ final class BunnyPdfLiveAcceptanceTest extends TestCase
         self::assertStringNotContainsString('test-access-key', $encoded);
         self::assertStringNotContainsString('secret-not-found-body', $encoded);
         self::assertStringNotContainsString('Learning content was not found.', $encoded);
+        self::assertSame([], glob($this->directory.\DIRECTORY_SEPARATOR.'*') ?: []);
+    }
+
+    public function testDownloadFailureCleansOnceAndSkipsLaterSteps(): void
+    {
+        $released = false;
+        $http = new LiveAcceptHttpClient(
+            new LiveAcceptResponse(201, ''),
+            new LiveAcceptResponse(500, 'secret-body'),
+            new LiveAcceptResponse(200, ''),
+            new LiveAcceptResponse(404, 'secret-not-found-body'),
+        );
+        [$storage, $client] = $this->pair($http);
+        $report = (new BunnyPdfLiveAcceptance($storage, $client, static function () use (&$released, $storage): void {
+            $released = true;
+            $storage->releaseVerifiedCopies();
+        }))->run();
+
+        self::assertSame('failed', $report['result']);
+        self::assertSame(0, $report['range']);
+        self::assertSame(0, $report['anonymous']);
+        self::assertSame(404, $report['cleanup']);
+        self::assertTrue($released);
+        self::assertSame(['PUT', 'GET', 'DELETE', 'GET'], array_column($http->calls, 0));
+        self::assertSame([], glob($this->directory.\DIRECTORY_SEPARATOR.'*') ?: []);
+        $encoded = json_encode($report, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString('Learning content was not found.', $encoded);
+        self::assertStringNotContainsString('secret-not-found-body', $encoded);
+        self::assertStringNotContainsString($this->directory, $encoded);
+    }
+
+    public function testLocalCleanupFailureStaysUnverifiedWithoutPublishingThePath(): void
+    {
+        $pdf = "%PDF-1.4\n%testlig-bunny-live\n";
+        $http = new LiveAcceptHttpClient(
+            new LiveAcceptResponse(201, ''),
+            new LiveAcceptResponse(200, $pdf, ['content-length' => [(string) \strlen($pdf)]]),
+            new LiveAcceptResponse(401, ''),
+            new LiveAcceptResponse(200, ''),
+            new LiveAcceptResponse(404, ''),
+        );
+        [$storage, $client] = $this->pair($http);
+        $report = (new BunnyPdfLiveAcceptance($storage, $client, static function (): void {
+            throw new \RuntimeException('local-cleanup-failed');
+        }))->run();
+
+        self::assertSame('cleanup_unverified', $report['result']);
+        self::assertSame(404, $report['cleanup']);
+        self::assertSame(1, \count(array_filter($http->calls, static fn (array $call): bool => 'DELETE' === $call[0])));
+        $files = glob($this->directory.\DIRECTORY_SEPARATOR.'*') ?: [];
+        self::assertCount(1, $files);
+        $encoded = json_encode($report, \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString(basename($files[0]), $encoded);
+        self::assertStringNotContainsString('test-access-key', $encoded);
+        self::assertStringNotContainsString($this->directory, $encoded);
+        $storage->releaseVerifiedCopies();
+    }
+
+    public function testRemoteDeleteFailureStillCleansTheLocalFileOnce(): void
+    {
+        $pdf = "%PDF-1.4\n%testlig-bunny-live\n";
+        $released = false;
+        $http = new LiveAcceptHttpClient(
+            new LiveAcceptResponse(201, ''),
+            new LiveAcceptResponse(200, $pdf, ['content-length' => [(string) \strlen($pdf)]]),
+            new LiveAcceptResponse(401, ''),
+            new LiveAcceptResponse(500, 'secret-body-zone'),
+            new LiveAcceptResponse(404, 'secret-not-found-body'),
+        );
+        [$storage, $client] = $this->pair($http);
+        $report = (new BunnyPdfLiveAcceptance($storage, $client, static function () use (&$released, $storage): void {
+            $released = true;
+            $storage->releaseVerifiedCopies();
+        }))->run();
+
+        self::assertSame('accepted', $report['result']);
+        self::assertTrue($released);
+        self::assertSame(404, $report['cleanup']);
+        self::assertSame(1, \count(array_filter($http->calls, static fn (array $call): bool => 'DELETE' === $call[0])));
+        self::assertSame([], glob($this->directory.\DIRECTORY_SEPARATOR.'*') ?: []);
+        self::assertStringNotContainsString('Learning content was not found.', json_encode($report, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testRangeBufferClosesWhenTheFileCannotBeRead(): void
+    {
+        $level = ob_get_level();
+        $tool = $this->acceptance(new LiveAcceptHttpClient());
+        try {
+            $tool->rangeSample($this->directory.\DIRECTORY_SEPARATOR.'missing-file');
+            self::fail();
+        } catch (\Throwable) {
+        }
+        self::assertSame($level, ob_get_level());
     }
 
     public function testAnonymousSuccessAndRedirectFailWithoutAnotherDelete(): void
@@ -137,16 +232,26 @@ final class BunnyPdfLiveAcceptanceTest extends TestCase
 
     private function acceptance(LiveAcceptHttpClient $http): BunnyPdfLiveAcceptance
     {
+        [$storage, $client] = $this->pair($http);
+
+        return new BunnyPdfLiveAcceptance($storage, $client);
+    }
+
+    /**
+     * @return array{0: BunnyLearningDocumentStorage, 1: BunnyStorageClient}
+     */
+    private function pair(LiveAcceptHttpClient $http): array
+    {
         $configuration = new BunnyStorageConfiguration(
             BunnyPdfLiveAcceptance::ZONE,
             'test-access-key',
             BunnyStorageConfiguration::ENDPOINT,
         );
         $client = new BunnyStorageClient($http, $configuration);
-        $temp = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'bunny-live-accept-'.bin2hex(random_bytes(4));
-        mkdir($temp, 0700, true);
+        $this->directory = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'bunny-live-accept-'.bin2hex(random_bytes(4));
+        mkdir($this->directory, 0700, true);
 
-        return new BunnyPdfLiveAcceptance(new BunnyLearningDocumentStorage($client, $temp), $client);
+        return [new BunnyLearningDocumentStorage($client, $this->directory), $client];
     }
 
     /**

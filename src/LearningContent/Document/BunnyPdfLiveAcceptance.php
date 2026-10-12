@@ -18,6 +18,7 @@ final class BunnyPdfLiveAcceptance
     public function __construct(
         private readonly BunnyLearningDocumentStorage $storage,
         private readonly BunnyStorageClient $client,
+        private readonly ?\Closure $releaseLocal = null,
     ) {
     }
 
@@ -29,38 +30,53 @@ final class BunnyPdfLiveAcceptance
         $pdf = "%PDF-1.4\n%testlig-bunny-live\n";
         $sha = hash('sha256', $pdf);
         $key = null;
+        $localPath = null;
         $failure = null;
         $range = 0;
         $anonymous = 0;
+        $localVerified = true;
         try {
             $key = $this->storage->write($pdf);
             $read = $this->storage->read($key, $sha);
             if (!hash_equals($sha, hash('sha256', $read))) {
                 $failure = 'sha256';
-            }
-            $path = $this->storage->absolutePath($key);
-            $response = new BinaryFileResponse($path);
-            $response->prepare(Request::create('/pdf', 'GET', server: ['HTTP_RANGE' => 'bytes=0-4']));
-            $range = $response->getStatusCode();
-            ob_start();
-            $response->sendContent();
-            $prefix = ob_get_clean();
-            if (206 !== $range || '%PDF-' !== $prefix) {
-                $failure ??= 'range';
-            }
-            $anonymous = $this->client->anonymousGetStatus($key);
-            if (401 !== $anonymous) {
-                $failure ??= 'anonymous';
+            } else {
+                $localPath = $this->storage->absolutePath($key);
+                $sample = $this->rangeSample($localPath);
+                $range = $sample['status'];
+                if (206 !== $range || '%PDF-' !== $sample['prefix']) {
+                    $failure = 'range';
+                } else {
+                    $anonymous = $this->client->anonymousGetStatus($key);
+                    if (401 !== $anonymous) {
+                        $failure = 'anonymous';
+                    }
+                }
             }
         } catch (\Throwable) {
-            $failure ??= 'step';
+            $failure = 'step';
         } finally {
             if (\is_string($key)) {
                 try {
                     $this->client->delete($key);
                 } catch (\Throwable) {
                 }
-                $this->storage->releaseVerifiedCopies();
+            }
+            if (\is_string($key) || \is_string($localPath)) {
+                try {
+                    $this->releaseLocal();
+                } catch (\Throwable) {
+                    $localVerified = false;
+                }
+            }
+            if (\is_string($localPath)) {
+                try {
+                    if (is_file($localPath)) {
+                        $localVerified = false;
+                    }
+                } catch (\Throwable) {
+                    $localVerified = false;
+                }
             }
         }
 
@@ -74,16 +90,54 @@ final class BunnyPdfLiveAcceptance
         }
 
         return [
-            'result' => $this->result($failure, $key, $cleanup),
+            'result' => $this->result($failure, $key, $cleanup, $localVerified),
             'range' => $range,
             'anonymous' => $anonymous,
             'cleanup' => $cleanup,
         ];
     }
 
-    private function result(?string $failure, ?string $key, int $cleanup): string
+    /**
+     * @return array{status: int, prefix: string}
+     */
+    public function rangeSample(string $path): array
     {
-        if (\is_string($key) && 404 !== $cleanup) {
+        $level = ob_get_level();
+        ob_start();
+        try {
+            $response = new BinaryFileResponse($path);
+            $response->prepare(Request::create('/pdf', 'GET', server: ['HTTP_RANGE' => 'bytes=0-4']));
+            $response->sendContent();
+            $prefix = ob_get_clean();
+        } catch (\Throwable $exception) {
+            while (ob_get_level() > $level) {
+                ob_end_clean();
+            }
+            throw $exception;
+        }
+        if (ob_get_level() > $level) {
+            ob_end_clean();
+        }
+
+        return [
+            'status' => $response->getStatusCode(),
+            'prefix' => \is_string($prefix) ? $prefix : '',
+        ];
+    }
+
+    private function releaseLocal(): void
+    {
+        if ($this->releaseLocal instanceof \Closure) {
+            ($this->releaseLocal)();
+
+            return;
+        }
+        $this->storage->releaseVerifiedCopies();
+    }
+
+    private function result(?string $failure, ?string $key, int $cleanup, bool $localVerified): string
+    {
+        if (\is_string($key) && (404 !== $cleanup || !$localVerified)) {
             return 'cleanup_unverified';
         }
         if (null !== $failure || !\is_string($key)) {
