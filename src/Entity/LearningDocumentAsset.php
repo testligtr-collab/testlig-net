@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\LearningDocumentStatus;
+use App\Enum\LearningDocumentStorageProvider;
 use App\Exception\LearningContentException;
 use App\Repository\LearningDocumentAssetRepository;
 use Doctrine\DBAL\Types\Types;
@@ -51,6 +52,9 @@ class LearningDocumentAsset
     #[ORM\Column(name: 'storage_key', length: 64)]
     private string $storageKey;
 
+    #[ORM\Column(name: 'storage_provider', length: 16, enumType: LearningDocumentStorageProvider::class, options: ['default' => 'local'])]
+    private LearningDocumentStorageProvider $storageProvider;
+
     #[ORM\Column(name: 'content_sha256', length: 64)]
     private string $contentSha256;
 
@@ -78,6 +82,7 @@ class LearningDocumentAsset
         string $contentSha256,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
+        LearningDocumentStorageProvider $storageProvider = LearningDocumentStorageProvider::Local,
     ) {
         $this->id = $id ?? new UuidV7();
         $this->mediaType = self::MEDIA_TYPE;
@@ -86,6 +91,7 @@ class LearningDocumentAsset
         $this->mimeType = $mimeType;
         $this->byteSize = $byteSize;
         $this->storageKey = $storageKey;
+        $this->storageProvider = $storageProvider;
         $this->contentSha256 = $contentSha256;
         $this->status = LearningDocumentStatus::Pending;
         $this->createdAt = $now;
@@ -103,8 +109,9 @@ class LearningDocumentAsset
         string $contentSha256,
         \DateTimeImmutable $now,
         ?Uuid $id = null,
+        LearningDocumentStorageProvider $storageProvider = LearningDocumentStorageProvider::Local,
     ): self {
-        return new self($createdBy, $originalName, $mimeType, $byteSize, $storageKey, $contentSha256, $now, $id);
+        return new self($createdBy, $originalName, $mimeType, $byteSize, $storageKey, $contentSha256, $now, $id, $storageProvider);
     }
 
     public function getId(): Uuid
@@ -142,6 +149,11 @@ class LearningDocumentAsset
     public function getStorageKey(): string
     {
         return $this->storageKey;
+    }
+
+    public function getStorageProvider(): LearningDocumentStorageProvider
+    {
+        return $this->storageProvider;
     }
 
     public function getContentSha256(): string

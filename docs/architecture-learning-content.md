@@ -154,12 +154,20 @@ use `Cache-Control: no-store, private`.
 - Bytes live in `var/learning-documents` (mode 0700, random 32-hex key). Display names
   are normalized metadata. Max 25 MB, `%PDF-` signature, `application/pdf` finfo.
 - `LearningDocumentByteStore` is the write, checksummed-read, and failed-insert
-  cleanup contract. `LearningDocumentStorage` is its local implementation.
-  `LearningDocumentManager` and `LearningDocumentResponse` depend on that contract.
-  There is no cloud adapter and no provider switch. The next cloud slice needs a
-  durable provider on `LearningDocumentAsset`, existing rows remaining local, that
-  provider's own SDK or HTTP client, and private object access. Changing a global
-  setting must not retarget the provider of an existing file.
+  cleanup contract. `LearningDocumentStorage` is the local implementation.
+  `R2LearningDocumentStorage` is the private Cloudflare R2 implementation through
+  the AWS SDK for PHP and the EU jurisdiction endpoint. `LearningDocumentAsset.storage_provider`
+  is permanent. Existing rows stay `local`. `LEARNING_DOCUMENT_UPLOAD_PROVIDER`
+  selects the provider for a new upload only. Missing R2 configuration fails the
+  upload. A read streams the private object once, checks Content-Length before
+  consuming the body, and also stops if the bytes read exceed 25 MB. The verified
+  copy is in `var/learning-document-private`. SHA-256 is checked before the response.
+  Kernel terminate removes copies from a request that finishes. A killed process can
+  leave a file; a later sweep holds its lock until an unlocked file older than one
+  hour is removed, and skips locked or younger files. A failed remote cleanup is
+  logged only as `learning_document.r2_cleanup_failed` and does not replace the
+  original save error. There is no public bucket, CDN, or browser presigned URL.
+  Live R2 acceptance is separate from the fake HTTP handler tests.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.

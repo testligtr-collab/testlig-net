@@ -19,6 +19,11 @@ parameters:
     env(PHONE_OTP_PEPPER_KEY_ID): 'v1'
     env(INVITATION_CODE_PEPPER): 'change-me-invitation-code-pepper-not-for-production-32b'
     env(INVITATION_CODE_PEPPER_KEY_ID): 'v1'
+    env(LEARNING_DOCUMENT_UPLOAD_PROVIDER): 'local'
+    env(R2_ACCOUNT_ID): ''
+    env(R2_ACCESS_KEY_ID): ''
+    env(R2_SECRET_ACCESS_KEY): ''
+    env(R2_BUCKET): ''
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -43,6 +48,21 @@ services:
     App\LearningContent\Document\LearningDocumentStorage:
         arguments:
             $directory: '%kernel.project_dir%/var/learning-documents'
+
+    App\LearningContent\Document\R2Configuration:
+        arguments:
+            $accountId: '%env(R2_ACCOUNT_ID)%'
+            $accessKeyId: '%env(R2_ACCESS_KEY_ID)%'
+            $secretAccessKey: '%env(R2_SECRET_ACCESS_KEY)%'
+            $bucket: '%env(R2_BUCKET)%'
+
+    App\LearningContent\Document\R2LearningDocumentStorage:
+        arguments:
+            $tempDirectory: '%kernel.project_dir%/var/learning-document-private'
+
+    App\LearningContent\Document\LearningDocumentStoreResolver:
+        arguments:
+            $uploadProvider: '%env(LEARNING_DOCUMENT_UPLOAD_PROVIDER)%'
 
     App\Service\LearningDocumentManager:
         arguments:
