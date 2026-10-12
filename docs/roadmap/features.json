@@ -687,10 +687,11 @@
       "evidence": [
         "StoredMediaStorageProvider enum'u sağlayıcı adlarını tanımlar; SDK bağlantısı veya bulut dosya yönetimi kanıtı değildir.",
         "src/LearningContent/Document/LearningDocumentByteStore.php: yerel PDF sözleşmesi yazma, SHA-256 ile okuma ve başarısız kayıt temizliğidir. LearningDocumentStorage bu sözleşmenin Local uygulamasıdır. Öğrenci ve yönetici yanıtı aynı sözleşmeyi kullanır. PR https://github.com/testligtr-collab/testlig-net/pull/123",
-        "src/LearningContent/Document/R2LearningDocumentStorage.php: yeni PDF için özel R2 nesnesi. Sağlayıcı LearningDocumentAsset satırında kalır ve migration mevcut satırları local yapar. Yükleme ayarı yalnız yeni dosyayı seçer. Okuma nesneyi bir kez doğrulanmış geçici dosyaya indirir. Canlı R2 hesabı kabulü açık kalır."
+        "src/LearningContent/Document/R2LearningDocumentStorage.php: yeni PDF için özel R2 nesnesi. Sağlayıcı LearningDocumentAsset satırında kalır ve migration mevcut satırları local yapar. Yükleme ayarı yalnız yeni dosyayı seçer. Okuma nesneyi bir kez doğrulanmış geçici dosyaya indirir. Canlı R2 hesabı kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/124"
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/123"
+        "https://github.com/testligtr-collab/testlig-net/pull/123",
+        "https://github.com/testligtr-collab/testlig-net/pull/124"
       ],
       "acceptance": "Local PDF sözleşmesi durur. R2 adaptörü özel nesne yazar, AB yargı ucunu kullanır ve tarayıcıya imzalı adres vermez. Mevcut kayıtlar Local kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik R2 yapılandırması Local'a düşmez. Canlı sağlayıcı kabulü bu dilimin parçası değildir. Partial durum sürer.",
       "scope_decision": null
