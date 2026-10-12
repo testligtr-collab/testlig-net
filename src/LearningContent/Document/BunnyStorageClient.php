@@ -98,6 +98,23 @@ final class BunnyStorageClient
         }
     }
 
+    /**
+     * Returns the HTTP status of one authorized GET. A transport failure is not a 404.
+     */
+    public function authorizedGetStatus(string $key): int
+    {
+        return $this->status($key, true);
+    }
+
+    /**
+     * Returns the HTTP status of one GET that does not send AccessKey.
+     * Redirects are not followed.
+     */
+    public function anonymousGetStatus(string $key): int
+    {
+        return $this->status($key, false);
+    }
+
     public function delete(string $key): void
     {
         $response = null;
@@ -112,6 +129,26 @@ final class BunnyStorageClient
             throw $exception;
         } catch (\Throwable) {
             throw LearningContentException::assetInvalid('Doküman kaydedilemedi.');
+        } finally {
+            $this->closeResponse($response);
+        }
+    }
+
+    private function status(string $key, bool $authorized): int
+    {
+        $response = null;
+        try {
+            $headers = [];
+            if ($authorized) {
+                $headers['AccessKey'] = $this->configuration->accessKey();
+            }
+            $response = $this->request('GET', $this->objectUrl($key), $headers, null);
+
+            return $response->getStatusCode();
+        } catch (LearningContentException $exception) {
+            throw $exception;
+        } catch (\Throwable) {
+            throw new BunnyStorageStatusException();
         } finally {
             $this->closeResponse($response);
         }

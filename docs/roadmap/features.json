@@ -416,9 +416,12 @@
       "title": "Platform soru editörü ve yayın",
       "status": "present",
       "source": "src/Controller/Admin/AdminQuestionController.php",
-      "depends_on": [],
+      "depends_on": [
+        "M18-cloud-storage"
+      ],
       "evidence": [
-        "src/Controller/Admin/AdminQuestionController.php"
+        "src/Controller/Admin/AdminQuestionController.php",
+        "Soru resmi yükleme Bunny PDF adaptörünün kapsamı dışındadır ve M18-cloud-storage bağımlılığı açık kalır."
       ],
       "pr_links": [],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
@@ -444,11 +447,14 @@
       "title": "Kurum soru oluşturma/inceleme/yayın ekranı",
       "status": "present",
       "source": "src/Controller/InstitutionQuestionAuthoringController.php",
-      "depends_on": [],
+      "depends_on": [
+        "M18-cloud-storage"
+      ],
       "evidence": [
         "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde.",
         "PR #114 merge SHA ff4cd745b4e479edbcf0bcf284000846ee12182b. Main CI run 38051969843 success. Roadmap coverage run 38051969849 success. Auto-deploy run 38053237728 success.",
-        "Production kurum sorusu yazılmadı. X08-classroom-pilot uygulanmadı. 390/768 kabulü açık."
+        "Production kurum sorusu yazılmadı. X08-classroom-pilot uygulanmadı. 390/768 kabulü açık.",
+        "Kurum soru resmi yükleme Bunny PDF adaptörünün kapsamı dışındadır ve M18-cloud-storage bağımlılığı açık kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/114"
@@ -688,7 +694,8 @@
         "StoredMediaStorageProvider enum'u sağlayıcı adlarını tanımlar; SDK bağlantısı veya bulut dosya yönetimi kanıtı değildir.",
         "src/LearningContent/Document/LearningDocumentByteStore.php: yerel PDF sözleşmesi yazma, SHA-256 ile okuma ve başarısız kayıt temizliğidir. LearningDocumentStorage bu sözleşmenin Local uygulamasıdır. Öğrenci ve yönetici yanıtı aynı sözleşmeyi kullanır. PR https://github.com/testligtr-collab/testlig-net/pull/123",
         "src/LearningContent/Document/R2LearningDocumentStorage.php: yeni PDF için özel R2 nesnesi. Sağlayıcı LearningDocumentAsset satırında kalır ve migration mevcut satırları local yapar. Yükleme ayarı yalnız yeni dosyayı seçer. Okuma nesneyi bir kez doğrulanmış geçici dosyaya indirir. PR https://github.com/testligtr-collab/testlig-net/pull/124",
-        "src/LearningContent/Document/BunnyLearningDocumentStorage.php: kullanıcı Bunny.net seçti. Yeni PDF için belgelenmiş HTTPS Storage API ve yalnız storage.bunnycdn.com. Mevcut local ve r2 satırları kendi sağlayıcısında kalır. R2 canlı kabulü bu tercihle ertelendi. Bunny canlı kabulü açık. PR https://github.com/testligtr-collab/testlig-net/pull/125"
+        "src/LearningContent/Document/BunnyLearningDocumentStorage.php: kullanıcı Bunny.net seçti. Yeni PDF için belgelenmiş HTTPS Storage API ve yalnız storage.bunnycdn.com. Mevcut local ve r2 satırları kendi sağlayıcısında kalır. R2 canlı kabulü bu tercihle ertelendi. Bunny canlı kabulü açık. PR https://github.com/testligtr-collab/testlig-net/pull/125",
+        "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. Canlı çalıştırma bu kayıtta yoktur."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/123",
@@ -696,7 +703,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/125"
       ],
       "acceptance": "Local ve R2 PDF sözleşmeleri durur. Bunny adaptörü özel nesneyi belgelenmiş HTTPS API ile yazar, redirect ve CDN adresi üretmez. Mevcut local ve r2 kayıtları kendi sağlayıcısında kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik yapılandırma Local'a düşmez. R2 canlı kabulü kullanıcı tercihiyle ertelendi. Bunny canlı kabulü bu dilimin parçası değildir. Partial durum sürer.",
-      "scope_decision": null
+      "scope_decision": "2026-10-12 kullanıcı kararı: Bunny hedefi PDF, video, soru ve haber resimleri ile simülasyon dahil yüklenen tüm medyadır. Bugünkü adaptör ve canlı kabul aracı yalnız PDF'dir. Video M20-video-library, simülasyon M21-simulations, soru resimleri M11-platform-questions ve M11-institution-questions, haber resimleri M27-news üzerinde açık bağımlılık olarak kalır."
     },
     {
       "id": "M18-local-pdf",
@@ -752,7 +759,8 @@
         "M18-cloud-storage"
       ],
       "evidence": [
-        "V2 YouTube/Vimeo ders blokları mevcut; dosya video kütüphanesi ve streaming doğrulanmadı."
+        "V2 YouTube/Vimeo ders blokları mevcut; dosya video kütüphanesi ve streaming doğrulanmadı.",
+        "Yüklenen video Bunny PDF adaptörünün kapsamı dışındadır. M18-cloud-storage bağımlılığı açık kalır."
       ],
       "pr_links": [],
       "acceptance": "Dosya video yükleme, kütüphane ve yetkili streaming ayrıca tamamlanmalı. Partial mevcut YouTube/Vimeo bloklarını ifade eder.",
@@ -764,9 +772,12 @@
       "title": "Simülasyon motoru ve kataloğu",
       "status": "planned",
       "source": "V1: Simulation / QuizQuestion / QuizOption",
-      "depends_on": [],
+      "depends_on": [
+        "M18-cloud-storage"
+      ],
       "evidence": [
-        "V1: Simulation / QuizQuestion / QuizOption"
+        "V1: Simulation / QuizQuestion / QuizOption",
+        "Simülasyon dosyası yükleme Bunny PDF adaptörünün kapsamı dışındadır. M18-cloud-storage bağımlılığı açık kalır."
       ],
       "pr_links": [],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
@@ -850,9 +861,12 @@
       "title": "Haber/blog yayın ve kategoriler",
       "status": "planned",
       "source": "V1: Content / NewsCategory",
-      "depends_on": [],
+      "depends_on": [
+        "M18-cloud-storage"
+      ],
       "evidence": [
-        "V1: Content / NewsCategory"
+        "V1: Content / NewsCategory",
+        "Haber resmi yükleme Bunny PDF adaptörünün kapsamı dışındadır. M18-cloud-storage bağımlılığı açık kalır."
       ],
       "pr_links": [],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
