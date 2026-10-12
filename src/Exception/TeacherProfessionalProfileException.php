@@ -34,6 +34,11 @@ final class TeacherProfessionalProfileException extends \RuntimeException
         return new self('En az bir geçerli sınıf seçin.');
     }
 
+    public static function invalidLocation(): self
+    {
+        return new self('Geçerli bir il, ilçe ve okul seçin.');
+    }
+
     public static function conflict(): self
     {
         return new self('Profil kaydedilemedi. Yazım yapılmadı.');

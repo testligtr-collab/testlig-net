@@ -21,6 +21,15 @@ final class TeacherProfessionalProfileRepository extends ServiceEntityRepository
 
     public function findOneByUser(User $user): ?TeacherProfessionalProfile
     {
-        return $this->findOneBy(['user' => $user]);
+        $result = $this->createQueryBuilder('profile')
+            ->leftJoin('profile.schoolLocation', 'school')->addSelect('school')
+            ->leftJoin('school.parent', 'district')->addSelect('district')
+            ->leftJoin('district.parent', 'province')->addSelect('province')
+            ->andWhere('IDENTITY(profile.user) = :userId')
+            ->setParameter('userId', $user->getId(), 'uuid')
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $result instanceof TeacherProfessionalProfile ? $result : null;
     }
 }

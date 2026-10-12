@@ -74,6 +74,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Location cascade regression
+        run: node --experimental-detect-module --import ./tests/js/register-stimulus-stub.mjs --test tests/js/location_cascade_controller.test.mjs
+
       - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:

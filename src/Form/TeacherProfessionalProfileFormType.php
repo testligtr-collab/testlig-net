@@ -10,6 +10,7 @@ use App\Enum\GradeLevel;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
@@ -40,7 +41,10 @@ final class TeacherProfessionalProfileFormType extends AbstractType
                 'multiple' => true,
                 'expanded' => true,
                 'invalid_message' => 'En az bir geçerli sınıf seçin.',
-            ]);
+            ])
+            ->add('provinceId', HiddenType::class, ['required' => false])
+            ->add('districtId', HiddenType::class, ['required' => false])
+            ->add('schoolId', HiddenType::class, ['required' => false]);
 
         $builder->addEventListener(FormEvents::PRE_SUBMIT, static function (FormEvent $event): void {
             $data = $event->getData();
