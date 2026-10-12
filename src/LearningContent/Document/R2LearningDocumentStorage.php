@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\LearningContent\Document;
 
 use App\Exception\LearningContentException;
+use Psr\Log\LoggerInterface;
 
 /**
  * Downloads a private R2 object once into a verified temporary file.
@@ -17,6 +18,8 @@ final class R2LearningDocumentStorage implements LearningDocumentByteStore
 {
     public const TEMP_MAX_AGE_SECONDS = 3600;
 
+    public const CLEANUP_FAILED_EVENT = 'learning_document.r2_cleanup_failed';
+
     /** @var array<string, string> */
     private array $verifiedPaths = [];
 
@@ -27,6 +30,7 @@ final class R2LearningDocumentStorage implements LearningDocumentByteStore
         private readonly R2ObjectClient $client,
         private readonly string $tempDirectory,
         private readonly int $maxBytes = PdfDocumentInspector::MAX_BYTES,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -75,6 +79,7 @@ final class R2LearningDocumentStorage implements LearningDocumentByteStore
             $this->assertKey($storageKey);
             $this->client->delete($storageKey);
         } catch (\Throwable) {
+            $this->logger?->error(self::CLEANUP_FAILED_EVENT);
         }
         $this->discard($storageKey);
     }
@@ -117,9 +122,12 @@ final class R2LearningDocumentStorage implements LearningDocumentByteStore
                 fclose($handle);
                 continue;
             }
-            flock($handle, \LOCK_UN);
-            fclose($handle);
-            unlink($path);
+            try {
+                unlink($path);
+            } finally {
+                flock($handle, \LOCK_UN);
+                fclose($handle);
+            }
         }
     }
 

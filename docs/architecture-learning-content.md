@@ -159,12 +159,15 @@ use `Cache-Control: no-store, private`.
   the AWS SDK for PHP and the EU jurisdiction endpoint. `LearningDocumentAsset.storage_provider`
   is permanent. Existing rows stay `local`. `LEARNING_DOCUMENT_UPLOAD_PROVIDER`
   selects the provider for a new upload only. Missing R2 configuration fails the
-  upload. A read downloads the object once into `var/learning-document-private`,
-  checks SHA-256 and the 25 MB cap, then serves that file. Kernel terminate removes
-  copies from a request that finishes. A killed process can leave a file; a later
-  sweep deletes unlocked files older than one hour and skips locked or younger files.
-  There is no public bucket, CDN, or browser presigned URL. Live R2 acceptance is
-  separate from the fake-client tests.
+  upload. A read streams the private object once, checks Content-Length before
+  consuming the body, and also stops if the bytes read exceed 25 MB. The verified
+  copy is in `var/learning-document-private`. SHA-256 is checked before the response.
+  Kernel terminate removes copies from a request that finishes. A killed process can
+  leave a file; a later sweep holds its lock until an unlocked file older than one
+  hour is removed, and skips locked or younger files. A failed remote cleanup is
+  logged only as `learning_document.r2_cleanup_failed` and does not replace the
+  original save error. There is no public bucket, CDN, or browser presigned URL.
+  Live R2 acceptance is separate from the fake HTTP handler tests.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.

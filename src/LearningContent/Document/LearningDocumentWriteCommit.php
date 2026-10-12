@@ -6,7 +6,7 @@ namespace App\LearningContent\Document;
 
 /**
  * Writes bytes, then runs the database save. A failed save attempts remote cleanup.
- * A cleanup failure is discarded so the original save error remains.
+ * R2 reports a cleanup failure with a fixed event code. That report does not replace the original save error.
  */
 final class LearningDocumentWriteCommit
 {

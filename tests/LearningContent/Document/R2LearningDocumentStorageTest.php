@@ -19,7 +19,14 @@ use App\LearningContent\Document\PdfDocumentInspector;
 use App\LearningContent\Document\R2Configuration;
 use App\LearningContent\Document\R2LearningDocumentStorage;
 use App\LearningContent\Document\R2ObjectClient;
+use GuzzleHttp\Promise\Create;
+use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\StreamDecoratorTrait;
+use GuzzleHttp\Psr7\Utils;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Message\RequestInterface;
+use Psr\Http\Message\StreamInterface;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -176,6 +183,117 @@ final class R2LearningDocumentStorageTest extends TestCase
         fclose($handle);
     }
 
+    public function testRealClientStreamsClosesAndCapsBytesWithoutNetwork(): void
+    {
+        $key = str_repeat('c', 32);
+        $pdf = '%PDF-1.4 streamed';
+        $success = new ProbeStream(Utils::streamFor($pdf));
+        $sawStream = false;
+        $client = $this->clientWithHandler(static function (RequestInterface $request, array $options) use ($success, &$sawStream): mixed {
+            $sawStream = true === ($options['stream'] ?? false);
+            self::assertStringContainsString('.eu.r2.cloudflarestorage.com', (string) $request->getUri());
+
+            return Create::promiseFor(new Response(200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Length' => (string) \strlen('%PDF-1.4 streamed'),
+            ], $success));
+        });
+        $chunks = [];
+        foreach ($client->readPrivate($key, 64) as $chunk) {
+            $chunks[] = $chunk;
+        }
+        self::assertTrue($sawStream);
+        self::assertSame($pdf, implode('', $chunks));
+        self::assertTrue($success->wasClosed);
+        self::assertGreaterThan(0, $success->bytesRead);
+
+        $oversize = new ProbeStream(Utils::streamFor(str_repeat('x', 20)));
+        $oversizeClient = $this->clientWithHandler(static fn (): mixed => Create::promiseFor(new Response(200, [
+            'Content-Length' => '20',
+        ], $oversize)));
+        try {
+            foreach ($oversizeClient->readPrivate($key, 8) as $ignored) {
+            }
+            self::fail();
+        } catch (LearningContentException $exception) {
+            self::assertSame('Learning content was not found.', $exception->getMessage());
+            self::assertNull($exception->getPrevious());
+            self::assertStringNotContainsString($key, $exception->getMessage());
+        }
+        self::assertTrue($oversize->wasClosed);
+        self::assertSame(0, $oversize->bytesRead);
+
+        $wrongLength = new ProbeStream(Utils::streamFor(str_repeat('y', 20)));
+        $wrongClient = $this->clientWithHandler(static fn (): mixed => Create::promiseFor(new Response(200, [
+            'Content-Length' => '4',
+        ], $wrongLength)));
+        try {
+            foreach ($wrongClient->readPrivate($key, 8) as $ignored) {
+            }
+            self::fail();
+        } catch (LearningContentException $exception) {
+            self::assertStringNotContainsString($key, $exception->getMessage());
+        }
+        self::assertTrue($wrongLength->wasClosed);
+        self::assertLessThan(20, $wrongLength->bytesRead);
+        self::assertLessThanOrEqual(9, $wrongLength->bytesRead);
+
+        $failed = new ProbeStream(Utils::streamFor('error-body'));
+        $failedClient = $this->clientWithHandler(static function () use ($failed, $key): mixed {
+            $response = new Response(500, [], $failed);
+
+            return Create::rejectionFor([
+                'exception' => new \RuntimeException('credential-should-not-leak '.$key.' bucket-private endpoint.eu'),
+                'response' => $response,
+            ]);
+        });
+        try {
+            foreach ($failedClient->readPrivate($key, 64) as $ignored) {
+            }
+            self::fail();
+        } catch (LearningContentException $exception) {
+            self::assertSame('Learning content was not found.', $exception->getMessage());
+            self::assertNull($exception->getPrevious());
+            self::assertStringNotContainsString('credential-should-not-leak', $exception->getMessage());
+            self::assertStringNotContainsString($key, $exception->getMessage());
+        }
+        self::assertTrue($failed->wasClosed);
+    }
+
+    public function testCleanupFailureIsReportedWithoutChangingTheSaveError(): void
+    {
+        $bucket = 'pdf-private';
+        $endpoint = 'eu.r2.cloudflarestorage.com';
+        $credential = 'secret-access-key-value';
+        $fake = new FakeR2ObjectClient();
+        $fake->deleteLeak = $credential.' '.$bucket.' '.$endpoint;
+        $logger = new RecordingLogger();
+        $store = new R2LearningDocumentStorage($fake, $this->directory('temp'), 64, $logger);
+        $commit = new LearningDocumentWriteCommit();
+        $writtenKey = '';
+
+        try {
+            $commit->commit($store, '%PDF-1.4', static function (string $storageKey) use (&$writtenKey): void {
+                $writtenKey = $storageKey;
+                throw new \RuntimeException('db-failed');
+            });
+            self::fail();
+        } catch (\RuntimeException $exception) {
+            self::assertSame('db-failed', $exception->getMessage());
+            self::assertNull($exception->getPrevious());
+        }
+
+        self::assertNotSame('', $writtenKey);
+        self::assertCount(1, $logger->records);
+        self::assertSame('error', $logger->records[0]['level']);
+        self::assertSame(R2LearningDocumentStorage::CLEANUP_FAILED_EVENT, $logger->records[0]['message']);
+        $encoded = json_encode($logger->records[0], \JSON_THROW_ON_ERROR);
+        self::assertStringNotContainsString($credential, $encoded);
+        self::assertStringNotContainsString($writtenKey, $encoded);
+        self::assertStringNotContainsString($bucket, $encoded);
+        self::assertStringNotContainsString($endpoint, $encoded);
+    }
+
     public function testPrivateCommandUsesTheEuEndpointAndNoPublicAcl(): void
     {
         $configuration = $this->configuration(true);
@@ -224,6 +342,11 @@ final class R2LearningDocumentStorageTest extends TestCase
 
         return $dir;
     }
+
+    private function clientWithHandler(\Closure $handler): CloudflareR2ObjectClient
+    {
+        return new CloudflareR2ObjectClient($this->configuration(true), $handler);
+    }
 }
 
 final class FakeR2ObjectClient implements R2ObjectClient
@@ -237,6 +360,8 @@ final class FakeR2ObjectClient implements R2ObjectClient
 
     /** @var array<string, string> */
     public array $lastPut = [];
+
+    public string $deleteLeak = '';
 
     public function putPrivate(string $key, string $bytes): void
     {
@@ -269,7 +394,57 @@ final class FakeR2ObjectClient implements R2ObjectClient
 
     public function delete(string $key): void
     {
+        if ('' !== $this->deleteLeak) {
+            throw new \RuntimeException($this->deleteLeak.' '.$key);
+        }
         unset($this->objects[$key]);
+    }
+}
+
+final class ProbeStream implements StreamInterface
+{
+    use StreamDecoratorTrait;
+
+    private StreamInterface $stream;
+
+    public bool $wasClosed = false;
+
+    public int $bytesRead = 0;
+
+    public function __construct(StreamInterface $stream)
+    {
+        $this->stream = $stream;
+    }
+
+    public function close(): void
+    {
+        $this->wasClosed = true;
+        $this->stream->close();
+    }
+
+    public function read(int $length): string
+    {
+        $chunk = $this->stream->read($length);
+        $this->bytesRead += \strlen($chunk);
+
+        return $chunk;
+    }
+}
+
+final class RecordingLogger implements LoggerInterface
+{
+    use \Psr\Log\LoggerTrait;
+
+    /** @var list<array{level: mixed, message: string, context: array<array-key, mixed>}> */
+    public array $records = [];
+
+    public function log($level, string|\Stringable $message, array $context = []): void
+    {
+        $this->records[] = [
+            'level' => $level,
+            'message' => (string) $message,
+            'context' => $context,
+        ];
     }
 }
 

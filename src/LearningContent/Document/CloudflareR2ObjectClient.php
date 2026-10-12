@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\LearningContent\Document;
 
 use App\Exception\LearningContentException;
+use Aws\Exception\AwsException;
 use Aws\S3\S3Client;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -18,6 +20,7 @@ final class CloudflareR2ObjectClient implements R2ObjectClient
 
     public function __construct(
         private readonly R2Configuration $configuration,
+        private readonly ?\Closure $httpHandler = null,
     ) {
     }
 
@@ -47,33 +50,44 @@ final class CloudflareR2ObjectClient implements R2ObjectClient
 
     public function readPrivate(string $key, int $maxBytes): iterable
     {
+        $body = null;
         try {
             $result = $this->sdk()->getObject([
                 'Bucket' => $this->configuration->bucket(),
                 'Key' => $key,
+                '@http' => ['stream' => true],
             ]);
+            $candidate = $result->get('Body');
+            if (!$candidate instanceof StreamInterface) {
+                throw LearningContentException::notFound();
+            }
+            $body = $candidate;
+            $length = $result->get('ContentLength');
+            if (is_numeric($length) && (int) $length > $maxBytes) {
+                throw LearningContentException::notFound();
+            }
+
+            $read = 0;
+            while (!$body->eof()) {
+                $chunk = $body->read(min(8192, $maxBytes - $read + 1));
+                if ('' === $chunk) {
+                    break;
+                }
+                $read += \strlen($chunk);
+                if ($read > $maxBytes) {
+                    throw LearningContentException::notFound();
+                }
+                yield $chunk;
+            }
         } catch (LearningContentException $exception) {
             throw $exception;
-        } catch (\Throwable) {
+        } catch (\Throwable $exception) {
+            $this->closeErrorStream($exception);
             throw LearningContentException::notFound();
-        }
-
-        $length = $result->get('ContentLength');
-        if (is_numeric($length) && (int) $length > $maxBytes) {
-            throw LearningContentException::notFound();
-        }
-
-        $body = $result->get('Body');
-        if (!$body instanceof StreamInterface) {
-            throw LearningContentException::notFound();
-        }
-
-        while (!$body->eof()) {
-            $chunk = $body->read(8192);
-            if ('' === $chunk) {
-                break;
+        } finally {
+            if ($body instanceof StreamInterface) {
+                $body->close();
             }
-            yield $chunk;
         }
     }
 
@@ -91,7 +105,7 @@ final class CloudflareR2ObjectClient implements R2ObjectClient
             return $this->client;
         }
 
-        $this->client = new S3Client([
+        $options = [
             'version' => 'latest',
             'region' => 'auto',
             'endpoint' => $this->configuration->euEndpoint(),
@@ -100,8 +114,23 @@ final class CloudflareR2ObjectClient implements R2ObjectClient
                 'key' => $this->configuration->accessKeyId(),
                 'secret' => $this->configuration->secretAccessKey(),
             ],
-        ]);
+        ];
+        if ($this->httpHandler instanceof \Closure) {
+            $options['http_handler'] = $this->httpHandler;
+        }
+        $this->client = new S3Client($options);
 
         return $this->client;
+    }
+
+    private function closeErrorStream(\Throwable $exception): void
+    {
+        if (!$exception instanceof AwsException) {
+            return;
+        }
+        $response = $exception->getResponse();
+        if ($response instanceof ResponseInterface) {
+            $response->getBody()->close();
+        }
     }
 }
