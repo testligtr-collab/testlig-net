@@ -695,12 +695,13 @@
         "src/LearningContent/Document/LearningDocumentByteStore.php: yerel PDF sözleşmesi yazma, SHA-256 ile okuma ve başarısız kayıt temizliğidir. LearningDocumentStorage bu sözleşmenin Local uygulamasıdır. Öğrenci ve yönetici yanıtı aynı sözleşmeyi kullanır. PR https://github.com/testligtr-collab/testlig-net/pull/123",
         "src/LearningContent/Document/R2LearningDocumentStorage.php: yeni PDF için özel R2 nesnesi. Sağlayıcı LearningDocumentAsset satırında kalır ve migration mevcut satırları local yapar. Yükleme ayarı yalnız yeni dosyayı seçer. Okuma nesneyi bir kez doğrulanmış geçici dosyaya indirir. PR https://github.com/testligtr-collab/testlig-net/pull/124",
         "src/LearningContent/Document/BunnyLearningDocumentStorage.php: kullanıcı Bunny.net seçti. Yeni PDF için belgelenmiş HTTPS Storage API ve yalnız storage.bunnycdn.com. Mevcut local ve r2 satırları kendi sağlayıcısında kalır. R2 canlı kabulü bu tercihle ertelendi. Bunny canlı kabulü açık. PR https://github.com/testligtr-collab/testlig-net/pull/125",
-        "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. Canlı çalıştırma bu kayıtta yoktur."
+        "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. Canlı çalıştırma bu kayıtta yoktur. PR https://github.com/testligtr-collab/testlig-net/pull/126"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/123",
         "https://github.com/testligtr-collab/testlig-net/pull/124",
-        "https://github.com/testligtr-collab/testlig-net/pull/125"
+        "https://github.com/testligtr-collab/testlig-net/pull/125",
+        "https://github.com/testligtr-collab/testlig-net/pull/126"
       ],
       "acceptance": "Local ve R2 PDF sözleşmeleri durur. Bunny adaptörü özel nesneyi belgelenmiş HTTPS API ile yazar, redirect ve CDN adresi üretmez. Mevcut local ve r2 kayıtları kendi sağlayıcısında kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik yapılandırma Local'a düşmez. R2 canlı kabulü kullanıcı tercihiyle ertelendi. Bunny canlı kabulü bu dilimin parçası değildir. Partial durum sürer.",
       "scope_decision": "2026-10-12 kullanıcı kararı: Bunny hedefi PDF, video, soru ve haber resimleri ile simülasyon dahil yüklenen tüm medyadır. Bugünkü adaptör ve canlı kabul aracı yalnız PDF'dir. Video M20-video-library, simülasyon M21-simulations, soru resimleri M11-platform-questions ve M11-institution-questions, haber resimleri M27-news üzerinde açık bağımlılık olarak kalır."
