@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\LearningContent\Document;
 
 use App\Exception\LearningContentException;
+use App\LearningContent\Document\LearningDocumentByteStore;
 use App\LearningContent\Document\LearningDocumentStorage;
 use PHPUnit\Framework\TestCase;
 
@@ -14,6 +15,7 @@ final class LearningDocumentStorageTest extends TestCase
     {
         $dir = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'learning-doc-'.bin2hex(random_bytes(4));
         $storage = new LearningDocumentStorage($dir);
+        self::assertInstanceOf(LearningDocumentByteStore::class, $storage);
         $bytes = "%PDF-1.4\nround\n";
         $key = $storage->write($bytes);
 

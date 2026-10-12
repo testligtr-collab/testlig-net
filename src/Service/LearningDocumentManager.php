@@ -11,7 +11,7 @@ use App\Entity\User;
 use App\Enum\LearningDocumentStatus;
 use App\Enum\UserRole;
 use App\Exception\LearningContentException;
-use App\LearningContent\Document\LearningDocumentStorage;
+use App\LearningContent\Document\LearningDocumentByteStore;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\Repository\LearningDocumentAssetRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +26,7 @@ final class LearningDocumentManager
 {
     public function __construct(
         private readonly LearningDocumentAssetRepository $assets,
-        private readonly LearningDocumentStorage $storage,
+        private readonly LearningDocumentByteStore $storage,
         private readonly PdfDocumentInspector $inspector,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
         private readonly EntityManagerInterface $entityManager,
