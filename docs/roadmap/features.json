@@ -686,9 +686,11 @@
       "depends_on": [],
       "evidence": [
         "StoredMediaStorageProvider enum'u sağlayıcı adlarını tanımlar; SDK bağlantısı veya bulut dosya yönetimi kanıtı değildir.",
-        "src/LearningContent/Document/LearningDocumentByteStore.php: yerel PDF sözleşmesi yazma, SHA-256 ile okuma ve başarısız kayıt temizliğidir. LearningDocumentStorage bu sözleşmenin Local uygulamasıdır. Öğrenci ve yönetici yanıtı aynı sözleşmeyi kullanır. Bu dilimde bulut adaptörü veya sağlayıcı yönlendirmesi yoktur."
+        "src/LearningContent/Document/LearningDocumentByteStore.php: yerel PDF sözleşmesi yazma, SHA-256 ile okuma ve başarısız kayıt temizliğidir. LearningDocumentStorage bu sözleşmenin Local uygulamasıdır. Öğrenci ve yönetici yanıtı aynı sözleşmeyi kullanır. Bu dilimde bulut adaptörü veya sağlayıcı yönlendirmesi yoktur. PR https://github.com/testligtr-collab/testlig-net/pull/123"
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/123"
+      ],
       "acceptance": "Bu dilim mevcut Local PDF sözleşmesidir. 25 MB ve PDF kontrolü, rastgele anahtar, özel dizin, SHA-256, pending/ready ve hata temizliği korunur. Sonraki bulut dilimi: varlık üzerinde kalıcı sağlayıcı bilgisi; mevcut kayıtlar Local; yeni sağlayıcının SDK veya HTTP istemcisi; özel nesne erişimi. Global ayar değişince eski dosyaların sağlayıcısı değişmiş sayılmaz. S3/R2/Bunny bağlantısı bu dilimde yoktur. Partial durum sürer.",
       "scope_decision": null
     },
