@@ -11,7 +11,8 @@ use App\Entity\User;
 use App\Enum\LearningDocumentStatus;
 use App\Enum\UserRole;
 use App\Exception\LearningContentException;
-use App\LearningContent\Document\LearningDocumentByteStore;
+use App\LearningContent\Document\LearningDocumentStoreResolver;
+use App\LearningContent\Document\LearningDocumentWriteCommit;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\Repository\LearningDocumentAssetRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,7 +27,8 @@ final class LearningDocumentManager
 {
     public function __construct(
         private readonly LearningDocumentAssetRepository $assets,
-        private readonly LearningDocumentByteStore $storage,
+        private readonly LearningDocumentStoreResolver $stores,
+        private readonly LearningDocumentWriteCommit $commits,
         private readonly PdfDocumentInspector $inspector,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
         private readonly EntityManagerInterface $entityManager,
@@ -46,23 +48,29 @@ final class LearningDocumentManager
         }
         $name = $this->inspector->inspect($bytes, $file->getClientOriginalName());
         $sha = hash('sha256', $bytes);
-        $key = $this->storage->write($bytes);
+        $target = $this->stores->forUpload();
+        $asset = null;
         try {
-            $asset = LearningDocumentAsset::receive(
-                $actor,
-                $name,
-                'application/pdf',
-                \strlen($bytes),
-                $key,
-                $sha,
-                \DateTimeImmutable::createFromInterface($this->clock->now()),
-            );
-            $this->assets->save($asset);
-        } catch (\Throwable $e) {
-            $this->storage->deleteQuietly($key);
-            if ($e instanceof LearningContentException) {
-                throw $e;
-            }
+            $this->commits->commit($target->store(), $bytes, function (string $key) use (&$asset, $actor, $name, $bytes, $sha, $target): void {
+                $asset = LearningDocumentAsset::receive(
+                    $actor,
+                    $name,
+                    'application/pdf',
+                    \strlen($bytes),
+                    $key,
+                    $sha,
+                    \DateTimeImmutable::createFromInterface($this->clock->now()),
+                    null,
+                    $target->provider(),
+                );
+                $this->assets->save($asset);
+            });
+        } catch (LearningContentException $exception) {
+            throw $exception;
+        } catch (\Throwable) {
+            throw LearningContentException::assetInvalid('Doküman kaydedilemedi.');
+        }
+        if (!$asset instanceof LearningDocumentAsset) {
             throw LearningContentException::assetInvalid('Doküman kaydedilemedi.');
         }
 
@@ -202,7 +210,7 @@ final class LearningDocumentManager
 
     private function assertBytesIntact(LearningDocumentAsset $asset): void
     {
-        $this->storage->read($asset->getStorageKey(), $asset->getContentSha256());
+        $this->stores->forAsset($asset)->read($asset->getStorageKey(), $asset->getContentSha256());
     }
 
     private function assertNotReferencedBySealedRevision(LearningDocumentAsset $asset): void

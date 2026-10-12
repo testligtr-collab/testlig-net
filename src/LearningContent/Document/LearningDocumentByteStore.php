@@ -7,8 +7,8 @@ namespace App\LearningContent\Document;
 /**
  * Local PDF byte contract: write, checksummed read, and failed-record cleanup.
  *
- * absolutePath is the private local file used by Range responses. It is not a
- * public URL and not a provider switch.
+ * absolutePath is a private local file used by Range responses. For R2 that
+ * file is the verified temporary copy. It is not a public URL.
  */
 interface LearningDocumentByteStore
 {

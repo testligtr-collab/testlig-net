@@ -14,14 +14,15 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 final class LearningDocumentResponse
 {
     public function __construct(
-        private readonly LearningDocumentByteStore $storage,
+        private readonly LearningDocumentStoreResolver $stores,
     ) {
     }
 
     public function inline(LearningDocumentAsset $asset): BinaryFileResponse
     {
-        $this->storage->read($asset->getStorageKey(), $asset->getContentSha256());
-        $response = new BinaryFileResponse($this->storage->absolutePath($asset->getStorageKey()));
+        $store = $this->stores->forAsset($asset);
+        $store->read($asset->getStorageKey(), $asset->getContentSha256());
+        $response = new BinaryFileResponse($store->absolutePath($asset->getStorageKey()));
         $response->headers->set('Content-Type', 'application/pdf');
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_INLINE, $asset->getOriginalName());
         $response->headers->set('X-Content-Type-Options', 'nosniff');
