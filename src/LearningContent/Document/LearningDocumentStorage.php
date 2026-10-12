@@ -9,7 +9,7 @@ use App\Exception\LearningContentException;
 /**
  * Stores PDF bytes outside the public web root under a random key.
  */
-final class LearningDocumentStorage
+final class LearningDocumentStorage implements LearningDocumentByteStore
 {
     public function __construct(
         private readonly string $directory,

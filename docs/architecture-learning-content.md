@@ -153,6 +153,13 @@ use `Cache-Control: no-store, private`.
   and pending assets are not served to students.
 - Bytes live in `var/learning-documents` (mode 0700, random 32-hex key). Display names
   are normalized metadata. Max 25 MB, `%PDF-` signature, `application/pdf` finfo.
+- `LearningDocumentByteStore` is the write, checksummed-read, and failed-insert
+  cleanup contract. `LearningDocumentStorage` is its local implementation.
+  `LearningDocumentManager` and `LearningDocumentResponse` depend on that contract.
+  There is no cloud adapter and no provider switch. The next cloud slice needs a
+  durable provider on `LearningDocumentAsset`, existing rows remaining local, that
+  provider's own SDK or HTTP client, and private object access. Changing a global
+  setting must not retarget the provider of an existing file.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.

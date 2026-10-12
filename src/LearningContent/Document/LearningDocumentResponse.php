@@ -14,7 +14,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 final class LearningDocumentResponse
 {
     public function __construct(
-        private readonly LearningDocumentStorage $storage,
+        private readonly LearningDocumentByteStore $storage,
     ) {
     }
 
