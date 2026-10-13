@@ -239,11 +239,11 @@ final class AdminQuestionControllerTest extends WebTestCase
         }
         $ids = $this->seedCurriculum('qbmod');
         $this->createPrivileged('qb-moderator-image@example.com', UserRole::Moderator);
+        $before = $this->mediaCount();
         $client = $this->newClient();
         $this->login($client, 'qb-moderator-image@example.com');
         $client->request('GET', '/yonetim/sorular');
         self::assertResponseIsSuccessful();
-        $before = $this->mediaCount();
         $file = tempnam(sys_get_temp_dir(), 'qimg');
         self::assertIsString($file);
         file_put_contents($file, $this->pngBytes());

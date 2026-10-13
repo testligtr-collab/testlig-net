@@ -332,11 +332,11 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         }
         $this->bootPeople();
         $refs = $this->seedCurriculum();
+        $before = $this->countTable('stored_media_assets');
+        $questions = $this->countTable('questions');
         $client = $this->browser();
         $this->login($client, 'q-staff@example.com');
         $client->request('GET', '/kurum');
-        $before = $this->countTable('stored_media_assets');
-        $questions = $this->countTable('questions');
         $path = tempnam(sys_get_temp_dir(), 'qimg');
         self::assertIsString($path);
         file_put_contents($path, $this->pngBytes());
