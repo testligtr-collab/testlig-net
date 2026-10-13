@@ -172,7 +172,11 @@ use `Cache-Control: no-store, private`.
   younger files. A failed remote cleanup is logged only as
   `learning_document.r2_cleanup_failed` or `learning_document.bunny_cleanup_failed`
   and does not replace the original save error. There is no public bucket, CDN, or
-  browser URL. Bunny live acceptance stays open.
+  browser URL. `bin/bunny-pdf-live-accept.php` is a one-shot PDF acceptance tool.
+  It uses the Bunny adapter directly, does not boot the Symfony kernel, and does not
+  open a database or a production env file. Bunny live acceptance stays open until
+  that tool is run. Uploaded video, question images, news images, and simulations
+  remain open on their own feature records.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.

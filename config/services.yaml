@@ -39,6 +39,8 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+        exclude:
+            - '../src/LearningContent/Document/BunnyPdfLiveAcceptance.php'
 
     App\Service\LearningContent\LearningContentPackageImportService:
         arguments:
