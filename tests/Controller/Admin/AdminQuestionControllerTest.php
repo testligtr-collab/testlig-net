@@ -194,7 +194,7 @@ final class AdminQuestionControllerTest extends WebTestCase
             self::markTestSkipped('GD PNG support is required.');
         }
         $ids = $this->seedCurriculum('qbimg');
-        $this->createPrivileged('qb-teacher-image@example.com', UserRole::Teacher);
+        $this->createPrivileged('qb-teacher-image@example.com', UserRole::HeadTeacher);
         $client = $this->newClient();
         $this->login($client, 'qb-teacher-image@example.com');
         $this->postNew($client, $ids, ['stem' => 'Ilk kok']);
@@ -228,6 +228,16 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringNotContainsString($mediaId, $page);
         self::assertStringContainsString('Taslak', $page);
         $this->postAction($client, 'incelemeye-gonder');
+        self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Taslak', (string) $client->getResponse()->getContent());
+        $token = (string) $client->getCrawler()->filter('#question-csrf input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/yayinla', [
+            '_token' => $token,
+            'expected_revision' => '2',
+            'operator_note' => 'Kontrol notu',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
         self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $client->getResponse()->getContent());
         self::assertStringContainsString('Taslak', (string) $client->getResponse()->getContent());
     }
@@ -264,6 +274,84 @@ final class AdminQuestionControllerTest extends WebTestCase
         ]);
         self::assertResponseStatusCodeSame(403);
         self::assertSame($before, $this->mediaCount());
+    }
+
+    public function testPlatformCreateFailureRollsBackTheImageAndQuestion(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbimgfail');
+        $this->createPrivileged('qb-teacher-image-fail@example.com', UserRole::Teacher);
+        $before = $this->imageSnapshot();
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-image-fail@example.com');
+        $form = $client->request('GET', '/yonetim/sorular/yeni?grade=1&subject_id='.$ids['subject']);
+        self::assertResponseIsSuccessful();
+        $token = (string) $form->filter('#question-editor input[name="_token"]')->attr('value');
+        $file = $this->pngFile();
+        $this->failOnImageInsert($client);
+        $client->catchExceptions(false);
+        try {
+            $client->request('POST', '/yonetim/sorular/yeni', $this->payload($ids, [
+                '_token' => $token,
+                'stem' => 'Kayit hatasi',
+            ]), [
+                'question_image' => new UploadedFile($file, 'soru.png', 'image/png', null, true),
+            ]);
+            self::fail('The question save error was hidden.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('db-failed', $exception->getMessage());
+        }
+        self::assertSame($before, $this->imageSnapshot());
+        self::assertSame([], $this->questionImageParts());
+    }
+
+    public function testPlatformRevisionFailureKeepsTheBoundImage(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbimgedit');
+        $this->createPrivileged('qb-teacher-image-edit@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-image-edit@example.com');
+        $this->postNew($client, $ids, ['stem' => 'Ilk kok']);
+        $path = $this->openCreated($client);
+        $file = $this->pngFile();
+        $created = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        self::assertResponseIsSuccessful();
+        $createdToken = (string) $created->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $createdToken,
+            'expected_revision' => '1',
+            'stem' => 'Bagli gorsel',
+        ]), [
+            'question_image' => new UploadedFile($file, 'soru.png', 'image/png', null, true),
+        ]);
+        self::assertResponseRedirects();
+        $bound = $this->imageSnapshot();
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-image-edit@example.com');
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        self::assertResponseIsSuccessful();
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $this->failOnImageInsert($client);
+        $client->catchExceptions(false);
+        try {
+            $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+                '_token' => $token,
+                'expected_revision' => '2',
+                'stem' => 'Ikinci gorsel',
+            ]), [
+                'question_image' => new UploadedFile($this->pngFile(), 'soru.png', 'image/png', null, true),
+            ]);
+            self::fail('The revision save error was hidden.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('db-failed', $exception->getMessage());
+        }
+        self::assertSame($bound, $this->imageSnapshot());
+        self::assertSame([], $this->questionImageParts());
     }
 
     public function testStaleRevisionIsRejected(): void
@@ -422,6 +510,100 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return static::createClient();
+    }
+
+    /**
+     * @return array{assets: int, questions: int, revisions: int, media_audits: int, question_audits: int, revision_audits: int, files: int}
+     */
+    private function imageSnapshot(): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $connection = $em->getConnection();
+        $snapshot = [
+            'assets' => (int) $connection->fetchOne('SELECT COUNT(*) FROM stored_media_assets'),
+            'questions' => (int) $connection->fetchOne('SELECT COUNT(*) FROM questions'),
+            'revisions' => (int) $connection->fetchOne('SELECT COUNT(*) FROM question_revisions'),
+            'media_audits' => (int) $connection->fetchOne('SELECT COUNT(*) FROM security_audit_events WHERE action = ?', ['stored_media_asset_registered']),
+            'question_audits' => (int) $connection->fetchOne('SELECT COUNT(*) FROM security_audit_events WHERE action = ?', ['question_created']),
+            'revision_audits' => (int) $connection->fetchOne('SELECT COUNT(*) FROM security_audit_events WHERE action = ?', ['question_revision_created']),
+            'files' => \count($this->questionImageFiles()),
+        ];
+        self::ensureKernelShutdown();
+
+        return $snapshot;
+    }
+
+    private function failOnImageInsert(KernelBrowser $client): void
+    {
+        $dispatcher = $client->getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(\Symfony\Component\HttpKernel\KernelEvents::REQUEST, static function () use ($client): void {
+            $em = $client->getContainer()->get(EntityManagerInterface::class);
+            if (!$em instanceof EntityManagerInterface) {
+                return;
+            }
+            $em->getEventManager()->addEventListener(\Doctrine\ORM\Events::onFlush, new class {
+                public function onFlush(\Doctrine\ORM\Event\OnFlushEventArgs $args): void
+                {
+                    foreach ($args->getObjectManager()->getUnitOfWork()->getScheduledEntityInsertions() as $entity) {
+                        if ($entity instanceof \App\Entity\StoredMediaAsset) {
+                            throw new \RuntimeException('db-failed');
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    private function pngFile(): string
+    {
+        $file = tempnam(sys_get_temp_dir(), 'qimg');
+        self::assertIsString($file);
+        file_put_contents($file, $this->pngBytes());
+
+        return $file;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function questionImageFiles(): array
+    {
+        return $this->questionImageMatches(static fn (\SplFileInfo $file): bool => $file->isFile() && !str_ends_with($file->getFilename(), '.part'));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function questionImageParts(): array
+    {
+        return $this->questionImageMatches(static fn (\SplFileInfo $file): bool => $file->isFile() && str_ends_with($file->getFilename(), '.part'));
+    }
+
+    /**
+     * @param callable(\SplFileInfo): bool $match
+     *
+     * @return list<string>
+     */
+    private function questionImageMatches(callable $match): array
+    {
+        $root = \dirname(__DIR__, 3).\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'question-images';
+        if (!is_dir($root)) {
+            return [];
+        }
+        $found = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) {
+            if ($match($file)) {
+                $found[] = $file->getPathname();
+            }
+        }
+        sort($found);
+
+        return $found;
     }
 
     /**

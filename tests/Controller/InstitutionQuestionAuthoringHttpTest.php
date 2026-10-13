@@ -323,6 +323,14 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         $owner->followRedirect();
         self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $owner->getResponse()->getContent());
         self::assertStringContainsString('Taslak', (string) $owner->getResponse()->getContent());
+        $reference = basename($owner->getRequest()->getPathInfo());
+        $owner->request('POST', '/kurum/sorular/'.$reference.'/yayinla', [
+            '_token' => $this->csrf($owner, 'institution_question_publish'),
+        ]);
+        self::assertResponseRedirects();
+        $owner->followRedirect();
+        self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $owner->getResponse()->getContent());
+        self::assertStringContainsString('Taslak', (string) $owner->getResponse()->getContent());
     }
 
     public function testStaffCannotUploadAQuestionImage(): void
@@ -352,8 +360,47 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         ], [
             'question_image' => new UploadedFile($path, 'soru.png', 'image/png', null, true),
         ]);
+        self::assertResponseStatusCodeSame(403);
         self::assertSame($before, $this->countTable('stored_media_assets'));
         self::assertSame($questions, $this->countTable('questions'));
+    }
+
+    public function testInstitutionImageSaveFailureRollsBackAndDeletesTheFileOnce(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $this->bootPeople();
+        $refs = $this->seedCurriculum();
+        $assets = $this->countTable('stored_media_assets');
+        $questions = $this->countTable('questions');
+        $revisions = $this->countTable('question_revisions');
+        $mediaAudits = $this->auditCount('stored_media_asset_registered');
+        $questionAudits = $this->auditCount('question_created');
+        $files = $this->questionImageFiles();
+        $owner = $this->browser();
+        $this->login($owner, 'q-owner@example.com');
+        $owner->request('GET', '/kurum/sorular/yeni?ders='.$refs['subject'].'&sinif=1');
+        $path = tempnam(sys_get_temp_dir(), 'qimg');
+        self::assertIsString($path);
+        file_put_contents($path, $this->pngBytes());
+        $this->failOnImageInsert($owner);
+        $owner->catchExceptions(false);
+        try {
+            $owner->request('POST', '/kurum/sorular/yeni', $this->validCreatePayload($owner, $refs), [
+                'question_image' => new UploadedFile($path, 'soru.png', 'image/png', null, true),
+            ]);
+            self::fail('The question save error was hidden.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('db-failed', $exception->getMessage());
+        }
+        self::assertSame($assets, $this->countTable('stored_media_assets'));
+        self::assertSame($questions, $this->countTable('questions'));
+        self::assertSame($revisions, $this->countTable('question_revisions'));
+        self::assertSame($mediaAudits, $this->auditCount('stored_media_asset_registered'));
+        self::assertSame($questionAudits, $this->auditCount('question_created'));
+        self::assertSame($files, $this->questionImageFiles());
+        self::assertSame([], $this->questionImageParts());
     }
 
     public function testForeignInstitutionImageReferenceIsRejectedWithoutWritingAQuestion(): void
@@ -385,10 +432,33 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
             self::assertInstanceOf(Institution::class, $boraSchool);
             self::assertInstanceOf(Subject::class, $subject);
             self::assertInstanceOf(CurriculumLearningOutcome::class, $outcome);
-            $asset = $images->receive($owner, QuestionScope::Institution, $ada, $this->pngBytes(), 'image/png');
+            $staged = $images->stage($owner, QuestionScope::Institution, $ada, $this->pngBytes(), 'image/png');
             $stem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'text' => 'Ada gorseli'],
+                ['type' => 'image_reference', 'mediaId' => $staged->assetId->toRfc4122()],
+            ]);
+            $questions->createDraftQuestion(
+                $owner,
+                QuestionScope::Institution,
+                $ada,
+                $subject,
+                GradeLevel::Grade1,
+                QuestionType::SingleChoice,
+                $stem,
+                null,
+                [
+                    ['stableKey' => 'opt_1', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                    ['stableKey' => 'opt_2', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+                ],
+                ['correctStableKey' => 'opt_1'],
+                [['learningOutcome' => $outcome, 'isPrimary' => true]],
+                QuestionDifficulty::Medium,
+                'ada_image',
+                image: $staged,
+            );
+            $foreignStem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
                 ['type' => 'paragraph', 'text' => 'Baska kurum'],
-                ['type' => 'image_reference', 'mediaId' => $asset->getId()->toRfc4122()],
+                ['type' => 'image_reference', 'mediaId' => $staged->assetId->toRfc4122()],
             ]);
             try {
                 $questions->createDraftQuestion(
@@ -398,7 +468,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
                     $subject,
                     GradeLevel::Grade1,
                     QuestionType::SingleChoice,
-                    $stem,
+                    $foreignStem,
                     null,
                     [
                         ['stableKey' => 'opt_1', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
@@ -412,10 +482,11 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
                 self::fail('Foreign image reference was stored.');
             } catch (QuestionException $exception) {
                 self::assertSame('question_image_scope', $exception->getMessage());
-                self::assertStringNotContainsString($asset->getId()->toRfc4122(), $exception->getMessage());
+                self::assertStringNotContainsString($staged->assetId->toRfc4122(), $exception->getMessage());
             }
         });
-        self::assertSame($before, $this->countTable('questions'));
+        self::assertSame($before + 1, $this->countTable('questions'));
+        self::assertSame(1, $this->countTable('stored_media_assets'));
     }
 
     /**
@@ -655,6 +726,67 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
     private function auditCount(string $action): int
     {
         return (int) $this->scalar('SELECT COUNT(*) FROM security_audit_events WHERE action = ?', [$action]);
+    }
+
+    private function failOnImageInsert(KernelBrowser $client): void
+    {
+        $dispatcher = $client->getContainer()->get('event_dispatcher');
+        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
+        $dispatcher->addListener(\Symfony\Component\HttpKernel\KernelEvents::REQUEST, static function () use ($client): void {
+            $em = $client->getContainer()->get(EntityManagerInterface::class);
+            if (!$em instanceof EntityManagerInterface) {
+                return;
+            }
+            $em->getEventManager()->addEventListener(\Doctrine\ORM\Events::onFlush, new class {
+                public function onFlush(\Doctrine\ORM\Event\OnFlushEventArgs $args): void
+                {
+                    foreach ($args->getObjectManager()->getUnitOfWork()->getScheduledEntityInsertions() as $entity) {
+                        if ($entity instanceof StoredMediaAsset) {
+                            throw new \RuntimeException('db-failed');
+                        }
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function questionImageFiles(): array
+    {
+        return $this->questionImageMatches(static fn (\SplFileInfo $file): bool => $file->isFile() && !str_ends_with($file->getFilename(), '.part'));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function questionImageParts(): array
+    {
+        return $this->questionImageMatches(static fn (\SplFileInfo $file): bool => $file->isFile() && str_ends_with($file->getFilename(), '.part'));
+    }
+
+    /**
+     * @param callable(\SplFileInfo): bool $match
+     *
+     * @return list<string>
+     */
+    private function questionImageMatches(callable $match): array
+    {
+        $root = \dirname(__DIR__, 2).\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'question-images';
+        if (!is_dir($root)) {
+            return [];
+        }
+        $found = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) {
+            if ($match($file)) {
+                $found[] = $file->getPathname();
+            }
+        }
+        sort($found);
+
+        return $found;
     }
 
     private function adaQuestionId(): string

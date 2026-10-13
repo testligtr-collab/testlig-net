@@ -32,6 +32,7 @@ use App\Enum\QuestionType;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
+use App\Enum\StoredMediaAssetScope;
 use App\Enum\SubjectStatus;
 use App\Enum\UserRole;
 use App\Exception\QuestionException;
@@ -42,7 +43,9 @@ use App\Question\Content\QuestionContentHasher;
 use App\Question\Content\QuestionContentValidator;
 use App\Question\Content\QuestionPublicContentHashBuilder;
 use App\Question\Content\QuestionSourceReferencePolicy;
+use App\Question\Image\QuestionImageMetadataPort;
 use App\Question\Image\QuestionImageReferenceGuard;
+use App\Question\Image\StagedQuestionImage;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
 use App\Repository\QuestionRevisionAlignmentRepository;
@@ -96,6 +99,7 @@ final class QuestionManager
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
         private readonly QuestionImageReferenceGuard $imageReferences,
+        private readonly QuestionImageMetadataPort $imageMetadata,
     ) {
     }
 
@@ -124,6 +128,7 @@ final class QuestionManager
         QuestionSourceType $sourceType = QuestionSourceType::Original,
         ?string $sourceReference = null,
         ?Uuid $id = null,
+        ?StagedQuestionImage $image = null,
     ): Question {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $stemDoc = $stem instanceof QuestionContentDocument ? $stem : QuestionContentDocument::fromArray($stem);
@@ -155,6 +160,7 @@ final class QuestionManager
                 $sourceReference,
                 $reasonCode,
                 $id,
+                $image,
             ): Question {
                 // Lock order (create): Institution? → Subject → Curriculum → Actor → Question → revision bundle.
                 $lockedInstitution = null;
@@ -180,6 +186,7 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayCreate($freshActor, $scope, $lockedInstitution);
+                $this->registerStagedImage($freshActor, $scope, $lockedInstitution, $image);
                 $this->imageReferences->assertDraftReferences($scope, $lockedInstitution, $stemDoc, $explanationDoc, $options);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
@@ -270,6 +277,7 @@ final class QuestionManager
         ?int $estimatedSeconds = null,
         QuestionSourceType $sourceType = QuestionSourceType::Original,
         ?string $sourceReference = null,
+        ?StagedQuestionImage $image = null,
     ): QuestionRevision {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $stemDoc = $stem instanceof QuestionContentDocument ? $stem : QuestionContentDocument::fromArray($stem);
@@ -296,6 +304,7 @@ final class QuestionManager
                 $sourceType,
                 $sourceReference,
                 $reasonCode,
+                $image,
             ): QuestionRevision {
                 // Curriculum locked before question when outcome IDs are known from the request.
                 $lockedQuestion = $this->lockQuestionWithScope($questionId, $outcomeIds);
@@ -308,6 +317,7 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayManageContent($freshActor, $lockedQuestion);
+                $this->registerStagedImage($freshActor, $lockedQuestion->getScope(), $lockedQuestion->getInstitution(), $image);
                 $this->imageReferences->assertDraftReferences(
                     $lockedQuestion->getScope(),
                     $lockedQuestion->getInstitution(),
@@ -907,6 +917,25 @@ final class QuestionManager
         }
 
         return $specs;
+    }
+
+    private function registerStagedImage(User $actor, QuestionScope $scope, ?Institution $institution, ?StagedQuestionImage $image): void
+    {
+        if (!$image instanceof StagedQuestionImage) {
+            return;
+        }
+        $storageScope = QuestionScope::Platform === $scope ? StoredMediaAssetScope::Platform : StoredMediaAssetScope::Institution;
+        $this->imageMetadata->register(
+            $actor,
+            $storageScope,
+            QuestionScope::Platform === $scope ? null : $institution,
+            $image->provider,
+            $image->filename(),
+            $image->mime,
+            $image->byteSize,
+            $image->sha256,
+            $image->assetId,
+        );
     }
 
     /**

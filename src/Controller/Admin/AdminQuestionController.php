@@ -197,13 +197,13 @@ final class AdminQuestionController extends AdminBaseController
             $parsed = $this->form->parse($request);
             $subject = $this->requireSubject($request->request->getString('subject_id'));
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $asset = null;
+            $staged = null;
             $bytes = $this->uploadedBytes($request);
             if (null !== $bytes) {
-                $asset = $this->images->receive($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
-                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $asset->getId());
+                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
+                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
             }
-            $question = $this->questionManager->createDraftQuestion(
+            $question = $this->images->finish($staged, fn (): Question => $this->questionManager->createDraftQuestion(
                 $actor,
                 QuestionScope::Platform,
                 null,
@@ -217,15 +217,12 @@ final class AdminQuestionController extends AdminBaseController
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_draft_saved',
-            );
+                image: $staged,
+            ));
             $this->addFlash('success', 'Taslak kaydedildi.');
 
             return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
         } catch (QuestionException $e) {
-            if (isset($asset)) {
-                $this->images->deleteQuietly($asset);
-            }
-
             return $this->redirectQuestionError('app_admin_question_new', [
                 'subject_id' => $request->request->getString('subject_id'),
                 'grade' => $request->request->getString('grade'),
@@ -249,13 +246,13 @@ final class AdminQuestionController extends AdminBaseController
                 throw QuestionException::invalidInput('Subject cannot change.');
             }
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $asset = null;
+            $staged = null;
             $bytes = $this->uploadedBytes($request);
             if (null !== $bytes) {
-                $asset = $this->images->receive($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
-                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $asset->getId());
+                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
+                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
             }
-            $this->questionManager->createRevision(
+            $this->images->finish($staged, fn (): QuestionRevision => $this->questionManager->createRevision(
                 $question,
                 $actor,
                 QuestionType::SingleChoice,
@@ -266,13 +263,10 @@ final class AdminQuestionController extends AdminBaseController
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_revision_saved',
-            );
+                image: $staged,
+            ));
             $this->addFlash('success', 'Taslak kaydedildi.');
         } catch (QuestionException $e) {
-            if (isset($asset)) {
-                $this->images->deleteQuietly($asset);
-            }
-
             return $this->redirectQuestionError('app_admin_question_edit', ['id' => $question->getId()->toRfc4122()], $e);
         }
 

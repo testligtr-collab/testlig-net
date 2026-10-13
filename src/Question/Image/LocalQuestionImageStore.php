@@ -12,6 +12,7 @@ final class LocalQuestionImageStore implements QuestionImageByteStore
     public function __construct(
         private readonly string $directory,
         private readonly LoggerInterface $logger,
+        private readonly QuestionImageByteWriter $writer = new CompleteQuestionImageByteWriter(),
     ) {
     }
 
@@ -35,12 +36,13 @@ final class LocalQuestionImageStore implements QuestionImageByteStore
             throw QuestionException::imageRejected('question_image_store');
         }
         try {
-            if (false === fwrite($handle, $bytes) || !fflush($handle)) {
-                throw QuestionException::imageRejected('question_image_store');
-            }
-        } finally {
+            $this->writer->writeAll($handle, $bytes);
+        } catch (\Throwable $error) {
             fclose($handle);
+            @unlink($temporary);
+            throw $error;
         }
+        fclose($handle);
         if (!rename($temporary, $path)) {
             @unlink($temporary);
             throw QuestionException::imageRejected('question_image_store');

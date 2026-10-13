@@ -6,7 +6,6 @@ namespace App\Tests\Question\Image;
 
 use App\Entity\User;
 use App\Enum\QuestionScope;
-use App\Enum\StoredMediaStorageProvider;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Exception\QuestionException;
@@ -14,15 +13,17 @@ use App\LearningContent\Document\BunnyStorageConfiguration;
 use App\LearningContent\Media\StorageKeyFactory;
 use App\Question\Content\QuestionPlainText;
 use App\Question\Image\BunnyQuestionImageClient;
+use App\Question\Image\CompleteQuestionImageByteWriter;
+use App\Question\Image\LocalQuestionImageStore;
 use App\Question\Image\QuestionImageAuthorizer;
 use App\Question\Image\QuestionImageByteStore;
+use App\Question\Image\QuestionImageByteWriter;
 use App\Question\Image\QuestionImageInspector;
-use App\Question\Image\QuestionImageMetadataPort;
+use App\Question\Image\QuestionImagePixelDecoder;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionImageStoreResolver;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\AbstractLogger;
-use Symfony\Component\Uid\Uuid;
 
 final class QuestionImageInspectorTest extends TestCase
 {
@@ -105,24 +106,124 @@ final class QuestionImageInspectorTest extends TestCase
             new QuestionImageInspector(),
             new QuestionImageStoreResolver($store, $this->bunny(new RecordingHttpClient(201)), new BunnyStorageConfiguration('test-zone', 'test-access-key', BunnyStorageConfiguration::ENDPOINT), 'local'),
             new StorageKeyFactory(),
-            new ThrowingQuestionImageMetadata(),
             new AllowQuestionImageUpload(),
         );
         $user = User::create('image@example.com', 'image@example.com', 'Image', 'User', 'hash', UserRole::Teacher);
         $user->markEmailVerified(new \DateTimeImmutable('2026-01-01 00:00:00'));
         $user->transitionTo(UserStatus::Active);
         $user->addGlobalRole(UserRole::SuperAdmin);
+        $staged = $registrar->stage($user, QuestionScope::Platform, null, $this->png(2, 2), 'image/png');
+        $kept = 'media/platform/image/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/bbbbbbbbbbbbbbbb';
         try {
-            $registrar->receive($user, QuestionScope::Platform, null, $this->png(2, 2), 'image/png');
+            $registrar->finish($staged, static function () use ($store, $kept): void {
+                $store->write($kept, 'kept', 'image/png', hash('sha256', 'kept'));
+                throw new \RuntimeException('db-failed');
+            });
         } catch (\RuntimeException $exception) {
             self::assertSame('db-failed', $exception->getMessage());
-            self::assertSame(1, $store->deletes);
-            self::assertSame(1, $store->writes);
+            self::assertSame([$staged->storageKey], $store->deletedKeys);
+            self::assertSame(2, $store->writes);
             self::assertStringNotContainsString('media/', $exception->getMessage());
-
-            return;
         }
-        self::fail('Registration failure was hidden.');
+        $registrar->finish($staged, static fn (): string => 'saved');
+        self::assertSame([$staged->storageKey], $store->deletedKeys);
+    }
+
+    public function testOversizedHeaderNeverReachesTheDecoder(): void
+    {
+        $decoder = new CountingQuestionImageDecoder();
+        $inspector = new QuestionImageInspector($decoder);
+        $this->assertCode('question_image_limit', fn () => $inspector->inspect($this->pngHeader(4097, 1), 'image/png'));
+        $this->assertCode('question_image_limit', fn () => $inspector->inspect($this->pngHeader(4000, 4001), 'image/png'));
+        self::assertSame(0, $decoder->decodes);
+    }
+
+    public function testMissingGdStopsBeforeDecode(): void
+    {
+        $decoder = new UnavailableQuestionImageDecoder();
+        $inspector = new QuestionImageInspector($decoder);
+        $this->assertCode('question_image_decode', fn () => $inspector->inspect($this->png(2, 2), 'image/png'));
+        self::assertSame(0, $decoder->decodes);
+    }
+
+    public function testShortWriteIsNotASuccessfulFile(): void
+    {
+        $this->registerStream('zerowrite', ZeroWriteStream::class);
+        $writer = new CompleteQuestionImageByteWriter();
+        $handle = fopen('zerowrite://file', 'w');
+        self::assertIsResource($handle);
+        try {
+            $writer->writeAll($handle, 'abcdef');
+            self::fail('A short write was accepted.');
+        } catch (QuestionException $exception) {
+            self::assertSame('question_image_store', $exception->getMessage());
+        } finally {
+            fclose($handle);
+        }
+
+        $this->registerStream('onebyte', OneByteWriteStream::class);
+        OneByteWriteStream::$buffer = '';
+        $partial = fopen('onebyte://file', 'w');
+        self::assertIsResource($partial);
+        $writer->writeAll($partial, 'abcdef');
+        fclose($partial);
+        self::assertSame('abcdef', OneByteWriteStream::$buffer);
+
+        $root = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'qimg-'.bin2hex(random_bytes(4));
+        $store = new LocalQuestionImageStore($root, new \Psr\Log\NullLogger(), new class implements QuestionImageByteWriter {
+            public function writeAll(mixed $handle, string $bytes): void
+            {
+                throw new \RuntimeException('partial-write');
+            }
+        });
+        $key = 'media/platform/image/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/bbbbbbbbbbbbbbbb';
+        try {
+            $store->write($key, 'png', 'image/png', hash('sha256', 'png'));
+            self::fail('A partial file was stored.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('partial-write', $exception->getMessage());
+        }
+        self::assertSame([], $this->partFiles($root));
+        self::assertFileDoesNotExist($root.\DIRECTORY_SEPARATOR.str_replace('/', \DIRECTORY_SEPARATOR, $key));
+    }
+
+    /**
+     * @param class-string $class
+     */
+    private function registerStream(string $protocol, string $class): void
+    {
+        if (\in_array($protocol, stream_get_wrappers(), true)) {
+            stream_wrapper_unregister($protocol);
+        }
+        stream_wrapper_register($protocol, $class);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function partFiles(string $root): array
+    {
+        if (!is_dir($root)) {
+            return [];
+        }
+        $found = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) {
+            if ($file->isFile() && str_ends_with($file->getFilename(), '.part')) {
+                $found[] = $file->getPathname();
+            }
+        }
+
+        return $found;
+    }
+
+    private function pngHeader(int $width, int $height): string
+    {
+        $data = pack('NNC5', $width, $height, 8, 2, 0, 0, 0);
+        $chunk = pack('N', 13).'IHDR'.$data;
+        $chunk .= pack('N', crc32(substr($chunk, 4)));
+
+        return "\x89PNG\r\n\x1A\n".$chunk;
     }
 
     private function bunny(RecordingHttpClient $client): BunnyQuestionImageClient
@@ -301,9 +402,13 @@ final class MemoryQuestionImageStore implements QuestionImageByteStore
         ++$this->writes;
     }
 
+    /** @var list<string> */
+    public array $deletedKeys = [];
+
     public function deleteQuietly(string $storageKey): void
     {
         ++$this->deletes;
+        $this->deletedKeys[] = $storageKey;
     }
 }
 
@@ -318,19 +423,106 @@ final class AllowQuestionImageUpload extends QuestionImageAuthorizer
     }
 }
 
-final class ThrowingQuestionImageMetadata implements QuestionImageMetadataPort
+final class CountingQuestionImageDecoder implements QuestionImagePixelDecoder
 {
-    public function register(
-        User $actor,
-        \App\Enum\StoredMediaAssetScope $scope,
-        ?\App\Entity\Institution $institution,
-        StoredMediaStorageProvider $provider,
-        string $filename,
-        string $mimeType,
-        int $byteSize,
-        string $sha256,
-        Uuid $assetId,
-    ): \App\Entity\StoredMediaAsset {
-        throw new \RuntimeException('db-failed');
+    public int $decodes = 0;
+
+    public function assertAvailable(): void
+    {
+    }
+
+    public function decode(string $bytes): array
+    {
+        ++$this->decodes;
+
+        throw new \RuntimeException('decoder-called');
+    }
+}
+
+final class UnavailableQuestionImageDecoder implements QuestionImagePixelDecoder
+{
+    public int $decodes = 0;
+
+    public function assertAvailable(): void
+    {
+        throw QuestionException::imageRejected('question_image_decode');
+    }
+
+    public function decode(string $bytes): array
+    {
+        ++$this->decodes;
+
+        throw new \RuntimeException('decoder-called');
+    }
+}
+
+final class ZeroWriteStream
+{
+    public mixed $context = null;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        return true;
+    }
+
+    public function stream_write(string $data): int
+    {
+        return 0;
+    }
+
+    public function stream_flush(): bool
+    {
+        return true;
+    }
+
+    public function stream_close(): void
+    {
+    }
+
+    /**
+     * @return array<int|string, int>
+     */
+    public function stream_stat(): array
+    {
+        return [];
+    }
+}
+
+final class OneByteWriteStream
+{
+    public static string $buffer = '';
+
+    public mixed $context = null;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        return true;
+    }
+
+    public function stream_write(string $data): int
+    {
+        if ('' === $data) {
+            return 0;
+        }
+        self::$buffer .= $data[0];
+
+        return 1;
+    }
+
+    public function stream_flush(): bool
+    {
+        return true;
+    }
+
+    public function stream_close(): void
+    {
+    }
+
+    /**
+     * @return array<int|string, int>
+     */
+    public function stream_stat(): array
+    {
+        return [];
     }
 }

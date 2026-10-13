@@ -15,6 +15,11 @@ final class QuestionImageInspector
     public const MAX_EDGE = 4096;
     public const MAX_PIXELS = 16_000_000;
 
+    public function __construct(
+        private readonly QuestionImagePixelDecoder $decoder = new GdQuestionImageDecoder(),
+    ) {
+    }
+
     /**
      * @return array{mime: string, width: int, height: int, sha256: string}
      */
@@ -37,22 +42,19 @@ final class QuestionImageInspector
         if ($detected !== $format || (null !== $declared && '' !== $declared && $declared !== $format)) {
             throw QuestionException::imageRejected('question_image_type');
         }
+        $this->decoder->assertAvailable();
         $size = @getimagesizefromstring($bytes);
-        $image = @imagecreatefromstring($bytes);
-        if (!\is_array($size) || false === $image) {
-            if ($image instanceof \GdImage) {
-                imagedestroy($image);
-            }
+        if (!\is_array($size)) {
             throw QuestionException::imageRejected('question_image_decode');
         }
-        $width = imagesx($image);
-        $height = imagesy($image);
-        imagedestroy($image);
-        if ($size[0] !== $width || $size[1] !== $height) {
-            throw QuestionException::imageRejected('question_image_decode');
-        }
+        $width = $size[0];
+        $height = $size[1];
         if ($width > self::MAX_EDGE || $height > self::MAX_EDGE || ($width * $height) > self::MAX_PIXELS) {
             throw QuestionException::imageRejected('question_image_limit');
+        }
+        $decoded = $this->decoder->decode($bytes);
+        if ($decoded['width'] !== $width || $decoded['height'] !== $height) {
+            throw QuestionException::imageRejected('question_image_decode');
         }
 
         return [

@@ -8,7 +8,6 @@ use App\Entity\CurriculumLearningOutcome;
 use App\Entity\Institution;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
-use App\Entity\StoredMediaAsset;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\GradeLevel;
@@ -107,15 +106,15 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 'position' => $slot,
             ];
         }
-        $asset = null;
+        $staged = null;
         try {
             $stem = QuestionContentDocument::paragraph($values['stem']);
             $bytes = $this->uploadedBytes($request);
             if (null !== $bytes) {
-                $asset = $this->images->receive($this->account(), QuestionScope::Institution, $institution, $bytes, $this->declaredMime($request));
-                $stem = QuestionImageStem::append($stem, $asset->getId());
+                $staged = $this->images->stage($this->account(), QuestionScope::Institution, $institution, $bytes, $this->declaredMime($request));
+                $stem = QuestionImageStem::append($stem, $staged->assetId);
             }
-            $question = $this->questions->createDraftQuestion(
+            $question = $this->images->finish($staged, fn (): Question => $this->questions->createDraftQuestion(
                 $this->account(),
                 QuestionScope::Institution,
                 $institution,
@@ -129,11 +128,9 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 QuestionDifficulty::Medium,
                 'panel_question_create',
-            );
+                image: $staged,
+            ));
         } catch (QuestionException $exception) {
-            if ($asset instanceof StoredMediaAsset) {
-                $this->images->deleteQuietly($asset);
-            }
             $message = $this->failureMessage($exception);
             if (null === $message) {
                 throw new NotFoundHttpException('Not Found');
