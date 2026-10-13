@@ -174,9 +174,11 @@ use `Cache-Control: no-store, private`.
   and does not replace the original save error. There is no public bucket, CDN, or
   browser URL. `bin/bunny-pdf-live-accept.php` is a one-shot PDF acceptance tool.
   It uses the Bunny adapter directly, does not boot the Symfony kernel, and does not
-  open a database or a production env file. Bunny live acceptance stays open until
-  that tool is run. Uploaded video, question images, news images, and simulations
-  remain open on their own feature records.
+  open a database or a production env file. The PDF adapter live acceptance ran once
+  on 2026-10-13 against zone `testlig-pdf-test` and `https://storage.bunnycdn.com`:
+  `result=accepted`, `range=206`, `anonymous=401`, `cleanup=404`. The production
+  upload provider stayed Local. Uploaded video, question images, news images, and
+  simulations remain open on their own feature records.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.
