@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Entity\Question;
+use App\Entity\QuestionRevision;
 use App\Entity\User;
 use App\Enum\GradeLevel;
 use App\Enum\UserRole;
@@ -19,6 +21,8 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Uid\Uuid;
 
 final class AdminQuestionControllerTest extends WebTestCase
 {
@@ -184,6 +188,84 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
     }
 
+    public function testImageUploadCreatesANewRevisionAndBlocksReview(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbimg');
+        $this->createPrivileged('qb-teacher-image@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-image@example.com');
+        $this->postNew($client, $ids, ['stem' => 'Ilk kok']);
+        $path = $this->openCreated($client);
+        $questionId = basename($path);
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        self::assertResponseIsSuccessful();
+        $file = tempnam(sys_get_temp_dir(), 'qimg');
+        self::assertIsString($file);
+        file_put_contents($file, $this->pngBytes());
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'stem' => 'Ikinci kok',
+        ]), [
+            'question_image' => new UploadedFile($file, 'soru.png', 'image/png', null, true),
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $page = (string) $client->getResponse()->getContent();
+        $revisions = $this->revisionStems($questionId);
+        self::assertCount(2, $revisions);
+        self::assertStringContainsString('Ilk kok', $revisions[0]);
+        self::assertStringNotContainsString('image_reference', $revisions[0]);
+        self::assertStringContainsString('Ikinci kok', $revisions[1]);
+        self::assertStringContainsString('image_reference', $revisions[1]);
+        preg_match('/[0-9a-f-]{36}/', $revisions[1], $match);
+        $mediaId = $match[0] ?? null;
+        self::assertIsString($mediaId);
+        self::assertStringNotContainsString($mediaId, $page);
+        self::assertStringContainsString('Taslak', $page);
+        $this->postAction($client, 'incelemeye-gonder');
+        self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Taslak', (string) $client->getResponse()->getContent());
+    }
+
+    public function testModeratorCsrfCannotUploadAQuestionImage(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbmod');
+        $this->createPrivileged('qb-moderator-image@example.com', UserRole::Moderator);
+        $client = $this->newClient();
+        $this->login($client, 'qb-moderator-image@example.com');
+        $client->request('GET', '/yonetim/sorular');
+        self::assertResponseIsSuccessful();
+        $before = $this->mediaCount();
+        $file = tempnam(sys_get_temp_dir(), 'qimg');
+        self::assertIsString($file);
+        file_put_contents($file, $this->pngBytes());
+        $session = $client->getRequest()->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(\Symfony\Component\HttpFoundation\RequestStack::class, $stack);
+        $stack->push($client->getRequest());
+        $tokens = $client->getContainer()->get('security.csrf.token_manager');
+        self::assertInstanceOf(\Symfony\Component\Security\Csrf\CsrfTokenManagerInterface::class, $tokens);
+        $token = $tokens->getToken('question_editor')->getValue();
+        $session->save();
+        $stack->pop();
+        $client->request('POST', '/yonetim/sorular/yeni', $this->payload($ids, [
+            '_token' => $token,
+            'stem' => 'Yetkisiz gorsel',
+        ]), [
+            'question_image' => new UploadedFile($file, 'soru.png', 'image/png', null, true),
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame($before, $this->mediaCount());
+    }
+
     public function testStaleRevisionIsRejected(): void
     {
         $ids = $this->seedCurriculum('qbconc');
@@ -340,6 +422,55 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return static::createClient();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function revisionStems(string $questionId): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $question = $em->find(Question::class, Uuid::fromString($questionId));
+        self::assertInstanceOf(Question::class, $question);
+        $revisions = $em->getRepository(QuestionRevision::class)->findBy(['question' => $question], ['revisionNumber' => 'ASC']);
+        $stems = [];
+        foreach ($revisions as $revision) {
+            self::assertInstanceOf(QuestionRevision::class, $revision);
+            $encoded = json_encode($revision->getStemContent());
+            self::assertIsString($encoded);
+            $stems[] = $encoded;
+        }
+        self::ensureKernelShutdown();
+
+        return $stems;
+    }
+
+    private function mediaCount(): int
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $count = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM stored_media_assets');
+        self::ensureKernelShutdown();
+
+        return $count;
+    }
+
+    private function pngBytes(): string
+    {
+        $image = imagecreatetruecolor(8, 8);
+        self::assertInstanceOf(\GdImage::class, $image);
+        ob_start();
+        imagepng($image);
+        imagedestroy($image);
+        $bytes = ob_get_clean();
+        self::assertIsString($bytes);
+
+        return $bytes;
     }
 
     private function login(KernelBrowser $client, string $email): void

@@ -36,7 +36,7 @@
                 <p>Bu sınıf ve ders için kullanılabilir kazanım yok.</p>
             {% endif %}
         {% else %}
-            <form method="post" action="{{ path('app_institution_question_new') }}">
+            <form method="post" enctype="multipart/form-data" action="{{ path('app_institution_question_new') }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('institution_question_create') }}">
                 <input type="hidden" name="subject_ref" value="{{ values.subject_ref }}">
                 <input type="hidden" name="grade" value="{{ values.grade }}">
@@ -44,6 +44,10 @@
                 <p>
                     <label for="question-stem">Soru</label>
                     <textarea id="question-stem" name="stem" required maxlength="4000">{{ values.stem }}</textarea>
+                </p>
+                <p>
+                    <label for="question-image">Soru görseli</label>
+                    <input id="question-image" type="file" name="question_image" accept="image/jpeg,image/png,image/webp">
                 </p>
                 {% for index in 1..6 %}
                     <p>

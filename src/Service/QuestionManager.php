@@ -42,6 +42,7 @@ use App\Question\Content\QuestionContentHasher;
 use App\Question\Content\QuestionContentValidator;
 use App\Question\Content\QuestionPublicContentHashBuilder;
 use App\Question\Content\QuestionSourceReferencePolicy;
+use App\Question\Image\QuestionImageReferenceGuard;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
 use App\Repository\QuestionRevisionAlignmentRepository;
@@ -94,6 +95,7 @@ final class QuestionManager
         private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly QuestionImageReferenceGuard $imageReferences,
     ) {
     }
 
@@ -178,6 +180,7 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayCreate($freshActor, $scope, $lockedInstitution);
+                $this->imageReferences->assertDraftReferences($scope, $lockedInstitution, $stemDoc, $explanationDoc, $options);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
                 $question = Question::createDraft(
@@ -305,6 +308,13 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayManageContent($freshActor, $lockedQuestion);
+                $this->imageReferences->assertDraftReferences(
+                    $lockedQuestion->getScope(),
+                    $lockedQuestion->getInstitution(),
+                    $stemDoc,
+                    $explanationDoc,
+                    $options,
+                );
 
                 if (!$lockedQuestion->getStatus()->allowsNewRevision()) {
                     throw QuestionException::invalidTransition();
@@ -461,6 +471,7 @@ final class QuestionManager
                 if (!$revision->getQuestion()->getId()->equals($lockedQuestion->getId())) {
                     throw QuestionException::conflict();
                 }
+                $this->imageReferences->assertCurrentRevisionMayLeaveDraft($lockedQuestion);
 
                 // 7. Publishability checks against freshly reloaded rows.
                 $this->assertPublishableRevisionFresh($lockedQuestion, $revision, $freshActor);
@@ -557,6 +568,9 @@ final class QuestionManager
                     $this->assertActorMayReview($freshActor, $lockedQuestion);
                 } elseif ($requireManage) {
                     $this->assertActorMayManageContent($freshActor, $lockedQuestion);
+                }
+                if (SecurityAuditAction::QuestionSubmittedForReview === $action) {
+                    $this->imageReferences->assertCurrentRevisionMayLeaveDraft($lockedQuestion);
                 }
 
                 $oldStatus = $lockedQuestion->getStatus()->value;

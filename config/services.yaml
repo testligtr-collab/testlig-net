@@ -27,6 +27,7 @@ parameters:
     env(BUNNY_STORAGE_ZONE): ''
     env(BUNNY_STORAGE_ACCESS_KEY): ''
     env(BUNNY_STORAGE_ENDPOINT): ''
+    env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -78,6 +79,15 @@ services:
     App\LearningContent\Document\LearningDocumentStoreResolver:
         arguments:
             $uploadProvider: '%env(LEARNING_DOCUMENT_UPLOAD_PROVIDER)%'
+
+    App\Question\Image\LocalQuestionImageStore:
+        arguments:
+            $directory: '%kernel.project_dir%/var/question-images'
+
+    App\Question\Image\QuestionImageStoreResolver:
+        arguments:
+            $local: '@App\Question\Image\LocalQuestionImageStore'
+            $uploadProvider: '%env(QUESTION_IMAGE_UPLOAD_PROVIDER)%'
 
     App\Service\LearningDocumentManager:
         arguments:

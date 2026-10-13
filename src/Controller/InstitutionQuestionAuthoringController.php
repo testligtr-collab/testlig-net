@@ -8,6 +8,7 @@ use App\Entity\CurriculumLearningOutcome;
 use App\Entity\Institution;
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
+use App\Entity\StoredMediaAsset;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\GradeLevel;
@@ -18,6 +19,8 @@ use App\Enum\QuestionStatus;
 use App\Enum\QuestionType;
 use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
+use App\Question\Image\QuestionImageRegistrar;
+use App\Question\Image\QuestionImageStem;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
@@ -30,6 +33,7 @@ use App\Service\InstitutionWorkspaceQuery;
 use App\Service\InvitationCodeDigestHasher;
 use App\Service\QuestionManager;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -53,6 +57,7 @@ final class InstitutionQuestionAuthoringController extends AbstractController
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly SubjectRepository $subjectRepository,
         private readonly InvitationCodeDigestHasher $hasher,
+        private readonly QuestionImageRegistrar $images,
     ) {
     }
 
@@ -102,7 +107,14 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 'position' => $slot,
             ];
         }
+        $asset = null;
         try {
+            $stem = QuestionContentDocument::paragraph($values['stem']);
+            $bytes = $this->uploadedBytes($request);
+            if (null !== $bytes) {
+                $asset = $this->images->receive($this->account(), QuestionScope::Institution, $institution, $bytes, $this->declaredMime($request));
+                $stem = QuestionImageStem::append($stem, $asset->getId());
+            }
             $question = $this->questions->createDraftQuestion(
                 $this->account(),
                 QuestionScope::Institution,
@@ -110,7 +122,7 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 $subject,
                 $grade,
                 QuestionType::SingleChoice,
-                QuestionContentDocument::paragraph($values['stem']),
+                $stem,
                 null,
                 $specs,
                 ['correctStableKey' => 'opt_'.$correct],
@@ -119,6 +131,9 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 'panel_question_create',
             );
         } catch (QuestionException $exception) {
+            if ($asset instanceof StoredMediaAsset) {
+                $this->images->deleteQuietly($asset);
+            }
             $message = $this->failureMessage($exception);
             if (null === $message) {
                 throw new NotFoundHttpException('Not Found');
@@ -242,10 +257,48 @@ final class InstitutionQuestionAuthoringController extends AbstractController
             QuestionFailureReason::ReviewSeparation => 'Kendi hazırladığınız soruyu yayımlayamazsınız.',
             QuestionFailureReason::InvalidTransition => 'Bu durum geçişi yapılamaz.',
             QuestionFailureReason::AnswerInvalid, QuestionFailureReason::ContentInvalid => 'Soru metni ve seçenekler geçerli olmalıdır.',
+            QuestionFailureReason::ImageRejected => $this->imageMessage($exception),
             QuestionFailureReason::AlignmentInvalid, QuestionFailureReason::CurriculumNotPublished => 'Kazanım bu sınıf ve ders için kullanılamaz.',
             QuestionFailureReason::Unauthorized, QuestionFailureReason::NotFound, QuestionFailureReason::ScopeMismatch => null,
             default => 'Soru kaydedilemedi.',
         };
+    }
+
+    private function imageMessage(QuestionException $exception): string
+    {
+        return match ($exception->getMessage()) {
+            'question_image_exif' => 'Görsel EXIF bilgisi içeriyor.',
+            'question_image_gif', 'question_image_svg', 'question_image_animation', 'question_image_type' => 'Görsel türü kabul edilmiyor.',
+            'question_image_limit' => 'Görsel boyutu sınırı aşıyor.',
+            'question_image_decode' => 'Görsel okunamadı.',
+            'question_image_pending' => 'Bekleyen görsel incelenemez veya yayımlanamaz.',
+            'question_image_scope' => 'Görsel bu soruya bağlanamaz.',
+            default => 'Görsel kaydedilemedi.',
+        };
+    }
+
+    private function uploadedBytes(Request $request): ?string
+    {
+        $file = $request->files->get('question_image');
+        if (!$file instanceof UploadedFile) {
+            return null;
+        }
+        if (!$file->isValid()) {
+            throw QuestionException::imageRejected(\in_array($file->getError(), [\UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE], true) ? 'question_image_limit' : 'question_image_decode');
+        }
+        $bytes = file_get_contents($file->getPathname());
+        if (!\is_string($bytes) || '' === $bytes) {
+            throw QuestionException::imageRejected('question_image_decode');
+        }
+
+        return $bytes;
+    }
+
+    private function declaredMime(Request $request): ?string
+    {
+        $file = $request->files->get('question_image');
+
+        return $file instanceof UploadedFile ? $file->getClientMimeType() : null;
     }
 
     private function requireQuestion(string $reference): Question

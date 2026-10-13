@@ -92,4 +92,9 @@ final class QuestionException extends \RuntimeException
     {
         return new self(QuestionFailureReason::Immutable, 'Question revision content is immutable.');
     }
+
+    public static function imageRejected(string $code): self
+    {
+        return new self(QuestionFailureReason::ImageRejected, $code);
+    }
 }
