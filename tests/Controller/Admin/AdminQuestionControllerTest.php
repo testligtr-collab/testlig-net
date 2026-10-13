@@ -301,7 +301,9 @@ final class AdminQuestionControllerTest extends WebTestCase
             ]);
             self::fail('The question save error was hidden.');
         } catch (\RuntimeException $exception) {
-            self::assertSame('db-failed', $exception->getMessage());
+            if ('db-failed' !== $exception->getMessage()) {
+                throw $exception;
+            }
         }
         self::assertSame($before, $this->imageSnapshot());
         self::assertSame([], $this->questionImageParts());
@@ -348,7 +350,9 @@ final class AdminQuestionControllerTest extends WebTestCase
             ]);
             self::fail('The revision save error was hidden.');
         } catch (\RuntimeException $exception) {
-            self::assertSame('db-failed', $exception->getMessage());
+            if ('db-failed' !== $exception->getMessage()) {
+                throw $exception;
+            }
         }
         self::assertSame($bound, $this->imageSnapshot());
         self::assertSame([], $this->questionImageParts());
@@ -538,23 +542,18 @@ final class AdminQuestionControllerTest extends WebTestCase
 
     private function failOnImageInsert(KernelBrowser $client): void
     {
-        $dispatcher = $client->getContainer()->get('event_dispatcher');
-        self::assertInstanceOf(\Symfony\Component\EventDispatcher\EventDispatcherInterface::class, $dispatcher);
-        $dispatcher->addListener(\Symfony\Component\HttpKernel\KernelEvents::REQUEST, static function () use ($client): void {
-            $em = $client->getContainer()->get(EntityManagerInterface::class);
-            if (!$em instanceof EntityManagerInterface) {
-                return;
-            }
-            $em->getEventManager()->addEventListener(\Doctrine\ORM\Events::onFlush, new class {
-                public function onFlush(\Doctrine\ORM\Event\OnFlushEventArgs $args): void
-                {
-                    foreach ($args->getObjectManager()->getUnitOfWork()->getScheduledEntityInsertions() as $entity) {
-                        if ($entity instanceof \App\Entity\StoredMediaAsset) {
-                            throw new \RuntimeException('db-failed');
-                        }
+        $client->disableReboot();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->getEventManager()->addEventListener(\Doctrine\ORM\Events::onFlush, new class {
+            public function onFlush(\Doctrine\ORM\Event\OnFlushEventArgs $args): void
+            {
+                foreach ($args->getObjectManager()->getUnitOfWork()->getScheduledEntityInsertions() as $entity) {
+                    if ($entity instanceof \App\Entity\StoredMediaAsset) {
+                        throw new \RuntimeException('db-failed');
                     }
                 }
-            });
+            }
         });
     }
 
