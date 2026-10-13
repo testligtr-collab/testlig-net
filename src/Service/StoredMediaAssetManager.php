@@ -64,12 +64,13 @@ final class StoredMediaAssetManager
         int $byteSize,
         string $contentSha256,
         string $reasonCode,
+        ?Uuid $assetId = null,
     ): StoredMediaAsset {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $this->policy->assertValidRegistration($kind, $mimeType, $originalFilename, $byteSize, $contentSha256);
         $actorId = $actor->getId();
         $institutionId = $institution?->getId();
-        $assetId = new UuidV7();
+        $assetId ??= new UuidV7();
         $storageKey = $this->storageKeyFactory->create(
             $scope,
             $institutionId,

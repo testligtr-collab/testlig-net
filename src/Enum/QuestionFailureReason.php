@@ -19,4 +19,5 @@ enum QuestionFailureReason: string
     case AnswerIntegrityFailed = 'answer_integrity_failed';
     case ContentInvalid = 'content_invalid';
     case Immutable = 'immutable';
+    case ImageRejected = 'image_rejected';
 }

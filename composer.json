@@ -8,6 +8,7 @@
     "require": {
         "php": ">=8.2",
         "ext-ctype": "*",
+        "ext-gd": "*",
         "ext-iconv": "*",
         "aws/aws-sdk-php": "^3.337",
         "doctrine/doctrine-bundle": "^2.19",

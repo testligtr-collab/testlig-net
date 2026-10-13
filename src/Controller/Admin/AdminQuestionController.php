@@ -22,6 +22,8 @@ use App\Exception\LearningContentException;
 use App\Exception\QuestionException;
 use App\Presentation\ContentWorkflowReason;
 use App\Presentation\QuestionWorkflowProgress;
+use App\Question\Image\QuestionImageRegistrar;
+use App\Question\Image\QuestionImageStem;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
@@ -35,6 +37,7 @@ use App\Security\QuestionPermission;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\QuestionSingleChoiceForm;
 use App\Service\QuestionManager;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -56,6 +59,7 @@ final class AdminQuestionController extends AdminBaseController
         private readonly QuestionSingleChoiceForm $form,
         private readonly ContentWorkflowReason $workflowReason,
         private readonly QuestionWorkflowProgress $workflowProgress,
+        private readonly QuestionImageRegistrar $images,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -193,7 +197,13 @@ final class AdminQuestionController extends AdminBaseController
             $parsed = $this->form->parse($request);
             $subject = $this->requireSubject($request->request->getString('subject_id'));
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $question = $this->questionManager->createDraftQuestion(
+            $staged = null;
+            $bytes = $this->uploadedBytes($request);
+            if (null !== $bytes) {
+                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
+                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
+            }
+            $question = $this->images->finish($staged, fn (): Question => $this->questionManager->createDraftQuestion(
                 $actor,
                 QuestionScope::Platform,
                 null,
@@ -207,7 +217,8 @@ final class AdminQuestionController extends AdminBaseController
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_draft_saved',
-            );
+                image: $staged,
+            ));
             $this->addFlash('success', 'Taslak kaydedildi.');
 
             return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
@@ -235,7 +246,13 @@ final class AdminQuestionController extends AdminBaseController
                 throw QuestionException::invalidInput('Subject cannot change.');
             }
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $this->questionManager->createRevision(
+            $staged = null;
+            $bytes = $this->uploadedBytes($request);
+            if (null !== $bytes) {
+                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
+                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
+            }
+            $this->images->finish($staged, fn (): QuestionRevision => $this->questionManager->createRevision(
                 $question,
                 $actor,
                 QuestionType::SingleChoice,
@@ -246,7 +263,8 @@ final class AdminQuestionController extends AdminBaseController
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_revision_saved',
-            );
+                image: $staged,
+            ));
             $this->addFlash('success', 'Taslak kaydedildi.');
         } catch (QuestionException $e) {
             return $this->redirectQuestionError('app_admin_question_edit', ['id' => $question->getId()->toRfc4122()], $e);
@@ -674,7 +692,45 @@ final class AdminQuestionController extends AdminBaseController
             QuestionFailureReason::Conflict => 'Soru bu sırada başka bir işlemle değişti. Sayfayı yenileyip tekrar deneyin.',
             QuestionFailureReason::ReviewSeparation => 'Kendi hazırladığınız soruyu yayınlayamazsınız.',
             QuestionFailureReason::Immutable => 'Yayınlanmış sürüm değiştirilemez.',
+            QuestionFailureReason::ImageRejected => $this->imageMessage($exception),
             default => 'Soru kaydedilemedi. Alanları kontrol edin.',
         };
+    }
+
+    private function imageMessage(QuestionException $exception): string
+    {
+        return match ($exception->getMessage()) {
+            'question_image_exif' => 'Görsel EXIF bilgisi içeriyor.',
+            'question_image_gif', 'question_image_svg', 'question_image_animation', 'question_image_type' => 'Görsel türü kabul edilmiyor.',
+            'question_image_limit' => 'Görsel boyutu sınırı aşıyor.',
+            'question_image_decode' => 'Görsel okunamadı.',
+            'question_image_pending' => 'Bekleyen görsel incelenemez veya yayımlanamaz.',
+            'question_image_scope' => 'Görsel bu soruya bağlanamaz.',
+            default => 'Görsel kaydedilemedi.',
+        };
+    }
+
+    private function uploadedBytes(Request $request): ?string
+    {
+        $file = $request->files->get('question_image');
+        if (!$file instanceof UploadedFile) {
+            return null;
+        }
+        if (!$file->isValid()) {
+            throw QuestionException::imageRejected(\in_array($file->getError(), [\UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE], true) ? 'question_image_limit' : 'question_image_decode');
+        }
+        $bytes = file_get_contents($file->getPathname());
+        if (!\is_string($bytes) || '' === $bytes) {
+            throw QuestionException::imageRejected('question_image_decode');
+        }
+
+        return $bytes;
+    }
+
+    private function declaredMime(Request $request): ?string
+    {
+        $file = $request->files->get('question_image');
+
+        return $file instanceof UploadedFile ? $file->getClientMimeType() : null;
     }
 }

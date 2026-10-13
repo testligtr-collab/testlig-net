@@ -178,7 +178,7 @@ use `Cache-Control: no-store, private`.
   on 2026-10-13 against zone `testlig-pdf-test` and `https://storage.bunnycdn.com`:
   `result=accepted`, `range=206`, `anonymous=401`, `cleanup=404`. The production
   upload provider stayed Local. Uploaded video, question images, news images, and
-  simulations remain open on their own feature records.
+  simulations remain open on their own feature records. Question image upload can register a pending JPEG, PNG, or WebP reference on a new question revision. Student image delivery and a clean scan stay open.
 - Download is `LearningDocumentResponse` (`BinaryFileResponse`, so Range works) with
   `Content-Type: application/pdf`, attachment-safe inline disposition, `nosniff`, and
   `Cache-Control: no-store, private`. No new site-wide CSP.

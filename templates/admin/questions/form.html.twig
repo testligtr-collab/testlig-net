@@ -28,7 +28,7 @@
         <button class="btn" type="submit">Kazanımları getir</button>
     </form>
 
-    <form method="post" id="question-editor" class="stack-sm" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+    <form method="post" id="question-editor" class="stack-sm" enctype="multipart/form-data" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
         <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
         <input type="hidden" name="grade" value="{{ grade }}">
@@ -53,6 +53,9 @@
 
         <label>Soru kökü
             <textarea name="stem" rows="8" required class="revision-text">{{ values.stem }}</textarea>
+        </label>
+        <label>Soru görseli
+            <input type="file" name="question_image" accept="image/jpeg,image/png,image/webp">
         </label>
 
         <fieldset>
