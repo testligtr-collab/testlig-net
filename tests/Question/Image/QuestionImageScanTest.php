@@ -176,6 +176,43 @@ final class QuestionImageScanTest extends TestCase
         self::assertSame(0, $store->deletes);
     }
 
+    public function testBytesChangedAfterVerificationAreNotCommitted(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'scan');
+        self::assertIsString($path);
+        file_put_contents($path, 'bbbb');
+        $recorded = hash('sha256', 'aaaa');
+        $assetId = new UuidV7();
+        $key = (new StorageKeyFactory())->create(StoredMediaAssetScope::Platform, null, StoredMediaAssetKind::Image, $assetId, $recorded);
+        $snapshot = new QuestionImageScanSnapshot(
+            $assetId,
+            StoredMediaAssetScope::Platform,
+            null,
+            StoredMediaAssetKind::Image,
+            StoredMediaAssetStatus::Pending,
+            StoredMediaScanStatus::Pending,
+            StoredMediaStorageProvider::Local,
+            $key,
+            4,
+            $recorded,
+        );
+        $records = new MemoryScanRecords($snapshot);
+        $transport = new RecordingClamdTransport("stream: OK\n");
+        try {
+            $verdict = $this->scanner($records, new MemoryByteStore(new MemoryScanCopy($path, 4, $recorded)), $transport)
+                ->scanPendingQuestionImage($this->superAdmin(), $assetId);
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+
+        self::assertSame(QuestionImageScanVerdict::HashMismatch, $verdict);
+        self::assertSame(0, $records->commits);
+        self::assertNull($records->verdict);
+        self::assertFalse(str_ends_with($transport->sent, pack('N', 0)));
+    }
+
     public function testHashMismatchDoesNotCallTheScanner(): void
     {
         [$snapshot, $copy] = $this->copySnapshot('private-image', str_repeat('cd', 32));

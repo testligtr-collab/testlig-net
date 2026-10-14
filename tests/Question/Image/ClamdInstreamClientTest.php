@@ -7,6 +7,7 @@ namespace App\Tests\Question\Image;
 use App\Question\Image\QuestionImageInspector;
 use App\Question\Image\Scan\ClamdInstreamClient;
 use App\Question\Image\Scan\ClamdInstreamTransport;
+use App\Question\Image\Scan\ClamdScanResult;
 use App\Question\Image\Scan\ClamdTransportException;
 use App\Question\Image\Scan\QuestionImageScanVerdict;
 use App\Question\Image\Scan\UnixClamdSocketPath;
@@ -19,12 +20,13 @@ final class ClamdInstreamClientTest extends TestCase
         $transport = new RecordingClamdTransport("stream: OK\n");
         $path = $this->file('abc');
         try {
-            $verdict = (new ClamdInstreamClient($transport))->scan($path);
+            $result = $this->scan($transport, $path, 'abc');
         } finally {
             unlink($path);
         }
 
-        self::assertSame(QuestionImageScanVerdict::Clean, $verdict);
+        self::assertSame(QuestionImageScanVerdict::Clean, $result->verdict);
+        self::assertTrue($result->streamMatched);
         self::assertSame("nINSTREAM\n".pack('N', 3).'abc'.pack('N', 0), $transport->sent);
         self::assertSame(ClamdInstreamClient::TIMEOUT_SECONDS, $transport->timeoutSeconds);
         self::assertSame(ClamdInstreamClient::MAX_RESPONSE_BYTES, $transport->maxResponseBytes);
@@ -45,12 +47,13 @@ final class ClamdInstreamClientTest extends TestCase
             $transport = new RecordingClamdTransport($reply);
             $path = $this->file('abc');
             try {
-                $verdict = (new ClamdInstreamClient($transport))->scan($path);
+                $result = $this->scan($transport, $path, 'abc');
             } finally {
                 unlink($path);
             }
-            self::assertSame($expected, $verdict);
-            self::assertNotSame(QuestionImageScanVerdict::Clean, $verdict);
+            self::assertSame($expected, $result->verdict);
+            self::assertTrue($result->streamMatched);
+            self::assertNotSame(QuestionImageScanVerdict::Clean, $result->verdict);
         }
     }
 
@@ -60,15 +63,15 @@ final class ClamdInstreamClientTest extends TestCase
         try {
             self::assertSame(
                 QuestionImageScanVerdict::TimedOut,
-                (new ClamdInstreamClient(new ThrowingClamdTransport(ClamdTransportException::timedOut())))->scan($path),
+                $this->scan(new ThrowingClamdTransport(ClamdTransportException::timedOut()), $path, 'abc')->verdict,
             );
             self::assertSame(
                 QuestionImageScanVerdict::ConnectionFailed,
-                (new ClamdInstreamClient(new ThrowingClamdTransport(ClamdTransportException::connectionFailed())))->scan($path),
+                $this->scan(new ThrowingClamdTransport(ClamdTransportException::connectionFailed()), $path, 'abc')->verdict,
             );
             self::assertSame(
                 QuestionImageScanVerdict::Malformed,
-                (new ClamdInstreamClient(new ThrowingClamdTransport(ClamdTransportException::responseLimit())))->scan($path),
+                $this->scan(new ThrowingClamdTransport(ClamdTransportException::responseLimit()), $path, 'abc')->verdict,
             );
         } finally {
             unlink($path);
@@ -89,22 +92,52 @@ final class ClamdInstreamClientTest extends TestCase
         UnixClamdSocketPath::assert('/var/run/clamav/clamd.ctl');
     }
 
-    public function testOversizedFileIsNotSent(): void
+    public function testOversizedExpectationIsNotSent(): void
     {
-        $path = tempnam(sys_get_temp_dir(), 'clam');
-        self::assertIsString($path);
-        $handle = fopen($path, 'w');
-        self::assertIsResource($handle);
-        fwrite($handle, str_repeat('a', QuestionImageInspector::MAX_BYTES + 1));
-        fclose($handle);
+        $path = $this->file('abc');
         $transport = new RecordingClamdTransport("stream: OK\n");
         try {
-            $verdict = (new ClamdInstreamClient($transport))->scan($path);
+            $result = (new ClamdInstreamClient($transport))->scan($path, QuestionImageInspector::MAX_BYTES + 1, hash('sha256', 'abc'));
         } finally {
             unlink($path);
         }
-        self::assertSame(QuestionImageScanVerdict::SizeLimit, $verdict);
+        self::assertSame(QuestionImageScanVerdict::SizeLimit, $result->verdict);
+        self::assertFalse($result->streamMatched);
         self::assertSame('', $transport->sent);
+    }
+
+    public function testBrokenReadsAndChangedBytesDoNotAcceptACleanReply(): void
+    {
+        stream_wrapper_register('testligscan', ScriptedScanStream::class);
+        $transport = new RecordingClamdTransport("stream: OK\n");
+        $client = new ClamdInstreamClient($transport);
+        /** @var array<string, list<string|false>> $cases */
+        $cases = [
+            'read-error' => ['ab', false],
+            'empty-before-eof' => ['ab', ''],
+            'shorter' => ['ab'],
+            'longer' => ['abcd', 'Z'],
+            'different' => ['wxyz'],
+        ];
+        try {
+            foreach ($cases as $reads) {
+                ScriptedScanStream::$reads = $reads;
+                ScriptedScanStream::$closed = false;
+                $transport->sent = '';
+                $result = $client->scan('testligscan://image', 4, hash('sha256', 'abcd'));
+                self::assertNotSame(QuestionImageScanVerdict::Clean, $result->verdict);
+                self::assertFalse($result->streamMatched);
+                self::assertFalse(str_ends_with($transport->sent, pack('N', 0)));
+                self::assertTrue(ScriptedScanStream::$closed);
+            }
+        } finally {
+            stream_wrapper_unregister('testligscan');
+        }
+    }
+
+    private function scan(ClamdInstreamTransport $transport, string $path, string $bytes): ClamdScanResult
+    {
+        return (new ClamdInstreamClient($transport))->scan($path, \strlen($bytes), hash('sha256', $bytes));
     }
 
     private function file(string $bytes): string
@@ -137,6 +170,68 @@ final class RecordingClamdTransport implements ClamdInstreamTransport
         }
 
         return $this->response;
+    }
+}
+
+final class ScriptedScanStream
+{
+    public mixed $context = null;
+
+    /** @var list<string|false> */
+    public static array $reads = [];
+
+    public static bool $closed = false;
+
+    private int $index = 0;
+
+    private bool $eof = false;
+
+    public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+    {
+        unset($path, $mode, $options, $openedPath);
+        $this->index = 0;
+        $this->eof = false;
+        self::$closed = false;
+
+        return true;
+    }
+
+    public function stream_read(int $count): string|false
+    {
+        unset($count);
+        if ($this->index >= \count(self::$reads)) {
+            $this->eof = true;
+
+            return '';
+        }
+        $value = self::$reads[$this->index];
+        ++$this->index;
+        if (false === $value) {
+            return false;
+        }
+        if ('' === $value) {
+            return '';
+        }
+
+        return $value;
+    }
+
+    public function stream_eof(): bool
+    {
+        return $this->eof;
+    }
+
+    /**
+     * @return array{mode: int, size: int}
+     */
+    public function stream_stat(): array
+    {
+        return ['mode' => 0100644, 'size' => 0];
+    }
+
+    public function stream_close(): void
+    {
+        self::$closed = true;
     }
 }
 

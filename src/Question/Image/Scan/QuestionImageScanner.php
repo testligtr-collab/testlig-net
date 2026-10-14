@@ -43,12 +43,16 @@ final class QuestionImageScanner
         $copy = null;
         $verdict = null;
         $cleanupFailed = false;
+        $commit = false;
         try {
             $copy = $this->stores->storeFor($snapshot->provider)->read($snapshot->storageKey, $snapshot->byteSize);
             if ($copy->byteSize() !== $snapshot->byteSize || !hash_equals($snapshot->sha256, $copy->sha256())) {
                 $verdict = QuestionImageScanVerdict::HashMismatch;
+                $commit = true;
             } else {
-                $verdict = $this->clamd->scan($copy->path());
+                $result = $this->clamd->scan($copy->path(), $snapshot->byteSize, $snapshot->sha256);
+                $verdict = $result->verdict;
+                $commit = $result->streamMatched;
             }
         } catch (QuestionException $exception) {
             if ('question_image_cleanup' === $exception->getMessage()) {
@@ -57,6 +61,7 @@ final class QuestionImageScanner
                 $verdict = 'question_image_limit' === $exception->getMessage()
                     ? QuestionImageScanVerdict::SizeLimit
                     : QuestionImageScanVerdict::Error;
+                $commit = true;
             }
         } finally {
             if ($copy instanceof QuestionImageScanCopy) {
@@ -74,6 +79,9 @@ final class QuestionImageScanner
         }
         if (QuestionImageScanVerdict::Clean !== $verdict) {
             $this->logger->error('question_image.scan_failed');
+        }
+        if (!$commit) {
+            return $verdict;
         }
         try {
             $this->records->commitQuestionImageScan($actor, $snapshot, $verdict);
