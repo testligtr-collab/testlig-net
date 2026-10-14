@@ -171,6 +171,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-curriculum-reconcile.yml',
             '.github/workflows/ops-learning-content-package-import.yml',
             '.github/workflows/ops-superadmin-bootstrap.yml',
+            '.github/workflows/ops-clamav-preflight.yml',
         ];
         foreach ($ops as $relative) {
             $text = $this->read($relative);
@@ -210,6 +211,48 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringNotContainsString('webfactory/ssh-agent', $ci);
         self::assertStringNotContainsString('VDS_HOST', $ci);
         self::assertStringNotContainsString('testlig-vds-ssh', $ci);
+    }
+
+    public function testClamavPreflightIsReadOnly(): void
+    {
+        $workflow = $this->read('.github/workflows/ops-clamav-preflight.yml');
+        $remote = $this->read('deploy/vds/gha-clamav-preflight-remote.sh');
+
+        self::assertStringContainsString('workflow_dispatch:', $workflow);
+        self::assertDoesNotMatchRegularExpression('/\n\s*push:/', $workflow);
+        self::assertStringNotContainsString('workflow_run:', $workflow);
+        self::assertStringContainsString('contents: read', $workflow);
+        self::assertStringContainsString("vars.VDS_SSH_PAUSED == 'true'", $workflow);
+        self::assertStringContainsString("vars.VDS_SSH_PAUSED != 'true'", $workflow);
+        self::assertStringContainsString('VDS SSH operations are paused', $workflow);
+        self::assertStringContainsString('ClamAV preflight skipped because SSH paused', $workflow);
+        self::assertSame(1, $this->commandCount($workflow, 'ssh'));
+        self::assertSame(0, $this->commandCount($workflow, 'scp'));
+        self::assertStringContainsString('ssh testlig-vds bash -s < deploy/vds/gha-clamav-preflight-remote.sh', $workflow);
+        self::assertStringContainsString('gha-ssh-config.sh', $workflow);
+        self::assertStringContainsString('gha-ssh-close-master.sh', $workflow);
+        self::assertLessThan(
+            strpos($workflow, 'ssh testlig-vds') ?: \PHP_INT_MAX,
+            strpos($workflow, 'gha-ssh-config.sh') ?: 0,
+        );
+
+        self::assertStringContainsString('clamd freshclam sigtool', $remote);
+        self::assertDoesNotMatchRegularExpression('/(^|[;&|]\s*)freshclam\b/m', $remote);
+        self::assertStringNotContainsString('.env', $remote);
+        self::assertStringNotContainsString('printenv', $remote);
+        self::assertStringNotContainsString('bin/console', $remote);
+        self::assertStringNotContainsString('environ', $remote);
+        self::assertDoesNotMatchRegularExpression(
+            '/^\s*(apt-get|dnf|yum|pacman|usermod|groupadd|useradd|gpasswd|chmod|chown|clamscan|clamdscan|mkdir|rm|mv|cp|tee|install)\b/m',
+            $remote,
+        );
+        self::assertDoesNotMatchRegularExpression(
+            '/\bsystemctl\s+(start|stop|restart|reload|enable|disable|mask)\b/',
+            $remote,
+        );
+        self::assertDoesNotMatchRegularExpression('/>>/', $remote);
+        self::assertDoesNotMatchRegularExpression('/>(?!\/dev\/null\b|&1\b)/', $remote);
+        self::assertStringContainsString('preflight_decides_install=no', $remote);
     }
 
     public function testShellScriptsHaveValidBashSyntax(): void
@@ -261,7 +304,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(9, $paths);
+        self::assertCount(10, $paths);
 
         return $paths;
     }
@@ -279,6 +322,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             $this->root().'/deploy/vds/gha-learning-content-package-import-remote.sh',
             $this->root().'/deploy/vds/gha-question-package-import-entry.sh',
             $this->root().'/deploy/vds/gha-question-package-import-remote.sh',
+            $this->root().'/deploy/vds/gha-clamav-preflight-remote.sh',
         ];
     }
 
