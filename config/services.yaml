@@ -83,6 +83,15 @@ services:
     App\Question\Image\LocalQuestionImageStore:
         arguments:
             $directory: '%kernel.project_dir%/var/question-images'
+            $scanDirectory: '%kernel.project_dir%/var/question-image-scans'
+
+    App\Question\Image\BunnyQuestionImageClient:
+        arguments:
+            $scanDirectory: '%kernel.project_dir%/var/question-image-scans'
+
+    App\Question\Image\Scan\UnixClamdTransport:
+        arguments:
+            $socketPath: '%env(QUESTION_IMAGE_CLAMAV_SOCKET)%'
 
     App\Question\Image\QuestionImageStoreResolver:
         arguments:

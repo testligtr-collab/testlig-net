@@ -421,7 +421,8 @@
       ],
       "evidence": [
         "src/Controller/Admin/AdminQuestionController.php",
-        "Soru resmi yükleme altyapısı JPEG, PNG ve WebP ile taslak revision image_reference bağlar. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128"
+        "Soru resmi yükleme altyapısı JPEG, PNG ve WebP ile taslak revision image_reference bağlar. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128",
+        "src/Question/Image/Scan/QuestionImageScanner.php kayıtlı platform görselini özel okur ve clamd INSTREAM ile tarar. Canlı clamd kurulumu, güncel imza ve canlı tarama kabulü açıktır. Öğrenci görsel sunumu açık kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/128"
@@ -456,7 +457,8 @@
         "src/Controller/InstitutionQuestionAuthoringController.php: aktif owner/manager, Institution scope, tek seçenekli taslak, inceleme ve farklı revision yazarıyla yayın. Cevap anahtarı QuestionAnswerKey zincirinde.",
         "PR #114 merge SHA ff4cd745b4e479edbcf0bcf284000846ee12182b. Main CI run 38051969843 success. Roadmap coverage run 38051969849 success. Auto-deploy run 38053237728 success.",
         "Production kurum sorusu yazılmadı. X08-classroom-pilot uygulanmadı. 390/768 kabulü açık.",
-        "Kurum soru resmi yükleme altyapısı oluşturma sırasında JPEG, PNG veya WebP bağlar. Kurum ekranında mevcut taslağa yeni revision yüzeyi yoktur. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128"
+        "Kurum soru resmi yükleme altyapısı oluşturma sırasında JPEG, PNG veya WebP bağlar. Kurum ekranında mevcut taslağa yeni revision yüzeyi yoktur. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128",
+        "src/Question/Image/Scan/QuestionImageScanner.php kurum görselini yalnız aynı kurum anahtarından okur. Canlı clamd kurulumu, güncel imza ve canlı tarama kabulü açıktır. Öğrenci görsel sunumu açık kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/114",
@@ -699,6 +701,7 @@
         "src/LearningContent/Document/R2LearningDocumentStorage.php: yeni PDF için özel R2 nesnesi. Sağlayıcı LearningDocumentAsset satırında kalır ve migration mevcut satırları local yapar. Yükleme ayarı yalnız yeni dosyayı seçer. Okuma nesneyi bir kez doğrulanmış geçici dosyaya indirir. PR https://github.com/testligtr-collab/testlig-net/pull/124",
         "src/LearningContent/Document/BunnyLearningDocumentStorage.php: kullanıcı Bunny.net seçti. Yeni PDF için belgelenmiş HTTPS Storage API ve yalnız storage.bunnycdn.com. Mevcut local ve r2 satırları kendi sağlayıcısında kalır. R2 canlı kabulü bu tercihle ertelendi. PDF adaptörünün canlı kabulü 2026-10-13 geçti. Video, haber resimleri ve simülasyon açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/125",
         "src/Question/Image/QuestionImageRegistrar.php: platform ve kurum soru taslağına JPEG, PNG veya WebP yükleme altyapısı. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. PR https://github.com/testligtr-collab/testlig-net/pull/128",
+        "src/Question/Image/Scan/QuestionImageScanner.php: kayıtlı sağlayıcıdan özel okuma ve clamd INSTREAM tarama kodu. Giriş aktif doğrulanmış SuperAdmin ile sınırlıdır. Temiz sonuç aynı transaction içinde scan clean ve ready yazar. Gerçek clamd kurulumu, freshclam imza güncelliği ve canlı tarama kabulü açık operasyon ön koşullarıdır. Öğrenci sunumu bu dilimde yoktur.",
         "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. 2026-10-13 yerel PHP CLI ile bir kez çalıştı. Zone testlig-pdf-test, endpoint https://storage.bunnycdn.com. Sonuç result=accepted, range=206, anonymous=401, cleanup=404. Production yükleme sağlayıcısı Local kaldı. Araç PR https://github.com/testligtr-collab/testlig-net/pull/126. Kanıt kaydı PR https://github.com/testligtr-collab/testlig-net/pull/127"
       ],
       "pr_links": [
@@ -709,7 +712,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/127",
         "https://github.com/testligtr-collab/testlig-net/pull/128"
       ],
-      "acceptance": "Local ve R2 PDF sözleşmeleri durur. Bunny adaptörü özel nesneyi belgelenmiş HTTPS API ile yazar, redirect ve CDN adresi üretmez. Mevcut local ve r2 kayıtları kendi sağlayıcısında kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik yapılandırma Local'a düşmez. R2 canlı kabulü kullanıcı tercihiyle ertelendi. PDF adaptörünün canlı kabulü result=accepted, range=206, anonymous=401, cleanup=404 ile geçti. Soru görseli yükleme altyapısı öğrenci sunumu ve temiz tarama değildir. Video, haber resimleri ve simülasyon bu kabulün parçası değildir. Partial durum sürer.",
+      "acceptance": "Local ve R2 PDF sözleşmeleri durur. Bunny adaptörü özel nesneyi belgelenmiş HTTPS API ile yazar, redirect ve CDN adresi üretmez. Mevcut local ve r2 kayıtları kendi sağlayıcısında kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik yapılandırma Local'a düşmez. R2 canlı kabulü kullanıcı tercihiyle ertelendi. PDF adaptörünün canlı kabulü result=accepted, range=206, anonymous=401, cleanup=404 ile geçti. Soru görseli yükleme altyapısı öğrenci sunumu değildir. Soru görseli tarama kodu yerel clamd INSTREAM istemcisidir. Gerçek clamd kurulumu, güncel imza ve canlı tarama kabulü açık kalır. Video, haber resimleri ve simülasyon bu kabulün parçası değildir. Partial durum sürer.",
       "scope_decision": "2026-10-12 kullanıcı kararı: Bunny hedefi PDF, video, soru ve haber resimleri ile simülasyon dahil yüklenen tüm medyadır. Bugünkü adaptör ve canlı kabul aracı yalnız PDF'dir. Video M20-video-library, simülasyon M21-simulations, soru resimleri M11-platform-questions ve M11-institution-questions, haber resimleri M27-news üzerinde açık bağımlılık olarak kalır."
     },
     {

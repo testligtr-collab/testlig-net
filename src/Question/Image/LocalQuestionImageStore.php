@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace App\Question\Image;
 
 use App\Exception\QuestionException;
+use App\Question\Image\Scan\QuestionImageBoundedCopy;
+use App\Question\Image\Scan\QuestionImageScanCopy;
 use Psr\Log\LoggerInterface;
 
 final class LocalQuestionImageStore implements QuestionImageByteStore
 {
+    private readonly QuestionImageBoundedCopy $copies;
+
     public function __construct(
         private readonly string $directory,
         private readonly LoggerInterface $logger,
         private readonly QuestionImageByteWriter $writer = new CompleteQuestionImageByteWriter(),
+        ?string $scanDirectory = null,
     ) {
+        $this->copies = new QuestionImageBoundedCopy($scanDirectory ?? sys_get_temp_dir().\DIRECTORY_SEPARATOR.'testlig-question-image-scans');
     }
 
     public function write(string $storageKey, string $bytes, string $mimeType, string $sha256): void
@@ -48,6 +54,35 @@ final class LocalQuestionImageStore implements QuestionImageByteStore
             throw QuestionException::imageRejected('question_image_store');
         }
         @chmod($path, 0600);
+    }
+
+    public function read(string $storageKey, int $maxBytes): QuestionImageScanCopy
+    {
+        QuestionImageObjectKey::assert($storageKey);
+        $source = $this->path($storageKey);
+        if (!is_file($source)) {
+            throw QuestionException::imageRejected('question_image_store');
+        }
+        $input = fopen($source, 'rb+');
+        if (!\is_resource($input)) {
+            throw QuestionException::imageRejected('question_image_store');
+        }
+        try {
+            return $this->copies->write($maxBytes, static function (callable $sink) use ($input): void {
+                while (!feof($input)) {
+                    $chunk = fread($input, 8192);
+                    if (!\is_string($chunk)) {
+                        throw QuestionException::imageRejected('question_image_store');
+                    }
+                    if ('' === $chunk) {
+                        break;
+                    }
+                    $sink($chunk);
+                }
+            });
+        } finally {
+            fclose($input);
+        }
     }
 
     public function deleteQuietly(string $storageKey): void
