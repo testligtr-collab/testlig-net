@@ -6,6 +6,8 @@ namespace App\Question\Image;
 
 use App\Exception\QuestionException;
 use App\LearningContent\Document\BunnyStorageConfiguration;
+use App\Question\Image\Scan\QuestionImageBoundedCopy;
+use App\Question\Image\Scan\QuestionImageScanCopy;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -15,11 +17,15 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
  */
 final class BunnyQuestionImageClient implements QuestionImageByteStore
 {
+    private readonly QuestionImageBoundedCopy $copies;
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly BunnyStorageConfiguration $configuration,
         private readonly LoggerInterface $logger,
+        ?string $scanDirectory = null,
     ) {
+        $this->copies = new QuestionImageBoundedCopy($scanDirectory ?? sys_get_temp_dir().\DIRECTORY_SEPARATOR.'testlig-question-image-scans');
     }
 
     public function write(string $storageKey, string $bytes, string $mimeType, string $sha256): void
@@ -41,6 +47,45 @@ final class BunnyQuestionImageClient implements QuestionImageByteStore
             if (201 !== $response->getStatusCode()) {
                 throw QuestionException::imageRejected('question_image_store');
             }
+        } catch (QuestionException $exception) {
+            throw $exception;
+        } catch (\Throwable) {
+            throw QuestionException::imageRejected('question_image_store');
+        } finally {
+            $this->close($response);
+        }
+    }
+
+    public function read(string $storageKey, int $maxBytes): QuestionImageScanCopy
+    {
+        $response = null;
+        try {
+            $response = $this->request('GET', $this->objectUrl($storageKey), [
+                'AccessKey' => $this->configuration->accessKey(),
+            ], null);
+            if (200 !== $response->getStatusCode()) {
+                throw QuestionException::imageRejected('question_image_store');
+            }
+            $headers = $response->getHeaders(false);
+            $declared = $headers['content-length'][0] ?? null;
+            if (\is_string($declared) && ctype_digit($declared) && (int) $declared > $maxBytes) {
+                throw QuestionException::imageRejected('question_image_limit');
+            }
+
+            return $this->copies->write($maxBytes, function (callable $sink) use ($response): void {
+                foreach ($this->httpClient->stream($response) as $chunk) {
+                    if ($chunk->isTimeout() || null !== $chunk->getError()) {
+                        throw QuestionException::imageRejected('question_image_store');
+                    }
+                    if ($chunk->isFirst()) {
+                        continue;
+                    }
+                    $content = $chunk->getContent();
+                    if ('' !== $content) {
+                        $sink($content);
+                    }
+                }
+            });
         } catch (QuestionException $exception) {
             throw $exception;
         } catch (\Throwable) {

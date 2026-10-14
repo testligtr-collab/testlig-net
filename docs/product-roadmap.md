@@ -38,7 +38,7 @@ Amaç: V1 envanterindeki ürün yeteneklerini V2 ile eşleştirmek, yapılmış 
 | Assessment erişim politikası UI + öğrenci entitlement | AdminTestController, StudentAssessmentPractice::evaluateAssessment kullanımı; A keşif/yeni start, B mevcut attempt, C geçmiş/sonuç ayrımı |
 | Katalog konusu → içerik ve platform test yerleşimi | CatalogTopicLesson / CatalogTopicAssessment; öğrenci “Kendini dene” kartları |
 | Öğrenme içeriği editörü + öğrenci gövdesi | AdminLearningContentController; paragraph/heading/list/quote/math/callout/video/document |
-| YouTube/Vimeo video blokları ve özel PDF yükleme/sunma | LearningDocumentStorage, R2LearningDocumentStorage, BunnyLearningDocumentStorage; Bunny hedefi tüm yüklenen medya, bugünkü kabul yalnız PDF; R2 canlı kabulü ertelendi, PDF adaptörünün canlı kabulü 2026-10-13 geçti; soru görseli yükleme altyapısı öğrenci sunumu değildir |
+| YouTube/Vimeo video blokları ve özel PDF yükleme/sunma | LearningDocumentStorage, R2LearningDocumentStorage, BunnyLearningDocumentStorage; Bunny hedefi tüm yüklenen medya, bugünkü kabul yalnız PDF; R2 canlı kabulü ertelendi, PDF adaptörünün canlı kabulü 2026-10-13 geçti; soru görseli yükleme altyapısı öğrenci sunumu değildir; tarama kodu yerel clamd INSTREAM istemcisidir ve canlı tarama kabulü açıktır |
 | Veli bağlantısı, çoklu çocuk listesi ve sınav özeti | ParentDashboardController; güvenli read-model, başka öğrencinin cevap incelemesi açılmaz |
 | Öğretmen/kurum sınıf testi sonuçları | TeacherClassroomController / InstitutionTestAssignmentController; doğru, yanlış, boş, puan ve yüzde mevcut |
 | Ödeme webhook, DLQ/mutabakat ve audit operasyonu | AdminPayment/Webhook/Reconciliation/Audit controller'ları; checkout değildir |

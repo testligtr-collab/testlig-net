@@ -23,6 +23,10 @@ use App\Enum\UserRole;
 use App\Exception\LearningContentException;
 use App\LearningContent\Media\StorageKeyFactory;
 use App\LearningContent\Media\StoredMediaAssetPolicy;
+use App\Question\Image\Scan\QuestionImageScanCommit;
+use App\Question\Image\Scan\QuestionImageScanRecords;
+use App\Question\Image\Scan\QuestionImageScanSnapshot;
+use App\Question\Image\Scan\QuestionImageScanVerdict;
 use App\Repository\StoredMediaAssetRepository;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -39,7 +43,7 @@ use Symfony\Component\Uid\UuidV7;
  *
  * Lock order: Institution → Users UUID order → StoredMediaAsset → Audit
  */
-final class StoredMediaAssetManager
+final class StoredMediaAssetManager implements QuestionImageScanRecords
 {
     public function __construct(
         private readonly StoredMediaAssetRepository $assets,
@@ -50,6 +54,7 @@ final class StoredMediaAssetManager
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly QuestionImageScanCommit $questionImageScans = new QuestionImageScanCommit(),
     ) {
     }
 
@@ -218,6 +223,96 @@ final class StoredMediaAssetManager
                 $a->archive($now);
             },
         );
+    }
+
+    public function describeQuestionImage(Uuid $assetId): QuestionImageScanSnapshot
+    {
+        $asset = $this->assets->find($assetId);
+        if (!$asset instanceof StoredMediaAsset) {
+            throw LearningContentException::notFound();
+        }
+
+        return QuestionImageScanSnapshot::from($asset);
+    }
+
+    public function commitQuestionImageScan(User $actor, QuestionImageScanSnapshot $expected, QuestionImageScanVerdict $verdict): void
+    {
+        $actorId = $actor->getId();
+        $assetId = $expected->assetId;
+        try {
+            $this->entityManager->wrapInTransaction(function () use ($actorId, $assetId, $expected, $verdict): void {
+                $assetMeta = $this->entityManager->getConnection()->fetchAssociative(
+                    'SELECT id, scope, institution_id FROM stored_media_assets WHERE id = ?',
+                    [$assetId->toBinary()],
+                    [ParameterType::BINARY],
+                );
+                if (false === $assetMeta) {
+                    throw LearningContentException::notFound();
+                }
+
+                $lockedInstitution = null;
+                if ('institution' === (string) $assetMeta['scope']) {
+                    if (null === $assetMeta['institution_id']) {
+                        throw LearningContentException::scopeMismatch();
+                    }
+                    $lockedInstitution = $this->freshEntities->findFreshLockedInstitution(
+                        Uuid::fromBinary((string) $assetMeta['institution_id']),
+                        LockMode::PESSIMISTIC_WRITE,
+                    );
+                    if (!$lockedInstitution instanceof Institution) {
+                        throw LearningContentException::notFound();
+                    }
+                }
+
+                $users = $this->freshEntities->findFreshLockedUsers([$actorId], LockMode::PESSIMISTIC_READ);
+                $freshActor = $users[$actorId->toRfc4122()] ?? null;
+                if (!$freshActor instanceof User) {
+                    throw LearningContentException::userNotFound();
+                }
+
+                $lockedAsset = $this->freshEntities->findFreshLockedStoredMediaAsset(
+                    $assetId,
+                    LockMode::PESSIMISTIC_WRITE,
+                );
+                if (!$lockedAsset instanceof StoredMediaAsset) {
+                    throw LearningContentException::notFound();
+                }
+                $this->assertActorMayManageMedia($freshActor, $lockedAsset->getScope(), $lockedInstitution);
+
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $this->questionImageScans->apply(
+                    $freshActor,
+                    $lockedAsset,
+                    $expected,
+                    $verdict,
+                    $now,
+                    function (SecurityAuditAction $action) use ($freshActor, $lockedAsset, $lockedInstitution): void {
+                        $this->auditRecorder->record(new SecurityAuditContext(
+                            action: $action,
+                            actorType: SecurityAuditActorType::User,
+                            outcome: SecurityAuditOutcome::Success,
+                            actorUser: $freshActor,
+                            metadata: [
+                                'source' => 'stored_media_asset_manager',
+                                'reason_code' => 'question_image_scan',
+                                'asset_id' => $lockedAsset->getId()->toRfc4122(),
+                                'asset_kind' => $lockedAsset->getKind()->value,
+                                'institution_id' => $lockedInstitution?->getId()->toRfc4122(),
+                                'status' => $lockedAsset->getStatus()->value,
+                                'scan_status' => $lockedAsset->getScanStatus()->value,
+                            ],
+                            captureRequestHashes: false,
+                        ), false);
+                    },
+                );
+                $this->assets->save($lockedAsset, false);
+                $this->entityManager->flush();
+            });
+        } catch (LearningContentException $e) {
+            throw $e;
+        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
+            throw LearningContentException::conflict();
+        }
     }
 
     /**

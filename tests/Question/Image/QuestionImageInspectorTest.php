@@ -405,6 +405,11 @@ final class MemoryQuestionImageStore implements QuestionImageByteStore
     /** @var list<string> */
     public array $deletedKeys = [];
 
+    public function read(string $storageKey, int $maxBytes): \App\Question\Image\Scan\QuestionImageScanCopy
+    {
+        throw new \LogicException('read');
+    }
+
     public function deleteQuietly(string $storageKey): void
     {
         ++$this->deletes;
