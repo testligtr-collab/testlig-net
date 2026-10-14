@@ -40,9 +40,15 @@ final class QuestionImageScanCommitDbalTest extends KernelTestCase
 
     protected function tearDown(): void
     {
-        $connection = $this->em->isOpen() ? $this->em->getConnection() : null;
-        if ($connection instanceof \Doctrine\DBAL\Connection) {
-            QuestionBankDbCleanup::deleteTables($connection);
+        $doctrine = static::getContainer()->get('doctrine');
+        if ($doctrine instanceof \Doctrine\Persistence\ManagerRegistry) {
+            if (!$this->em->isOpen()) {
+                $doctrine->resetManager();
+            }
+            $em = $doctrine->getManager();
+            if ($em instanceof EntityManagerInterface) {
+                QuestionBankDbCleanup::deleteTables($em->getConnection());
+            }
         }
         parent::tearDown();
     }
