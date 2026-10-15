@@ -273,7 +273,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('cancel-in-progress: false', $workflow);
         self::assertSame(1, $this->commandCount($workflow, 'ssh'));
         self::assertSame(0, $this->commandCount($workflow, 'scp'));
-        self::assertStringContainsString('ssh testlig-vds bash -s < deploy/vds/gha-clamav-access-probe-remote.sh', $workflow);
+        self::assertStringContainsString('ssh testlig-vds "export ACCESS_PROBE_PHP_B64=$(printf %q "$probe_b64"); bash -s" < deploy/vds/gha-clamav-access-probe-remote.sh', $workflow);
         self::assertStringContainsString('gha-ssh-config.sh', $workflow);
         self::assertStringContainsString('gha-ssh-close-master.sh', $workflow);
         self::assertStringNotContainsString('TESTLIG_CLAMAV_ACCESS_ROOT', $workflow);
@@ -288,9 +288,18 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('app_user=not_app_user', $remote);
         self::assertStringContainsString('php_process=unknown', $remote);
         self::assertStringContainsString('timeout 2', $remote);
-        self::assertStringContainsString('timeout 5', $remote);
-        self::assertStringContainsString('nPING', $remote);
-        self::assertStringContainsString('nVERSION', $remote);
+        self::assertStringContainsString('timeout 12', $remote);
+        self::assertStringContainsString('site_account=unverified', $remote);
+        self::assertStringContainsString('runuser_uses_account_groups=yes', $remote);
+        self::assertStringContainsString('live_worker_groups_compared=no', $remote);
+        self::assertStringNotContainsString('single_live_lsphp_uid', $remote);
+        self::assertStringNotContainsString('stream_socket_client', $remote);
+        $probe = $this->read('deploy/vds/gha-clamav-access-probe.php');
+        self::assertStringContainsString('nPING', $probe);
+        self::assertStringContainsString('nVERSION', $probe);
+        self::assertStringContainsString('TIMEOUT_SECONDS = 5.0', $probe);
+        self::assertStringContainsString('stream_select', $probe);
+        self::assertSame(2, substr_count($probe, 'self::command('));
         self::assertStringNotContainsString('INSTREAM', $remote);
         self::assertStringNotContainsString('printenv', $remote);
         self::assertStringNotContainsString('cmdline', $remote);
@@ -354,7 +363,22 @@ final class VdsSshWorkflowGuardTest extends TestCase
         mkdir($empty.'/proc', 0777, true);
         $emptyOutput = $this->runProbe($bash, $this->bashPath($bash, $empty));
         self::assertStringContainsString('php_process=unknown', $emptyOutput);
-        self::assertStringNotContainsString('app_user_basis=single_live_lsphp_uid', $emptyOutput);
+        self::assertStringNotContainsString('app_user_basis=site_account', $emptyOutput);
+
+        $other = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-other-'.bin2hex(random_bytes(4));
+        mkdir($other.'/proc/10', 0777, true);
+        mkdir($other.'/home/testlig.net', 0777, true);
+        file_put_contents($other.'/proc/10/comm', "lsphp\n");
+        file_put_contents($other.'/proc/10/status', "Name:\tlsphp\nUid:\t10\t10\t10\t10\nGid:\t10\t10\t10\t10\nGroups:\t10\n");
+        $otherBefore = $this->fixtureFiles($other);
+        $otherOutput = $this->runProbe($bash, $this->bashPath($bash, $other));
+        self::assertSame($otherBefore, $this->fixtureFiles($other));
+        self::assertStringContainsString('php_process uid=10 ', $otherOutput);
+        self::assertStringContainsString('site_account=unverified', $otherOutput);
+        self::assertStringContainsString('app_user=unresolved', $otherOutput);
+        self::assertStringContainsString('app_ping=not_attempted', $otherOutput);
+        self::assertStringNotContainsString('app_user_basis=site_account', $otherOutput);
+        self::assertStringNotContainsString('app_user=testl3865', $otherOutput);
     }
 
     public function testClamavInstallStaysClosedWithoutConfirmation(): void

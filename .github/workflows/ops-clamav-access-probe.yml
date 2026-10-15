@@ -57,7 +57,8 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          ssh testlig-vds bash -s < deploy/vds/gha-clamav-access-probe-remote.sh
+          probe_b64="$(base64 -w0 deploy/vds/gha-clamav-access-probe.php)"
+          ssh testlig-vds "export ACCESS_PROBE_PHP_B64=$(printf %q "$probe_b64"); bash -s" < deploy/vds/gha-clamav-access-probe-remote.sh
           status=$?
           bash deploy/vds/gha-ssh-close-master.sh
           close_status=$?

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Read-only measurement of ClamAV socket and signature visibility for the live lsphp uid.
+# Read-only measurement of ClamAV socket and signature visibility.
+# A live lsphp uid is the site user only when it matches the documented testl3865 account and owns /home/testlig.net.
+# runuser uses that account's groups for a new process. Those groups are not the live worker's supplementary groups.
 # It does not install, scan a file, change services, groups, ACL, or env files.
 # A completed run is not application access. test -r/-w/-x is a DAC check and does not prove SELinux.
 # A root connection is not application access. The container is not warmed and env values are not embedded.
@@ -12,6 +14,8 @@ echo "dac_check_proves_selinux=no"
 echo "root_connection_counts_as_app=no"
 echo "loaded_main=unproven"
 echo "loaded_bytecode=unproven"
+echo "runuser_uses_account_groups=yes"
+echo "live_worker_groups_compared=no"
 
 root="${TESTLIG_CLAMAV_ACCESS_ROOT:-}"
 host_path() {
@@ -90,8 +94,33 @@ emit_field() {
   fi
 }
 
+site_account_uid() {
+  local account="testl3865"
+  local site_path account_uid site_uid
+  site_path="$(host_path "/home/testlig.net")"
+  account_uid="$(timeout 2 id -u "$account" 2>/dev/null || true)"
+  site_uid=""
+  if [ -d "$site_path" ]; then
+    site_uid="$(timeout 2 stat -c %u "$site_path" 2>/dev/null || true)"
+  fi
+  account_uid="${account_uid//[[:space:]]/}"
+  site_uid="${site_uid//[[:space:]]/}"
+  case "$account_uid" in
+    [1-9]|[1-9][0-9]*) ;;
+    *) return 1 ;;
+  esac
+  case "$site_uid" in
+    [1-9]|[1-9][0-9]*) ;;
+    *) return 1 ;;
+  esac
+  [ "$account_uid" = "$site_uid" ] || return 1
+  printf '%s\n' "$account_uid"
+}
+
 php_user_count=0
 app_user=""
+candidate_uid=""
+candidate_user=""
 php_started="$(date +%s)"
 php_timed_out=0
 seen_uids=" "
@@ -132,7 +161,8 @@ for proc in "${root}/proc"/[0-9]*; do
     *)
       seen_uids="${seen_uids}${uid} "
       php_user_count=$((php_user_count + 1))
-      app_user="$user"
+      candidate_uid="$uid"
+      candidate_user="$user"
       ;;
   esac
 done
@@ -145,12 +175,20 @@ elif [ "$php_user_count" -eq 0 ]; then
 elif [ "$php_user_count" -ne 1 ]; then
   echo "app_user=unresolved"
   app_user=""
-elif [ "$app_user" = "root" ] || [ "$app_user" = "unknown" ]; then
-  echo "app_user=not_app_user"
-  app_user=""
 else
-  echo "app_user_basis=single_live_lsphp_uid"
-  echo "app_user=${app_user}"
+  proven_uid="$(site_account_uid || true)"
+  if [ -n "$proven_uid" ] && [ "$proven_uid" = "$candidate_uid" ] && [ "$candidate_user" = "testl3865" ]; then
+    echo "app_user_basis=site_account"
+    echo "app_user=testl3865"
+    app_user="testl3865"
+  elif [ "$candidate_user" = "root" ] || [ "$candidate_user" = "unknown" ]; then
+    echo "app_user=not_app_user"
+    app_user=""
+  else
+    echo "site_account=unverified"
+    echo "app_user=unresolved"
+    app_user=""
+  fi
 fi
 
 scan_conf=""
@@ -425,7 +463,7 @@ unit_state "clamav-freshclam.service" "is-enabled"
 app_ping="not_attempted"
 app_version="not_attempted"
 php_bin="/usr/local/lsws/lsphp83/bin/php"
-if [ -n "$app_user" ] && [ "$app_user" != "root" ] && [ -n "$socket_path" ] && [ -x "$php_bin" ]; then
+if [ -n "$app_user" ] && [ "$app_user" != "root" ] && [ -n "$socket_path" ] && [ -x "$php_bin" ] && [ -n "${ACCESS_PROBE_PHP_B64:-}" ]; then
   socket_read="no"
   socket_write="no"
   if timeout 2 runuser -u "$app_user" -- test -r "$(host_path "$socket_path")" 2>/dev/null; then
@@ -435,34 +473,15 @@ if [ -n "$app_user" ] && [ "$app_user" != "root" ] && [ -n "$socket_path" ] && [
     socket_write="yes"
   fi
   if [ "$socket_read" = "yes" ] && [ "$socket_write" = "yes" ]; then
-    probe="$(timeout 5 runuser -u "$app_user" -- "$php_bin" -r '
-$path = $argv[1] ?? "";
-$socket = @stream_socket_client("unix://".$path, $errno, $errstr, 5);
-if (!is_resource($socket)) { echo "ping_failed\nversion_failed\n"; exit(0); }
-stream_set_timeout($socket, 5);
-fwrite($socket, "nPING\n");
-$ping = fread($socket, 32);
-$meta = stream_get_meta_data($socket);
-if (!empty($meta["timed_out"]) || "PONG\n" !== $ping) { echo "ping_failed\n"; } else { echo "pong\n"; }
-fwrite($socket, "nVERSION\n");
-$version = fread($socket, 256);
-$meta = stream_get_meta_data($socket);
-if (!empty($meta["timed_out"])) { echo "version_timed_out\n"; exit(0); }
-if (1 === preg_match("/^ClamAV [0-9]+(?:\\.[0-9]+){1,3}\\/(0|[1-9][0-9]*)\\/[A-Za-z]{3} [A-Za-z]{3} [ 0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]{4}\\n$/", $version, $matches)) {
-    echo "daily=".$matches[1]."\n";
-} else { echo "version_unreadable\n"; }
-' "$(host_path "$socket_path")" 2>/dev/null)"
+    probe="$(printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u "$app_user" -- "$php_bin" -- "$(host_path "$socket_path")" 2>/dev/null)"
     probe_status=$?
     if [ "$probe_status" -eq 124 ]; then
       app_ping="timed_out"
       app_version="timed_out"
     else
       printf '%s\n' "$probe" | awk '
-        $0 == "pong" { ping = "pong" }
-        $0 == "ping_failed" { ping = "unavailable" }
-        $0 == "version_failed" || $0 == "version_unreadable" { version = "unreadable" }
-        $0 == "version_timed_out" { version = "timed_out" }
-        $0 ~ /^daily=(0|[1-9][0-9]*)$/ { version = substr($0, 7) }
+        $0 ~ /^app_ping=(pong|eof|partial|timed_out|unavailable|unreadable)$/ { ping = substr($0, 10) }
+        $0 ~ /^app_version_daily=(0|[1-9][0-9]*|eof|partial|timed_out|unavailable|unreadable)$/ { version = substr($0, 19) }
         END {
           if (ping == "") ping = "unreadable"
           if (version == "") version = "unreadable"
