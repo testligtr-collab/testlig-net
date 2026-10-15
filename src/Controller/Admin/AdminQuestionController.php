@@ -24,6 +24,8 @@ use App\Presentation\ContentWorkflowReason;
 use App\Presentation\QuestionWorkflowProgress;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionImageStem;
+use App\Question\Image\QuestionRevisionPendingImage;
+use App\Question\Image\Scan\QuestionImageScanAction;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
@@ -34,6 +36,7 @@ use App\Repository\SubjectRepository;
 use App\Security\AdminAuthorization;
 use App\Security\AdminPermission;
 use App\Security\QuestionPermission;
+use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\QuestionSingleChoiceForm;
 use App\Service\QuestionManager;
@@ -60,6 +63,9 @@ final class AdminQuestionController extends AdminBaseController
         private readonly ContentWorkflowReason $workflowReason,
         private readonly QuestionWorkflowProgress $workflowProgress,
         private readonly QuestionImageRegistrar $images,
+        private readonly QuestionRevisionPendingImage $pendingImages,
+        private readonly QuestionImageScanAction $imageScans,
+        private readonly ActiveVerifiedUserPolicy $actors,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -128,7 +134,35 @@ final class AdminQuestionController extends AdminBaseController
                 'can_archive' => QuestionStatus::Published === $question->getStatus() && $this->isGranted(QuestionPermission::MANAGE, $question),
                 'is_revision_author' => $isAuthor,
             ]),
+            'can_scan_image' => $this->canScanImage($actor, $question, $revision),
         ]);
+    }
+
+    #[Route('/yonetim/sorular/{id}/gorsel-tara', name: 'app_admin_question_image_scan', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
+    #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
+    public function scanImage(Request $request, string $id): Response
+    {
+        if (!$this->isCsrfTokenValid('question_image_scan', $request->request->getString('_token'))) {
+            throw $this->createAccessDeniedException('Oturum doğrulaması başarısız.');
+        }
+        $question = $this->visibleQuestion($id);
+        $actor = $this->requireActorUser();
+        $revision = $this->currentRevision($question);
+        try {
+            $message = $this->imageScans->scan($actor, $question, $revision);
+        } catch (LearningContentException $exception) {
+            if ('unauthorized' === $exception->getReason()->value) {
+                throw $this->createAccessDeniedException();
+            }
+            $message = 'Tarama tamamlanamadı.';
+        } catch (QuestionException) {
+            $message = 'Tarama tamamlanamadı.';
+        }
+        $this->addFlash('success' === $this->flashKind($message) ? 'success' : 'error', $message);
+        $response = $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
+        $this->applyNoStore($response);
+
+        return $response;
     }
 
     #[Route('/yonetim/sorular/{id}/duzenle', name: 'app_admin_question_edit', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['GET', 'POST'])]
@@ -330,6 +364,17 @@ final class AdminQuestionController extends AdminBaseController
             'values' => $values,
             'expected_revision' => $question?->getCurrentRevisionNumber() ?? 0,
         ]);
+    }
+
+    private function canScanImage(User $actor, Question $question, QuestionRevision $revision): bool
+    {
+        return $this->actors->isActiveVerifiedSuperAdmin($actor)
+            && null !== $this->pendingImages->sole($question, $revision);
+    }
+
+    private function flashKind(string $message): string
+    {
+        return 'Görsel tarandı ve kullanıma hazır.' === $message ? 'success' : 'error';
     }
 
     private function visibleQuestion(string $id): Question

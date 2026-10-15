@@ -6,10 +6,14 @@ namespace App\Tests\Controller\Admin;
 
 use App\Entity\Question;
 use App\Entity\QuestionRevision;
+use App\Entity\StoredMediaAsset;
 use App\Entity\User;
 use App\Enum\GradeLevel;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Question\Image\Scan\ClamavSignatureObservation;
+use App\Question\Image\Scan\ClamavSignatureSnapshot;
+use App\Question\Image\Scan\ClamdInstreamTransport;
 use App\Repository\UserRepository;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
@@ -17,11 +21,15 @@ use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Tests\Question\Image\FixedSignatureObservation;
+use App\Tests\Question\Image\RecordingClamdTransport;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class AdminQuestionControllerTest extends WebTestCase
@@ -242,6 +250,88 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringContainsString('Taslak', (string) $client->getResponse()->getContent());
     }
 
+    public function testSuperAdminImageScanPostStaysOnTheQuestionAndDoesNotLeak(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbscan');
+        $this->createPrivileged('qb-teacher-scan@example.com', UserRole::Teacher);
+        $this->createPrivileged('qb-admin-scan@example.com', UserRole::Admin);
+        $this->createPrivileged('qb-super-scan@example.com', UserRole::SuperAdmin);
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-scan@example.com');
+        $this->postNew($client, $ids, ['stem' => 'Taranacak kok']);
+        $path = $this->openCreated($client);
+        $file = $this->pngFile();
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'stem' => 'Taranacak kok',
+        ]), [
+            'question_image' => new UploadedFile($file, 'soru.png', 'image/png', null, true),
+        ]);
+        $client->followRedirect();
+        $page = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('>Görseli tara<', $page);
+        $client->request('POST', $path.'/gorsel-tara', ['_token' => 'invalid']);
+        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', $path.'/gorsel-tara');
+        self::assertResponseStatusCodeSame(405);
+        $client->request('POST', $path.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan'), 'asset_id' => '018f0000-0000-7000-8000-000000000099']);
+        self::assertResponseStatusCodeSame(403);
+        $before = $this->imageState();
+
+        $admin = $this->newClient();
+        $this->login($admin, 'qb-admin-scan@example.com');
+        $admin->request('GET', $path);
+        self::assertStringNotContainsString('>Görseli tara<', (string) $admin->getResponse()->getContent());
+        $admin->request('POST', $path.'/gorsel-tara', ['_token' => $this->csrf($admin, 'question_image_scan')]);
+        self::assertResponseStatusCodeSame(403);
+
+        $super = $this->newClient();
+        $this->login($super, 'qb-super-scan@example.com');
+        $super->request('GET', $path);
+        $html = (string) $super->getResponse()->getContent();
+        self::assertStringContainsString('>Görseli tara<', $html);
+        self::assertStringNotContainsString($before['id'], $html);
+        self::assertStringNotContainsString($before['key'], $html);
+        $super->request('POST', $path.'/gorsel-tara', [
+            '_token' => $this->csrf($super, 'question_image_scan'),
+            'storage_key' => $before['key'],
+        ]);
+        self::assertResponseRedirects();
+        $super->followRedirect();
+        $result = (string) $super->getResponse()->getContent();
+        self::assertStringContainsString('İmza güncelliği doğrulanamadı. Görsel beklemeye devam ediyor.', $result);
+        self::assertStringNotContainsString('stream:', $result);
+        self::assertStringNotContainsString($before['key'], $result);
+        $after = $this->imageState();
+        self::assertSame('pending', $after['status']);
+        self::assertSame('pending', $after['scan']);
+
+        $ready = $this->newClient();
+        $this->login($ready, 'qb-super-scan@example.com');
+        $ready->disableReboot();
+        $transport = new RecordingClamdTransport("stream: OK\n");
+        $ready->getContainer()->set(ClamavSignatureObservation::class, new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)));
+        $ready->getContainer()->set(ClamdInstreamTransport::class, $transport);
+        $ready->request('GET', $path);
+        $ready->request('POST', $path.'/gorsel-tara', ['_token' => $this->csrf($ready, 'question_image_scan')]);
+        self::assertResponseRedirects();
+        $ready->followRedirect();
+        self::assertStringContainsString('Görsel tarandı ve kullanıma hazır.', (string) $ready->getResponse()->getContent());
+        $sent = $transport->sent;
+        $ready->request('GET', $path);
+        self::assertSame($sent, $transport->sent);
+        self::assertStringNotContainsString('stream:', (string) $ready->getResponse()->getContent());
+        $scanned = $this->imageState();
+        self::assertSame('ready', $scanned['status']);
+        self::assertSame('clean', $scanned['scan']);
+    }
+
     public function testModeratorCsrfCannotUploadAQuestionImage(): void
     {
         if (!\function_exists('imagepng')) {
@@ -259,10 +349,10 @@ final class AdminQuestionControllerTest extends WebTestCase
         file_put_contents($file, $this->pngBytes());
         $session = $client->getRequest()->getSession();
         $stack = $client->getContainer()->get('request_stack');
-        self::assertInstanceOf(\Symfony\Component\HttpFoundation\RequestStack::class, $stack);
+        self::assertInstanceOf(RequestStack::class, $stack);
         $stack->push($client->getRequest());
         $tokens = $client->getContainer()->get('security.csrf.token_manager');
-        self::assertInstanceOf(\Symfony\Component\Security\Csrf\CsrfTokenManagerInterface::class, $tokens);
+        self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
         $token = $tokens->getToken('question_editor')->getValue();
         $session->save();
         $stack->pop();
@@ -509,6 +599,46 @@ final class AdminQuestionControllerTest extends WebTestCase
         return $ids;
     }
 
+    /**
+     * @return array{id: string, key: string, status: string, scan: string}
+     */
+    private function imageState(): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $asset = $em->createQuery('SELECT a FROM '.StoredMediaAsset::class.' a')->getOneOrNullResult();
+        self::assertInstanceOf(StoredMediaAsset::class, $asset);
+        $state = [
+            'id' => $asset->getId()->toRfc4122(),
+            'key' => $asset->getStorageKey(),
+            'status' => $asset->getStatus()->value,
+            'scan' => $asset->getScanStatus()->value,
+        ];
+        self::ensureKernelShutdown();
+
+        return $state;
+    }
+
+    private function csrf(KernelBrowser $client, string $intention): string
+    {
+        $session = $client->getRequest()->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $stack->push($client->getRequest());
+        try {
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
+            self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
+            $value = $tokens->getToken($intention)->getValue();
+            $session->save();
+
+            return $value;
+        } finally {
+            $stack->pop();
+        }
+    }
+
     private function newClient(): KernelBrowser
     {
         self::ensureKernelShutdown();
@@ -549,7 +679,7 @@ final class AdminQuestionControllerTest extends WebTestCase
             public function onFlush(\Doctrine\ORM\Event\OnFlushEventArgs $args): void
             {
                 foreach ($args->getObjectManager()->getUnitOfWork()->getScheduledEntityInsertions() as $entity) {
-                    if ($entity instanceof \App\Entity\StoredMediaAsset) {
+                    if ($entity instanceof StoredMediaAsset) {
                         throw new \RuntimeException('db-failed');
                     }
                 }

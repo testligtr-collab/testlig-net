@@ -12,15 +12,37 @@ if (\PHP_SAPI === 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && __FILE__ === re
         exit(1);
     }
     if ('dns' === $argv[1]) {
+        loadPublishedVersionParser($argv[3] ?? null);
         exit(checkSignatures($argv[2] ?? ''));
     }
     if ('parse' === $argv[1]) {
+        loadPublishedVersionParser(null);
         exit(compareSupplied($argv));
     }
     if ('scan' === $argv[1]) {
         exit(runScans($argv[2] ?? '', $argv[3] ?? '', $argv[4] ?? ''));
     }
     fwrite(\STDERR, "accept_usage=invalid\n");
+    exit(1);
+}
+
+function loadPublishedVersionParser(?string $autoload): void
+{
+    if (class_exists(App\Question\Image\Scan\ClamavPublishedDatabaseVersion::class, false)) {
+        return;
+    }
+    if (is_string($autoload) && is_file($autoload)) {
+        require $autoload;
+
+        return;
+    }
+    $file = dirname(__DIR__, 2).'/src/Question/Image/Scan/ClamavPublishedDatabaseVersion.php';
+    if (is_file($file)) {
+        require_once $file;
+
+        return;
+    }
+    fwrite(\STDERR, "signature_dns=unreadable\n");
     exit(1);
 }
 
@@ -37,7 +59,7 @@ function checkSignatures(string $databaseDirectory): int
 
         return 1;
     }
-    $published = publishedDatabaseVersions($records);
+    $published = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::published($records);
     if ('ok' !== $published['status'] || !is_array($published['versions'])) {
         echo 'signature_dns='.$published['status']."\n";
 
@@ -46,6 +68,9 @@ function checkSignatures(string $databaseDirectory): int
     $local = [];
     foreach (['main', 'daily', 'bytecode'] as $name) {
         $version = signatureVersion($databaseDirectory, $name);
+        if (null !== $version) {
+            $version = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::canonical((string) $version);
+        }
         if (null === $version) {
             echo "signature_dns=missing\n";
 
@@ -68,9 +93,9 @@ function checkSignatures(string $databaseDirectory): int
  */
 function compareSupplied(array $argv): int
 {
-    $main = canonicalVersion($argv[2] ?? '');
-    $daily = canonicalVersion($argv[3] ?? '');
-    $bytecode = canonicalVersion($argv[4] ?? '');
+    $main = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::canonical($argv[2] ?? '');
+    $daily = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::canonical($argv[3] ?? '');
+    $bytecode = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::canonical($argv[4] ?? '');
     if (null === $main || null === $daily || null === $bytecode || !isset($argv[5])) {
         echo "signature_dns=unreadable\n";
 
@@ -81,7 +106,7 @@ function compareSupplied(array $argv): int
     for ($index = 5; $index < $count; ++$index) {
         $records[] = ['txt' => $argv[$index], 'entries' => [$argv[$index]]];
     }
-    $published = publishedDatabaseVersions($records);
+    $published = App\Question\Image\Scan\ClamavPublishedDatabaseVersion::published($records);
     if ('ok' !== $published['status'] || !is_array($published['versions'])) {
         echo 'signature_dns='.$published['status']."\n";
 
@@ -98,77 +123,6 @@ function compareSupplied(array $argv): int
     return 0;
 }
 
-/**
- * Official current.cvd.clamav.net TXT is eight colon fields:
- * engine:main:daily:timestamp:flag:flevel:freshclam:bytecode.
- *
- * @param list<array<string, mixed>> $records
- *
- * @return array{status: string, versions: ?array{main: int, daily: int, bytecode: int}}
- */
-function publishedDatabaseVersions(array $records): array
-{
-    $consensus = null;
-    foreach ($records as $record) {
-        if (!is_array($record) || !isset($record['txt']) || !is_string($record['txt'])) {
-            return ['status' => 'unreadable', 'versions' => null];
-        }
-        if (isset($record['entries'])) {
-            if (!is_array($record['entries']) || 1 !== count($record['entries']) || ($record['entries'][0] ?? null) !== $record['txt']) {
-                return ['status' => 'unreadable', 'versions' => null];
-            }
-        }
-        $parsed = parseDatabaseVersionRecord($record['txt']);
-        if (null === $parsed) {
-            return ['status' => 'unreadable', 'versions' => null];
-        }
-        if (null === $consensus) {
-            $consensus = $parsed;
-            continue;
-        }
-        if ($consensus !== $parsed) {
-            return ['status' => 'mismatch', 'versions' => null];
-        }
-    }
-    if (null === $consensus) {
-        return ['status' => 'unavailable', 'versions' => null];
-    }
-
-    return ['status' => 'ok', 'versions' => $consensus];
-}
-
-/**
- * @return ?array{main: int, daily: int, bytecode: int}
- */
-function parseDatabaseVersionRecord(string $txt): ?array
-{
-    $txt = trim($txt);
-    if (1 !== preg_match('/^[0-9]+(?:\.[0-9]+){1,3}(?::(?:0|[1-9][0-9]*)){7}$/', $txt)) {
-        return null;
-    }
-    $fields = explode(':', $txt);
-    if (8 !== count($fields)) {
-        return null;
-    }
-    $main = canonicalVersion($fields[1]);
-    $daily = canonicalVersion($fields[2]);
-    $bytecode = canonicalVersion($fields[7]);
-    if (null === $main || null === $daily || null === $bytecode) {
-        return null;
-    }
-
-    return ['main' => $main, 'daily' => $daily, 'bytecode' => $bytecode];
-}
-
-function canonicalVersion(string $value): ?int
-{
-    if (1 !== preg_match('/^(0|[1-9][0-9]*)$/', $value)) {
-        return null;
-    }
-
-    return (int) $value;
-}
-
 function signatureVersion(string $directory, string $name): ?int
 {
     foreach (['cvd', 'cld'] as $extension) {
@@ -181,7 +135,7 @@ function signatureVersion(string $directory, string $name): ?int
             return null;
         }
 
-        return canonicalVersion($matches[1]);
+        return App\Question\Image\Scan\ClamavPublishedDatabaseVersion::canonical($matches[1]);
     }
 
     return null;

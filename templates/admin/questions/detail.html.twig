@@ -67,6 +67,13 @@
         {% endfor %}
     {% endif %}
 
+    {% if can_scan_image %}
+        <form method="post" action="{{ path('app_admin_question_image_scan', {id: question.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_image_scan') }}">
+            <button class="btn btn--primary" type="submit">Görseli tara</button>
+        </form>
+    {% endif %}
+
     {% if progress.next.kind == 'submit' %}
         <form method="post" action="{{ path('app_admin_question_submit', {id: question.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
             <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">

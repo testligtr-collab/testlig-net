@@ -23,6 +23,8 @@ use App\Question\Image\QuestionImageByteStore;
 use App\Question\Image\QuestionImageInspector;
 use App\Question\Image\QuestionImageObjectKey;
 use App\Question\Image\QuestionImageStoreResolver;
+use App\Question\Image\Scan\ClamavSignatureObservation;
+use App\Question\Image\Scan\ClamavSignatureSnapshot;
 use App\Question\Image\Scan\ClamdInstreamClient;
 use App\Question\Image\Scan\QuestionImageScanCommit;
 use App\Question\Image\Scan\QuestionImageScanCopy;
@@ -32,6 +34,7 @@ use App\Question\Image\Scan\QuestionImageScanSnapshot;
 use App\Question\Image\Scan\QuestionImageScanVerdict;
 use App\Service\ActiveVerifiedUserPolicy;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
@@ -250,6 +253,68 @@ final class QuestionImageScanTest extends TestCase
 
         self::assertSame(QuestionImageScanVerdict::Unchanged, $verdict);
         self::assertSame(0, $records->commits);
+    }
+
+    public function testStaleSignatureDoesNotReadOrCommit(): void
+    {
+        [$snapshot, $copy] = $this->copySnapshot('private-image');
+        $records = new MemoryScanRecords($snapshot);
+        $store = new MemoryByteStore($copy);
+        $transport = new RecordingClamdTransport("stream: OK\n");
+        $verdict = $this->scannerWithFreshness($records, $store, $transport, new FixedSignatureObservation(null))
+            ->scanPendingQuestionImage($this->superAdmin(), $snapshot->assetId);
+
+        self::assertSame(QuestionImageScanVerdict::StaleSignature, $verdict);
+        self::assertSame(0, $store->reads);
+        self::assertSame('', $transport->sent);
+        self::assertSame(0, $records->commits);
+    }
+
+    public function testSignatureChangeDuringTheScanDoesNotCommit(): void
+    {
+        [$snapshot, $copy] = $this->copySnapshot('private-image');
+        $records = new MemoryScanRecords($snapshot);
+        $verdict = $this->scannerWithFreshness(
+            $records,
+            new MemoryByteStore($copy),
+            new RecordingClamdTransport("stream: OK\n"),
+            new FixedSignatureObservation(
+                new ClamavSignatureSnapshot(59, 26104, 333, 26104),
+                new ClamavSignatureSnapshot(59, 26105, 333, 26105),
+            ),
+        )->scanPendingQuestionImage($this->superAdmin(), $snapshot->assetId);
+
+        self::assertSame(QuestionImageScanVerdict::StaleSignature, $verdict);
+        self::assertSame(0, $records->commits);
+        self::assertFalse(is_file($copy->path()));
+    }
+
+    public function testScanLogOmitsTheStorageKeyAndScannerReply(): void
+    {
+        [$snapshot, $copy] = $this->copySnapshot('private-image');
+        $logger = new CollectingScanLogger();
+        $scanner = new QuestionImageScanner(
+            new ActiveVerifiedUserPolicy(),
+            new MemoryScanRecords($snapshot),
+            new QuestionImageStoreResolver(
+                new MemoryByteStore($copy),
+                new BunnyQuestionImageClient(new MockHttpClient(), new BunnyStorageConfiguration('', '', BunnyStorageConfiguration::ENDPOINT), new NullLogger()),
+                new BunnyStorageConfiguration('', '', BunnyStorageConfiguration::ENDPOINT),
+                'local',
+            ),
+            new ClamdInstreamClient(new RecordingClamdTransport("stream: Eicar-Test-Signature FOUND\n")),
+            new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)),
+            $logger,
+        );
+        $verdict = $scanner->scanPendingQuestionImage($this->superAdmin(), $snapshot->assetId);
+
+        self::assertSame(QuestionImageScanVerdict::Infected, $verdict);
+        $encoded = json_encode($logger->records);
+        self::assertIsString($encoded);
+        self::assertStringNotContainsString($snapshot->storageKey, $encoded);
+        self::assertStringNotContainsString('stream:', $encoded);
+        self::assertStringNotContainsString('Eicar', $encoded);
+        self::assertStringNotContainsString($copy->path(), $encoded);
     }
 
     public function testUnauthorizedActorDoesNotRead(): void
@@ -524,6 +589,24 @@ final class QuestionImageScanTest extends TestCase
                 'local',
             ),
             new ClamdInstreamClient($transport),
+            new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)),
+            new NullLogger(),
+        );
+    }
+
+    private function scannerWithFreshness(MemoryScanRecords $records, QuestionImageByteStore $store, RecordingClamdTransport $transport, ClamavSignatureObservation $freshness): QuestionImageScanner
+    {
+        return new QuestionImageScanner(
+            new ActiveVerifiedUserPolicy(),
+            $records,
+            new QuestionImageStoreResolver(
+                $store,
+                new BunnyQuestionImageClient(new MockHttpClient(), new BunnyStorageConfiguration('', '', BunnyStorageConfiguration::ENDPOINT), new NullLogger()),
+                new BunnyStorageConfiguration('', '', BunnyStorageConfiguration::ENDPOINT),
+                'local',
+            ),
+            new ClamdInstreamClient($transport),
+            $freshness,
             new NullLogger(),
         );
     }
@@ -641,6 +724,57 @@ final class MemoryByteStore implements QuestionImageByteStore
     public function deleteQuietly(string $storageKey): void
     {
         ++$this->deletes;
+    }
+}
+
+final class CollectingScanLogger implements LoggerInterface
+{
+    /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
+    public array $records = [];
+
+    public function log($level, string|\Stringable $message, array $context = []): void
+    {
+        $this->records[] = ['level' => (string) $level, 'message' => (string) $message, 'context' => $context];
+    }
+
+    public function emergency(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('emergency', $message, $context);
+    }
+
+    public function alert(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('alert', $message, $context);
+    }
+
+    public function critical(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('critical', $message, $context);
+    }
+
+    public function error(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('error', $message, $context);
+    }
+
+    public function warning(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('warning', $message, $context);
+    }
+
+    public function notice(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('notice', $message, $context);
+    }
+
+    public function info(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('info', $message, $context);
+    }
+
+    public function debug(string|\Stringable $message, array $context = []): void
+    {
+        $this->log('debug', $message, $context);
     }
 }
 
