@@ -173,6 +173,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-superadmin-bootstrap.yml',
             '.github/workflows/ops-clamav-preflight.yml',
             '.github/workflows/ops-clamav-install.yml',
+            '.github/workflows/ops-clamav-access-probe.yml',
         ];
         foreach ($ops as $relative) {
             $text = $this->read($relative);
@@ -256,6 +257,106 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('preflight_decides_install=no', $remote);
     }
 
+    public function testClamavAccessProbeIsReadOnly(): void
+    {
+        $workflow = $this->read('.github/workflows/ops-clamav-access-probe.yml');
+        $remote = $this->read('deploy/vds/gha-clamav-access-probe-remote.sh');
+
+        self::assertStringContainsString('workflow_dispatch:', $workflow);
+        self::assertDoesNotMatchRegularExpression('/\n\s*push:/', $workflow);
+        self::assertStringNotContainsString('workflow_run:', $workflow);
+        self::assertStringContainsString('contents: read', $workflow);
+        self::assertStringContainsString("vars.VDS_SSH_PAUSED == 'true'", $workflow);
+        self::assertStringContainsString("vars.VDS_SSH_PAUSED != 'true'", $workflow);
+        self::assertStringContainsString('VDS SSH operations are paused', $workflow);
+        self::assertStringContainsString('ClamAV access probe skipped because SSH paused', $workflow);
+        self::assertStringContainsString('cancel-in-progress: false', $workflow);
+        self::assertSame(1, $this->commandCount($workflow, 'ssh'));
+        self::assertSame(0, $this->commandCount($workflow, 'scp'));
+        self::assertStringContainsString('ssh testlig-vds bash -s < deploy/vds/gha-clamav-access-probe-remote.sh', $workflow);
+        self::assertStringContainsString('gha-ssh-config.sh', $workflow);
+        self::assertStringContainsString('gha-ssh-close-master.sh', $workflow);
+        self::assertStringNotContainsString('TESTLIG_CLAMAV_ACCESS_ROOT', $workflow);
+        self::assertStringNotContainsString('curl ', $workflow);
+        self::assertLessThan(
+            strpos($workflow, 'ssh testlig-vds') ?: \PHP_INT_MAX,
+            strpos($workflow, 'gha-ssh-config.sh') ?: 0,
+        );
+
+        self::assertStringContainsString('dac_check_proves_selinux=no', $remote);
+        self::assertStringContainsString('root_connection_counts_as_app=no', $remote);
+        self::assertStringContainsString('app_user=not_app_user', $remote);
+        self::assertStringContainsString('php_process=unknown', $remote);
+        self::assertStringContainsString('timeout 2', $remote);
+        self::assertStringContainsString('timeout 5', $remote);
+        self::assertStringContainsString('nPING', $remote);
+        self::assertStringContainsString('nVERSION', $remote);
+        self::assertStringNotContainsString('INSTREAM', $remote);
+        self::assertStringNotContainsString('printenv', $remote);
+        self::assertStringNotContainsString('cmdline', $remote);
+        self::assertStringNotContainsString('environ', $remote);
+        self::assertStringNotContainsString('echo "$value"', $remote);
+        self::assertStringNotContainsString('bin/console', $remote);
+        self::assertStringNotContainsString('cache:warmup', $remote);
+        self::assertDoesNotMatchRegularExpression(
+            '/^\s*(apt-get|dnf|yum|pacman|usermod|groupadd|useradd|gpasswd|chmod|chown|setfacl|setenforce|clamscan|clamdscan|mkdir|rm|mv|cp|tee|install)\b/m',
+            $remote,
+        );
+        self::assertDoesNotMatchRegularExpression(
+            '/\bsystemctl\s+(start|stop|restart|reload|enable|disable|mask)\b/',
+            $remote,
+        );
+        self::assertDoesNotMatchRegularExpression('/>>/', $remote);
+        self::assertDoesNotMatchRegularExpression('/>(?!\/dev\/null\b|&1\b)/', $remote);
+        self::assertStringContainsString('env_values_logged=no', $remote);
+        self::assertStringContainsString('loaded_main=unproven', $remote);
+        self::assertStringContainsString('loaded_bytecode=unproven', $remote);
+
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $root = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-'.bin2hex(random_bytes(4));
+        mkdir($root.'/proc/10', 0777, true);
+        mkdir($root.'/proc/11', 0777, true);
+        mkdir($root.'/etc/clamd.d', 0777, true);
+        mkdir($root.'/var/lib/clamav', 0777, true);
+        mkdir($root.'/home/testlig.net/shared', 0777, true);
+        mkdir($root.'/home/testlig.net/app', 0777, true);
+        file_put_contents($root.'/proc/10/comm', "lsphp\n");
+        file_put_contents($root.'/proc/11/comm', "lsphp\n");
+        file_put_contents($root.'/proc/10/status', "Name:\tlsphp\nUid:\t10\t10\t10\t10\nGid:\t10\t10\t10\t10\nGroups:\t10\n");
+        file_put_contents($root.'/proc/11/status', "Name:\tlsphp\nUid:\t11\t11\t11\t11\nGid:\t11\t11\t11\t11\nGroups:\t11\n");
+        file_put_contents($root.'/etc/clamd.d/scan.conf', "LocalSocket /run/clamd.scan/clamd.sock\nDatabaseDirectory /var/lib/clamav\n");
+        file_put_contents($root.'/etc/freshclam.conf', "DatabaseDirectory /var/lib/clamav\n");
+        $header = "ClamAV-VDB:UNIQUEHEADERTEXT:59:10:63:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbb:clamav:1\n";
+        file_put_contents($root.'/var/lib/clamav/daily.cvd', str_pad($header, 512, "\0"));
+        file_put_contents(
+            $root.'/home/testlig.net/shared/.env.local',
+            "OTHER_SECRET=super-secret-value\nQUESTION_IMAGE_CLAMAV_SOCKET=\nQUESTION_IMAGE_CLAMAV_DATABASE=/not/the/measured/dir\n",
+        );
+        self::assertFileExists($root.'/proc/10/comm');
+        $before = $this->fixtureFiles($root);
+        $output = $this->runProbe($bash, $this->bashPath($bash, $root));
+        self::assertSame($before, $this->fixtureFiles($root));
+        self::assertStringContainsString('php_process uid=10 ', $output);
+        self::assertStringContainsString('php_process uid=11 ', $output);
+        self::assertStringContainsString('app_user=unresolved', $output);
+        self::assertStringContainsString('app_ping=not_attempted', $output);
+        self::assertStringContainsString('signature_daily_cvd_version=59', $output);
+        self::assertStringContainsString('shared_socket_key=empty', $output);
+        self::assertStringContainsString('shared_database_key=differ', $output);
+        self::assertStringContainsString('database_directory_agreement=match', $output);
+        self::assertStringNotContainsString('UNIQUEHEADERTEXT', $output);
+        self::assertStringNotContainsString('super-secret-value', $output);
+        self::assertStringNotContainsString('/not/the/measured/dir', $output);
+        self::assertStringNotContainsString('OTHER_SECRET', $output);
+
+        $empty = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-empty-'.bin2hex(random_bytes(4));
+        mkdir($empty.'/proc', 0777, true);
+        $emptyOutput = $this->runProbe($bash, $this->bashPath($bash, $empty));
+        self::assertStringContainsString('php_process=unknown', $emptyOutput);
+        self::assertStringNotContainsString('app_user_basis=single_live_lsphp_uid', $emptyOutput);
+    }
+
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
     {
         $workflow = $this->read('.github/workflows/ops-clamav-install.yml');
@@ -334,7 +435,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(11, $paths);
+        self::assertCount(12, $paths);
 
         return $paths;
     }
@@ -354,6 +455,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             $this->root().'/deploy/vds/gha-question-package-import-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-preflight-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-install-remote.sh',
+            $this->root().'/deploy/vds/gha-clamav-access-probe-remote.sh',
         ];
     }
 
@@ -416,6 +518,72 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertIsString($text, $relative);
 
         return $text;
+    }
+
+    private function bashPath(string $bash, string $path): string
+    {
+        if (1 !== preg_match('/^([A-Za-z]):\\/(.*)$/', $path, $matches)) {
+            return $path;
+        }
+        $suffix = strtolower($matches[1]).'/'.$matches[2];
+        $pipes = [];
+        $process = proc_open([$bash, '-c', 'if [ -d /mnt/c ]; then echo mnt; else echo unix; fi'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        foreach ($pipes as $pipe) {
+            if (\is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        proc_close($process);
+
+        return str_contains($stdout, 'mnt') ? '/mnt/'.$suffix : '/'.$suffix;
+    }
+
+    private function runProbe(string $bash, string $root): string
+    {
+        $script = str_replace(
+            'root="${TESTLIG_CLAMAV_ACCESS_ROOT:-}"',
+            "root='".str_replace("'", '', $root)."'",
+            $this->read('deploy/vds/gha-clamav-access-probe-remote.sh'),
+        );
+        $pipes = [];
+        $process = proc_open(
+            [$bash],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        self::assertIsResource($process);
+        fwrite($pipes[0], $script);
+        fclose($pipes[0]);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        $stderr = \is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';
+        foreach ([1, 2] as $index) {
+            if (\is_resource($pipes[$index])) {
+                fclose($pipes[$index]);
+            }
+        }
+        $exit = proc_close($process);
+        self::assertSame(0, $exit, $stdout."\n".$stderr);
+
+        return $stdout;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fixtureFiles(string $root): array
+    {
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $file) {
+            if ($file instanceof \SplFileInfo && $file->isFile()) {
+                $files[] = $file->getPathname();
+            }
+        }
+        sort($files);
+
+        return $files;
     }
 
     private function commandCount(string $script, string $command): int
