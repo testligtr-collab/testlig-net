@@ -54,6 +54,31 @@ final class ClamavAccessProbeCommandTest extends TestCase
         fclose($server);
     }
 
+    public function testRequiredHelperIsNotExecutedAsTheCliEntry(): void
+    {
+        self::assertFalse(clamav_access_probe_is_cli_entry());
+    }
+
+    public function testWorkflowBase64StdinProbeUsesSeparatePingAndVersionConnections(): void
+    {
+        $result = $this->workflowProbe('split');
+
+        self::assertSame("app_ping=pong\napp_version_daily=59\n", $result['output']);
+        self::assertSame(0, $result['serverExit']);
+        self::assertLessThan(12.0, $result['elapsed']);
+    }
+
+    public function testWorkflowBase64StdinProbeTimeoutStaysBounded(): void
+    {
+        $result = $this->workflowProbe('timeout', 30);
+
+        self::assertMatchesRegularExpression('/^app_ping=timed_out\napp_version_daily=(timed_out|unavailable)\n$/', $result['output']);
+        self::assertGreaterThan(4.0, $result['elapsed']);
+        self::assertLessThan(12.0, $result['elapsed']);
+        self::assertStringNotContainsString('PONG', $result['output']);
+        self::assertStringNotContainsString('ClamAV ', $result['output']);
+    }
+
     private function probe(string $mode, float $timeout = 2.0): string
     {
         $server = \dirname(__DIR__, 2).'/tests/Ops/ClamavAccessProbeFakeServer.php';
@@ -85,5 +110,97 @@ final class ClamavAccessProbeCommandTest extends TestCase
         self::assertSame(0, $exit, $stderr);
 
         return $output;
+    }
+
+    /**
+     * @return array{output: string, elapsed: float, serverExit: int}
+     */
+    private function workflowProbe(string $mode, ?int $holdSeconds = null): array
+    {
+        if (!\in_array('unix', stream_get_transports(), true)) {
+            self::markTestSkipped('The unix socket transport is required for the stdin probe regression.');
+        }
+        $socket = '/tmp/testlig-probe-'.bin2hex(random_bytes(4)).'.sock';
+        $serverCommand = [\PHP_BINARY, \dirname(__DIR__, 2).'/tests/Ops/ClamavAccessProbeFakeServer.php', $mode, $socket];
+        if (null !== $holdSeconds) {
+            $serverCommand[] = (string) $holdSeconds;
+        }
+        $serverPipes = [];
+        $server = proc_open($serverCommand, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $serverPipes);
+        self::assertIsResource($server);
+        $ready = \is_resource($serverPipes[1]) ? fgets($serverPipes[1]) : false;
+        self::assertSame("ready\n", $ready);
+        $source = file_get_contents(\dirname(__DIR__, 2).'/deploy/vds/gha-clamav-access-probe.php');
+        self::assertIsString($source);
+        $environment = getenv();
+        $environment['ACCESS_PROBE_PHP_B64'] = base64_encode($source);
+        $environment['PROBE_PHP'] = \PHP_BINARY;
+        $environment['PROBE_SOCKET'] = $socket;
+        $clientPipes = [];
+        $started = hrtime(true);
+        $client = proc_open(
+            ['bash', '-c', 'printf %s "$ACCESS_PROBE_PHP_B64" | base64 -d | "$PROBE_PHP" -- "$PROBE_SOCKET"'],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $clientPipes,
+            null,
+            $environment,
+        );
+        self::assertIsResource($client);
+        $stdout = $clientPipes[1] ?? null;
+        $stderrPipe = $clientPipes[2] ?? null;
+        self::assertIsResource($stdout);
+        self::assertIsResource($stderrPipe);
+        stream_set_blocking($stdout, false);
+        stream_set_blocking($stderrPipe, false);
+        $output = '';
+        $stderr = '';
+        while (true) {
+            $output .= stream_get_contents($stdout);
+            $stderr .= stream_get_contents($stderrPipe);
+            $status = proc_get_status($client);
+            if (!$status['running']) {
+                $output .= stream_get_contents($stdout);
+                $stderr .= stream_get_contents($stderrPipe);
+                break;
+            }
+            $elapsed = (hrtime(true) - $started) / 1_000_000_000;
+            if ($elapsed > 12) {
+                proc_terminate($client);
+                proc_terminate($server);
+                self::fail('stdin probe exceeded 12 seconds');
+            }
+            usleep(50000);
+        }
+        $elapsed = (hrtime(true) - $started) / 1_000_000_000;
+        fclose($stdout);
+        fclose($stderrPipe);
+        $clientExit = $status['exitcode'];
+        proc_close($client);
+        $serverDeadline = hrtime(true) + 2_000_000_000;
+        do {
+            $serverStatus = proc_get_status($server);
+            if (!$serverStatus['running']) {
+                break;
+            }
+            usleep(20000);
+        } while (hrtime(true) < $serverDeadline);
+        if ($serverStatus['running']) {
+            proc_terminate($server);
+            $serverStatus = proc_get_status($server);
+        }
+        $serverStderr = \is_resource($serverPipes[2]) ? stream_get_contents($serverPipes[2]) : '';
+        foreach ($serverPipes as $pipe) {
+            if (\is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        proc_close($server);
+        $serverExit = $serverStatus['exitcode'];
+        if (file_exists($socket)) {
+            unlink($socket);
+        }
+        self::assertSame(0, $clientExit, $stderr."\n".$serverStderr);
+
+        return ['output' => $output, 'elapsed' => $elapsed, 'serverExit' => $serverExit];
     }
 }

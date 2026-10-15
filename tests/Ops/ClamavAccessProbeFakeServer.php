@@ -3,18 +3,29 @@
 declare(strict_types=1);
 
 $mode = $argv[1] ?? '';
+$unixPath = $argv[2] ?? '';
 $errno = 0;
 $errstr = '';
-$server = stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
+$unix = str_starts_with($unixPath, '/');
+if ($unix && file_exists($unixPath)) {
+    unlink($unixPath);
+}
+$server = $unix
+    ? stream_socket_server('unix://'.$unixPath, $errno, $errstr)
+    : stream_socket_server('tcp://127.0.0.1:0', $errno, $errstr);
 if (!is_resource($server)) {
     fwrite(\STDERR, "fixture_server=unavailable\n");
     exit(1);
 }
-$name = stream_socket_get_name($server, false);
-if (!is_string($name) || '' === $name) {
-    exit(1);
+if ($unix) {
+    echo "ready\n";
+} else {
+    $name = stream_socket_get_name($server, false);
+    if (!is_string($name) || '' === $name) {
+        exit(1);
+    }
+    echo $name, "\n";
 }
-echo $name, "\n";
 flush();
 
 if ('split' === $mode) {
@@ -60,7 +71,8 @@ if ('timeout' === $mode) {
     $ping = probe_fixture_accept($server);
     fclose($server);
     probe_fixture_read($ping);
-    sleep(2);
+    $hold = $argv[3] ?? '2';
+    sleep(1 === preg_match('/^[1-9][0-9]?$/', $hold) ? (int) $hold : 2);
     fclose($ping);
     exit(0);
 }

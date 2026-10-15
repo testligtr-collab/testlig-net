@@ -150,8 +150,28 @@ final class ClamavAccessProbeClient
     }
 }
 
-if (\PHP_SAPI === 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath(__FILE__) === realpath((string) $_SERVER['SCRIPT_FILENAME'])) {
-    $path = $argv[1] ?? '';
+function clamav_access_probe_is_cli_entry(): bool
+{
+    if (\PHP_SAPI !== 'cli') {
+        return false;
+    }
+    // The workflow decodes the helper and passes it on stdin: php -- "$socket".
+    // That invocation has no real file path, so __FILE__ is the stdin label.
+    if ('Standard input code' === __FILE__) {
+        return true;
+    }
+    $script = $_SERVER['SCRIPT_FILENAME'] ?? null;
+    if (!is_string($script) || '' === $script) {
+        return false;
+    }
+    $fileReal = realpath(__FILE__);
+    $scriptReal = realpath($script);
+
+    return is_string($fileReal) && is_string($scriptReal) && $fileReal === $scriptReal;
+}
+
+function clamav_access_probe_run(string $path): void
+{
     $connect = static function (float $timeout) use ($path): mixed {
         if (!self_path_ok($path)) {
             return null;
@@ -163,6 +183,12 @@ if (\PHP_SAPI === 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && realpath(__FILE
         return is_resource($socket) ? $socket : null;
     };
     echo ClamavAccessProbeClient::report($connect);
+}
+
+if (clamav_access_probe_is_cli_entry()) {
+    $arguments = $_SERVER['argv'] ?? null;
+    $path = is_array($arguments) && isset($arguments[1]) && is_string($arguments[1]) ? $arguments[1] : '';
+    clamav_access_probe_run($path);
 }
 
 function self_path_ok(string $path): bool
