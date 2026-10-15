@@ -1027,10 +1027,13 @@
       "source": "V2 CI/deploy temeli; tam kabul değil",
       "depends_on": [],
       "evidence": [
-        "V2 CI/deploy temeli; tam kabul değil"
+        "V2 CI/deploy temeli; tam kabul değil",
+        "composer.lock: symfony/http-foundation v7.4.18 yerine v7.4.21. CVE-2026-108082 için belgelenmiş 7.4 düzeltme sınırı 7.4.19. 7.4.19 ve 7.4.20 boşluk ayırıcısında HeaderUtils::split gerilemesi taşır; resmi takip düzeltmesi 7.4.21 içindedir. Başka paket değişmedi. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/131"
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/131"
+      ],
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. symfony/http-foundation güvenlik kilidi backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. Partial durum sürer.",
       "scope_decision": null
     },
     {
