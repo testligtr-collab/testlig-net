@@ -172,6 +172,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-learning-content-package-import.yml',
             '.github/workflows/ops-superadmin-bootstrap.yml',
             '.github/workflows/ops-clamav-preflight.yml',
+            '.github/workflows/ops-clamav-install.yml',
         ];
         foreach ($ops as $relative) {
             $text = $this->read($relative);
@@ -255,6 +256,35 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('preflight_decides_install=no', $remote);
     }
 
+    public function testClamavInstallStaysClosedWithoutConfirmation(): void
+    {
+        $workflow = $this->read('.github/workflows/ops-clamav-install.yml');
+        $remote = $this->read('deploy/vds/gha-clamav-install-remote.sh');
+        $accept = $this->read('deploy/vds/gha-clamav-accept.php');
+
+        self::assertStringContainsString('default: ""', $workflow);
+        self::assertStringContainsString("github.event.inputs.confirm == 'install-clamav-isolated-accept'", $workflow);
+        self::assertStringContainsString("github.event.inputs.confirm != 'install-clamav-isolated-accept'", $workflow);
+        self::assertStringContainsString('ClamAV install not confirmed', $workflow);
+        self::assertStringContainsString('ClamAV install skipped because SSH paused', $workflow);
+        self::assertSame(1, $this->commandCount($workflow, 'ssh'));
+        self::assertSame(0, $this->commandCount($workflow, 'scp'));
+        self::assertStringNotContainsString('TESTLIG_CLAMAV_TEST_ROOT', $workflow);
+        self::assertStringNotContainsString('TESTLIG_PHP_BIN', $workflow);
+        self::assertStringNotContainsString('.env.local', $workflow);
+        self::assertStringNotContainsString('dnf update', $remote);
+        self::assertStringNotContainsString('dnf upgrade', $remote);
+        self::assertStringNotContainsString('usermod', $remote);
+        self::assertStringNotContainsString('setenforce', $remote);
+        self::assertStringNotContainsString('setsebool', $remote);
+        self::assertStringNotContainsString('getenforce', $remote);
+        self::assertStringNotContainsString('firewall-cmd', $remote);
+        self::assertStringNotContainsString('dnf remove', $remote);
+        self::assertStringNotContainsString('.env.local', $remote);
+        self::assertStringContainsString('https://secure.eicar.org/eicar.com.txt', $accept);
+        self::assertStringNotContainsString('file_put_contents($path, \'', $accept);
+    }
+
     public function testShellScriptsHaveValidBashSyntax(): void
     {
         $bash = $this->bashBinary();
@@ -304,7 +334,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $paths[] = $path;
             }
         }
-        self::assertCount(10, $paths);
+        self::assertCount(11, $paths);
 
         return $paths;
     }
@@ -323,6 +353,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             $this->root().'/deploy/vds/gha-question-package-import-entry.sh',
             $this->root().'/deploy/vds/gha-question-package-import-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-preflight-remote.sh',
+            $this->root().'/deploy/vds/gha-clamav-install-remote.sh',
         ];
     }
 
