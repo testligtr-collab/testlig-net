@@ -324,6 +324,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         self::assertStringNotContainsString($asset['id'], $page);
         self::assertSame('pending', $asset['status']);
         self::assertSame('pending', $asset['scan']);
+        $owner->request('GET', '/kurum/sorular/'.$reference);
         $owner->submit($owner->getCrawler()->selectButton('İncelemeye gönder')->form());
         self::assertResponseRedirects();
         $owner->followRedirect();
