@@ -135,7 +135,9 @@ final class ClamavInstallScriptTest extends TestCase
         self::assertStringContainsString('cleanup_work=ok', $result['output']);
         $systemctl = (string) file_get_contents($root.'/systemctl.log');
         self::assertStringContainsString('enable --now clamav-freshclam.service', $systemctl);
+        self::assertStringNotContainsString('disable --now clamav-freshclam.service', $systemctl);
         self::assertStringNotContainsString('enable --now clamav-freshclam-once.timer', $systemctl);
+        self::assertFileDoesNotExist($root.'/etc/clamd.d/scan.conf.testlig-backup');
         $php = (string) file_get_contents($root.'/php.log');
         self::assertStringContainsString('dns '.$this->bashPath($root).'/var/lib/clamav', str_replace('\\', '/', $php));
         $config = (string) file_get_contents($root.'/etc/clamd.d/scan.conf');
@@ -146,6 +148,63 @@ final class ClamavInstallScriptTest extends TestCase
         $freshclam = (string) file_get_contents($root.'/freshclam.log');
         self::assertSame(1, substr_count($freshclam, 'called'));
         self::assertFileDoesNotExist($root.'/setsebool.log');
+    }
+
+    public function testLateTempCleanupFailureRollsBackConfigAndServices(): void
+    {
+        $root = $this->fixture();
+        $sha = '2222222222222222222222222222222222222222';
+        $this->prepareHost($root, $sha);
+        $bin = $this->fakeBin($root, '/var/lib/clamav', '/var/lib/clamav', false, true, 0);
+        $this->write($root.'/home/testlig.net/app/vendor/autoload.php', "<?php\n");
+
+        $result = $this->runScript($root, $bin, $sha, true);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('summary_install=installed', $result['output']);
+        self::assertStringContainsString('summary_signature=current', $result['output']);
+        self::assertStringContainsString('summary_socket=ok', $result['output']);
+        self::assertStringContainsString('summary_accept=ok', $result['output']);
+        self::assertStringContainsString('summary_updater=enabled', $result['output']);
+        self::assertStringContainsString('cleanup_work=failed', $result['output']);
+        self::assertStringContainsString('cleanup_config=ok', $result['output']);
+        self::assertStringContainsString('cleanup_units=ok', $result['output']);
+        self::assertStringContainsString('cleanup_backups=ok', $result['output']);
+        self::assertStringContainsString('summary_cleanup=failed', $result['output']);
+        $config = (string) file_get_contents($root.'/etc/clamd.d/scan.conf');
+        self::assertStringNotContainsString('LocalSocketMode 660', $config);
+        self::assertStringContainsString('#LocalSocket /run/clamd.scan/clamd.sock', $config);
+        $systemctl = (string) file_get_contents($root.'/systemctl.log');
+        self::assertStringContainsString('enable --now clamav-freshclam.service', $systemctl);
+        self::assertStringContainsString('disable --now clamd@scan.service', $systemctl);
+        self::assertStringContainsString('disable --now clamav-freshclam.service', $systemctl);
+        self::assertFileDoesNotExist($root.'/etc/clamd.d/scan.conf.testlig-backup');
+        self::assertFileDoesNotExist($root.'/etc/freshclam.conf.testlig-backup');
+    }
+
+    public function testFailedRestoreKeepsRecoveryBackups(): void
+    {
+        $root = $this->fixture();
+        $sha = '3333333333333333333333333333333333333333';
+        $this->prepareHost($root, $sha);
+        $bin = $this->fakeBin($root, '/var/lib/clamav', '/var/lib/clamav', false, true, 0, true);
+        $this->write($root.'/home/testlig.net/app/vendor/autoload.php', "<?php\n");
+
+        $result = $this->runScript($root, $bin, $sha, true);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('summary_install=installed', $result['output']);
+        self::assertStringContainsString('summary_accept=ok', $result['output']);
+        self::assertStringContainsString('cleanup_work=failed', $result['output']);
+        self::assertStringContainsString('cleanup_config=failed', $result['output']);
+        self::assertStringContainsString('cleanup_units=ok', $result['output']);
+        self::assertStringContainsString('cleanup_backups=retained', $result['output']);
+        self::assertStringContainsString('summary_cleanup=failed', $result['output']);
+        self::assertFileExists($root.'/etc/clamd.d/scan.conf.testlig-backup');
+        self::assertFileExists($root.'/etc/freshclam.conf.testlig-backup');
+        $systemctl = (string) file_get_contents($root.'/systemctl.log');
+        self::assertStringContainsString('disable --now clamd@scan.service', $systemctl);
+        self::assertStringContainsString('disable --now clamav-freshclam.service', $systemctl);
     }
 
     /**
@@ -199,7 +258,7 @@ final class ClamavInstallScriptTest extends TestCase
         return $root;
     }
 
-    private function fakeBin(string $root, string $scanDatabase = '/var/lib/clamav', string $freshDatabase = '/var/lib/clamav', bool $activeExample = false, bool $refuseTempDelete = false, int $freshclamExit = 1): string
+    private function fakeBin(string $root, string $scanDatabase = '/var/lib/clamav', string $freshDatabase = '/var/lib/clamav', bool $activeExample = false, bool $refuseTempDelete = false, int $freshclamExit = 1, bool $refuseRestore = false): string
     {
         $bin = $root.'/bin';
         mkdir($bin, 0700, true);
@@ -243,15 +302,7 @@ exit 0
 SH;
         $rm = <<<'SH'
 #!/bin/sh
-refused=0
-for arg in "$@"; do
-  case "$arg" in
-    *testlig-clamav-accept*)
-      refused=1
-      ;;
-  esac
-done
-if [ "$refused" -eq 1 ]; then
+if [ "$1" = "-rf" ]; then
   printf '%s\n' "$*" >> "$TESTLIG_CLAMAV_TEST_ROOT/rm.log"
   exit 1
 fi
@@ -267,7 +318,29 @@ SH;
         if ($refuseTempDelete) {
             $this->write($bin.'/rm', $rm);
         }
-        foreach (['dnf', 'systemctl', 'freshclam', 'php', 'rm', 'stat'] as $name) {
+        if ($refuseRestore) {
+            $this->write($bin.'/cp', <<<'SH'
+#!/bin/sh
+dest=
+for arg in "$@"; do
+  case "$arg" in
+    -*)
+      ;;
+    *)
+      dest=$arg
+      ;;
+  esac
+done
+case "$dest" in
+  *.testlig-backup)
+    exec /usr/bin/cp "$@"
+    ;;
+esac
+printf '%s\n' "$*" >> "$TESTLIG_CLAMAV_TEST_ROOT/cp.log"
+exit 1
+SH);
+        }
+        foreach (['dnf', 'systemctl', 'freshclam', 'php', 'rm', 'stat', 'cp'] as $name) {
             if (is_file($bin.'/'.$name)) {
                 chmod($bin.'/'.$name, 0700);
             }

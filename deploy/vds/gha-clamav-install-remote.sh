@@ -37,17 +37,26 @@ finish() {
     rm -rf "$work"
     if [ -e "$work" ]; then
       cleanup_work=failed
+      status=1
     else
       cleanup_work=ok
     fi
   fi
   if [ "$status" -ne 0 ] && [ "$mutated" -eq 1 ]; then
     cleanup_config=ok
-    if [ -n "$backup_scan" ] && [ -f "$backup_scan" ]; then
-      cp -a "$backup_scan" "$scan_conf" || cleanup_config=failed
+    if [ -n "$backup_scan" ]; then
+      if [ -f "$backup_scan" ]; then
+        cp -a "$backup_scan" "$scan_conf" || cleanup_config=failed
+      else
+        cleanup_config=failed
+      fi
     fi
-    if [ -n "$backup_fresh" ] && [ -f "$backup_fresh" ]; then
-      cp -a "$backup_fresh" "$fresh_conf" || cleanup_config=failed
+    if [ -n "$backup_fresh" ]; then
+      if [ -f "$backup_fresh" ]; then
+        cp -a "$backup_fresh" "$fresh_conf" || cleanup_config=failed
+      else
+        cleanup_config=failed
+      fi
     fi
     cleanup_units=ok
     systemctl disable --now clamd@scan.service || cleanup_units=failed
@@ -55,27 +64,47 @@ finish() {
     systemctl disable --now clamav-freshclam-once.timer || cleanup_units=failed
     systemctl stop clamav-freshclam-once.service || cleanup_units=failed
   fi
-  cleanup_backups=ok
-  if [ -n "$backup_scan" ]; then
-    rm -f "$backup_scan" || cleanup_backups=failed
-    if [ -e "$backup_scan" ]; then
+  if [ "$cleanup_config" = failed ]; then
+    cleanup_backups=retained
+    if [ -n "$backup_scan" ] && [ ! -f "$backup_scan" ]; then
       cleanup_backups=failed
     fi
-  fi
-  if [ -n "$backup_fresh" ]; then
-    rm -f "$backup_fresh" || cleanup_backups=failed
-    if [ -e "$backup_fresh" ]; then
+    if [ -n "$backup_fresh" ] && [ ! -f "$backup_fresh" ]; then
       cleanup_backups=failed
     fi
+  else
+    cleanup_backups=ok
+    if [ -n "$backup_scan" ]; then
+      rm -f "$backup_scan" || cleanup_backups=failed
+      if [ -e "$backup_scan" ]; then
+        cleanup_backups=failed
+      fi
+    fi
+    if [ -n "$backup_fresh" ]; then
+      rm -f "$backup_fresh" || cleanup_backups=failed
+      if [ -e "$backup_fresh" ]; then
+        cleanup_backups=failed
+      fi
+    fi
   fi
+  scratch_status=0
   if [ -n "$scan_conf" ]; then
-    rm -f "${scan_conf}.testlig-new" || cleanup_backups=failed
+    rm -f "${scan_conf}.testlig-new" || scratch_status=1
+    if [ -e "${scan_conf}.testlig-new" ]; then
+      scratch_status=1
+    fi
   fi
   if [ -n "$fresh_conf" ]; then
-    rm -f "${fresh_conf}.testlig-new" || cleanup_backups=failed
+    rm -f "${fresh_conf}.testlig-new" || scratch_status=1
+    if [ -e "${fresh_conf}.testlig-new" ]; then
+      scratch_status=1
+    fi
+  fi
+  if [ "$scratch_status" -ne 0 ] && [ "$cleanup_backups" != retained ]; then
+    cleanup_backups=failed
   fi
   for item in "$cleanup_work" "$cleanup_config" "$cleanup_units" "$cleanup_backups"; do
-    if [ "$item" = failed ]; then
+    if [ "$item" = failed ] || [ "$item" = retained ]; then
       summary_cleanup=failed
       status=1
     fi
