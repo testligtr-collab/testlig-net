@@ -28,6 +28,7 @@ parameters:
     env(BUNNY_STORAGE_ACCESS_KEY): ''
     env(BUNNY_STORAGE_ENDPOINT): ''
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
+    env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -92,6 +93,23 @@ services:
     App\Question\Image\Scan\UnixClamdTransport:
         arguments:
             $socketPath: '%env(QUESTION_IMAGE_CLAMAV_SOCKET)%'
+
+    App\Question\Image\Scan\ClamdInstreamTransport:
+        alias: App\Question\Image\Scan\UnixClamdTransport
+        public: true
+
+    App\Question\Image\Scan\CvdDatabaseDirectoryReader:
+        arguments:
+            $directory: '%env(QUESTION_IMAGE_CLAMAV_DATABASE)%'
+
+    App\Question\Image\Scan\ClamavDnsTxtLookup:
+        factory: ['App\Question\Image\Scan\ClamavDnsTxtLookup', 'fromNameserver']
+        arguments:
+            - '@App\Question\Image\Scan\ResolvConfNameserver'
+
+    App\Question\Image\Scan\ClamavSignatureObservation:
+        alias: App\Question\Image\Scan\ConfiguredClamavSignatureObservation
+        public: true
 
     App\Question\Image\QuestionImageStoreResolver:
         arguments:

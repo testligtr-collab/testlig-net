@@ -18,5 +18,6 @@ enum QuestionImageScanVerdict: string
     case TimedOut = 'timed_out';
     case HashMismatch = 'hash_mismatch';
     case CleanupFailed = 'cleanup_failed';
+    case StaleSignature = 'stale_signature';
     case Unchanged = 'unchanged';
 }

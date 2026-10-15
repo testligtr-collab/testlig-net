@@ -302,6 +302,12 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         $owner->followRedirect();
         $page = (string) $owner->getResponse()->getContent();
         self::assertStringNotContainsString('image_reference', $page);
+        self::assertStringNotContainsString('Görseli tara', $page);
+        $reference = basename((string) $owner->getRequest()->getPathInfo());
+        $owner->request('POST', '/kurum/sorular/'.$reference.'/gorsel-tara', [
+            '_token' => $this->csrf($owner, 'question_image_scan'),
+        ]);
+        self::assertResponseStatusCodeSame(403);
         $asset = $this->withKernel(static function (): array {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
@@ -318,6 +324,7 @@ final class InstitutionQuestionAuthoringHttpTest extends WebTestCase
         self::assertStringNotContainsString($asset['id'], $page);
         self::assertSame('pending', $asset['status']);
         self::assertSame('pending', $asset['scan']);
+        $owner->request('GET', '/kurum/sorular/'.$reference);
         $owner->submit($owner->getCrawler()->selectButton('İncelemeye gönder')->form());
         self::assertResponseRedirects();
         $owner->followRedirect();

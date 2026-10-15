@@ -16,6 +16,12 @@
             </li>
         {% endfor %}
     </ol>
+    {% if can_scan_image %}
+        <form method="post" action="{{ path('app_institution_question_image_scan', {reference: question.reference}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_image_scan') }}">
+            <button class="btn btn--cta" type="submit">Görseli tara</button>
+        </form>
+    {% endif %}
     {% if can_submit %}
         <form method="post" action="{{ path('app_institution_question_submit', {reference: question.reference}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('institution_question_submit') }}">

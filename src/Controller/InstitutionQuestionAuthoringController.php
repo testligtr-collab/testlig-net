@@ -16,10 +16,13 @@ use App\Enum\QuestionFailureReason;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use App\Enum\QuestionType;
+use App\Exception\LearningContentException;
 use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionImageStem;
+use App\Question\Image\QuestionRevisionPendingImage;
+use App\Question\Image\Scan\QuestionImageScanAction;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
@@ -27,6 +30,7 @@ use App\Repository\QuestionRevisionOptionRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\SubjectRepository;
 use App\Security\QuestionPermission;
+use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\InstitutionWorkspaceGate;
 use App\Service\InstitutionWorkspaceQuery;
 use App\Service\InvitationCodeDigestHasher;
@@ -57,6 +61,9 @@ final class InstitutionQuestionAuthoringController extends AbstractController
         private readonly SubjectRepository $subjectRepository,
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly QuestionImageRegistrar $images,
+        private readonly QuestionRevisionPendingImage $pendingImages,
+        private readonly QuestionImageScanAction $imageScans,
+        private readonly ActiveVerifiedUserPolicy $actors,
     ) {
     }
 
@@ -150,6 +157,32 @@ final class InstitutionQuestionAuthoringController extends AbstractController
         return $this->render('institution/question.html.twig', $this->frame($this->detail($reference)));
     }
 
+    #[Route('/sorular/{reference}/gorsel-tara', name: 'app_institution_question_image_scan', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
+    public function scanImage(Request $request, string $reference): Response
+    {
+        if (!$this->isCsrfTokenValid('question_image_scan', $request->request->getString('_token'))) {
+            throw new AccessDeniedHttpException('Geçersiz istek.');
+        }
+        $question = $this->requireQuestion($reference);
+        $revision = $this->revisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (!$revision instanceof QuestionRevision) {
+            throw new NotFoundHttpException('Not Found');
+        }
+        try {
+            $message = $this->imageScans->scan($this->account(), $question, $revision);
+        } catch (LearningContentException $exception) {
+            if ('unauthorized' === $exception->getReason()->value) {
+                throw new AccessDeniedHttpException('Geçersiz istek.');
+            }
+            $message = 'Tarama tamamlanamadı.';
+        } catch (QuestionException) {
+            $message = 'Tarama tamamlanamadı.';
+        }
+        $this->addFlash('Görsel tarandı ve kullanıma hazır.' === $message ? 'success' : 'error', $message);
+
+        return $this->redirectToRoute('app_institution_question_show', ['reference' => strtolower($reference)]);
+    }
+
     #[Route('/sorular/{reference}/incelemeye-gonder', name: 'app_institution_question_submit', methods: ['POST'], requirements: ['reference' => '[0-9a-f]{20}'])]
     public function submit(Request $request, string $reference): Response
     {
@@ -231,6 +264,8 @@ final class InstitutionQuestionAuthoringController extends AbstractController
                 'status_label' => self::statusLabel($question->getStatus()),
                 'options' => $options,
             ],
+            'can_scan_image' => $this->actors->isActiveVerifiedSuperAdmin($this->account())
+                && null !== $this->pendingImages->sole($question, $revision),
             'can_submit' => QuestionStatus::Draft === $question->getStatus(),
             'can_publish' => QuestionStatus::InReview === $question->getStatus() && !$authorId->equals($this->account()->getId()),
             'show_answer' => $showKey,

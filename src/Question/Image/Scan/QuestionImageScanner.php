@@ -16,7 +16,8 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Reads one pending question image, checks its recorded bytes, then scans that copy.
- * There is no HTTP route, console command, or queue worker for this entry.
+ * Signature freshness is captured before and after the scan. The database transaction
+ * stays closed until the existing commit path.
  */
 final class QuestionImageScanner
 {
@@ -25,6 +26,7 @@ final class QuestionImageScanner
         private readonly QuestionImageScanRecords $records,
         private readonly QuestionImageStoreResolver $stores,
         private readonly ClamdInstreamClient $clamd,
+        private readonly ClamavSignatureObservation $freshness,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -39,6 +41,12 @@ final class QuestionImageScanner
             return QuestionImageScanVerdict::Unchanged;
         }
         QuestionImageObjectKey::assertForAsset($snapshot->storageKey, $snapshot->scope, $snapshot->institutionId);
+        $before = $this->freshness->capture();
+        if (!$before instanceof ClamavSignatureSnapshot) {
+            $this->logger->error('question_image.scan_failed');
+
+            return QuestionImageScanVerdict::StaleSignature;
+        }
 
         $copy = null;
         $verdict = null;
@@ -76,6 +84,12 @@ final class QuestionImageScanner
             $this->logger->error('question_image.scan_failed');
 
             return QuestionImageScanVerdict::CleanupFailed;
+        }
+        $after = $this->freshness->capture();
+        if (!$after instanceof ClamavSignatureSnapshot || !$before->equals($after)) {
+            $this->logger->error('question_image.scan_failed');
+
+            return QuestionImageScanVerdict::StaleSignature;
         }
         if (QuestionImageScanVerdict::Clean !== $verdict) {
             $this->logger->error('question_image.scan_failed');

@@ -267,7 +267,7 @@ rm -f "$fresh_log"
 
 [ -n "${ACCEPT_PHP_B64:-}" ] || stop accept_helper_missing
 printf '%s' "$ACCEPT_PHP_B64" | base64 -d > "${work}/accept.php"
-if ! "$php_bin" "${work}/accept.php" dns "$database_dir"; then
+if ! "$php_bin" "${work}/accept.php" dns "$database_dir" "$autoload"; then
   summary_signature=failed
   stop signature_not_current
 fi
