@@ -80,36 +80,36 @@ final class ClamavFreshnessTest extends TestCase
     {
         $files = new ArrayDatabaseVersions(['main' => 59, 'daily' => 26104, 'bytecode' => 333]);
         $txt = '0.103.1:59:26104:1615408140:0:63:49191:333';
-            $match = new ConfiguredClamavSignatureObservation(
-                $files,
-                new ArrayTxtSource([['txt' => $txt, 'entries' => [$txt]]]),
-                new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/26104/Thu Oct 15 12:00:00 2026\n")),
-            );
-            $snapshot = $match->capture();
-            self::assertNotNull($snapshot);
-            self::assertSame(26104, $snapshot->loadedDaily);
+        $match = new ConfiguredClamavSignatureObservation(
+            $files,
+            new ArrayTxtSource([['txt' => $txt, 'entries' => [$txt]]]),
+            new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/26104/Thu Oct 15 12:00:00 2026\n")),
+        );
+        $snapshot = $match->capture();
+        self::assertNotNull($snapshot);
+        self::assertSame(26104, $snapshot->loadedDaily);
 
-            $wrongDaily = new ConfiguredClamavSignatureObservation(
-                $files,
-                new ArrayTxtSource([['txt' => '0.103.1:59:1234:1615408140:0:63:49191:333', 'entries' => ['0.103.1:59:1234:1615408140:0:63:49191:333']]]),
-                new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/26104/Thu Oct 15 12:00:00 2026\n")),
-            );
-            self::assertNull($wrongDaily->capture());
+        $wrongDaily = new ConfiguredClamavSignatureObservation(
+            $files,
+            new ArrayTxtSource([['txt' => '0.103.1:59:1234:1615408140:0:63:49191:333', 'entries' => ['0.103.1:59:1234:1615408140:0:63:49191:333']]]),
+            new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/26104/Thu Oct 15 12:00:00 2026\n")),
+        );
+        self::assertNull($wrongDaily->capture());
 
-            $wrongField = new ConfiguredClamavSignatureObservation(
-                $files,
-                new ArrayTxtSource([['txt' => '0.103.1:26104:59:1615408140:0:63:49191:333', 'entries' => ['0.103.1:26104:59:1615408140:0:63:49191:333']]]),
-                new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/59/Thu Oct 15 12:00:00 2026\n")),
-            );
-            self::assertNull($wrongField->capture());
+        $wrongField = new ConfiguredClamavSignatureObservation(
+            $files,
+            new ArrayTxtSource([['txt' => '0.103.1:26104:59:1615408140:0:63:49191:333', 'entries' => ['0.103.1:26104:59:1615408140:0:63:49191:333']]]),
+            new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/59/Thu Oct 15 12:00:00 2026\n")),
+        );
+        self::assertNull($wrongField->capture());
 
-            $loaded = new ConfiguredClamavSignatureObservation(
-                $files,
-                new ArrayTxtSource([['txt' => $txt, 'entries' => [$txt]]]),
-                new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/1234/Thu Oct 15 12:00:00 2026\n")),
-            );
-            self::assertNull($loaded->capture());
-            self::assertNull((new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6\n")))->read());
+        $loaded = new ConfiguredClamavSignatureObservation(
+            $files,
+            new ArrayTxtSource([['txt' => $txt, 'entries' => [$txt]]]),
+            new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/1234/Thu Oct 15 12:00:00 2026\n")),
+        );
+        self::assertNull($loaded->capture());
+        self::assertNull((new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6\n")))->read());
     }
 
     public function testDnsTxtPacketAndTimeout(): void
