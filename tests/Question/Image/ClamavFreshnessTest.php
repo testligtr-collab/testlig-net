@@ -8,6 +8,7 @@ use App\Question\Image\Scan\ClamavDnsTxtLookup;
 use App\Question\Image\Scan\ClamavLocalDatabaseVersions;
 use App\Question\Image\Scan\ClamavPublishedDatabaseVersion;
 use App\Question\Image\Scan\ClamavPublishedTxtSource;
+use App\Question\Image\Scan\ClamavSignatureSnapshot;
 use App\Question\Image\Scan\ClamdLoadedDailyVersion;
 use App\Question\Image\Scan\ConfiguredClamavSignatureObservation;
 use App\Question\Image\Scan\CvdDatabaseDirectoryReader;
@@ -122,7 +123,30 @@ final class ClamavFreshnessTest extends TestCase
         self::assertInstanceOf(\Closure::class, $parse);
         $records = $parse($this->txtPacket(7, $text), 7);
         self::assertSame([['txt' => $text, 'entries' => [$text]]], $records);
+        self::assertSame([['txt' => $text, 'entries' => [$text]]], $parse($this->cnameTxtPacket($text), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, question: 'other.cvd.clamav.net'), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, answer: 'other.example.net'), 7));
+        self::assertSame([['txt' => $text, 'entries' => [$text]]], $parse($this->relatedAndUnrelatedPacket($text), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, 0x0100), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, 0x8980), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, 0x8183), 7));
+        self::assertSame([], $parse($this->txtPacket(7, $text, 0x8380), 7));
+        self::assertSame([], $parse($this->loopingPointerPacket(), 7));
+        self::assertSame([], $parse($this->brokenPointerPacket(), 7));
+        self::assertSame([], $parse(pack('nnnnnn', 7, 0x8180, 1, 1, 0, 0), 7));
         self::assertSame([], $parse($this->txtPacket(7, str_repeat('a', 513)), 7));
+        $versions = ['main' => 59, 'daily' => 26104, 'bytecode' => 333];
+        $loaded = new ClamdLoadedDailyVersion(new VersionTransport("ClamAV 1.4.6/26104/Thu Oct 15 12:00:00 2026\n"));
+        self::assertInstanceOf(ClamavSignatureSnapshot::class, (new ConfiguredClamavSignatureObservation(
+            new ArrayDatabaseVersions($versions),
+            new ArrayTxtSource([['txt' => $text, 'entries' => [$text]]]),
+            $loaded,
+        ))->capture());
+        self::assertNull((new ConfiguredClamavSignatureObservation(
+            new ArrayDatabaseVersions($versions),
+            new ArrayTxtSource([]),
+            $loaded,
+        ))->capture());
         self::assertSame([], (new ClamavDnsTxtLookup('', 53, 0.2))->records());
         $started = microtime(true);
         self::assertSame([], (new ClamavDnsTxtLookup('127.0.0.1', 9, 0.2))->records());
@@ -136,18 +160,64 @@ final class ClamavFreshnessTest extends TestCase
         return str_pad(substr($line, 0, 511)."\0", 512, "\0");
     }
 
-    private function txtPacket(int $id, string $text): string
+    private function txtPacket(int $id, string $text, int $flags = 0x8180, string $question = ClamavDnsTxtLookup::HOST, ?string $answer = null): string
+    {
+        $questionName = $this->dnsName($question);
+        $answerName = null === $answer || $answer === $question ? pack('n', 0xC00C) : $this->dnsName($answer);
+        $data = \chr(\strlen($text)).$text;
+        $record = $answerName.pack('nnNn', 16, 1, 30, \strlen($data)).$data;
+
+        return pack('nnnnnn', $id, $flags, 1, 1, 0, 0).$questionName.pack('nn', 16, 1).$record;
+    }
+
+    private function cnameTxtPacket(string $text): string
+    {
+        $question = $this->dnsName(ClamavDnsTxtLookup::HOST).pack('nn', 16, 1);
+        $alias = $this->dnsName('db.clamav.net');
+        $cname = pack('n', 0xC00C).pack('nnNn', 5, 1, 30, \strlen($alias)).$alias;
+        $aliasOffset = 12 + \strlen($question) + \strlen($cname) - \strlen($alias);
+        $data = \chr(\strlen($text)).$text;
+        $txt = pack('n', 0xC000 | $aliasOffset).pack('nnNn', 16, 1, 30, \strlen($data)).$data;
+
+        return pack('nnnnnn', 7, 0x8180, 1, 2, 0, 0).$question.$cname.$txt;
+    }
+
+    private function relatedAndUnrelatedPacket(string $text): string
+    {
+        $question = $this->dnsName(ClamavDnsTxtLookup::HOST).pack('nn', 16, 1);
+        $data = \chr(\strlen($text)).$text;
+        $related = pack('n', 0xC00C).pack('nnNn', 16, 1, 30, \strlen($data)).$data;
+        $otherText = '9.9.9:1:2:3:0:63:4:5';
+        $otherData = \chr(\strlen($otherText)).$otherText;
+        $unrelated = $this->dnsName('other.example.net').pack('nnNn', 16, 1, 30, \strlen($otherData)).$otherData;
+
+        return pack('nnnnnn', 7, 0x8180, 1, 2, 0, 0).$question.$related.$unrelated;
+    }
+
+    private function loopingPointerPacket(): string
+    {
+        $question = $this->dnsName(ClamavDnsTxtLookup::HOST).pack('nn', 16, 1);
+        $answerAt = 12 + \strlen($question);
+        $loop = pack('n', 0xC000 | ($answerAt + 2)).pack('n', 0xC000 | $answerAt);
+
+        return pack('nnnnnn', 7, 0x8180, 1, 1, 0, 0).$question.$loop;
+    }
+
+    private function brokenPointerPacket(): string
+    {
+        $question = $this->dnsName(ClamavDnsTxtLookup::HOST).pack('nn', 16, 1);
+
+        return pack('nnnnnn', 7, 0x8180, 1, 1, 0, 0).$question.pack('n', 0xC0FF);
+    }
+
+    private function dnsName(string $host): string
     {
         $name = '';
-        foreach (explode('.', ClamavDnsTxtLookup::HOST) as $label) {
+        foreach (explode('.', $host) as $label) {
             $name .= \chr(\strlen($label)).$label;
         }
-        $name .= "\0";
-        $question = $name.pack('nn', 16, 1);
-        $data = \chr(\strlen($text)).$text;
-        $answer = pack('n', 0xC00C).pack('nnNn', 16, 1, 30, \strlen($data)).$data;
 
-        return pack('nnnnnn', $id, 0x8180, 1, 1, 0, 0).$question.$answer;
+        return $name."\0";
     }
 }
 
