@@ -1,57 +1,94 @@
 #!/usr/bin/env bash
 # AlmaLinux 9 ClamAV install and isolated INSTREAM acceptance.
 # TESTLIG_CLAMAV_TEST_ROOT is only for the local guard test. The workflow must not set it.
+# Private acceptance files are read here and sent with INSTREAM. clamd does not open that
+# directory. The official antivirus_can_scan_system boolean allows system-file scans and
+# database-load RWX mapping; this run does not change it.
 set -euo pipefail
 
 root="${TESTLIG_CLAMAV_TEST_ROOT:-}"
 revision_file="${root}/home/testlig.net/shared/CURRENT_REVISION"
 scan_conf="${root}/etc/clamd.d/scan.conf"
 fresh_conf="${root}/etc/freshclam.conf"
-database_dir="${root}/var/lib/clamav"
 socket_path="${root}/run/clamd.scan/clamd.sock"
+unit_dir="${root}/usr/lib/systemd/system"
 php_bin="${TESTLIG_PHP_BIN:-/usr/local/lsws/lsphp83/bin/php}"
 autoload="${root}/home/testlig.net/app/vendor/autoload.php"
+database_dir=""
 work=""
 backup_scan=""
 backup_fresh=""
-bool_was_off=0
 mutated=0
-keep=0
 summary_install=stopped
 summary_signature=not_run
 summary_socket=not_run
 summary_accept=not_run
+summary_updater=not_run
 summary_cleanup=ok
+cleanup_work=skipped
+cleanup_config=skipped
+cleanup_units=skipped
+cleanup_backups=skipped
 
 finish() {
   local status=$?
+  set +e
   if [ -n "$work" ]; then
-    rm -rf "$work" || summary_cleanup=failed
+    rm -rf "$work"
+    if [ -e "$work" ]; then
+      cleanup_work=failed
+    else
+      cleanup_work=ok
+    fi
   fi
   if [ "$status" -ne 0 ] && [ "$mutated" -eq 1 ]; then
+    cleanup_config=ok
     if [ -n "$backup_scan" ] && [ -f "$backup_scan" ]; then
-      cp -a "$backup_scan" "$scan_conf" || summary_cleanup=failed
+      cp -a "$backup_scan" "$scan_conf" || cleanup_config=failed
     fi
     if [ -n "$backup_fresh" ] && [ -f "$backup_fresh" ]; then
-      cp -a "$backup_fresh" "$fresh_conf" || summary_cleanup=failed
+      cp -a "$backup_fresh" "$fresh_conf" || cleanup_config=failed
     fi
-    if [ "$bool_was_off" -eq 1 ]; then
-      setsebool -P antivirus_can_scan_system 0 || summary_cleanup=failed
-    fi
-    systemctl disable --now clamd@scan.service || summary_cleanup=failed
-    systemctl disable --now clamav-freshclam.service || summary_cleanup=failed
+    cleanup_units=ok
+    systemctl disable --now clamd@scan.service || cleanup_units=failed
+    systemctl disable --now clamav-freshclam.service || cleanup_units=failed
+    systemctl disable --now clamav-freshclam-once.timer || cleanup_units=failed
+    systemctl stop clamav-freshclam-once.service || cleanup_units=failed
   fi
-  rm -f "$backup_scan" "$backup_fresh" "${scan_conf}.testlig-new" "${fresh_conf}.testlig-new"
-  if [ "$keep" -eq 1 ]; then
-    if ! systemctl disable --now clamav-freshclam.service; then
+  cleanup_backups=ok
+  if [ -n "$backup_scan" ]; then
+    rm -f "$backup_scan" || cleanup_backups=failed
+    if [ -e "$backup_scan" ]; then
+      cleanup_backups=failed
+    fi
+  fi
+  if [ -n "$backup_fresh" ]; then
+    rm -f "$backup_fresh" || cleanup_backups=failed
+    if [ -e "$backup_fresh" ]; then
+      cleanup_backups=failed
+    fi
+  fi
+  if [ -n "$scan_conf" ]; then
+    rm -f "${scan_conf}.testlig-new" || cleanup_backups=failed
+  fi
+  if [ -n "$fresh_conf" ]; then
+    rm -f "${fresh_conf}.testlig-new" || cleanup_backups=failed
+  fi
+  for item in "$cleanup_work" "$cleanup_config" "$cleanup_units" "$cleanup_backups"; do
+    if [ "$item" = failed ]; then
       summary_cleanup=failed
       status=1
     fi
-  fi
+  done
+  echo "cleanup_work=${cleanup_work}"
+  echo "cleanup_config=${cleanup_config}"
+  echo "cleanup_units=${cleanup_units}"
+  echo "cleanup_backups=${cleanup_backups}"
   echo "summary_install=${summary_install}"
   echo "summary_signature=${summary_signature}"
   echo "summary_socket=${summary_socket}"
   echo "summary_accept=${summary_accept}"
+  echo "summary_updater=${summary_updater}"
   echo "summary_cleanup=${summary_cleanup}"
   exit "$status"
 }
@@ -60,6 +97,18 @@ trap finish EXIT
 stop() {
   echo "stop_reason=$1"
   exit 1
+}
+
+uncommented_database_directory() {
+  awk '
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*DatabaseDirectory[[:space:]]+/ {
+      if (seen) { exit 2 }
+      seen = 1
+      print $2
+    }
+    END { if (!seen) exit 1 }
+  ' "$1"
 }
 
 [ -n "${EXPECTED_SHA:-}" ] || stop expected_sha_missing
@@ -109,9 +158,15 @@ mutated=1
 dnf install -y epel-release
 dnf install -y clamav clamd clamav-update
 summary_install=installed
-systemctl stop clamav-freshclam.service
-systemctl stop clamd@scan.service
-systemctl disable clamav-freshclam.service
+for unit in clamd@.service clamav-freshclam.service clamav-freshclam-once.service clamav-freshclam-once.timer; do
+  [ -f "${unit_dir}/${unit}" ] || stop updater_unit_missing
+done
+systemctl stop clamav-freshclam.service || stop updater_stop_failed
+systemctl stop clamav-freshclam-once.timer || stop updater_stop_failed
+systemctl stop clamav-freshclam-once.service || stop updater_stop_failed
+systemctl disable clamav-freshclam.service || stop updater_stop_failed
+systemctl disable clamav-freshclam-once.timer || stop updater_stop_failed
+systemctl stop clamd@scan.service || stop updater_stop_failed
 
 if [ ! -f "$scan_conf" ] || [ ! -f "$fresh_conf" ]; then
   stop package_config_missing
@@ -121,35 +176,33 @@ backup_fresh="${fresh_conf}.testlig-backup"
 cp -a "$scan_conf" "$backup_scan"
 cp -a "$fresh_conf" "$backup_fresh"
 
-selinux_mode="$(getenforce)"
-case "$selinux_mode" in
-  Disabled)
-    echo "selinux=disabled"
-    ;;
-  Enforcing|Permissive)
-    bool_state="$(getsebool antivirus_can_scan_system)"
-    case "$bool_state" in
-      *'--> on')
-        echo "selinux_boolean=already_on"
-        ;;
-      *'--> off')
-        bool_was_off=1
-        setsebool -P antivirus_can_scan_system 1
-        echo "selinux_boolean=enabled"
-        ;;
-      *)
-        stop selinux_boolean_unreadable
-        ;;
-    esac
-    ;;
-  *)
-    stop selinux_unreadable
-    ;;
-esac
+scan_db=""
+fresh_db=""
+scan_db_status=0
+fresh_db_status=0
+scan_db="$(uncommented_database_directory "$scan_conf")" || scan_db_status=$?
+fresh_db="$(uncommented_database_directory "$fresh_conf")" || fresh_db_status=$?
+if [ "$scan_db_status" -eq 2 ] || [ "$fresh_db_status" -eq 2 ]; then
+  stop database_directory_unreadable
+fi
+if [ "$scan_db_status" -eq 0 ] && [ "$fresh_db_status" -eq 0 ]; then
+  [ "$scan_db" = "$fresh_db" ] || stop database_directory_mismatch
+  database_dir="$scan_db"
+elif [ "$scan_db_status" -eq 1 ] && [ "$fresh_db_status" -eq 1 ]; then
+  clamconf_db="$(clamconf | awk -F'"' '/^DatabaseDirectory = "/ { if (seen && value != $2) exit 2; seen = 1; value = $2 } END { if (!seen) exit 1; print value }')" || stop database_directory_unreadable
+  database_dir="$clamconf_db"
+else
+  stop database_directory_mismatch
+fi
+printf '%s' "$database_dir" | grep -Eq '^/([A-Za-z0-9._-]{1,64}/){0,16}[A-Za-z0-9._-]{1,64}$' || stop database_directory_unreadable
+if [ -n "$root" ]; then
+  database_dir="${root}${database_dir}"
+fi
 
 scan_new="${scan_conf}.testlig-new"
 awk '
   /^[[:space:]]*TCPSocket[[:space:]]/ { exit 2 }
+  /^[[:space:]]*Example[[:space:]]*$/ { print "#Example"; next }
   /^[[:space:]]*LocalSocket[[:space:]]/ { next }
   /^[[:space:]]*LocalSocketMode[[:space:]]/ { next }
   /^[[:space:]]*LocalSocketGroup[[:space:]]/ { next }
@@ -157,12 +210,18 @@ awk '
 ' "$scan_conf" > "$scan_new" || stop tcp_socket_present
 printf '%s\n' 'LocalSocket /run/clamd.scan/clamd.sock' 'LocalSocketMode 660' 'LocalSocketGroup virusgroup' >> "$scan_new"
 mv "$scan_new" "$scan_conf"
+if grep -Eq '^[[:space:]]*Example[[:space:]]*$' "$scan_conf"; then
+  stop example_active
+fi
 
 awk '
   /^[[:space:]]*Example[[:space:]]*$/ { print "#Example"; next }
   { print }
 ' "$fresh_conf" > "${fresh_conf}.testlig-new"
 mv "${fresh_conf}.testlig-new" "$fresh_conf"
+if grep -Eq '^[[:space:]]*Example[[:space:]]*$' "$fresh_conf"; then
+  stop example_active
+fi
 
 mkdir -p "${root}/tmp"
 work="$(mktemp -d "${root}/tmp/testlig-clamav-accept.XXXXXX")"
@@ -215,4 +274,16 @@ if ! "$php_bin" "${work}/accept.php" scan "$autoload" "$socket_path" "$work"; th
   stop accept_failed
 fi
 summary_accept=ok
-keep=1
+
+systemctl enable --now clamav-freshclam.service || stop updater_enable_failed
+updater_enabled="$(systemctl is-enabled clamav-freshclam.service)" || stop updater_not_enabled
+updater_active="$(systemctl is-active clamav-freshclam.service)" || stop updater_not_active
+[ "$updater_enabled" = "enabled" ] || stop updater_not_enabled
+[ "$updater_active" = "active" ] || stop updater_not_active
+if systemctl is-enabled clamav-freshclam-once.timer >/dev/null 2>&1; then
+  stop updater_timer_enabled
+fi
+if systemctl is-active clamav-freshclam-once.timer >/dev/null 2>&1; then
+  stop updater_timer_active
+fi
+summary_updater=enabled

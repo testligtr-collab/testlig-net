@@ -6,20 +6,23 @@ use App\Question\Image\Scan\ClamdInstreamClient;
 use App\Question\Image\Scan\QuestionImageScanVerdict;
 use App\Question\Image\Scan\UnixClamdTransport;
 
-if ($argc < 2) {
+if (\PHP_SAPI === 'cli' && isset($_SERVER['SCRIPT_FILENAME']) && __FILE__ === realpath((string) $_SERVER['SCRIPT_FILENAME'])) {
+    if ($argc < 2) {
+        fwrite(\STDERR, "accept_usage=invalid\n");
+        exit(1);
+    }
+    if ('dns' === $argv[1]) {
+        exit(checkSignatures($argv[2] ?? ''));
+    }
+    if ('parse' === $argv[1]) {
+        exit(compareSupplied($argv));
+    }
+    if ('scan' === $argv[1]) {
+        exit(runScans($argv[2] ?? '', $argv[3] ?? '', $argv[4] ?? ''));
+    }
     fwrite(\STDERR, "accept_usage=invalid\n");
     exit(1);
 }
-
-if ('dns' === $argv[1]) {
-    exit(checkSignatures($argv[2] ?? ''));
-}
-if ('scan' === $argv[1]) {
-    exit(runScans($argv[2] ?? '', $argv[3] ?? '', $argv[4] ?? ''));
-}
-
-fwrite(\STDERR, "accept_usage=invalid\n");
-exit(1);
 
 function checkSignatures(string $databaseDirectory): int
 {
@@ -34,18 +37,13 @@ function checkSignatures(string $databaseDirectory): int
 
         return 1;
     }
-    $published = '';
-    foreach ($records as $record) {
-        if (isset($record['txt']) && is_string($record['txt'])) {
-            $published .= ' '.$record['txt'];
-        }
-    }
-    if ('' === trim($published)) {
-        echo "signature_dns=unavailable\n";
+    $published = publishedDatabaseVersions($records);
+    if ('ok' !== $published['status'] || !is_array($published['versions'])) {
+        echo 'signature_dns='.$published['status']."\n";
 
         return 1;
     }
-    $versions = [];
+    $local = [];
     foreach (['main', 'daily', 'bytecode'] as $name) {
         $version = signatureVersion($databaseDirectory, $name);
         if (null === $version) {
@@ -53,21 +51,125 @@ function checkSignatures(string $databaseDirectory): int
 
             return 1;
         }
-        $versions[] = $version;
+        $local[$name] = $version;
     }
-    foreach ($versions as $version) {
-        if (!str_contains($published, $version)) {
-            echo "signature_dns=mismatch\n";
+    if ($local !== $published['versions']) {
+        echo "signature_dns=mismatch\n";
 
-            return 1;
-        }
+        return 1;
     }
     echo "signature_dns=match\n";
 
     return 0;
 }
 
-function signatureVersion(string $directory, string $name): ?string
+/**
+ * @param list<string> $argv
+ */
+function compareSupplied(array $argv): int
+{
+    $main = canonicalVersion($argv[2] ?? '');
+    $daily = canonicalVersion($argv[3] ?? '');
+    $bytecode = canonicalVersion($argv[4] ?? '');
+    if (null === $main || null === $daily || null === $bytecode || !isset($argv[5])) {
+        echo "signature_dns=unreadable\n";
+
+        return 1;
+    }
+    $records = [];
+    $count = count($argv);
+    for ($index = 5; $index < $count; ++$index) {
+        $records[] = ['txt' => $argv[$index], 'entries' => [$argv[$index]]];
+    }
+    $published = publishedDatabaseVersions($records);
+    if ('ok' !== $published['status'] || !is_array($published['versions'])) {
+        echo 'signature_dns='.$published['status']."\n";
+
+        return 1;
+    }
+    $local = ['main' => $main, 'daily' => $daily, 'bytecode' => $bytecode];
+    if ($local !== $published['versions']) {
+        echo "signature_dns=mismatch\n";
+
+        return 1;
+    }
+    echo "signature_dns=match\n";
+
+    return 0;
+}
+
+/**
+ * Official current.cvd.clamav.net TXT is eight colon fields:
+ * engine:main:daily:timestamp:flag:flevel:freshclam:bytecode.
+ *
+ * @param list<array<string, mixed>> $records
+ *
+ * @return array{status: string, versions: ?array{main: int, daily: int, bytecode: int}}
+ */
+function publishedDatabaseVersions(array $records): array
+{
+    $consensus = null;
+    foreach ($records as $record) {
+        if (!is_array($record) || !isset($record['txt']) || !is_string($record['txt'])) {
+            return ['status' => 'unreadable', 'versions' => null];
+        }
+        if (isset($record['entries'])) {
+            if (!is_array($record['entries']) || 1 !== count($record['entries']) || ($record['entries'][0] ?? null) !== $record['txt']) {
+                return ['status' => 'unreadable', 'versions' => null];
+            }
+        }
+        $parsed = parseDatabaseVersionRecord($record['txt']);
+        if (null === $parsed) {
+            return ['status' => 'unreadable', 'versions' => null];
+        }
+        if (null === $consensus) {
+            $consensus = $parsed;
+            continue;
+        }
+        if ($consensus !== $parsed) {
+            return ['status' => 'mismatch', 'versions' => null];
+        }
+    }
+    if (null === $consensus) {
+        return ['status' => 'unavailable', 'versions' => null];
+    }
+
+    return ['status' => 'ok', 'versions' => $consensus];
+}
+
+/**
+ * @return ?array{main: int, daily: int, bytecode: int}
+ */
+function parseDatabaseVersionRecord(string $txt): ?array
+{
+    $txt = trim($txt);
+    if (1 !== preg_match('/^[0-9]+(?:\.[0-9]+){1,3}(?::(?:0|[1-9][0-9]*)){7}$/', $txt)) {
+        return null;
+    }
+    $fields = explode(':', $txt);
+    if (8 !== count($fields)) {
+        return null;
+    }
+    $main = canonicalVersion($fields[1]);
+    $daily = canonicalVersion($fields[2]);
+    $bytecode = canonicalVersion($fields[7]);
+    if (null === $main || null === $daily || null === $bytecode) {
+        return null;
+    }
+
+    return ['main' => $main, 'daily' => $daily, 'bytecode' => $bytecode];
+}
+
+function canonicalVersion(string $value): ?int
+{
+    if (1 !== preg_match('/^(0|[1-9][0-9]*)$/', $value)) {
+        return null;
+    }
+
+    return (int) $value;
+}
+
+function signatureVersion(string $directory, string $name): ?int
 {
     foreach (['cvd', 'cld'] as $extension) {
         $path = $directory.'/'.$name.'.'.$extension;
@@ -79,7 +181,7 @@ function signatureVersion(string $directory, string $name): ?string
             return null;
         }
 
-        return $matches[1];
+        return canonicalVersion($matches[1]);
     }
 
     return null;

@@ -276,6 +276,8 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringNotContainsString('dnf upgrade', $remote);
         self::assertStringNotContainsString('usermod', $remote);
         self::assertStringNotContainsString('setenforce', $remote);
+        self::assertStringNotContainsString('setsebool', $remote);
+        self::assertStringNotContainsString('getenforce', $remote);
         self::assertStringNotContainsString('firewall-cmd', $remote);
         self::assertStringNotContainsString('dnf remove', $remote);
         self::assertStringNotContainsString('.env.local', $remote);
