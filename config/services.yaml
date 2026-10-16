@@ -29,6 +29,7 @@ parameters:
     env(BUNNY_STORAGE_ENDPOINT): ''
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
     env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
+    env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -110,6 +111,10 @@ services:
     App\Question\Image\Scan\ClamavSignatureObservation:
         alias: App\Question\Image\Scan\ConfiguredClamavSignatureObservation
         public: true
+
+    App\Controller\Admin\AdminWebRuntimeIdentityController:
+        arguments:
+            $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
 
     App\Question\Image\QuestionImageStoreResolver:
         arguments:
