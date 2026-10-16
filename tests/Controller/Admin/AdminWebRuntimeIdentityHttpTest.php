@@ -45,33 +45,35 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $anonymousSpy = $this->installSpy($anonymous);
         $anonymous->request('POST', '/yonetim/calisma-kimligi');
         self::assertResponseRedirects('/giris');
-        self::assertSame(0, $anonymousSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $anonymous->getResponse()->getContent());
+        $this->assertReaderNotCalled($anonymous, $anonymousSpy);
 
+        self::ensureKernelShutdown();
         $student = static::createClient();
         $this->loginAs($student, 'web_runtime_student@example.com', UserRole::Student);
+        $student->disableReboot();
         $studentSpy = $this->installSpy($student);
         $student->request('POST', '/yonetim/calisma-kimligi', $this->payload($student, self::NONCE));
         self::assertResponseStatusCodeSame(403);
-        self::assertSame(0, $studentSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $student->getResponse()->getContent());
+        $this->assertReaderNotCalled($student, $studentSpy);
 
+        self::ensureKernelShutdown();
         $admin = static::createClient();
         $this->loginAs($admin, 'web_runtime_admin@example.com', UserRole::Admin);
+        $admin->disableReboot();
         $adminSpy = $this->installSpy($admin);
         $admin->request('POST', '/yonetim/calisma-kimligi', $this->payload($admin, self::NONCE));
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(0, $adminSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $admin->getResponse()->getContent());
+        $this->assertReaderNotCalled($admin, $adminSpy);
 
         $this->disableProbe();
+        self::ensureKernelShutdown();
         $closed = static::createClient();
         $this->loginAs($closed, 'web_runtime_closed@example.com', UserRole::SuperAdmin);
+        $closed->disableReboot();
         $closedSpy = $this->installSpy($closed);
         $closed->request('POST', '/yonetim/calisma-kimligi', $this->payload($closed, self::NONCE));
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(0, $closedSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $closed->getResponse()->getContent());
+        $this->assertReaderNotCalled($closed, $closedSpy);
     }
 
     public function testStaleSuperAdminAndInvalidRequestDoNotReadIdentity(): void
@@ -79,6 +81,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $this->enableProbe();
         $unverified = static::createClient();
         $user = $this->loginAs($unverified, 'web_runtime_unverified@example.com', UserRole::SuperAdmin);
+        $unverified->disableReboot();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->getConnection()->executeStatement(
@@ -88,11 +91,12 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $unverifiedSpy = $this->installSpy($unverified);
         $unverified->request('POST', '/yonetim/calisma-kimligi', $this->payload($unverified, self::NONCE));
         self::assertResponseStatusCodeSame(404);
-        self::assertSame(0, $unverifiedSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $unverified->getResponse()->getContent());
+        $this->assertReaderNotCalled($unverified, $unverifiedSpy);
 
+        self::ensureKernelShutdown();
         $suspended = static::createClient();
         $suspendedUser = $this->loginAs($suspended, 'web_runtime_suspended@example.com', UserRole::SuperAdmin);
+        $suspended->disableReboot();
         $suspendedEm = $suspended->getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $suspendedEm);
         $suspendedEm->getConnection()->executeStatement(
@@ -102,33 +106,32 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $suspendedSpy = $this->installSpy($suspended);
         $suspended->request('POST', '/yonetim/calisma-kimligi', $this->payload($suspended, self::NONCE));
         self::assertNotSame(200, $suspended->getResponse()->getStatusCode());
-        self::assertSame(0, $suspendedSpy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $suspended->getResponse()->getContent());
+        $this->assertReaderNotCalled($suspended, $suspendedSpy);
 
+        self::ensureKernelShutdown();
         $client = static::createClient();
         $this->loginAs($client, 'web_runtime_sa@example.com', UserRole::SuperAdmin);
+        $client->disableReboot();
         $spy = $this->installSpy($client);
         $client->request('GET', '/yonetim/calisma-kimligi');
         self::assertResponseStatusCodeSame(405);
-        self::assertSame(0, $spy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $client->getResponse()->getContent());
+        $this->assertReaderNotCalled($client, $spy);
 
         $client->request('POST', '/yonetim/calisma-kimligi', ['nonce' => self::NONCE]);
         self::assertResponseStatusCodeSame(403);
-        self::assertSame(0, $spy->calls);
-        self::assertStringNotContainsString('"euid"', (string) $client->getResponse()->getContent());
+        $this->assertReaderNotCalled($client, $spy);
 
         $client->request('POST', '/yonetim/calisma-kimligi?nonce=querynoncevalue1', [
             '_token' => $this->csrf($client),
         ]);
         self::assertResponseStatusCodeSame(400);
-        self::assertSame(0, $spy->calls);
-        self::assertStringNotContainsString('querynoncevalue1', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('"euid"', (string) $client->getResponse()->getContent());
+        self::assertSame('', (string) $client->getResponse()->getContent());
+        $this->assertReaderNotCalled($client, $spy);
 
         $client->request('POST', '/yonetim/calisma-kimligi', $this->payload($client, 'short'));
         self::assertResponseStatusCodeSame(400);
-        self::assertSame(0, $spy->calls);
+        self::assertSame('', (string) $client->getResponse()->getContent());
+        $this->assertReaderNotCalled($client, $spy);
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
     }
 
@@ -141,6 +144,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertStringNotContainsString('/yonetim/calisma-kimligi', (string) $client->getResponse()->getContent());
 
+        $client->disableReboot();
         $spy = $this->installSpy($client);
         $client->request('POST', '/yonetim/calisma-kimligi', $this->payload($client, self::NONCE));
         self::assertResponseIsSuccessful();
@@ -152,6 +156,17 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
             'nonce' => self::NONCE,
             'status' => 'unresolved',
         ], $payload);
+    }
+
+    private function assertReaderNotCalled(KernelBrowser $client, CountingWebRuntimeIdentityReader $spy): void
+    {
+        self::assertSame(0, $spy->calls);
+        $decoded = json_decode((string) $client->getResponse()->getContent(), true);
+        if (\is_array($decoded)) {
+            self::assertArrayNotHasKey('euid', $decoded);
+            self::assertArrayNotHasKey('egid', $decoded);
+            self::assertArrayNotHasKey('groups', $decoded);
+        }
     }
 
     private function installSpy(KernelBrowser $client): CountingWebRuntimeIdentityReader
