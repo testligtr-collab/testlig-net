@@ -24,13 +24,23 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
     protected function tearDown(): void
     {
         $this->disableProbe();
+        $client = null;
+        try {
+            $client = self::getClient();
+        } catch (\Throwable) {
+            $client = null;
+        }
+        if ($client instanceof KernelBrowser) {
+            $this->releaseClient($client);
+        }
         try {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
-            if ($em->getConnection()->createSchemaManager()->tablesExist(['users'])) {
-                $em->getConnection()->executeStatement(
-                    "DELETE FROM users WHERE normalized_email LIKE 'web_runtime_%@example.com'",
-                );
+            $em->getConnection()->executeStatement(
+                "DELETE FROM users WHERE normalized_email LIKE 'web_runtime_%@example.com'",
+            );
+            if ($em->getConnection()->isConnected()) {
+                $em->getConnection()->close();
             }
         } catch (\Throwable) {
         }
@@ -45,6 +55,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $anonymous->request('POST', '/yonetim/calisma-kimligi');
         self::assertResponseRedirects('/giris');
         $this->assertReaderNotCalled($anonymous);
+        $this->releaseClient($anonymous);
 
         self::ensureKernelShutdown();
         $student = static::createClient();
@@ -53,6 +64,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $student->request('POST', '/yonetim/calisma-kimligi', $this->payload($student, self::NONCE));
         self::assertResponseStatusCodeSame(404);
         $this->assertReaderNotCalled($student);
+        $this->releaseClient($student);
 
         self::ensureKernelShutdown();
         $admin = static::createClient();
@@ -61,6 +73,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $admin->request('POST', '/yonetim/calisma-kimligi', $this->payload($admin, self::NONCE));
         self::assertResponseStatusCodeSame(404);
         $this->assertReaderNotCalled($admin);
+        $this->releaseClient($admin);
 
         $this->disableProbe();
         self::ensureKernelShutdown();
@@ -87,6 +100,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $unverified->request('POST', '/yonetim/calisma-kimligi', $this->payload($unverified, self::NONCE));
         self::assertResponseStatusCodeSame(404);
         $this->assertReaderNotCalled($unverified);
+        $this->releaseClient($unverified);
 
         self::ensureKernelShutdown();
         $suspended = static::createClient();
@@ -101,6 +115,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $suspended->request('POST', '/yonetim/calisma-kimligi', $this->payload($suspended, self::NONCE));
         self::assertNotSame(200, $suspended->getResponse()->getStatusCode());
         $this->assertReaderNotCalled($suspended);
+        $this->releaseClient($suspended);
 
         self::ensureKernelShutdown();
         $client = static::createClient();
@@ -151,6 +166,21 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
             'nonce' => self::NONCE,
             'status' => 'unresolved',
         ], $payload);
+    }
+
+    private function releaseClient(KernelBrowser $client): void
+    {
+        try {
+            $em = $client->getContainer()->get(EntityManagerInterface::class);
+            if ($em instanceof EntityManagerInterface && $em->getConnection()->isConnected()) {
+                $em->getConnection()->close();
+            }
+        } catch (\Throwable) {
+        }
+        try {
+            $client->getKernel()->shutdown();
+        } catch (\Throwable) {
+        }
     }
 
     private function assertReaderNotCalled(KernelBrowser $client): void
