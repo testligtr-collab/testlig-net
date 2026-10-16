@@ -1,0 +1,70 @@
+name: Ops ClamAV access probe (VDS)
+
+# Manual read-only measurement of the live lsphp uid against the ClamAV socket
+# and signature directory. It does not change access, services, groups, ACL,
+# environment files, or production assets, and it does not scan with INSTREAM.
+# A green run means the measurement finished. It is not application access.
+# No HTTPS request is sent from this workflow. Absence of lsphp is unknown;
+# an external request is not assumed to leave a persistent PHP process.
+# Symfony cache:warmup is not run. Runtime env values are not embedded by warmup.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "ClamAV access probe skipped because SSH paused"
+          {
+            echo "## ClamAV access probe skipped because SSH paused"
+            echo "No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  vds:
+    name: VDS ClamAV access probe
+    if: vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote read-only access probe
+        run: |
+          set -euo pipefail
+          set +e
+          probe_b64="$(base64 -w0 deploy/vds/gha-clamav-access-probe.php)"
+          ssh testlig-vds "export ACCESS_PROBE_PHP_B64=$(printf %q "$probe_b64"); bash -s" < deploy/vds/gha-clamav-access-probe-remote.sh
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi
