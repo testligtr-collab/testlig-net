@@ -94,14 +94,38 @@ emit_field() {
   fi
 }
 
+probe_id() {
+  if [ -n "$root" ] && [ -f "${root}/fixture-id" ]; then
+    bash "${root}/fixture-id" "$@"
+  else
+    id "$@"
+  fi
+}
+
+probe_now() {
+  if [ -n "$root" ] && [ -f "${root}/fixture-date" ]; then
+    bash "${root}/fixture-date"
+  else
+    date +%s
+  fi
+}
+
 site_account_uid() {
   local account="testl3865"
   local site_path account_uid site_uid
   site_path="$(host_path "/home/testlig.net")"
-  account_uid="$(timeout 2 id -u "$account" 2>/dev/null || true)"
+  if [ -n "$root" ] && [ -f "${root}/fixture-id" ]; then
+    account_uid="$(timeout 2 bash "${root}/fixture-id" -u "$account" 2>/dev/null || true)"
+  else
+    account_uid="$(timeout 2 id -u "$account" 2>/dev/null || true)"
+  fi
   site_uid=""
   if [ -d "$site_path" ]; then
-    site_uid="$(timeout 2 stat -c %u "$site_path" 2>/dev/null || true)"
+    if [ -n "$root" ] && [ -f "${root}/fixture-stat" ]; then
+      site_uid="$(timeout 2 bash "${root}/fixture-stat" -c %u "$site_path" 2>/dev/null || true)"
+    else
+      site_uid="$(timeout 2 stat -c %u "$site_path" 2>/dev/null || true)"
+    fi
   fi
   account_uid="${account_uid//[[:space:]]/}"
   site_uid="${site_uid//[[:space:]]/}"
@@ -118,27 +142,71 @@ site_account_uid() {
 }
 
 php_user_count=0
+php_proc_dirs=0
+php_proc_unreadable=0
+php_proc_vanished=0
+php_proc_lsphp=0
+php_proc_invalid_id=0
 app_user=""
 candidate_uid=""
 candidate_user=""
-php_started="$(date +%s)"
+php_started="$(probe_now)"
 php_timed_out=0
 seen_uids=" "
 for proc in "${root}/proc"/[0-9]*; do
-  [ -d "$proc" ] || continue
-  now="$(date +%s)"
+  if [ ! -d "$proc" ]; then
+    case "$proc" in
+      *'[0-9]*') continue ;;
+    esac
+    if [ -e "$proc" ] || [ -L "$proc" ]; then
+      php_proc_dirs=$((php_proc_dirs + 1))
+      php_proc_vanished=$((php_proc_vanished + 1))
+    fi
+    continue
+  fi
+  php_proc_dirs=$((php_proc_dirs + 1))
+  now="$(probe_now)"
   if [ $((now - php_started)) -ge 2 ]; then
     php_timed_out=1
     break
   fi
-  [ -r "$proc/comm" ] && [ -r "$proc/status" ] || continue
-  IFS= read -r comm < "$proc/comm" || continue
+  if [ ! -d "$proc" ]; then
+    php_proc_vanished=$((php_proc_vanished + 1))
+    continue
+  fi
+  if [ ! -e "$proc/comm" ] || [ ! -e "$proc/status" ]; then
+    php_proc_vanished=$((php_proc_vanished + 1))
+    continue
+  fi
+  if [ ! -r "$proc/comm" ] || [ ! -r "$proc/status" ]; then
+    if [ ! -d "$proc" ] || [ ! -e "$proc/comm" ] || [ ! -e "$proc/status" ]; then
+      php_proc_vanished=$((php_proc_vanished + 1))
+    else
+      php_proc_unreadable=$((php_proc_unreadable + 1))
+    fi
+    continue
+  fi
+  if ! IFS= read -r comm < "$proc/comm"; then
+    if [ -d "$proc" ] && [ -e "$proc/comm" ]; then
+      php_proc_unreadable=$((php_proc_unreadable + 1))
+    else
+      php_proc_vanished=$((php_proc_vanished + 1))
+    fi
+    continue
+  fi
   printf '%s' "$comm" | grep -Eq '^lsphp' || continue
+  php_proc_lsphp=$((php_proc_lsphp + 1))
   uid="$(awk '/^Uid:/ { print $2; exit }' "$proc/status" 2>/dev/null || true)"
   gid="$(awk '/^Gid:/ { print $2; exit }' "$proc/status" 2>/dev/null || true)"
-  printf '%s' "$uid" | grep -Eq '^[0-9]+$' || continue
-  printf '%s' "$gid" | grep -Eq '^[0-9]+$' || continue
-  user="$(id -nu "$uid" 2>/dev/null || true)"
+  if [ ! -d "$proc" ] || [ ! -e "$proc/status" ]; then
+    php_proc_vanished=$((php_proc_vanished + 1))
+    continue
+  fi
+  if ! printf '%s' "$uid" | grep -Eq '^[0-9]+$' || ! printf '%s' "$gid" | grep -Eq '^[0-9]+$'; then
+    php_proc_invalid_id=$((php_proc_invalid_id + 1))
+    continue
+  fi
+  user="$(probe_id -nu "$uid" 2>/dev/null || true)"
   printf '%s' "$user" | grep -Eq '^[A-Za-z0-9._-]+$' || user="unknown"
   group_names=""
   group_ids="$(awk '/^Groups:/ { for (i = 2; i <= NF && i <= 33; i++) printf "%s ", $i; exit }' "$proc/status" 2>/dev/null || true)"
@@ -166,11 +234,25 @@ for proc in "${root}/proc"/[0-9]*; do
       ;;
   esac
 done
+echo "php_proc_dirs=${php_proc_dirs}"
+echo "php_proc_unreadable=${php_proc_unreadable}"
+echo "php_proc_vanished=${php_proc_vanished}"
+echo "php_proc_lsphp=${php_proc_lsphp}"
+echo "php_proc_invalid_id=${php_proc_invalid_id}"
 if [ "$php_timed_out" -eq 1 ]; then
   echo "php_process=timed_out"
   app_user=""
+elif [ "$php_proc_vanished" -gt 0 ]; then
+  echo "php_process=incomplete"
+  app_user=""
+elif [ "$php_proc_unreadable" -gt 0 ]; then
+  echo "php_process=unreadable"
+  app_user=""
+elif [ "$php_proc_lsphp" -eq 0 ]; then
+  echo "php_process=none"
+  app_user=""
 elif [ "$php_user_count" -eq 0 ]; then
-  echo "php_process=unknown"
+  echo "php_process=invalid_id"
   app_user=""
 elif [ "$php_user_count" -ne 1 ]; then
   echo "app_user=unresolved"

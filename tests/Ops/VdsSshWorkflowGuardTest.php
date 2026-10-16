@@ -286,7 +286,17 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('dac_check_proves_selinux=no', $remote);
         self::assertStringContainsString('root_connection_counts_as_app=no', $remote);
         self::assertStringContainsString('app_user=not_app_user', $remote);
-        self::assertStringContainsString('php_process=unknown', $remote);
+        self::assertStringContainsString('php_proc_dirs=', $remote);
+        self::assertStringContainsString('php_proc_unreadable=', $remote);
+        self::assertStringContainsString('php_proc_vanished=', $remote);
+        self::assertStringContainsString('php_proc_lsphp=', $remote);
+        self::assertStringContainsString('php_proc_invalid_id=', $remote);
+        self::assertStringContainsString('php_process=none', $remote);
+        self::assertStringContainsString('php_process=unreadable', $remote);
+        self::assertStringContainsString('php_process=incomplete', $remote);
+        self::assertStringContainsString('php_process=timed_out', $remote);
+        self::assertStringNotContainsString('php_process=unknown', $remote);
+        self::assertStringNotContainsString('curl ', $remote);
         self::assertStringContainsString('timeout 2', $remote);
         self::assertStringContainsString('timeout 12', $remote);
         self::assertStringContainsString('site_account=unverified', $remote);
@@ -362,8 +372,13 @@ final class VdsSshWorkflowGuardTest extends TestCase
         $empty = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-empty-'.bin2hex(random_bytes(4));
         mkdir($empty.'/proc', 0777, true);
         $emptyOutput = $this->runProbe($bash, $this->bashPath($bash, $empty));
-        self::assertStringContainsString('php_process=unknown', $emptyOutput);
-        self::assertStringNotContainsString('app_user_basis=site_account', $emptyOutput);
+        self::assertStringContainsString('php_proc_dirs=0', $emptyOutput);
+        self::assertStringContainsString('php_proc_unreadable=0', $emptyOutput);
+        self::assertStringContainsString('php_proc_vanished=0', $emptyOutput);
+        self::assertStringContainsString('php_proc_lsphp=0', $emptyOutput);
+        self::assertStringContainsString('php_proc_invalid_id=0', $emptyOutput);
+        self::assertStringContainsString('php_process=none', $emptyOutput);
+        $this->assertScanDoesNotImpersonate($emptyOutput);
 
         $other = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-other-'.bin2hex(random_bytes(4));
         mkdir($other.'/proc/10', 0777, true);
@@ -379,6 +394,125 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('app_ping=not_attempted', $otherOutput);
         self::assertStringNotContainsString('app_user_basis=site_account', $otherOutput);
         self::assertStringNotContainsString('app_user=testl3865', $otherOutput);
+    }
+
+    public function testClamavAccessProbeClassifiesProcessScan(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+
+        $otherName = $this->probeRoot('other-name');
+        $this->writeLsphp($otherName, '12', "php\n", $this->lsphpStatus('12'));
+        $otherNameOutput = $this->runProbe($bash, $this->bashPath($bash, $otherName));
+        self::assertStringContainsString('php_proc_dirs=1', $otherNameOutput);
+        self::assertStringContainsString('php_proc_lsphp=0', $otherNameOutput);
+        self::assertStringContainsString('php_process=none', $otherNameOutput);
+        self::assertStringNotContainsString('php_process uid=', $otherNameOutput);
+        $this->assertScanDoesNotImpersonate($otherNameOutput);
+
+        $invalid = $this->probeRoot('invalid-id');
+        $this->writeLsphp($invalid, '13', "lsphp\n", "Name:\tlsphp\nUid:\tbad\nGid:\t13\t13\t13\t13\n");
+        $invalidOutput = $this->runProbe($bash, $this->bashPath($bash, $invalid));
+        self::assertStringContainsString('php_proc_dirs=1', $invalidOutput);
+        self::assertStringContainsString('php_proc_lsphp=1', $invalidOutput);
+        self::assertStringContainsString('php_proc_invalid_id=1', $invalidOutput);
+        self::assertStringContainsString('php_process=invalid_id', $invalidOutput);
+        self::assertStringNotContainsString('php_process uid=', $invalidOutput);
+        $this->assertScanDoesNotImpersonate($invalidOutput);
+
+        $unreadable = $this->probeRoot('unreadable');
+        $this->writeLsphp($unreadable, '14', "lsphp\n", $this->lsphpStatus('14'));
+        $this->denyRead($bash, $unreadable.'/proc/14/comm');
+        $this->denyRead($bash, $unreadable.'/proc/14/status');
+        $unreadableOutput = $this->runProbe($bash, $this->bashPath($bash, $unreadable));
+        self::assertStringContainsString('php_proc_dirs=1', $unreadableOutput);
+        self::assertStringContainsString('php_proc_unreadable=1', $unreadableOutput);
+        self::assertStringContainsString('php_proc_lsphp=0', $unreadableOutput);
+        self::assertStringContainsString('php_process=unreadable', $unreadableOutput);
+        $this->assertScanDoesNotImpersonate($unreadableOutput);
+
+        $vanished = $this->probeRoot('vanished');
+        mkdir($vanished.'/proc/15', 0777, true);
+        $this->writeSiteFixtures($vanished);
+        mkdir($vanished.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($vanished, '16', "lsphp\n", $this->lsphpStatus('4242'));
+        $vanishedOutput = $this->runProbe($bash, $this->bashPath($bash, $vanished));
+        self::assertStringContainsString('php_proc_dirs=2', $vanishedOutput);
+        self::assertStringContainsString('php_proc_vanished=1', $vanishedOutput);
+        self::assertStringContainsString('php_proc_unreadable=0', $vanishedOutput);
+        self::assertStringContainsString('php_proc_lsphp=1', $vanishedOutput);
+        self::assertStringContainsString('php_process=incomplete', $vanishedOutput);
+        $this->assertScanDoesNotImpersonate($vanishedOutput);
+
+        $blocked = $this->probeRoot('blocked-match');
+        $this->writeSiteFixtures($blocked);
+        mkdir($blocked.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($blocked, '17', "lsphp\n", $this->lsphpStatus('4242'));
+        $this->writeLsphp($blocked, '18', "lsphp\n", $this->lsphpStatus('18'));
+        $this->denyRead($bash, $blocked.'/proc/18/comm');
+        $this->denyRead($bash, $blocked.'/proc/18/status');
+        $blockedOutput = $this->runProbe($bash, $this->bashPath($bash, $blocked));
+        self::assertStringContainsString('php_proc_unreadable=1', $blockedOutput);
+        self::assertStringContainsString('php_proc_lsphp=1', $blockedOutput);
+        self::assertStringContainsString('php_process=unreadable', $blockedOutput);
+        $this->assertScanDoesNotImpersonate($blockedOutput);
+
+        $matched = $this->probeRoot('site-user');
+        $this->writeSiteFixtures($matched);
+        mkdir($matched.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($matched, '19', "lsphp\n", $this->lsphpStatus('4242'));
+        $matchedBefore = $this->fixtureFiles($matched);
+        $matchedOutput = $this->runProbe($bash, $this->bashPath($bash, $matched));
+        self::assertSame($matchedBefore, $this->fixtureFiles($matched));
+        self::assertStringContainsString('php_proc_dirs=1', $matchedOutput);
+        self::assertStringContainsString('php_proc_unreadable=0', $matchedOutput);
+        self::assertStringContainsString('php_proc_vanished=0', $matchedOutput);
+        self::assertStringContainsString('php_proc_lsphp=1', $matchedOutput);
+        self::assertStringContainsString('php_proc_invalid_id=0', $matchedOutput);
+        self::assertStringContainsString('php_process uid=4242 ', $matchedOutput);
+        self::assertStringContainsString('user=testl3865 ', $matchedOutput);
+        self::assertStringContainsString('app_user_basis=site_account', $matchedOutput);
+        self::assertStringContainsString('app_user=testl3865', $matchedOutput);
+        self::assertStringContainsString('app_ping=not_attempted', $matchedOutput);
+        self::assertStringNotContainsString('app_user=root', $matchedOutput);
+
+        $rootUser = $this->probeRoot('root-user');
+        $this->writeSiteFixtures($rootUser);
+        mkdir($rootUser.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($rootUser, '20', "lsphp\n", $this->lsphpStatus('0'));
+        $rootOutput = $this->runProbe($bash, $this->bashPath($bash, $rootUser));
+        self::assertStringContainsString('php_process uid=0 ', $rootOutput);
+        self::assertStringContainsString('user=root ', $rootOutput);
+        self::assertStringContainsString('app_user=not_app_user', $rootOutput);
+        $this->assertScanDoesNotImpersonate($rootOutput);
+
+        $timedOut = $this->probeRoot('timed-out');
+        $this->writeSiteFixtures($timedOut);
+        file_put_contents($timedOut.'/fixture-date', <<<'BASH'
+#!/bin/bash
+dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+file="$dir/date-calls"
+n=0
+if [ -f "$file" ]; then
+  n=$(cat "$file" 2>/dev/null || printf '%s' 0)
+fi
+case "$n" in
+  ''|*[!0-9]*) n=0 ;;
+esac
+n=$((n + 1))
+printf '%s\n' "$n" > "$file"
+if [ "$n" -le 1 ]; then
+  printf '%s\n' 1000000000
+else
+  printf '%s\n' 1000000002
+fi
+BASH);
+        mkdir($timedOut.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($timedOut, '21', "lsphp\n", $this->lsphpStatus('4242'));
+        $timedOutOutput = $this->runProbe($bash, $this->bashPath($bash, $timedOut));
+        self::assertStringContainsString('php_process=timed_out', $timedOutOutput);
+        self::assertStringNotContainsString('php_process uid=', $timedOutOutput);
+        $this->assertScanDoesNotImpersonate($timedOutOutput);
     }
 
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
@@ -542,6 +676,81 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertIsString($text, $relative);
 
         return $text;
+    }
+
+    private function assertScanDoesNotImpersonate(string $output): void
+    {
+        self::assertStringNotContainsString('app_user_basis=site_account', $output);
+        self::assertStringNotContainsString('app_user=testl3865', $output);
+        self::assertStringContainsString('app_ping=not_attempted', $output);
+    }
+
+    private function probeRoot(string $label): string
+    {
+        $root = str_replace('\\', '/', sys_get_temp_dir()).'/clamav-access-probe-'.$label.'-'.bin2hex(random_bytes(4));
+        mkdir($root.'/proc', 0777, true);
+
+        return $root;
+    }
+
+    private function lsphpStatus(string $uid): string
+    {
+        return "Name:\tlsphp\nUid:\t{$uid}\t{$uid}\t{$uid}\t{$uid}\nGid:\t{$uid}\t{$uid}\t{$uid}\t{$uid}\nGroups:\t{$uid}\n";
+    }
+
+    private function writeLsphp(string $root, string $pid, string $comm, string $status): void
+    {
+        mkdir($root.'/proc/'.$pid, 0777, true);
+        file_put_contents($root.'/proc/'.$pid.'/comm', $comm);
+        file_put_contents($root.'/proc/'.$pid.'/status', $status);
+    }
+
+    private function writeSiteFixtures(string $root): void
+    {
+        file_put_contents($root.'/fixture-id', <<<'BASH'
+#!/bin/bash
+if [ "$1" = "-u" ] && [ "$2" = "testl3865" ]; then
+  printf '%s\n' 4242
+  exit 0
+fi
+if [ "$1" = "-nu" ] && [ "$2" = "4242" ]; then
+  printf '%s\n' testl3865
+  exit 0
+fi
+if [ "$1" = "-nu" ] && [ "$2" = "0" ]; then
+  printf '%s\n' root
+  exit 0
+fi
+exit 1
+BASH);
+        file_put_contents($root.'/fixture-stat', <<<'BASH'
+#!/bin/bash
+if [ "$1" = "-c" ] && [ "$2" = "%u" ]; then
+  printf '%s\n' 4242
+  exit 0
+fi
+exit 1
+BASH);
+    }
+
+    private function denyRead(string $bash, string $path): void
+    {
+        $quoted = str_replace("'", "'\\''", $this->bashPath($bash, $path));
+        $pipes = [];
+        $process = proc_open([$bash, '-c', "chmod a-r -- '$quoted' && if [ -r '$quoted' ]; then echo readable; else echo unreadable; fi"], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        $stderr = \is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';
+        foreach ($pipes as $pipe) {
+            if (\is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        self::assertSame(0, proc_close($process), $stdout."\n".$stderr);
+        if (!str_contains($stdout, 'unreadable')) {
+            unlink($path);
+            mkdir($path, 0777, true);
+        }
     }
 
     private function bashPath(string $bash, string $path): string
