@@ -53,7 +53,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $student->disableReboot();
         $studentSpy = $this->installSpy($student);
         $student->request('POST', '/yonetim/calisma-kimligi', $this->payload($student, self::NONCE));
-        self::assertResponseStatusCodeSame(403);
+        self::assertResponseStatusCodeSame(404);
         $this->assertReaderNotCalled($student, $studentSpy);
 
         self::ensureKernelShutdown();
