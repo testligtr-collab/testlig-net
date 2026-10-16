@@ -476,6 +476,32 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('app_ping=not_attempted', $matchedOutput);
         self::assertStringNotContainsString('app_user=root', $matchedOutput);
 
+        $badUid = $this->probeRoot('bad-uid');
+        $this->writeSiteFixtures($badUid);
+        mkdir($badUid.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($badUid, '22', "lsphp\n", $this->lsphpStatus('4242'));
+        $this->writeLsphp($badUid, '23', "lsphp\n", "Name:\tlsphp\nUid:\tbad\nGid:\t23\t23\t23\t23\n");
+        $badUidOutput = $this->runProbe($bash, $this->bashPath($bash, $badUid));
+        self::assertStringContainsString('php_proc_lsphp=2', $badUidOutput);
+        self::assertStringContainsString('php_proc_invalid_id=1', $badUidOutput);
+        self::assertStringContainsString('php_process=invalid_id', $badUidOutput);
+        self::assertStringContainsString('php_process uid=4242 ', $badUidOutput);
+        $this->assertScanDoesNotImpersonate($badUidOutput);
+        self::assertStringContainsString('app_version_daily=not_attempted', $badUidOutput);
+
+        $badGid = $this->probeRoot('bad-gid');
+        $this->writeSiteFixtures($badGid);
+        mkdir($badGid.'/home/testlig.net', 0777, true);
+        $this->writeLsphp($badGid, '24', "lsphp\n", $this->lsphpStatus('4242'));
+        $this->writeLsphp($badGid, '25', "lsphp\n", "Name:\tlsphp\nUid:\t25\t25\t25\t25\nGid:\tbad\n");
+        $badGidOutput = $this->runProbe($bash, $this->bashPath($bash, $badGid));
+        self::assertStringContainsString('php_proc_lsphp=2', $badGidOutput);
+        self::assertStringContainsString('php_proc_invalid_id=1', $badGidOutput);
+        self::assertStringContainsString('php_process=invalid_id', $badGidOutput);
+        self::assertStringContainsString('php_process uid=4242 ', $badGidOutput);
+        $this->assertScanDoesNotImpersonate($badGidOutput);
+        self::assertStringContainsString('app_version_daily=not_attempted', $badGidOutput);
+
         $rootUser = $this->probeRoot('root-user');
         $this->writeSiteFixtures($rootUser);
         mkdir($rootUser.'/home/testlig.net', 0777, true);

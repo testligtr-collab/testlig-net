@@ -251,7 +251,7 @@ elif [ "$php_proc_unreadable" -gt 0 ]; then
 elif [ "$php_proc_lsphp" -eq 0 ]; then
   echo "php_process=none"
   app_user=""
-elif [ "$php_user_count" -eq 0 ]; then
+elif [ "$php_proc_invalid_id" -gt 0 ]; then
   echo "php_process=invalid_id"
   app_user=""
 elif [ "$php_user_count" -ne 1 ]; then
