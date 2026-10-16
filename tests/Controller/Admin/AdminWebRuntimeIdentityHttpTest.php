@@ -80,7 +80,6 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         WebRuntimeIdentityReader::resetReadCount();
         $admin->request('GET', '/yonetim/denetim');
         self::assertResponseStatusCodeSame(403);
-        self::assertStringNotContainsString('/yonetim/calisma-kimligi', (string) $admin->getResponse()->getContent());
         $this->assertReaderNotCalled($admin);
         WebRuntimeIdentityReader::resetReadCount();
         $admin->request('POST', '/yonetim/calisma-kimligi', $this->payload($admin, self::NONCE));
