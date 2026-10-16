@@ -112,9 +112,6 @@ services:
         alias: App\Question\Image\Scan\ConfiguredClamavSignatureObservation
         public: true
 
-    App\Security\WebRuntimeIdentityReader:
-        public: true
-
     App\Controller\Admin\AdminWebRuntimeIdentityController:
         arguments:
             $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'

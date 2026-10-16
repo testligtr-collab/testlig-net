@@ -14,9 +14,24 @@ class WebRuntimeIdentityReader
 {
     public const GROUP_LIMIT = 64;
 
+    private static int $reads = 0;
+
     public function __construct(
         private readonly WebRuntimeIdentityProbe $probe,
     ) {
+    }
+
+    /**
+     * In-process call count. Tests use it to prove rejected requests never read identity.
+     */
+    public static function readCount(): int
+    {
+        return self::$reads;
+    }
+
+    public static function resetReadCount(): void
+    {
+        self::$reads = 0;
     }
 
     /**
@@ -24,6 +39,7 @@ class WebRuntimeIdentityReader
      */
     public function read(string $nonce): array
     {
+        ++self::$reads;
         if ('cli' === $this->probe->sapi() || 'cli-server' === $this->probe->sapi() || !$this->probe->available()) {
             return $this->unresolved($nonce);
         }
