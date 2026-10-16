@@ -10,6 +10,14 @@
     </nav>
     <h1 class="panel-greeting">Güvenlik denetim olayları</h1>
 
+    {% if webRuntimeIdentityEnabled and webRuntimeIdentityNonce %}
+        <form method="post" action="{{ path('app_admin_web_runtime_identity') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('web_runtime_identity') }}">
+            <input type="hidden" name="nonce" value="{{ webRuntimeIdentityNonce }}">
+            <button type="submit">Çalışma kimliğini ölç</button>
+        </form>
+    {% endif %}
+
     {% if result.items is empty %}
         {% include 'components/empty_state.html.twig' with {
             title: 'Olay yok',

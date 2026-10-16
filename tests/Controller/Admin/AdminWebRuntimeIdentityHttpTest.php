@@ -52,6 +52,10 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $this->enableProbe();
         $anonymous = static::createClient();
         WebRuntimeIdentityReader::resetReadCount();
+        $anonymous->request('GET', '/yonetim/denetim');
+        self::assertResponseRedirects('/giris');
+        $this->assertReaderNotCalled($anonymous);
+        WebRuntimeIdentityReader::resetReadCount();
         $anonymous->request('POST', '/yonetim/calisma-kimligi');
         self::assertResponseRedirects('/giris');
         $this->assertReaderNotCalled($anonymous);
@@ -60,6 +64,10 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         self::ensureKernelShutdown();
         $student = static::createClient();
         $this->loginAs($student, 'web_runtime_student@example.com', UserRole::Student);
+        WebRuntimeIdentityReader::resetReadCount();
+        $student->request('GET', '/yonetim/denetim');
+        self::assertResponseStatusCodeSame(403);
+        $this->assertReaderNotCalled($student);
         WebRuntimeIdentityReader::resetReadCount();
         $student->request('POST', '/yonetim/calisma-kimligi', $this->payload($student, self::NONCE));
         self::assertResponseStatusCodeSame(404);
@@ -70,6 +78,11 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         $admin = static::createClient();
         $this->loginAs($admin, 'web_runtime_admin@example.com', UserRole::Admin);
         WebRuntimeIdentityReader::resetReadCount();
+        $admin->request('GET', '/yonetim/denetim');
+        self::assertResponseStatusCodeSame(403);
+        self::assertStringNotContainsString('/yonetim/calisma-kimligi', (string) $admin->getResponse()->getContent());
+        $this->assertReaderNotCalled($admin);
+        WebRuntimeIdentityReader::resetReadCount();
         $admin->request('POST', '/yonetim/calisma-kimligi', $this->payload($admin, self::NONCE));
         self::assertResponseStatusCodeSame(404);
         $this->assertReaderNotCalled($admin);
@@ -79,6 +92,15 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         self::ensureKernelShutdown();
         $closed = static::createClient();
         $this->loginAs($closed, 'web_runtime_closed@example.com', UserRole::SuperAdmin);
+        WebRuntimeIdentityReader::resetReadCount();
+        $closed->request('GET', '/yonetim/denetim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Güvenlik denetim olayları');
+        self::assertSelectorNotExists('form[action="/yonetim/calisma-kimligi"]');
+        self::assertStringNotContainsString('/yonetim/calisma-kimligi', (string) $closed->getResponse()->getContent());
+        self::assertStringNotContainsString('name="nonce"', (string) $closed->getResponse()->getContent());
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        $this->assertReaderNotCalled($closed);
         WebRuntimeIdentityReader::resetReadCount();
         $closed->request('POST', '/yonetim/calisma-kimligi', $this->payload($closed, self::NONCE));
         self::assertResponseStatusCodeSame(404);
@@ -156,14 +178,27 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         self::assertStringNotContainsString('/yonetim/calisma-kimligi', (string) $client->getResponse()->getContent());
 
         WebRuntimeIdentityReader::resetReadCount();
-        $client->request('POST', '/yonetim/calisma-kimligi', $this->payload($client, self::NONCE));
+        $crawler = $client->request('GET', '/yonetim/denetim');
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, WebRuntimeIdentityReader::readCount());
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSelectorTextContains('h1', 'Güvenlik denetim olayları');
+        $form = $crawler->filter('form[action="/yonetim/calisma-kimligi"]');
+        self::assertCount(1, $form);
+        $nonce = $form->filter('input[name="nonce"]')->attr('value');
+        self::assertIsString($nonce);
+        self::assertSame(1, preg_match('/^[A-Za-z0-9]{16,64}$/', $nonce));
+        self::assertNotSame('', (string) $form->filter('input[name="_token"]')->attr('value'));
+
+        WebRuntimeIdentityReader::resetReadCount();
+        $client->submit($form->form());
         self::assertResponseIsSuccessful();
         self::assertSame(1, WebRuntimeIdentityReader::readCount());
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
         self::assertResponseHeaderSame('Pragma', 'no-cache');
         $payload = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertSame([
-            'nonce' => self::NONCE,
+            'nonce' => $nonce,
             'status' => 'unresolved',
         ], $payload);
     }

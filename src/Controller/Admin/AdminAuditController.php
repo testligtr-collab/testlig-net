@@ -19,6 +19,7 @@ final class AdminAuditController extends AdminBaseController
     public function __construct(
         AdminNavBuilder $adminNavBuilder,
         private readonly AdminAuditReadModel $auditReadModel,
+        private readonly bool $webRuntimeIdentityEnabled,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -38,6 +39,8 @@ final class AdminAuditController extends AdminBaseController
 
         return $this->renderAdmin('admin/audit/list.html.twig', [
             'result' => $result,
+            'webRuntimeIdentityEnabled' => $this->webRuntimeIdentityEnabled,
+            'webRuntimeIdentityNonce' => $this->webRuntimeIdentityEnabled ? bin2hex(random_bytes(16)) : null,
         ]);
     }
 }
