@@ -116,6 +116,10 @@ services:
         arguments:
             $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
 
+    App\Controller\Admin\AdminAuditController:
+        arguments:
+            $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
+
     App\Question\Image\QuestionImageStoreResolver:
         arguments:
             $local: '@App\Question\Image\LocalQuestionImageStore'
