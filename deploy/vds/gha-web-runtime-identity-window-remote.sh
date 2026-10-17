@@ -21,6 +21,7 @@ changed_shared=0
 changed_release=0
 files_changed=no
 record_state=absent
+rollback_done=0
 
 declare -A key_state=()
 declare -A key_line=()
@@ -28,9 +29,10 @@ declare -A key_line=()
 finish() {
   local status=$?
   set +e
-  if [ "$status" -ne 0 ] && { [ "$changed_shared" -eq 1 ] || [ "$changed_release" -eq 1 ]; }; then
+  if [ "$rollback_done" -eq 0 ] && [ "$status" -ne 0 ] && { [ "$changed_shared" -eq 1 ] || [ "$changed_release" -eq 1 ]; }; then
     rollback_changes
-    status=$?
+    rollback_done=1
+    status=1
   fi
   printf 'files_changed=%s\n' "$files_changed"
   printf 'record=%s\n' "$record_state"
@@ -223,7 +225,7 @@ rewrite_file() {
   if [ "$saw_expires" -eq 0 ] && [ "$expires_raw" != absent ]; then
     printf '%s\n' "$(decode_field "$expires_raw")" >> "$tmp"
   fi
-  cat "$tmp" > "$file"
+  cat "$tmp" > "$file" || return 1
   rm -f "$tmp"
   files_changed=yes
 }
@@ -282,6 +284,20 @@ rollback_changes() {
   fi
   record_state=kept
   printf 'rollback=failed\n'
+  printf 'rollback_shared_enabled=%s\n' "${key_state[shared:WEB_RUNTIME_IDENTITY_ENABLED]:-unset}"
+  printf 'rollback_shared_expires=%s\n' "${key_state[shared:WEB_RUNTIME_IDENTITY_EXPIRES_AT]:-unset}"
+  printf 'rollback_release_enabled=%s\n' "${key_state[release:WEB_RUNTIME_IDENTITY_ENABLED]:-unset}"
+  printf 'rollback_release_expires=%s\n' "${key_state[release:WEB_RUNTIME_IDENTITY_EXPIRES_AT]:-unset}"
+  if [ "$shared_enabled" = absent ]; then
+    printf 'rollback_record_shared_enabled=absent\n'
+  else
+    printf 'rollback_record_shared_enabled=encoded\n'
+  fi
+  if [ "$release_expires" = absent ]; then
+    printf 'rollback_record_release_expires=absent\n'
+  else
+    printf 'rollback_record_release_expires=encoded\n'
+  fi
   return 1
 }
 
@@ -373,7 +389,15 @@ printf 'mode=%s\n' "$mode"
 printf 'release_sha=%s\n' "$expected"
 
 if [ "$mode" = open ]; then
-  open_window
+  if ! open_window; then
+    rollback_changes
+    rollback_done=1
+    exit 1
+  fi
 else
-  restore_window
+  if ! restore_window; then
+    rollback_changes
+    rollback_done=1
+    exit 1
+  fi
 fi
