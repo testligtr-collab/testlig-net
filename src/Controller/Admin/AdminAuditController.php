@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Exception\CommerceException;
 use App\Security\AdminPermission;
+use App\Security\WebRuntimeIdentityGate;
 use App\Service\Admin\AdminAuditReadModel;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\AdminPagination;
@@ -19,7 +20,7 @@ final class AdminAuditController extends AdminBaseController
     public function __construct(
         AdminNavBuilder $adminNavBuilder,
         private readonly AdminAuditReadModel $auditReadModel,
-        private readonly bool $webRuntimeIdentityEnabled,
+        private readonly WebRuntimeIdentityGate $webRuntimeIdentityGate,
     ) {
         parent::__construct($adminNavBuilder);
     }
@@ -37,10 +38,12 @@ final class AdminAuditController extends AdminBaseController
             $this->mapCommerceException($e);
         }
 
+        $webRuntimeIdentityOpen = $this->webRuntimeIdentityGate->isOpen();
+
         return $this->renderAdmin('admin/audit/list.html.twig', [
             'result' => $result,
-            'webRuntimeIdentityEnabled' => $this->webRuntimeIdentityEnabled,
-            'webRuntimeIdentityNonce' => $this->webRuntimeIdentityEnabled ? bin2hex(random_bytes(16)) : null,
+            'webRuntimeIdentityEnabled' => $webRuntimeIdentityOpen,
+            'webRuntimeIdentityNonce' => $webRuntimeIdentityOpen ? bin2hex(random_bytes(16)) : null,
         ]);
     }
 }

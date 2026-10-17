@@ -13,6 +13,9 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
@@ -23,6 +26,7 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
 
     protected function tearDown(): void
     {
+        Clock::set(new NativeClock());
         $this->disableProbe();
         $client = null;
         try {
@@ -202,6 +206,57 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         ], $payload);
     }
 
+    public function testEnabledFlagWithoutAValidExpiryKeepsFormAndPostClosed(): void
+    {
+        $now = new \DateTimeImmutable('2026-10-17 12:00:00', new \DateTimeZone('UTC'));
+        $cases = [
+            'web_runtime_missing@example.com' => '',
+            'web_runtime_malformed@example.com' => '1700000000abc',
+            'web_runtime_past@example.com' => (string) ($now->getTimestamp() - 1),
+            'web_runtime_exact@example.com' => (string) $now->getTimestamp(),
+            'web_runtime_far@example.com' => (string) ($now->getTimestamp() + 901),
+        ];
+        foreach ($cases as $email => $expiresAt) {
+            Clock::set(new MockClock($now));
+            $this->enableProbe($expiresAt);
+            self::ensureKernelShutdown();
+            $client = static::createClient();
+            $this->loginAs($client, $email, UserRole::SuperAdmin);
+            WebRuntimeIdentityReader::resetReadCount();
+            $client->request('GET', '/yonetim/denetim');
+            self::assertResponseIsSuccessful();
+            self::assertSelectorNotExists('form[action="/yonetim/calisma-kimligi"]');
+            self::assertStringNotContainsString('name="nonce"', (string) $client->getResponse()->getContent());
+            $this->assertReaderNotCalled($client);
+            WebRuntimeIdentityReader::resetReadCount();
+            $client->request('POST', '/yonetim/calisma-kimligi', $this->payload($client, self::NONCE));
+            self::assertResponseStatusCodeSame(404);
+            $this->assertReaderNotCalled($client);
+            $this->releaseClient($client);
+        }
+    }
+
+    public function testFormTokenCannotReachReaderAfterTheWindowEnds(): void
+    {
+        $now = new \DateTimeImmutable('2026-10-17 12:00:00', new \DateTimeZone('UTC'));
+        Clock::set(new MockClock($now));
+        $this->enableProbe((string) ($now->getTimestamp() + 60));
+        $client = static::createClient();
+        $this->loginAs($client, 'web_runtime_expired_post@example.com', UserRole::SuperAdmin);
+        WebRuntimeIdentityReader::resetReadCount();
+        $crawler = $client->request('GET', '/yonetim/denetim');
+        self::assertResponseIsSuccessful();
+        $form = $crawler->filter('form[action="/yonetim/calisma-kimligi"]');
+        self::assertCount(1, $form);
+        $this->assertReaderNotCalled($client);
+
+        Clock::set(new MockClock($now->modify('+60 seconds')));
+        WebRuntimeIdentityReader::resetReadCount();
+        $client->submit($form->form());
+        self::assertResponseStatusCodeSame(404);
+        $this->assertReaderNotCalled($client);
+    }
+
     private function releaseClient(KernelBrowser $client): void
     {
         try {
@@ -257,17 +312,27 @@ final class AdminWebRuntimeIdentityHttpTest extends WebTestCase
         }
     }
 
-    private function enableProbe(): void
+    private function enableProbe(?string $expiresAt = null): void
     {
         $_SERVER['WEB_RUNTIME_IDENTITY_ENABLED'] = '1';
         $_ENV['WEB_RUNTIME_IDENTITY_ENABLED'] = '1';
         putenv('WEB_RUNTIME_IDENTITY_ENABLED=1');
+        $expiresAt ??= (string) (time() + 300);
+        $_SERVER['WEB_RUNTIME_IDENTITY_EXPIRES_AT'] = $expiresAt;
+        $_ENV['WEB_RUNTIME_IDENTITY_EXPIRES_AT'] = $expiresAt;
+        putenv('WEB_RUNTIME_IDENTITY_EXPIRES_AT='.$expiresAt);
     }
 
     private function disableProbe(): void
     {
-        unset($_SERVER['WEB_RUNTIME_IDENTITY_ENABLED'], $_ENV['WEB_RUNTIME_IDENTITY_ENABLED']);
+        unset(
+            $_SERVER['WEB_RUNTIME_IDENTITY_ENABLED'],
+            $_ENV['WEB_RUNTIME_IDENTITY_ENABLED'],
+            $_SERVER['WEB_RUNTIME_IDENTITY_EXPIRES_AT'],
+            $_ENV['WEB_RUNTIME_IDENTITY_EXPIRES_AT'],
+        );
         putenv('WEB_RUNTIME_IDENTITY_ENABLED');
+        putenv('WEB_RUNTIME_IDENTITY_EXPIRES_AT');
     }
 
     private function loginAs(KernelBrowser $client, string $email, UserRole $role): User
