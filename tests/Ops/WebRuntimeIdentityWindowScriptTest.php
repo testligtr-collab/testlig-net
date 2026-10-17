@@ -15,6 +15,8 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
 
     private const PREVIOUS = 'previous-enabled-token';
 
+    private ?bool $chmodApplies = null;
+
     public function testOpenChangesOnlyTheTwoKeysAndHidesFileContents(): void
     {
         $root = $this->fixture();
@@ -176,7 +178,184 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         self::assertStringNotContainsString('lswsctrl', $script);
         self::assertStringNotContainsString('setfacl', $script);
         self::assertStringNotContainsString('/yonetim/', $script);
+        self::assertStringNotContainsString('TESTLIG_IDENTITY_WINDOW_RECORD_UID', $workflow);
+        self::assertStringNotContainsString('TESTLIG_IDENTITY_WINDOW_FAIL', $workflow);
+        self::assertStringNotContainsString('TESTLIG_IDENTITY_WINDOW_MODE_LEDGER', $workflow);
+        self::assertStringNotContainsString('cat "$tmp" >', $script);
         self::assertDoesNotMatchRegularExpression('/\n\s*push:/', $workflow);
+    }
+
+    public function testPrepareAndReplaceFailuresLeaveOriginalBytes(): void
+    {
+        foreach (['temp_prepare', 'atomic_replace'] as $fail) {
+            $root = $this->fixture();
+            $original = 'OTHER_SECRET='.self::SECRET."\n";
+            $release = $this->prepare($root, $original);
+
+            $result = $this->runWindow($root, 'open', self::SHA, [
+                'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+                'TESTLIG_IDENTITY_WINDOW_FAIL' => $fail,
+            ]);
+
+            self::assertNotSame(0, $result['exit'], $fail."\n".$result['output']);
+            self::assertStringContainsString('result=stopped', $result['output'], $fail);
+            self::assertStringNotContainsString('result=opened', $result['output'], $fail);
+            self::assertStringNotContainsString('result=restored', $result['output'], $fail);
+            self::assertStringNotContainsString(self::SECRET, $result['output'], $fail);
+            self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'), $fail);
+            self::assertSame($original, $this->read($root, $release.'/.env.local'), $fail);
+            $this->assertNoTemps($root, $release);
+        }
+    }
+
+    public function testRecordCreateAndMoveFailuresLeaveEnvUntouched(): void
+    {
+        foreach (['record_write', 'record_move'] as $fail) {
+            $root = $this->fixture();
+            $original = 'OTHER_SECRET='.self::SECRET."\n";
+            $release = $this->prepare($root, $original);
+
+            $result = $this->runWindow($root, 'open', self::SHA, [
+                'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+                'TESTLIG_IDENTITY_WINDOW_FAIL' => $fail,
+            ]);
+
+            self::assertNotSame(0, $result['exit'], $fail."\n".$result['output']);
+            self::assertStringContainsString('result=stopped', $result['output'], $fail);
+            self::assertStringContainsString('rollback=not_needed', $result['output'], $fail);
+            self::assertStringContainsString('record=absent', $result['output'], $fail);
+            self::assertStringNotContainsString('result=opened', $result['output'], $fail);
+            self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'), $fail);
+            self::assertSame($original, $this->read($root, $release.'/.env.local'), $fail);
+            self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+            $this->assertNoTemps($root, $release);
+        }
+    }
+
+    public function testRollbackContinuesWhenOneFileCannotBeRestored(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\n";
+        $release = $this->prepare($root, $original);
+
+        $result = $this->runWindow($root, 'open', self::SHA, [
+            'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+            'TESTLIG_IDENTITY_WINDOW_FAIL' => 'rollback_shared_after_both',
+        ]);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('rollback=failed', $result['output']);
+        self::assertStringContainsString('record=kept', $result['output']);
+        self::assertStringContainsString('result=stopped', $result['output']);
+        self::assertStringNotContainsString('result=opened', $result['output']);
+        self::assertStringNotContainsString('result=restored', $result['output']);
+        self::assertStringNotContainsString(self::SECRET, $result['output']);
+        $shared = $this->read($root, 'home/testlig.net/shared/.env.local');
+        self::assertStringContainsString('WEB_RUNTIME_IDENTITY_ENABLED=1', $shared);
+        self::assertStringContainsString('OTHER_SECRET='.self::SECRET, $shared);
+        self::assertSame($original, $this->read($root, $release.'/.env.local'));
+        self::assertFileExists($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+        $this->assertNoTemps($root, $release);
+    }
+
+    public function testUnrelatedBytesAndMetadataStay(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\nPLAIN_NOTE=keep-this-line\n";
+        $release = $this->prepare($root, $original);
+        $sharedPath = $root.'/home/testlig.net/shared/.env.local';
+        $releasePath = $root.'/'.$release.'/.env.local';
+        $this->bash('chmod 640 '.$this->quote($sharedPath).' '.$this->quote($releasePath));
+        $beforeShared = $this->statMeta($sharedPath);
+        $beforeRelease = $this->statMeta($releasePath);
+
+        $result = $this->runWindow($root, 'open', self::SHA, ['TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000']);
+
+        self::assertSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('result=opened', $result['output']);
+        self::assertStringContainsString('record_mode=600', $result['output']);
+        self::assertStringContainsString('record_directory=safe', $result['output']);
+        self::assertStringNotContainsString(self::SECRET, $result['output']);
+        self::assertStringNotContainsString('keep-this-line', $result['output']);
+        $shared = $this->read($root, 'home/testlig.net/shared/.env.local');
+        self::assertStringContainsString("PLAIN_NOTE=keep-this-line\n", $shared);
+        self::assertStringContainsString('OTHER_SECRET='.self::SECRET, $shared);
+        self::assertSame($beforeShared, $this->statMeta($sharedPath));
+        self::assertSame($beforeRelease, $this->statMeta($releasePath));
+        if ($this->chmodApplies()) {
+            $recordMeta = $this->statMeta($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+            self::assertStringEndsWith(':600', $recordMeta);
+        }
+    }
+
+    public function testWritableDirectoryRejectsTheRecord(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\n";
+        $release = $this->prepare($root, $original);
+        if ($this->chmodApplies()) {
+            $this->bash('chmod 777 '.$this->quote($root.'/home/testlig.net/shared'));
+        } else {
+            file_put_contents($root.'/mode-ledger', $this->bashPath($root)."/home/testlig.net/shared 777\n");
+        }
+
+        $result = $this->runWindow($root, 'open', self::SHA, ['TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000']);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('stop_reason=record_directory', $result['output']);
+        self::assertStringContainsString('result=stopped', $result['output']);
+        self::assertStringNotContainsString('result=opened', $result['output']);
+        self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'));
+        self::assertSame($original, $this->read($root, $release.'/.env.local'));
+        self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+    }
+
+    public function testUnexpectedFileTypeStopsBeforeEditing(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\n";
+        $release = $this->prepare($root, $original);
+        $shared = $root.'/home/testlig.net/shared/.env.local';
+        $real = $shared.'.real';
+        rename($shared, $real);
+        $this->bash('ln -s .env.local.real '.$this->quote($shared).'; if [ ! -L '.$this->quote($shared).' ]; then rm -rf '.$this->quote($shared).'; mkdir '.$this->quote($shared).'; fi');
+
+        $result = $this->runWindow($root, 'open', self::SHA, ['TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000']);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('stop_reason=file_type', $result['output']);
+        self::assertStringNotContainsString('result=opened', $result['output']);
+        self::assertSame($original, (string) file_get_contents($real));
+        self::assertSame($original, $this->read($root, $release.'/.env.local'));
+        self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+    }
+
+    public function testSecurityContextIsAppliedBeforeReplace(): void
+    {
+        $root = $this->fixture();
+        $release = $this->prepare($root, 'OTHER_SECRET='.self::SECRET."\n");
+        $bin = $root.'/bin';
+        mkdir($bin);
+        $log = $root.'/chcon.log';
+        file_put_contents($bin.'/chcon', "#!/usr/bin/env bash\nprintf '%s\\n' \"\$*\" >> \"\$TESTLIG_IDENTITY_WINDOW_CONTEXT_LOG\"\nexit 0\n");
+        $this->bash('chmod +x '.$this->quote($bin.'/chcon'));
+        $inherited = getenv('PATH') ?: (getenv('Path') ?: '');
+        $path = $bin.\PATH_SEPARATOR.'C:\\Program Files\\Git\\usr\\bin'.\PATH_SEPARATOR.$inherited;
+
+        $result = $this->runWindow($root, 'open', self::SHA, [
+            'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+            'TESTLIG_IDENTITY_WINDOW_CONTEXT' => 'fixture_u:object_r:fixture_t:s0',
+            'TESTLIG_IDENTITY_WINDOW_CONTEXT_LOG' => $this->bashPath($log),
+            'PATH' => $path,
+            'Path' => $path,
+        ]);
+
+        self::assertSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('result=opened', $result['output']);
+        self::assertStringNotContainsString(self::SECRET, $result['output']);
+        $logged = (string) file_get_contents($log);
+        self::assertStringContainsString('--reference=', $logged);
+        self::assertStringContainsString('.env.local', $logged);
     }
 
     private function prepare(string $root, string $env): string
@@ -217,7 +396,17 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         $env['TESTLIG_IDENTITY_WINDOW_ROOT'] = $this->bashPath($root);
         $env['IDENTITY_WINDOW_MODE'] = $mode;
         $env['EXPECTED_SHA'] = $sha;
-        unset($env['TESTLIG_IDENTITY_WINDOW_NOW'], $env['TESTLIG_IDENTITY_WINDOW_FAIL']);
+        unset($env['TESTLIG_IDENTITY_WINDOW_NOW'], $env['TESTLIG_IDENTITY_WINDOW_FAIL'], $env['TESTLIG_IDENTITY_WINDOW_CONTEXT'], $env['TESTLIG_IDENTITY_WINDOW_CONTEXT_LOG'], $env['TESTLIG_IDENTITY_WINDOW_MODE_LEDGER']);
+        if (!$this->chmodApplies()) {
+            $ledger = $root.'/mode-ledger';
+            if (!is_file($ledger)) {
+                file_put_contents($ledger, '');
+            }
+            $env['TESTLIG_IDENTITY_WINDOW_MODE_LEDGER'] = $this->bashPath($ledger);
+        }
+        foreach ($this->identityIds() as $name => $value) {
+            $env[$name] = $value;
+        }
         foreach ($extra as $name => $value) {
             $env[$name] = $value;
         }
@@ -268,6 +457,65 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         }
 
         return $normalized;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function identityIds(): array
+    {
+        $output = $this->bash('printf %s "$(id -u):$(id -g)"');
+        $parts = explode(':', trim($output));
+        self::assertCount(2, $parts);
+
+        return [
+            'TESTLIG_IDENTITY_WINDOW_RECORD_UID' => $parts[0],
+            'TESTLIG_IDENTITY_WINDOW_RECORD_GID' => $parts[1],
+        ];
+    }
+
+    private function chmodApplies(): bool
+    {
+        if (null !== $this->chmodApplies) {
+            return $this->chmodApplies;
+        }
+        $path = sys_get_temp_dir().'/testlig-mode-'.bin2hex(random_bytes(3));
+        file_put_contents($path, "x\n");
+        $this->bash('chmod 600 '.$this->quote($path));
+        $this->chmodApplies = str_ends_with($this->statMeta($path), ':600');
+        unlink($path);
+
+        return $this->chmodApplies;
+    }
+
+    private function statMeta(string $path): string
+    {
+        return trim($this->bash('stat -c %u:%g:%a '.$this->quote($path)));
+    }
+
+    private function assertNoTemps(string $root, string $release): void
+    {
+        self::assertSame([], glob($root.'/home/testlig.net/shared/.identity-window.*') ?: []);
+        self::assertSame([], glob($root.'/'.$release.'/.identity-window.*') ?: []);
+    }
+
+    private function quote(string $path): string
+    {
+        return "'".$this->bashPath($path)."'";
+    }
+
+    private function bash(string $command): string
+    {
+        $pipes = [];
+        $process = proc_open([$this->bashBinary(), '-c', $command], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        $stdout = stream_get_contents($pipes[1]);
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        self::assertSame(0, proc_close($process), (string) $stdout.(string) $stderr);
+
+        return (string) $stdout;
     }
 
     private function bashBinary(): string

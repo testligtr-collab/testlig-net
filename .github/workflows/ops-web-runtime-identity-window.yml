@@ -5,6 +5,8 @@ name: Ops web runtime identity window (VDS)
 # by itself and does not restore env files. This workflow does not send HTTP
 # or an identity POST. It does not read process variables or the command line, and it
 # does not change OLS, groups, ACL, or any other setting.
+# Env files are replaced atomically. The recovery record is root-owned mode 0600,
+# and its directory must not allow another user to replace that record.
 # A green run is not a live web identity measurement.
 
 on:
