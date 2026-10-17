@@ -28,6 +28,7 @@ files_changed=no
 record_state=absent
 rollback_done=0
 rollback_active=0
+rewrite_active=0
 last_replace_changed=0
 record_uid=0
 record_gid=0
@@ -42,23 +43,18 @@ fi
 
 declare -A key_state=()
 declare -A key_line=()
-
-cleanup_identity_temps() {
-  local dir="" path=""
-  for dir in "${site}/shared" ${release_dir:+"$release_dir"}; do
-    [ -d "$dir" ] || continue
-    for path in "$dir"/.identity-window.*; do
-      if [ -e "$path" ] || [ -L "$path" ]; then
-        rm -f "$path"
-      fi
-    done
-  done
-}
+source_lines=()
+tracked_temps=()
 
 finish() {
   local status=$?
+  local cleanup_rc=0
   set +e
-  cleanup_identity_temps
+  cleanup_tracked_temps
+  cleanup_rc=$?
+  if [ "$cleanup_rc" -ne 0 ]; then
+    status=1
+  fi
   if [ "$rollback_done" -eq 0 ] && [ "$status" -ne 0 ] && { [ "$changed_shared" -eq 1 ] || [ "$changed_release" -eq 1 ]; }; then
     rollback_changes
     rollback_done=1
@@ -114,15 +110,79 @@ require_sha() {
   fi
 }
 
+read_source_lines() {
+  local target="$1"
+  local line="" status=0 count=0 errexit=0
+  case $- in
+    *e*) errexit=1 ;;
+  esac
+  set +e
+  source_lines=()
+  if [ -L "$target" ] || [ ! -f "$target" ]; then
+    [ "$errexit" -eq 1 ] && set -e
+    return 1
+  fi
+  if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 0 ] && fail_is source_open; then
+    [ "$errexit" -eq 1 ] && set -e
+    return 1
+  fi
+  if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 1 ] && fail_is rewrite_open; then
+    [ "$errexit" -eq 1 ] && set -e
+    return 1
+  fi
+  exec 3< "$target"
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    [ "$errexit" -eq 1 ] && set -e
+    return 1
+  fi
+  while true; do
+    IFS= read -r line <&3
+    status=$?
+    if [ "$status" -eq 0 ]; then
+      count=$((count + 1))
+      if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 0 ] && fail_is source_read && [ "$count" -ge 1 ]; then
+        exec 3<&-
+        source_lines=()
+        [ "$errexit" -eq 1 ] && set -e
+        return 1
+      fi
+      if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 1 ] && fail_is rewrite_read && [ "$count" -ge 1 ]; then
+        exec 3<&-
+        source_lines=()
+        [ "$errexit" -eq 1 ] && set -e
+        return 1
+      fi
+      source_lines+=("$line")
+      continue
+    fi
+    if [ "$status" -eq 1 ]; then
+      if [ -n "$line" ]; then
+        source_lines+=("$line")
+      fi
+      exec 3<&-
+      [ "$errexit" -eq 1 ] && set -e
+      return 0
+    fi
+    exec 3<&-
+    source_lines=()
+    [ "$errexit" -eq 1 ] && set -e
+    return 1
+  done
+}
+
 inspect_file() {
   local file="$1"
   local prefix="$2"
-  local key line
+  local key="" line=""
+  if ! read_source_lines "$file"; then
+    return 1
+  fi
   for key in WEB_RUNTIME_IDENTITY_ENABLED WEB_RUNTIME_IDENTITY_EXPIRES_AT; do
     key_state["${prefix}:${key}"]=absent
     key_line["${prefix}:${key}"]=""
   done
-  while IFS= read -r line || [ -n "$line" ]; do
+  for line in "${source_lines[@]+"${source_lines[@]}"}"; do
     case "$line" in
       \#*) continue ;;
     esac
@@ -141,7 +201,7 @@ inspect_file() {
           ;;
       esac
     done
-  done < "$file"
+  done
   return 0
 }
 
@@ -162,7 +222,9 @@ refuse_higher_priority() {
   for path in "${release_dir}/.env.prod" "${release_dir}/.env.prod.local"; do
     [ -f "$path" ] || continue
     prefix="high:${path}"
-    inspect_file "$path" "$prefix"
+    if ! inspect_file "$path" "$prefix"; then
+      stop source_read
+    fi
     for key in WEB_RUNTIME_IDENTITY_ENABLED WEB_RUNTIME_IDENTITY_EXPIRES_AT; do
       case "${key_state[${prefix}:${key}]}" in
         absent) ;;
@@ -197,16 +259,58 @@ fail_is() {
   return $?
 }
 
+remember_temp() {
+  tracked_temps+=("$1")
+}
+
+forget_temp() {
+  local path="$1"
+  local item=""
+  local -a kept=()
+  for item in "${tracked_temps[@]+"${tracked_temps[@]}"}"; do
+    if [ "$item" != "$path" ]; then
+      kept+=("$item")
+    fi
+  done
+  tracked_temps=()
+  for item in "${kept[@]+"${kept[@]}"}"; do
+    tracked_temps+=("$item")
+  done
+}
+
 cleanup_temp() {
   local path="$1"
   if [ -z "$path" ]; then
     return 0
   fi
+  if fail_is cleanup; then
+    printf 'cleanup=failed\n'
+    return 1
+  fi
   if [ -e "$path" ] || [ -L "$path" ]; then
-    rm -f "$path"
-    if [ $? -ne 0 ] || [ -e "$path" ]; then
+    rm -f -- "$path"
+    if [ $? -ne 0 ] || [ -e "$path" ] || [ -L "$path" ]; then
+      printf 'cleanup=failed\n'
       return 1
     fi
+  fi
+  forget_temp "$path"
+  return 0
+}
+
+cleanup_tracked_temps() {
+  local path="" failed=0
+  local -a pending=()
+  for path in "${tracked_temps[@]+"${tracked_temps[@]}"}"; do
+    pending+=("$path")
+  done
+  for path in "${pending[@]+"${pending[@]}"}"; do
+    if ! cleanup_temp "$path"; then
+      failed=1
+    fi
+  done
+  if [ "$failed" -ne 0 ]; then
+    return 1
   fi
   return 0
 }
@@ -310,6 +414,7 @@ write_record() {
     cleanup_temp "$tmp"
     return 1
   fi
+  remember_temp "$tmp"
   {
     printf 'format=1\n'
     printf 'release_sha=%s\n' "$expected"
@@ -349,6 +454,7 @@ write_record() {
     cleanup_temp "$tmp"
     return 1
   fi
+  forget_temp "$tmp"
   if ! apply_mode "$record" 600; then
     rm -f "$record"
     return 1
@@ -428,11 +534,22 @@ rewrite_file() {
   local file="$1"
   local enabled_raw="$2"
   local expires_raw="$3"
-  local tmp="" dir="" line="" saw_enabled=0 saw_expires=0 before="" after="" want="" kept_mode=""
+  local tmp="" dir="" line="" saw_enabled=0 saw_expires=0 before="" after="" want="" kept_mode="" read_rc=0
+  local -a lines=()
   last_replace_changed=0
   if [ -L "$file" ] || [ ! -f "$file" ]; then
     return 1
   fi
+  rewrite_active=1
+  read_source_lines "$file"
+  read_rc=$?
+  rewrite_active=0
+  if [ "$read_rc" -ne 0 ]; then
+    return 1
+  fi
+  for line in "${source_lines[@]+"${source_lines[@]}"}"; do
+    lines+=("$line")
+  done
   dir="$(dirname "$file")"
   if [ "$rollback_active" -eq 0 ] && fail_is temp_prepare; then
     return 1
@@ -442,11 +559,16 @@ rewrite_file() {
     cleanup_temp "$tmp"
     return 1
   fi
+  remember_temp "$tmp"
   if [ "$rollback_active" -eq 0 ] && fail_is temp_prepare; then
     cleanup_temp "$tmp"
     return 1
   fi
-  while IFS= read -r line || [ -n "$line" ]; do
+  if [ "$rollback_active" -eq 0 ] && fail_is cleanup; then
+    cleanup_temp "$tmp"
+    return 1
+  fi
+  for line in "${lines[@]+"${lines[@]}"}"; do
     case "$line" in
       WEB_RUNTIME_IDENTITY_ENABLED=*)
         saw_enabled=1
@@ -476,7 +598,7 @@ rewrite_file() {
         fi
         ;;
     esac
-  done < "$file"
+  done
   if [ "$saw_enabled" -eq 0 ] && [ "$enabled_raw" != absent ]; then
     printf '%s\n' "$(decode_field "$enabled_raw")" >> "$tmp"
     if [ $? -ne 0 ]; then
@@ -523,6 +645,7 @@ rewrite_file() {
     fi
     return 1
   fi
+  forget_temp "$tmp"
   last_replace_changed=1
   files_changed=yes
   if ! apply_mode "$file" "$kept_mode"; then
@@ -553,8 +676,8 @@ verify_record() {
   shared_expires="$(record_field shared_expires)"
   release_enabled="$(record_field release_enabled)"
   release_expires="$(record_field release_expires)"
-  inspect_file "$shared_env" shared
-  inspect_file "$release_env" release
+  inspect_file "$shared_env" shared || return 1
+  inspect_file "$release_env" release || return 1
   line_matches shared WEB_RUNTIME_IDENTITY_ENABLED "$shared_enabled" || return 1
   line_matches shared WEB_RUNTIME_IDENTITY_EXPIRES_AT "$shared_expires" || return 1
   line_matches release WEB_RUNTIME_IDENTITY_ENABLED "$release_enabled" || return 1

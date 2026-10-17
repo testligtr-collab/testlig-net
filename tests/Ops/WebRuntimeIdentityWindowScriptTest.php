@@ -182,7 +182,67 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         self::assertStringNotContainsString('TESTLIG_IDENTITY_WINDOW_FAIL', $workflow);
         self::assertStringNotContainsString('TESTLIG_IDENTITY_WINDOW_MODE_LEDGER', $workflow);
         self::assertStringNotContainsString('cat "$tmp" >', $script);
+        self::assertStringNotContainsString('/.identity-window.*', $script);
         self::assertDoesNotMatchRegularExpression('/\n\s*push:/', $workflow);
+    }
+
+    public function testSourceReadErrorsKeepOriginalBytes(): void
+    {
+        foreach (['source_open', 'source_read', 'rewrite_open', 'rewrite_read'] as $fail) {
+            $root = $this->fixture();
+            $original = 'OTHER_SECRET='.self::SECRET."\nPLAIN_NOTE=keep-this-line\n";
+            $release = $this->prepare($root, $original);
+            $other = $root.'/home/testlig.net/shared/.identity-window.other-run';
+            file_put_contents($other, "other-run-marker\n");
+
+            $result = $this->runWindow($root, 'open', self::SHA, [
+                'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+                'TESTLIG_IDENTITY_WINDOW_FAIL' => $fail,
+            ]);
+
+            self::assertNotSame(0, $result['exit'], $fail."\n".$result['output']);
+            self::assertStringContainsString('result=stopped', $result['output'], $fail);
+            self::assertStringNotContainsString('result=opened', $result['output'], $fail);
+            self::assertStringNotContainsString('result=restored', $result['output'], $fail);
+            self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'), $fail);
+            self::assertSame($original, $this->read($root, $release.'/.env.local'), $fail);
+            self::assertSame("other-run-marker\n", (string) file_get_contents($other), $fail);
+            self::assertSame(['.identity-window.other-run'], $this->tempNames($root.'/home/testlig.net/shared'), $fail);
+            self::assertSame([], $this->tempNames($root.'/'.$release), $fail);
+            self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record', $fail);
+            if ('rewrite_open' === $fail || 'rewrite_read' === $fail) {
+                self::assertStringContainsString('rollback=verified', $result['output'], $fail);
+                self::assertStringContainsString('record=removed', $result['output'], $fail);
+            }
+        }
+    }
+
+    public function testCleanupFailureStaysVisibleAndKeepsForeignTemps(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\n";
+        $release = $this->prepare($root, $original);
+        $other = $root.'/home/testlig.net/shared/.identity-window.other-run';
+        file_put_contents($other, "other-run-marker\n");
+
+        $result = $this->runWindow($root, 'open', self::SHA, [
+            'TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000',
+            'TESTLIG_IDENTITY_WINDOW_FAIL' => 'cleanup',
+        ]);
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('cleanup=failed', $result['output']);
+        self::assertStringContainsString('result=stopped', $result['output']);
+        self::assertStringNotContainsString('result=opened', $result['output']);
+        self::assertStringNotContainsString('result=restored', $result['output']);
+        self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'));
+        self::assertSame($original, $this->read($root, $release.'/.env.local'));
+        self::assertSame("other-run-marker\n", (string) file_get_contents($other));
+        $names = $this->tempNames($root.'/home/testlig.net/shared');
+        self::assertContains('.identity-window.other-run', $names);
+        self::assertGreaterThan(1, \count($names));
+        self::assertStringContainsString('rollback=verified', $result['output']);
+        self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
     }
 
     public function testPrepareAndReplaceFailuresLeaveOriginalBytes(): void
@@ -491,6 +551,17 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
     private function statMeta(string $path): string
     {
         return trim($this->bash('stat -c %u:%g:%a '.$this->quote($path)));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function tempNames(string $directory): array
+    {
+        $names = array_map('basename', glob($directory.'/.identity-window.*') ?: []);
+        sort($names);
+
+        return $names;
     }
 
     private function assertNoTemps(string $root, string $release): void
