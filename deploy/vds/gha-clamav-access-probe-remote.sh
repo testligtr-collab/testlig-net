@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Read-only measurement of ClamAV socket and signature visibility.
-# A live lsphp uid is the site user only when it matches the documented testl3865 account and owns /home/testlig.net.
-# runuser uses that account's groups for a new process. Those groups are not the live worker's supplementary groups.
+# The ^lsphp scan is diagnostic and does not select the user.
+# The recorded 17 October 2026 web request is euid 5002, egid 5002, groups 5002.
+# That identity is fixed in this script. It is not a dispatch input.
+# runuser -u testl3865 does not pass group options.
+# A completed run is CLI access under that identity. It does not prove web or SELinux acceptance.
 # It does not install, scan a file, change services, groups, ACL, or env files.
-# A completed run is not application access. test -r/-w/-x is a DAC check and does not prove SELinux.
+# test -r/-w/-x is a DAC check and does not prove SELinux.
 # A root connection is not application access. The container is not warmed and env values are not embedded.
 set -u
 
@@ -14,8 +17,15 @@ echo "dac_check_proves_selinux=no"
 echo "root_connection_counts_as_app=no"
 echo "loaded_main=unproven"
 echo "loaded_bytecode=unproven"
-echo "runuser_uses_account_groups=yes"
-echo "live_worker_groups_compared=no"
+echo "web_identity_source=recorded_request"
+echo "access_context=cli_same_identity"
+echo "web_selinux_acceptance=no"
+echo "runuser_group_options=none"
+
+recorded_euid=5002
+recorded_egid=5002
+recorded_group=5002
+identity_ok=0
 
 root="${TESTLIG_CLAMAV_ACCESS_ROOT:-}"
 host_path() {
@@ -141,13 +151,117 @@ site_account_uid() {
   printf '%s\n' "$account_uid"
 }
 
+numeric_id() {
+  local value="$1"
+  printf '%s' "$value" | grep -Eq '^[0-9]+$'
+}
+
+as_app() {
+  if [ -n "$root" ]; then
+    if [ ! -f "${root}/fixture-runuser" ]; then
+      return 127
+    fi
+    bash "${root}/fixture-runuser" -u testl3865 -- "$@"
+    return
+  fi
+  runuser -u testl3865 -- "$@"
+}
+
+as_app_timed() {
+  if [ -n "$root" ]; then
+    as_app "$@"
+    return
+  fi
+  timeout 2 runuser -u testl3865 -- "$@"
+}
+
+probe_php() {
+  if [ -n "$root" ]; then
+    if [ ! -f "${root}/fixture-php" ]; then
+      return 127
+    fi
+    as_app bash "${root}/fixture-php" "$@"
+    return
+  fi
+  as_app /usr/local/lsws/lsphp83/bin/php "$@"
+}
+
+recorded_site_flags() {
+  local account_uid="" recorded_name="" site_uid="" site_path=""
+  account_uid="$(probe_id -u testl3865 2>/dev/null || true)"
+  recorded_name="$(probe_id -nu "$recorded_euid" 2>/dev/null || true)"
+  account_uid="${account_uid//[[:space:]]/}"
+  recorded_name="${recorded_name//[[:space:]]/}"
+  site_path="$(host_path "/home/testlig.net")"
+  if [ -d "$site_path" ]; then
+    if [ -n "$root" ] && [ -f "${root}/fixture-stat" ]; then
+      site_uid="$(timeout 2 bash "${root}/fixture-stat" -c %u "$site_path" 2>/dev/null || true)"
+    else
+      site_uid="$(timeout 2 stat -c %u "$site_path" 2>/dev/null || true)"
+    fi
+  fi
+  site_uid="${site_uid//[[:space:]]/}"
+  if [ "$account_uid" = "$recorded_euid" ]; then
+    echo "site_account_uid_match=yes"
+  else
+    echo "site_account_uid_match=no"
+  fi
+  if [ "$recorded_name" = "testl3865" ]; then
+    echo "site_account_name_match=yes"
+  else
+    echo "site_account_name_match=no"
+  fi
+  if [ "$site_uid" = "$recorded_euid" ]; then
+    echo "site_owner_match=yes"
+  else
+    echo "site_owner_match=no"
+  fi
+  [ "$account_uid" = "$recorded_euid" ] && [ "$recorded_name" = "testl3865" ] && [ "$site_uid" = "$recorded_euid" ]
+}
+
+process_identity_matches() {
+  local output="$1"
+  local seen_euid="" seen_egid="" groups="" group_id="" sorted=""
+  if printf '%s\n' "$output" | grep -Eq '^process_identity=unavailable$'; then
+    echo "process_identity=unavailable"
+    return 1
+  fi
+  seen_euid="$(printf '%s\n' "$output" | awk -F= '$1 == "process_euid" { if (seen) exit 3; seen = 1; print $2 }')"
+  if [ "$?" -eq 3 ] || ! numeric_id "$seen_euid"; then
+    echo "process_identity_match=no"
+    return 1
+  fi
+  seen_egid="$(printf '%s\n' "$output" | awk -F= '$1 == "process_egid" { if (seen) exit 3; seen = 1; print $2 }')"
+  if [ "$?" -eq 3 ] || ! numeric_id "$seen_egid"; then
+    echo "process_identity_match=no"
+    return 1
+  fi
+  groups="$(printf '%s\n' "$output" | awk -F= '$1 == "process_group" { print $2 }')"
+  if [ -z "$groups" ]; then
+    echo "process_identity_match=no"
+    return 1
+  fi
+  for group_id in $groups; do
+    numeric_id "$group_id" || {
+      echo "process_identity_match=no"
+      return 1
+    }
+  done
+  sorted="$(printf '%s\n' $groups | sort -n | tr '\n' ' ' | sed 's/ $//')"
+  if [ "$seen_euid" = "$recorded_euid" ] && [ "$seen_egid" = "$recorded_egid" ] && [ "$sorted" = "$recorded_group" ]; then
+    echo "process_identity_match=yes"
+    return 0
+  fi
+  echo "process_identity_match=no"
+  return 1
+}
+
 php_user_count=0
 php_proc_dirs=0
 php_proc_unreadable=0
 php_proc_vanished=0
 php_proc_lsphp=0
 php_proc_invalid_id=0
-app_user=""
 candidate_uid=""
 candidate_user=""
 php_started="$(probe_now)"
@@ -241,36 +355,18 @@ echo "php_proc_lsphp=${php_proc_lsphp}"
 echo "php_proc_invalid_id=${php_proc_invalid_id}"
 if [ "$php_timed_out" -eq 1 ]; then
   echo "php_process=timed_out"
-  app_user=""
 elif [ "$php_proc_vanished" -gt 0 ]; then
   echo "php_process=incomplete"
-  app_user=""
 elif [ "$php_proc_unreadable" -gt 0 ]; then
   echo "php_process=unreadable"
-  app_user=""
 elif [ "$php_proc_lsphp" -eq 0 ]; then
   echo "php_process=none"
-  app_user=""
 elif [ "$php_proc_invalid_id" -gt 0 ]; then
   echo "php_process=invalid_id"
-  app_user=""
 elif [ "$php_user_count" -ne 1 ]; then
-  echo "app_user=unresolved"
-  app_user=""
+  echo "php_process=multiple"
 else
-  proven_uid="$(site_account_uid || true)"
-  if [ -n "$proven_uid" ] && [ "$proven_uid" = "$candidate_uid" ] && [ "$candidate_user" = "testl3865" ]; then
-    echo "app_user_basis=site_account"
-    echo "app_user=testl3865"
-    app_user="testl3865"
-  elif [ "$candidate_user" = "root" ] || [ "$candidate_user" = "unknown" ]; then
-    echo "app_user=not_app_user"
-    app_user=""
-  else
-    echo "site_account=unverified"
-    echo "app_user=unresolved"
-    app_user=""
-  fi
+  echo "php_process=observed"
 fi
 
 scan_conf=""
@@ -487,13 +583,14 @@ fi
 dac_check() {
   local label="$1"
   local path="$2"
-  local flag result
-  if [ -z "$app_user" ] || ! command -v runuser >/dev/null 2>&1; then
-    echo "${label}_dac=unknown"
+  shift 2
+  local flag result status
+  if [ "$identity_ok" -ne 1 ]; then
+    echo "${label}_dac=not_attempted"
     return
   fi
-  for flag in r w x; do
-    if timeout 2 runuser -u "$app_user" -- test "-${flag}" "$path" 2>/dev/null; then
+  for flag in "$@"; do
+    if as_app_timed test "-${flag}" "$path" 2>/dev/null; then
       result="yes"
     else
       status=$?
@@ -507,23 +604,41 @@ dac_check() {
   done
 }
 
-if [ -n "$app_user" ] && [ "$app_user" != "root" ]; then
+if recorded_site_flags; then
+  identity_output="$(probe_php -- --identity 2>/dev/null || true)"
+  if process_identity_matches "$identity_output"; then
+    identity_ok=1
+  fi
+else
+  echo "process_identity_match=no"
+fi
+
+if [ "$identity_ok" -eq 1 ]; then
   if [ -n "$socket_path" ]; then
-    dac_check "socket" "$(host_path "$socket_path")"
+    dac_check "socket" "$(host_path "$socket_path")" r w
+    ancestor="$(dirname "$socket_path")"
+    depth=0
+    while [ -n "$ancestor" ] && [ "$ancestor" != "/" ] && [ "$depth" -lt 8 ]; do
+      dac_check "socket_ancestor_${depth}" "$(host_path "$ancestor")" r w x
+      next="$(dirname "$ancestor")"
+      [ "$next" = "$ancestor" ] && break
+      ancestor="$next"
+      depth=$((depth + 1))
+    done
   fi
   if [ -n "$database_dir" ]; then
-    dac_check "signature_dir" "$(host_path "$database_dir")"
+    dac_check "signature_dir" "$(host_path "$database_dir")" r w x
     for name in main daily bytecode; do
       for extension in cvd cld; do
         file="$(host_path "${database_dir}/${name}.${extension}")"
         if [ -f "$file" ]; then
-          dac_check "signature_${name}_${extension}" "$file"
+          dac_check "signature_${name}_${extension}" "$file" r w
         fi
       done
     done
   fi
 else
-  echo "app_dac=unknown"
+  echo "app_dac=not_attempted"
 fi
 
 unit_state() {
@@ -544,22 +659,30 @@ unit_state "clamav-freshclam.service" "is-enabled"
 
 app_ping="not_attempted"
 app_version="not_attempted"
-php_bin="/usr/local/lsws/lsphp83/bin/php"
-if [ -n "$app_user" ] && [ "$app_user" != "root" ] && [ -n "$socket_path" ] && [ -x "$php_bin" ] && [ -n "${ACCESS_PROBE_PHP_B64:-}" ]; then
+if [ "$identity_ok" -eq 1 ] && [ -n "$socket_path" ] && { [ -n "${ACCESS_PROBE_PHP_B64:-}" ] || [ -n "$root" ]; }; then
   socket_read="no"
   socket_write="no"
-  if timeout 2 runuser -u "$app_user" -- test -r "$(host_path "$socket_path")" 2>/dev/null; then
+  if as_app_timed test -r "$(host_path "$socket_path")" 2>/dev/null; then
     socket_read="yes"
   fi
-  if timeout 2 runuser -u "$app_user" -- test -w "$(host_path "$socket_path")" 2>/dev/null; then
+  if as_app_timed test -w "$(host_path "$socket_path")" 2>/dev/null; then
     socket_write="yes"
   fi
   if [ "$socket_read" = "yes" ] && [ "$socket_write" = "yes" ]; then
-    probe="$(printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u "$app_user" -- "$php_bin" -- "$(host_path "$socket_path")" 2>/dev/null)"
-    probe_status=$?
+    if [ -n "$root" ]; then
+      probe="$(probe_php -- "$(host_path "$socket_path")" 2>/dev/null || true)"
+      probe_status=0
+    else
+      probe="$(printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- "$(host_path "$socket_path")" 2>/dev/null)"
+      probe_status=$?
+    fi
     if [ "$probe_status" -eq 124 ]; then
       app_ping="timed_out"
       app_version="timed_out"
+    elif printf '%s\n' "$probe" | grep -Eq '^process_identity_match=no$'; then
+      echo "connecting_process_identity_match=no"
+      app_ping="not_attempted"
+      app_version="not_attempted"
     else
       printf '%s\n' "$probe" | awk '
         $0 ~ /^app_ping=(pong|eof|partial|timed_out|unavailable|unreadable)$/ { ping = substr($0, 10) }
