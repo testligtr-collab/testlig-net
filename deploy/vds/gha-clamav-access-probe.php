@@ -172,13 +172,13 @@ function clamav_access_probe_is_cli_entry(): bool
 
 function clamav_access_probe_posix_credentials(): ?array
 {
-    if (!\function_exists('posix_geteuid') || !\function_exists('posix_getegid') || !\function_exists('posix_getgroups')) {
+    if (!function_exists('posix_geteuid') || !function_exists('posix_getegid') || !function_exists('posix_getgroups')) {
         return null;
     }
-    $euid = \posix_geteuid();
-    $egid = \posix_getegid();
-    $groups = \posix_getgroups();
-    if (!\is_int($euid) || !\is_int($egid) || !\is_array($groups)) {
+    $euid = posix_geteuid();
+    $egid = posix_getegid();
+    $groups = posix_getgroups();
+    if (!is_int($euid) || !is_int($egid) || !is_array($groups)) {
         return null;
     }
 
@@ -196,12 +196,12 @@ function clamav_access_probe_recorded_identity_matches(?array $credentials): boo
     $euid = $credentials['euid'] ?? null;
     $egid = $credentials['egid'] ?? null;
     $rawGroups = $credentials['groups'] ?? null;
-    if (5002 !== $euid || 5002 !== $egid || !\is_array($rawGroups)) {
+    if (5002 !== $euid || 5002 !== $egid || !is_array($rawGroups)) {
         return false;
     }
     $groups = [];
     foreach ($rawGroups as $group) {
-        if (!\is_int($group) || $group < 0) {
+        if (!is_int($group) || $group < 0) {
             return false;
         }
         $groups[] = $group;
@@ -216,15 +216,15 @@ function clamav_access_probe_recorded_identity_matches(?array $credentials): boo
  */
 function clamav_access_probe_format_identity(?array $credentials): string
 {
-    $euid = \is_array($credentials) ? ($credentials['euid'] ?? null) : null;
-    $egid = \is_array($credentials) ? ($credentials['egid'] ?? null) : null;
-    $rawGroups = \is_array($credentials) ? ($credentials['groups'] ?? null) : null;
-    if (!\is_int($euid) || !\is_int($egid) || !\is_array($rawGroups)) {
+    $euid = is_array($credentials) ? ($credentials['euid'] ?? null) : null;
+    $egid = is_array($credentials) ? ($credentials['egid'] ?? null) : null;
+    $rawGroups = is_array($credentials) ? ($credentials['groups'] ?? null) : null;
+    if (!is_int($euid) || !is_int($egid) || !is_array($rawGroups)) {
         return "process_identity=unavailable\n";
     }
     $lines = 'process_euid='.$euid."\n".'process_egid='.$egid."\n";
     foreach ($rawGroups as $group) {
-        if (!\is_int($group) || $group < 0) {
+        if (!is_int($group) || $group < 0) {
             return "process_identity=unavailable\n";
         }
         $lines .= 'process_group='.$group."\n";
