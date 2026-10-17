@@ -170,6 +170,85 @@ function clamav_access_probe_is_cli_entry(): bool
     return is_string($fileReal) && is_string($scriptReal) && $fileReal === $scriptReal;
 }
 
+function clamav_access_probe_posix_credentials(): ?array
+{
+    if (!function_exists('posix_geteuid') || !function_exists('posix_getegid') || !function_exists('posix_getgroups')) {
+        return null;
+    }
+    $euid = posix_geteuid();
+    $egid = posix_getegid();
+    $groups = posix_getgroups();
+    if (!is_int($euid) || !is_int($egid) || !is_array($groups)) {
+        return null;
+    }
+
+    return ['euid' => $euid, 'egid' => $egid, 'groups' => $groups];
+}
+
+/**
+ * @param array<string, mixed>|null $credentials
+ */
+function clamav_access_probe_recorded_identity_matches(?array $credentials): bool
+{
+    if (null === $credentials) {
+        return false;
+    }
+    $euid = $credentials['euid'] ?? null;
+    $egid = $credentials['egid'] ?? null;
+    $rawGroups = $credentials['groups'] ?? null;
+    if (5002 !== $euid || 5002 !== $egid || !is_array($rawGroups)) {
+        return false;
+    }
+    $groups = [];
+    foreach ($rawGroups as $group) {
+        if (!is_int($group) || $group < 0) {
+            return false;
+        }
+        $groups[] = $group;
+    }
+    sort($groups);
+
+    return [5002] === $groups;
+}
+
+/**
+ * @param array<string, mixed>|null $credentials
+ */
+function clamav_access_probe_format_identity(?array $credentials): string
+{
+    $euid = is_array($credentials) ? ($credentials['euid'] ?? null) : null;
+    $egid = is_array($credentials) ? ($credentials['egid'] ?? null) : null;
+    $rawGroups = is_array($credentials) ? ($credentials['groups'] ?? null) : null;
+    if (!is_int($euid) || !is_int($egid) || !is_array($rawGroups)) {
+        return "process_identity=unavailable\n";
+    }
+    $lines = 'process_euid='.$euid."\n".'process_egid='.$egid."\n";
+    foreach ($rawGroups as $group) {
+        if (!is_int($group) || $group < 0) {
+            return "process_identity=unavailable\n";
+        }
+        $lines .= 'process_group='.$group."\n";
+    }
+    if (!str_contains($lines, 'process_group=')) {
+        return "process_identity=unavailable\n";
+    }
+
+    return $lines;
+}
+
+/**
+ * @param array<string, mixed>|null $credentials
+ */
+function clamav_access_probe_emit_for_credentials(?array $credentials, callable $onMatch): void
+{
+    if (!clamav_access_probe_recorded_identity_matches($credentials)) {
+        echo "process_identity_match=no\n";
+
+        return;
+    }
+    $onMatch();
+}
+
 function clamav_access_probe_run(string $path): void
 {
     $connect = static function (float $timeout) use ($path): mixed {
@@ -188,7 +267,16 @@ function clamav_access_probe_run(string $path): void
 if (clamav_access_probe_is_cli_entry()) {
     $arguments = $_SERVER['argv'] ?? null;
     $path = is_array($arguments) && isset($arguments[1]) && is_string($arguments[1]) ? $arguments[1] : '';
-    clamav_access_probe_run($path);
+    if ('--identity' === $path) {
+        echo clamav_access_probe_format_identity(clamav_access_probe_posix_credentials());
+        exit(0);
+    }
+    clamav_access_probe_emit_for_credentials(
+        clamav_access_probe_posix_credentials(),
+        static function () use ($path): void {
+            clamav_access_probe_run($path);
+        },
+    );
 }
 
 function self_path_ok(string $path): bool

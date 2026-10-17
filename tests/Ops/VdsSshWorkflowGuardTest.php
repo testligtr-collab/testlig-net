@@ -286,7 +286,12 @@ final class VdsSshWorkflowGuardTest extends TestCase
 
         self::assertStringContainsString('dac_check_proves_selinux=no', $remote);
         self::assertStringContainsString('root_connection_counts_as_app=no', $remote);
-        self::assertStringContainsString('app_user=not_app_user', $remote);
+        self::assertStringContainsString('web_identity_source=recorded_request', $remote);
+        self::assertStringContainsString('access_context=cli_same_identity', $remote);
+        self::assertStringContainsString('web_selinux_acceptance=no', $remote);
+        self::assertStringContainsString('runuser -u testl3865 --', $remote);
+        self::assertStringNotContainsString('runuser -u testl3865 -g', $remote);
+        self::assertStringNotContainsString('runuser -u testl3865 -G', $remote);
         self::assertStringContainsString('php_proc_dirs=', $remote);
         self::assertStringContainsString('php_proc_unreadable=', $remote);
         self::assertStringContainsString('php_proc_vanished=', $remote);
@@ -300,9 +305,11 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringNotContainsString('curl ', $remote);
         self::assertStringContainsString('timeout 2', $remote);
         self::assertStringContainsString('timeout 12', $remote);
-        self::assertStringContainsString('site_account=unverified', $remote);
-        self::assertStringContainsString('runuser_uses_account_groups=yes', $remote);
-        self::assertStringContainsString('live_worker_groups_compared=no', $remote);
+        self::assertStringContainsString('site_account_uid_match=no', $remote);
+        self::assertStringContainsString('site_account_name_match=no', $remote);
+        self::assertStringContainsString('site_owner_match=no', $remote);
+        self::assertStringContainsString('process_identity_match=no', $remote);
+        self::assertStringContainsString('runuser_group_options=none', $remote);
         self::assertStringNotContainsString('single_live_lsphp_uid', $remote);
         self::assertStringNotContainsString('stream_socket_client', $remote);
         $probe = $this->read('deploy/vds/gha-clamav-access-probe.php');
@@ -359,7 +366,9 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertSame($before, $this->fixtureFiles($root));
         self::assertStringContainsString('php_process uid=10 ', $output);
         self::assertStringContainsString('php_process uid=11 ', $output);
-        self::assertStringContainsString('app_user=unresolved', $output);
+        self::assertStringContainsString('php_process=multiple', $output);
+        self::assertStringContainsString('site_account_uid_match=no', $output);
+        self::assertStringContainsString('app_dac=not_attempted', $output);
         self::assertStringContainsString('app_ping=not_attempted', $output);
         self::assertStringContainsString('signature_daily_cvd_version=59', $output);
         self::assertStringContainsString('shared_socket_key=empty', $output);
@@ -390,8 +399,9 @@ final class VdsSshWorkflowGuardTest extends TestCase
         $otherOutput = $this->runProbe($bash, $this->bashPath($bash, $other));
         self::assertSame($otherBefore, $this->fixtureFiles($other));
         self::assertStringContainsString('php_process uid=10 ', $otherOutput);
-        self::assertStringContainsString('site_account=unverified', $otherOutput);
-        self::assertStringContainsString('app_user=unresolved', $otherOutput);
+        self::assertStringContainsString('site_account_uid_match=no', $otherOutput);
+        self::assertStringContainsString('process_identity_match=no', $otherOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $otherOutput);
         self::assertStringContainsString('app_ping=not_attempted', $otherOutput);
         self::assertStringNotContainsString('app_user_basis=site_account', $otherOutput);
         self::assertStringNotContainsString('app_user=testl3865', $otherOutput);
@@ -472,8 +482,9 @@ final class VdsSshWorkflowGuardTest extends TestCase
         self::assertStringContainsString('php_proc_invalid_id=0', $matchedOutput);
         self::assertStringContainsString('php_process uid=4242 ', $matchedOutput);
         self::assertStringContainsString('user=testl3865 ', $matchedOutput);
-        self::assertStringContainsString('app_user_basis=site_account', $matchedOutput);
-        self::assertStringContainsString('app_user=testl3865', $matchedOutput);
+        self::assertStringContainsString('php_process=observed', $matchedOutput);
+        self::assertStringContainsString('site_account_uid_match=no', $matchedOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $matchedOutput);
         self::assertStringContainsString('app_ping=not_attempted', $matchedOutput);
         self::assertStringNotContainsString('app_user=root', $matchedOutput);
 
@@ -510,7 +521,8 @@ final class VdsSshWorkflowGuardTest extends TestCase
         $rootOutput = $this->runProbe($bash, $this->bashPath($bash, $rootUser));
         self::assertStringContainsString('php_process uid=0 ', $rootOutput);
         self::assertStringContainsString('user=root ', $rootOutput);
-        self::assertStringContainsString('app_user=not_app_user', $rootOutput);
+        self::assertStringContainsString('site_account_uid_match=no', $rootOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $rootOutput);
         $this->assertScanDoesNotImpersonate($rootOutput);
 
         $timedOut = $this->probeRoot('timed-out');
@@ -540,6 +552,88 @@ BASH);
         self::assertStringContainsString('php_process=timed_out', $timedOutOutput);
         self::assertStringNotContainsString('php_process uid=', $timedOutOutput);
         $this->assertScanDoesNotImpersonate($timedOutOutput);
+    }
+
+    public function testRecordedWebIdentityGatesClamavAccess(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+
+        $ownerDiffers = $this->recordedProbeRoot('owner-differs', '5002', '4999', 'testl3865', 'match', 'match');
+        $ownerOutput = $this->runProbe($bash, $this->bashPath($bash, $ownerDiffers));
+        self::assertStringContainsString('site_owner_match=no', $ownerOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $ownerOutput);
+        self::assertStringContainsString('app_ping=not_attempted', $ownerOutput);
+        self::assertFileDoesNotExist($ownerDiffers.'/dac-attempts');
+        self::assertFileDoesNotExist($ownerDiffers.'/connect-attempts');
+
+        $accountDiffers = $this->recordedProbeRoot('account-differs', '4999', '5002', 'testl3865', 'match', 'match');
+        $accountOutput = $this->runProbe($bash, $this->bashPath($bash, $accountDiffers));
+        self::assertStringContainsString('site_account_uid_match=no', $accountOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $accountOutput);
+        self::assertFileDoesNotExist($accountDiffers.'/dac-attempts');
+
+        $nameDiffers = $this->recordedProbeRoot('name-differs', '5002', '5002', 'other', 'match', 'match');
+        $nameOutput = $this->runProbe($bash, $this->bashPath($bash, $nameDiffers));
+        self::assertStringContainsString('site_account_name_match=no', $nameOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $nameOutput);
+        self::assertFileDoesNotExist($nameDiffers.'/dac-attempts');
+
+        $egidDiffers = $this->recordedProbeRoot('egid-differs', '5002', '5002', 'testl3865', 'egid', 'match');
+        $egidOutput = $this->runProbe($bash, $this->bashPath($bash, $egidDiffers));
+        self::assertStringContainsString('process_identity_match=no', $egidOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $egidOutput);
+        self::assertFileDoesNotExist($egidDiffers.'/dac-attempts');
+
+        $extraGroup = $this->recordedProbeRoot('extra-group', '5002', '5002', 'testl3865', 'extra', 'match');
+        $extraOutput = $this->runProbe($bash, $this->bashPath($bash, $extraGroup));
+        self::assertStringContainsString('process_identity_match=no', $extraOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $extraOutput);
+        self::assertFileDoesNotExist($extraGroup.'/dac-attempts');
+
+        $missingGroup = $this->recordedProbeRoot('missing-group', '5002', '5002', 'testl3865', 'missing', 'match');
+        $missingOutput = $this->runProbe($bash, $this->bashPath($bash, $missingGroup));
+        self::assertStringContainsString('process_identity_match=no', $missingOutput);
+        self::assertFileDoesNotExist($missingGroup.'/dac-attempts');
+
+        $noPosix = $this->recordedProbeRoot('no-posix', '5002', '5002', 'testl3865', 'unavailable', 'match');
+        $noPosixOutput = $this->runProbe($bash, $this->bashPath($bash, $noPosix));
+        self::assertStringContainsString('process_identity=unavailable', $noPosixOutput);
+        self::assertStringContainsString('app_dac=not_attempted', $noPosixOutput);
+        self::assertFileDoesNotExist($noPosix.'/dac-attempts');
+        self::assertFileDoesNotExist($noPosix.'/connect-attempts');
+
+        $connectDiffers = $this->recordedProbeRoot('connect-differs', '5002', '5002', 'testl3865', 'match', 'differ');
+        $connectOutput = $this->runProbe($bash, $this->bashPath($bash, $connectDiffers));
+        self::assertStringContainsString('process_identity_match=yes', $connectOutput);
+        self::assertStringContainsString('connecting_process_identity_match=no', $connectOutput);
+        self::assertStringContainsString('socket_dac_r=yes', $connectOutput);
+        self::assertStringContainsString('socket_dac_w=yes', $connectOutput);
+        self::assertStringContainsString('app_ping=not_attempted', $connectOutput);
+        self::assertFileDoesNotExist($connectDiffers.'/connect-attempts');
+
+        $matched = $this->recordedProbeRoot('matched', '5002', '5002', 'testl3865', 'match', 'match');
+        $matchedOutput = $this->runProbe($bash, $this->bashPath($bash, $matched));
+        self::assertStringContainsString('web_identity_source=recorded_request', $matchedOutput);
+        self::assertStringContainsString('access_context=cli_same_identity', $matchedOutput);
+        self::assertStringContainsString('web_selinux_acceptance=no', $matchedOutput);
+        self::assertStringContainsString('site_account_uid_match=yes', $matchedOutput);
+        self::assertStringContainsString('site_account_name_match=yes', $matchedOutput);
+        self::assertStringContainsString('site_owner_match=yes', $matchedOutput);
+        self::assertStringContainsString('process_identity_match=yes', $matchedOutput);
+        self::assertStringContainsString('socket_dac_r=yes', $matchedOutput);
+        self::assertStringContainsString('socket_dac_w=yes', $matchedOutput);
+        self::assertStringNotContainsString('socket_dac_x=', $matchedOutput);
+        self::assertStringContainsString('socket_ancestor_0_dac_x=yes', $matchedOutput);
+        self::assertStringContainsString('signature_dir_dac_r=yes', $matchedOutput);
+        self::assertStringContainsString('signature_dir_dac_w=yes', $matchedOutput);
+        self::assertStringContainsString('signature_dir_dac_x=yes', $matchedOutput);
+        self::assertStringContainsString('signature_daily_cvd_dac_r=yes', $matchedOutput);
+        self::assertStringContainsString('signature_daily_cvd_dac_w=no', $matchedOutput);
+        self::assertStringNotContainsString('signature_daily_cvd_dac_x=', $matchedOutput);
+        self::assertStringContainsString('app_ping=pong', $matchedOutput);
+        self::assertStringContainsString('app_version_daily=59', $matchedOutput);
+        self::assertFileExists($matched.'/connect-attempts');
     }
 
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
@@ -731,6 +825,97 @@ BASH);
         mkdir($root.'/proc/'.$pid, 0777, true);
         file_put_contents($root.'/proc/'.$pid.'/comm', $comm);
         file_put_contents($root.'/proc/'.$pid.'/status', $status);
+    }
+
+    private function recordedProbeRoot(string $label, string $accountUid, string $ownerUid, string $recordedName, string $identityMode, string $connectMode): string
+    {
+        $root = $this->probeRoot($label);
+        mkdir($root.'/etc/clamd.d', 0777, true);
+        mkdir($root.'/var/lib/clamav', 0777, true);
+        mkdir($root.'/home/testlig.net', 0777, true);
+        file_put_contents($root.'/etc/clamd.d/scan.conf', "LocalSocket /run/clamd.scan/clamd.sock\nDatabaseDirectory /var/lib/clamav\n");
+        file_put_contents($root.'/var/lib/clamav/daily.cvd', "ClamAV-VDB:UNIQUEHEADERTEXT:59:10:63:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:bbbb:clamav:1\n");
+        file_put_contents($root.'/fixture-id', <<<BASH
+#!/bin/bash
+if [ "\$1" = "-u" ] && [ "\$2" = "testl3865" ]; then
+  printf '%s\n' {$accountUid}
+  exit 0
+fi
+if [ "\$1" = "-nu" ] && [ "\$2" = "5002" ]; then
+  printf '%s\n' {$recordedName}
+  exit 0
+fi
+exit 1
+BASH);
+        file_put_contents($root.'/fixture-stat', <<<BASH
+#!/bin/bash
+if [ "\$1" = "-c" ] && [ "\$2" = "%u" ]; then
+  printf '%s\n' {$ownerUid}
+  exit 0
+fi
+exit 1
+BASH);
+        file_put_contents($root.'/fixture-runuser', <<<'BASH'
+#!/bin/bash
+if [ "$1" != "-u" ] || [ "$2" != "testl3865" ] || [ "$3" != "--" ]; then
+  exit 1
+fi
+shift 3
+if [ "$1" = "test" ]; then
+  flag="$2"
+  path="$3"
+  dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+  printf '%s %s\n' "$flag" "$path" >> "$dir/dac-attempts"
+  case "$flag" in
+    -w)
+      case "$path" in
+        *daily.cvd) exit 1 ;;
+      esac
+      exit 0
+      ;;
+    -r|-x) exit 0 ;;
+  esac
+  exit 1
+fi
+"$@"
+BASH);
+        file_put_contents($root.'/fixture-php', <<<BASH
+#!/bin/bash
+mode="{$identityMode}"
+connect="{$connectMode}"
+dir=\$(CDPATH= cd -- "\$(dirname "\$0")" && pwd)
+if [ "\$1" = "--" ]; then
+  shift
+fi
+if [ "\$1" = "--identity" ]; then
+  if [ "\$mode" = "unavailable" ]; then
+    printf '%s\n' process_identity=unavailable
+    exit 0
+  fi
+  if [ "\$mode" = "egid" ]; then
+    printf '%s\n' process_euid=5002 process_egid=5003 process_group=5002
+    exit 0
+  fi
+  if [ "\$mode" = "extra" ]; then
+    printf '%s\n' process_euid=5002 process_egid=5002 process_group=7 process_group=5002
+    exit 0
+  fi
+  if [ "\$mode" = "missing" ]; then
+    printf '%s\n' process_euid=5002 process_egid=5002
+    exit 0
+  fi
+  printf '%s\n' process_euid=5002 process_egid=5002 process_group=5002
+  exit 0
+fi
+if [ "\$connect" != "match" ]; then
+  printf '%s\n' process_identity_match=no
+  exit 0
+fi
+printf '%s\n' 1 >> "\$dir/connect-attempts"
+printf '%s\n' app_ping=pong app_version_daily=59
+BASH);
+
+        return $root;
     }
 
     private function writeSiteFixtures(string $root): void
