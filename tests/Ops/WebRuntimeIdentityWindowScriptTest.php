@@ -241,8 +241,59 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         $names = $this->tempNames($root.'/home/testlig.net/shared');
         self::assertContains('.identity-window.other-run', $names);
         self::assertGreaterThan(1, \count($names));
-        self::assertStringContainsString('rollback=verified', $result['output']);
+        self::assertStringContainsString('rollback=not_needed', $result['output']);
+        self::assertStringContainsString('record=absent', $result['output']);
         self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+    }
+
+    public function testRealReaderIoErrorKeepsOriginalBytes(): void
+    {
+        $root = $this->fixture();
+        $original = 'OTHER_SECRET='.self::SECRET."\nPLAIN_NOTE=keep-this-line\n";
+        $release = $this->prepare($root, $original);
+        $shared = $root.'/home/testlig.net/shared/.env.local';
+        $lock = $this->blockReader($shared);
+        try {
+            $result = $this->runWindow($root, 'open', self::SHA, ['TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000']);
+        } finally {
+            if (\is_resource($lock)) {
+                flock($lock, \LOCK_UN);
+                fclose($lock);
+            }
+            $this->bash('chmod 644 '.$this->quote($shared).' '.$this->quote($root.'/'.$release.'/.env.local'));
+        }
+
+        self::assertNotSame(0, $result['exit'], $result['output']);
+        self::assertTrue(
+            str_contains($result['output'], 'Permission denied') || str_contains($result['output'], 'Device or resource busy'),
+            $result['output'],
+        );
+        self::assertStringNotContainsString('result=opened', $result['output']);
+        self::assertStringNotContainsString('result=restored', $result['output']);
+        self::assertStringNotContainsString(self::SECRET, $result['output']);
+        self::assertSame($original, $this->read($root, 'home/testlig.net/shared/.env.local'));
+        self::assertSame($original, $this->read($root, $release.'/.env.local'));
+        self::assertFileDoesNotExist($root.'/home/testlig.net/shared/web-runtime-identity-window.record');
+        $this->assertNoTemps($root, $release);
+    }
+
+    public function testFinalNewlineAndUnrelatedBytesStay(): void
+    {
+        $root = $this->fixture();
+        $original = "WEB_RUNTIME_IDENTITY_ENABLED=old\nWEB_RUNTIME_IDENTITY_EXPIRES_AT=5\nPLAIN_NOTE=keep-this-line";
+        $release = $this->prepare($root, $original);
+
+        $result = $this->runWindow($root, 'open', self::SHA, ['TESTLIG_IDENTITY_WINDOW_NOW' => '1700000000']);
+
+        self::assertSame(0, $result['exit'], $result['output']);
+        self::assertStringContainsString('result=opened', $result['output']);
+        self::assertStringNotContainsString('keep-this-line', $result['output']);
+        $shared = $this->read($root, 'home/testlig.net/shared/.env.local');
+        self::assertSame(
+            "WEB_RUNTIME_IDENTITY_ENABLED=1\nWEB_RUNTIME_IDENTITY_EXPIRES_AT=1700000900\nPLAIN_NOTE=keep-this-line",
+            $shared,
+        );
+        self::assertSame($shared, $this->read($root, $release.'/.env.local'));
     }
 
     public function testPrepareAndReplaceFailuresLeaveOriginalBytes(): void
@@ -562,6 +613,22 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         sort($names);
 
         return $names;
+    }
+
+    private function blockReader(string $path): mixed
+    {
+        $quoted = $this->quote($path);
+        $this->bash('chmod 000 '.$quoted);
+        $readable = trim($this->bash('if [ -r '.$quoted.' ]; then printf yes; else printf no; fi'));
+        if ('no' === $readable) {
+            return null;
+        }
+        $this->bash('chmod 644 '.$quoted);
+        $handle = fopen($path, 'r');
+        self::assertNotFalse($handle);
+        self::assertTrue(flock($handle, \LOCK_EX | \LOCK_NB));
+
+        return $handle;
     }
 
     private function assertNoTemps(string $root, string $release): void

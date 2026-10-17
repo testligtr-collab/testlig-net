@@ -44,6 +44,7 @@ fi
 declare -A key_state=()
 declare -A key_line=()
 source_lines=()
+source_ends_with_newline=0
 tracked_temps=()
 
 finish() {
@@ -110,65 +111,137 @@ require_sha() {
   fi
 }
 
+discard_source_read() {
+  source_lines=()
+  source_ends_with_newline=0
+}
+
 read_source_lines() {
-  local target="$1"
-  local line="" status=0 count=0 errexit=0
+  local errexit=0
+  local rc=0
   case $- in
     *e*) errexit=1 ;;
   esac
   set +e
-  source_lines=()
+  load_source_lines "$1"
+  rc=$?
+  if [ "$errexit" -eq 1 ]; then
+    set -e
+  fi
+  return "$rc"
+}
+
+load_source_lines() {
+  local target="$1"
+  local copy="" rebuild="" dir="" line="" last_byte="" src_size="" copy_size="" dd_rc=0 total=0 index=0 is_last=0
+  discard_source_read
   if [ -L "$target" ] || [ ! -f "$target" ]; then
-    [ "$errexit" -eq 1 ] && set -e
     return 1
   fi
   if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 0 ] && fail_is source_open; then
-    [ "$errexit" -eq 1 ] && set -e
     return 1
   fi
   if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 1 ] && fail_is rewrite_open; then
-    [ "$errexit" -eq 1 ] && set -e
     return 1
   fi
-  exec 3< "$target"
-  status=$?
-  if [ "$status" -ne 0 ]; then
-    [ "$errexit" -eq 1 ] && set -e
+  if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 0 ] && fail_is source_read; then
     return 1
   fi
-  while true; do
-    IFS= read -r line <&3
-    status=$?
-    if [ "$status" -eq 0 ]; then
-      count=$((count + 1))
-      if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 0 ] && fail_is source_read && [ "$count" -ge 1 ]; then
-        exec 3<&-
-        source_lines=()
-        [ "$errexit" -eq 1 ] && set -e
-        return 1
-      fi
-      if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 1 ] && fail_is rewrite_read && [ "$count" -ge 1 ]; then
-        exec 3<&-
-        source_lines=()
-        [ "$errexit" -eq 1 ] && set -e
-        return 1
-      fi
-      source_lines+=("$line")
-      continue
-    fi
-    if [ "$status" -eq 1 ]; then
-      if [ -n "$line" ]; then
-        source_lines+=("$line")
-      fi
-      exec 3<&-
-      [ "$errexit" -eq 1 ] && set -e
-      return 0
-    fi
-    exec 3<&-
-    source_lines=()
-    [ "$errexit" -eq 1 ] && set -e
+  if [ "$rollback_active" -eq 0 ] && [ "$rewrite_active" -eq 1 ] && fail_is rewrite_read; then
     return 1
+  fi
+  dir="$(dirname "$target")"
+  copy="$(mktemp "${dir}/.identity-window.XXXXXX")"
+  if [ $? -ne 0 ] || [ -z "$copy" ] || [ ! -f "$copy" ] || [ -L "$copy" ]; then
+    cleanup_temp "$copy"
+    return 1
+  fi
+  remember_temp "$copy"
+  dd if="$target" of="$copy" bs=65536 status=none
+  dd_rc=$?
+  if [ "$dd_rc" -ne 0 ]; then
+    discard_source_read
+    cleanup_temp "$copy"
+    return 1
+  fi
+  src_size="$(stat -c %s "$target")" || { discard_source_read; cleanup_temp "$copy"; return 1; }
+  copy_size="$(stat -c %s "$copy")" || { discard_source_read; cleanup_temp "$copy"; return 1; }
+  if [ "$src_size" != "$copy_size" ]; then
+    discard_source_read
+    cleanup_temp "$copy"
+    return 1
+  fi
+  if [ "$copy_size" -eq 0 ]; then
+    source_ends_with_newline=0
+  else
+    last_byte="$(tail -c 1 "$copy" | od -An -tu1 | tr -d '[:space:]')"
+    if [ -z "$last_byte" ]; then
+      discard_source_read
+      cleanup_temp "$copy"
+      return 1
+    fi
+    if [ "$last_byte" = "10" ]; then
+      source_ends_with_newline=1
+    else
+      source_ends_with_newline=0
+    fi
+  fi
+  mapfile -t source_lines < "$copy"
+  if [ $? -ne 0 ]; then
+    discard_source_read
+    cleanup_temp "$copy"
+    return 1
+  fi
+  rebuild="$(mktemp "${dir}/.identity-window.XXXXXX")"
+  if [ $? -ne 0 ] || [ -z "$rebuild" ] || [ ! -f "$rebuild" ]; then
+    discard_source_read
+    cleanup_temp "$copy"
+    cleanup_temp "$rebuild"
+    return 1
+  fi
+  remember_temp "$rebuild"
+  total=0
+  for line in "${source_lines[@]+"${source_lines[@]}"}"; do
+    total=$((total + 1))
   done
+  index=0
+  for line in "${source_lines[@]+"${source_lines[@]}"}"; do
+    index=$((index + 1))
+    is_last=0
+    if [ "$index" -eq "$total" ]; then
+      is_last=1
+    fi
+    if [ "$is_last" -eq 1 ] && [ "$source_ends_with_newline" -eq 0 ]; then
+      printf '%s' "$line" >> "$rebuild"
+    else
+      printf '%s\n' "$line" >> "$rebuild"
+    fi
+    if [ $? -ne 0 ]; then
+      discard_source_read
+      cleanup_temp "$rebuild"
+      cleanup_temp "$copy"
+      return 1
+    fi
+  done
+  cmp -s "$rebuild" "$copy"
+  if [ $? -ne 0 ]; then
+    discard_source_read
+    cleanup_temp "$rebuild"
+    cleanup_temp "$copy"
+    return 1
+  fi
+  cleanup_temp "$rebuild"
+  if [ $? -ne 0 ]; then
+    discard_source_read
+    cleanup_temp "$copy"
+    return 1
+  fi
+  cleanup_temp "$copy"
+  if [ $? -ne 0 ]; then
+    discard_source_read
+    return 1
+  fi
+  return 0
 }
 
 inspect_file() {
@@ -535,6 +608,7 @@ rewrite_file() {
   local enabled_raw="$2"
   local expires_raw="$3"
   local tmp="" dir="" line="" saw_enabled=0 saw_expires=0 before="" after="" want="" kept_mode="" read_rc=0
+  local ends=0 total=0 index=0 is_last=0 append_after=0 text=""
   local -a lines=()
   last_replace_changed=0
   if [ -L "$file" ] || [ ! -f "$file" ]; then
@@ -547,8 +621,23 @@ rewrite_file() {
   if [ "$read_rc" -ne 0 ]; then
     return 1
   fi
+  ends="$source_ends_with_newline"
   for line in "${source_lines[@]+"${source_lines[@]}"}"; do
     lines+=("$line")
+    case "$line" in
+      WEB_RUNTIME_IDENTITY_ENABLED=*) saw_enabled=1 ;;
+      WEB_RUNTIME_IDENTITY_EXPIRES_AT=*) saw_expires=1 ;;
+    esac
+  done
+  if [ "$saw_enabled" -eq 0 ] && [ "$enabled_raw" != absent ]; then
+    append_after=1
+  fi
+  if [ "$saw_expires" -eq 0 ] && [ "$expires_raw" != absent ]; then
+    append_after=1
+  fi
+  total=0
+  for line in "${lines[@]+"${lines[@]}"}"; do
+    total=$((total + 1))
   done
   dir="$(dirname "$file")"
   if [ "$rollback_active" -eq 0 ] && fail_is temp_prepare; then
@@ -568,36 +657,49 @@ rewrite_file() {
     cleanup_temp "$tmp"
     return 1
   fi
+  index=0
   for line in "${lines[@]+"${lines[@]}"}"; do
+    index=$((index + 1))
+    is_last=0
+    if [ "$index" -eq "$total" ]; then
+      is_last=1
+    fi
     case "$line" in
       WEB_RUNTIME_IDENTITY_ENABLED=*)
         saw_enabled=1
-        if [ "$enabled_raw" != absent ]; then
-          printf '%s\n' "$(decode_field "$enabled_raw")" >> "$tmp"
-          if [ $? -ne 0 ]; then
-            cleanup_temp "$tmp"
-            return 1
-          fi
+        if [ "$enabled_raw" = absent ]; then
+          continue
         fi
-        ;;
-      WEB_RUNTIME_IDENTITY_EXPIRES_AT=*)
-        saw_expires=1
-        if [ "$expires_raw" != absent ]; then
-          printf '%s\n' "$(decode_field "$expires_raw")" >> "$tmp"
-          if [ $? -ne 0 ]; then
-            cleanup_temp "$tmp"
-            return 1
-          fi
-        fi
-        ;;
-      *)
-        printf '%s\n' "$line" >> "$tmp"
+        text="$(decode_field "$enabled_raw")"
         if [ $? -ne 0 ]; then
           cleanup_temp "$tmp"
           return 1
         fi
         ;;
+      WEB_RUNTIME_IDENTITY_EXPIRES_AT=*)
+        saw_expires=1
+        if [ "$expires_raw" = absent ]; then
+          continue
+        fi
+        text="$(decode_field "$expires_raw")"
+        if [ $? -ne 0 ]; then
+          cleanup_temp "$tmp"
+          return 1
+        fi
+        ;;
+      *)
+        text="$line"
+        ;;
     esac
+    if [ "$is_last" -eq 1 ] && [ "$ends" -eq 0 ] && [ "$append_after" -eq 0 ]; then
+      printf '%s' "$text" >> "$tmp"
+    else
+      printf '%s\n' "$text" >> "$tmp"
+    fi
+    if [ $? -ne 0 ]; then
+      cleanup_temp "$tmp"
+      return 1
+    fi
   done
   if [ "$saw_enabled" -eq 0 ] && [ "$enabled_raw" != absent ]; then
     printf '%s\n' "$(decode_field "$enabled_raw")" >> "$tmp"
