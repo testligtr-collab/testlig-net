@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\User;
+use App\Security\WebRuntimeIdentityGate;
 use App\Security\WebRuntimeIdentityReader;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Admin\AdminNavBuilder;
@@ -27,7 +28,7 @@ final class AdminWebRuntimeIdentityController extends AdminBaseController
 {
     public function __construct(
         AdminNavBuilder $adminNavBuilder,
-        private readonly bool $webRuntimeIdentityEnabled,
+        private readonly WebRuntimeIdentityGate $webRuntimeIdentityGate,
         private readonly EntityManagerInterface $entityManager,
         private readonly FreshUserLoader $freshUsers,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
@@ -39,7 +40,7 @@ final class AdminWebRuntimeIdentityController extends AdminBaseController
     #[Route('/yonetim/calisma-kimligi', name: 'app_admin_web_runtime_identity', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {
-        if (!$this->webRuntimeIdentityEnabled) {
+        if (!$this->webRuntimeIdentityGate->isOpen()) {
             throw $this->createNotFoundException();
         }
 

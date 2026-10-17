@@ -30,6 +30,7 @@ parameters:
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
     env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
     env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
+    env(WEB_RUNTIME_IDENTITY_EXPIRES_AT): ''
     payment_platform_settlement_actor_id_default: ''
 
 services:
@@ -112,13 +113,10 @@ services:
         alias: App\Question\Image\Scan\ConfiguredClamavSignatureObservation
         public: true
 
-    App\Controller\Admin\AdminWebRuntimeIdentityController:
+    App\Security\WebRuntimeIdentityGate:
         arguments:
-            $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
-
-    App\Controller\Admin\AdminAuditController:
-        arguments:
-            $webRuntimeIdentityEnabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
+            $enabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
+            $expiresAt: '%env(string:WEB_RUNTIME_IDENTITY_EXPIRES_AT)%'
 
     App\Question\Image\QuestionImageStoreResolver:
         arguments:
