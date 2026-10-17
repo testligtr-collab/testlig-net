@@ -214,7 +214,6 @@ final class WebRuntimeIdentityWindowScriptTest extends TestCase
         $bash = $this->bashBinary();
         $script = $this->bashPath(\dirname(__DIR__, 2).'/deploy/vds/gha-web-runtime-identity-window-remote.sh');
         $env = getenv();
-        self::assertIsArray($env);
         $env['TESTLIG_IDENTITY_WINDOW_ROOT'] = $this->bashPath($root);
         $env['IDENTITY_WINDOW_MODE'] = $mode;
         $env['EXPECTED_SHA'] = $sha;
