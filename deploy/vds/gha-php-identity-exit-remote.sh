@@ -100,9 +100,9 @@ diag_version() {
   set +e
   local php_status=""
   if [ -n "$root" ]; then
-    timeout 5 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php" -v
+    timeout 5 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php" -v </dev/null
   else
-    timeout 5 runuser -u testl3865 -- "$php_bin" -v
+    timeout 5 runuser -u testl3865 -- "$php_bin" -v </dev/null
   fi
   php_status=${PIPESTATUS[0]-}
   printf '\nphp_diag_stage_status=%s\n' "$php_status"
@@ -112,9 +112,9 @@ diag_inline() {
   set +e
   local php_status=""
   if [ -n "$root" ]; then
-    timeout 5 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php" -r 'echo "php_diag_started=yes\n";'
+    timeout 5 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php" -r 'echo "php_diag_started=yes\n";' </dev/null
   else
-    timeout 5 runuser -u testl3865 -- "$php_bin" -r 'echo "php_diag_started=yes\n";'
+    timeout 5 runuser -u testl3865 -- "$php_bin" -r 'echo "php_diag_started=yes\n";' </dev/null
   fi
   php_status=${PIPESTATUS[0]-}
   printf '\nphp_diag_stage_status=%s\n' "$php_status"

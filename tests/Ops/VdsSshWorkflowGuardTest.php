@@ -769,7 +769,12 @@ BASH);
         self::assertStringNotContainsString('printenv', $remote);
         self::assertStringNotContainsString('cmdline', $remote);
         self::assertStringNotContainsString('environ', $remote);
-        self::assertStringContainsString('timeout 5 runuser -u testl3865 -- "$php_bin" -v', $remote);
+        self::assertStringContainsString('timeout 5 runuser -u testl3865 -- "$php_bin" -v </dev/null', $remote);
+        self::assertStringContainsString('bash "${root}/fixture-php" -v </dev/null', $remote);
+        self::assertStringContainsString('timeout 5 runuser -u testl3865 -- "$php_bin" -r \'echo "php_diag_started=yes\n";\' </dev/null', $remote);
+        self::assertStringContainsString('bash "${root}/fixture-php" -r \'echo "php_diag_started=yes\n";\' </dev/null', $remote);
+        self::assertSame(4, substr_count($remote, '</dev/null'));
+        self::assertStringContainsString('printf \'%s\n\' \'<?php echo "php_diag_started=yes\n";\' | timeout 5 runuser -u testl3865 -- "$php_bin"', $remote);
         self::assertDoesNotMatchRegularExpression('/>(?!\/dev\/null\b|&1\b)/', $remote);
     }
 
@@ -790,6 +795,25 @@ BASH);
         self::assertStringContainsString('bash_continues=yes', $output);
         self::assertStringNotContainsString('PHP ', $output);
         self::assertFileDoesNotExist($root.'/core');
+    }
+
+    public function testPhpIdentityExitDiagnosticClosesInheritedStdin(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $root = $this->phpDiagRoot('stdin-closed', $bash, 'reader');
+        $output = $this->runPhpDiag($bash, $root, "echo bash_continues=yes\n");
+        self::assertStringContainsString("php_diag_test=version\nphp_diag_exit=0\nphp_diag_marker=no\nphp_diag_timeout=no", $output);
+        self::assertStringContainsString("php_diag_test=inline\nphp_diag_exit=0\nphp_diag_marker=no\nphp_diag_timeout=no", $output);
+        self::assertStringContainsString("php_diag_test=stdin\nphp_diag_exit=0\nphp_diag_marker=no\nphp_diag_timeout=no", $output);
+        self::assertSame("EOF\n", (string) file_get_contents($root.'/launcher-version'));
+        self::assertSame("EOF\n", (string) file_get_contents($root.'/launcher-inline'));
+        self::assertSame('<?php echo "php_diag_started=yes\n";', (string) file_get_contents($root.'/launcher-stdin'));
+        self::assertStringNotContainsString('bash_continues', (string) file_get_contents($root.'/launcher-stdin'));
+        self::assertStringContainsString('php_diag_caller_continues=yes', $output);
+        self::assertStringContainsString('bash_continues=yes', $output);
+        self::assertStringNotContainsString('<?php', $output);
+        self::assertStringNotContainsString($root, $output);
     }
 
     public function testPhpIdentityExitDiagnosticSkipsImpersonationWhenSiteDiffers(): void
@@ -1110,6 +1134,28 @@ BASH,
 printf '%s\n' 'php_diag_started=yes'
 printf '%s\n' 'LEAKED_PARTIAL'
 sleep 30
+BASH,
+            'reader' => <<<'BASH'
+#!/bin/bash
+dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+kind=stdin
+for arg in "$@"; do
+  case "$arg" in
+    -v) kind=version ;;
+    -r) kind=inline ;;
+  esac
+done
+payload=$(cat)
+if [ "$kind" = "stdin" ]; then
+  printf '%s' "$payload" > "$dir/launcher-stdin"
+  exit 0
+fi
+if [ -z "$payload" ]; then
+  printf '%s\n' EOF > "$dir/launcher-$kind"
+else
+  printf '%s\n' CONSUMED > "$dir/launcher-$kind"
+fi
+exit 0
 BASH,
             default => "#!/bin/bash\nexec {$quoted} \"\$@\"\n",
         };
