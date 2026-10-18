@@ -57,6 +57,12 @@ final class ClamavAccessProbeCommandTest extends TestCase
     public function testRequiredHelperIsNotExecutedAsTheCliEntry(): void
     {
         self::assertFalse(clamav_access_probe_is_cli_entry());
+        $source = file_get_contents(\dirname(__DIR__, 2).'/deploy/vds/gha-clamav-access-probe.php');
+        self::assertIsString($source);
+        self::assertSame(1, substr_count($source, "// CLAMAV_ACCESS_PROBE_ENTRY\n"));
+        self::assertStringEndsWith("// CLAMAV_ACCESS_PROBE_ENTRY\n", $source);
+        self::assertDoesNotMatchRegularExpression('/clamav_access_probe_cli_main\(\);/', $source);
+        self::assertStringNotContainsString('/probe-data-socket-not-in-source', $source);
     }
 
     public function testWorkflowBase64StdinProbeRefusesBeforeConnectingWhenIdentityDiffers(): void
@@ -204,14 +210,20 @@ final class ClamavAccessProbeCommandTest extends TestCase
         self::assertSame("ready\n", $ready);
         $source = file_get_contents(\dirname(__DIR__, 2).'/deploy/vds/gha-clamav-access-probe.php');
         self::assertIsString($source);
+        $marker = "// CLAMAV_ACCESS_PROBE_ENTRY\n";
+        self::assertStringStartsWith("<?php\n", $source);
+        self::assertStringEndsWith($marker, $source);
+        $code = substr($source, \strlen("<?php\n"));
+        self::assertStringNotContainsString($socket, $code);
+        $code = substr($code, 0, -\strlen($marker))."clamav_access_probe_cli_main();\n";
         $environment = getenv();
-        $environment['ACCESS_PROBE_PHP_B64'] = base64_encode($source);
+        $environment['ACCESS_PROBE_PHP_CODE'] = $code;
         $environment['PROBE_PHP'] = \PHP_BINARY;
         $environment['PROBE_SOCKET'] = $socket;
         $clientPipes = [];
         $started = hrtime(true);
         $client = proc_open(
-            ['bash', '-c', 'printf %s "$ACCESS_PROBE_PHP_B64" | base64 -d | "$PROBE_PHP" -- "$PROBE_SOCKET"'],
+            ['bash', '-c', '"$PROBE_PHP" -r "$ACCESS_PROBE_PHP_CODE" -- "$PROBE_SOCKET" </dev/null'],
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $clientPipes,
             null,
@@ -239,7 +251,7 @@ final class ClamavAccessProbeCommandTest extends TestCase
             if ($elapsed > 12) {
                 proc_terminate($client);
                 proc_terminate($server);
-                self::fail('stdin probe exceeded 12 seconds');
+                self::fail('entry probe exceeded 12 seconds');
             }
             usleep(50000);
         }
