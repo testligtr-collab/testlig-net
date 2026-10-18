@@ -186,31 +186,81 @@ probe_php() {
   as_app /usr/local/lsws/lsphp83/bin/php "$@"
 }
 
+identity_stage_label() {
+  local value="$1"
+  if numeric_id "$value"; then
+    printf '%s' "$value"
+    return 0
+  fi
+  printf '%s' "unknown"
+}
+
 collect_recorded_identity() {
-  local output="" status=0
+  local raw="" stage_line="" printf_status="" decode_status="" command_status="" helper_started="no" failure="unknown" body=""
   if [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
+    echo "identity_decode_status=unknown"
+    echo "identity_command_status=unknown"
+    echo "identity_helper_started=no"
+    echo "identity_failure=unknown"
     return 1
   fi
   if [ -n "$root" ]; then
-    if [ ! -f "${root}/fixture-runuser" ] || [ ! -f "${root}/fixture-php-bin" ]; then
-      return 1
-    fi
-    output="$(
-      set -o pipefail
-      printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php-bin" -- --identity 2>/dev/null
+    raw="$(
+      set +e
+      { printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php-bin" -- --identity; } 2>/dev/null
+      printf '\nidentity_stage_status=%s,%s,%s\n' "${PIPESTATUS[0]-}" "${PIPESTATUS[1]-}" "${PIPESTATUS[2]-}"
     )"
-    status=$?
   else
-    output="$(
-      set -o pipefail
-      printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity 2>/dev/null
+    raw="$(
+      set +e
+      { printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity; } 2>/dev/null
+      printf '\nidentity_stage_status=%s,%s,%s\n' "${PIPESTATUS[0]-}" "${PIPESTATUS[1]-}" "${PIPESTATUS[2]-}"
     )"
-    status=$?
   fi
-  if [ "$status" -ne 0 ]; then
+  stage_line="$(printf '%s\n' "$raw" | awk '/^identity_stage_status=/ { line = $0 } END { print line }')"
+  body="$(printf '%s\n' "$raw" | awk '!/^identity_stage_status=/')"
+  printf_status="${stage_line#identity_stage_status=}"
+  decode_status="${printf_status#*,}"
+  command_status="${decode_status#*,}"
+  printf_status="${printf_status%%,*}"
+  decode_status="${decode_status%%,*}"
+  if printf '%s\n' "$body" | grep -qx 'identity_helper_started=yes'; then
+    helper_started="yes"
+  fi
+  printf_status="$(identity_stage_label "$printf_status")"
+  decode_status="$(identity_stage_label "$decode_status")"
+  command_status="$(identity_stage_label "$command_status")"
+  if [ "$printf_status" = "unknown" ] || [ "$decode_status" = "unknown" ] || [ "$command_status" = "unknown" ] || [ "$printf_status" -ne 0 ]; then
+    failure="unknown"
+  elif [ "$decode_status" -ne 0 ]; then
+    failure="decode"
+  elif [ "$command_status" -eq 124 ]; then
+    failure="timeout"
+  elif [ "$command_status" -eq 125 ] || [ "$command_status" -eq 126 ] || [ "$command_status" -eq 127 ]; then
+    if [ "$helper_started" = "yes" ]; then
+      failure="php"
+    else
+      failure="command_start"
+    fi
+  elif [ "$command_status" -ne 0 ]; then
+    if [ "$helper_started" = "yes" ]; then
+      failure="php"
+    else
+      failure="unknown"
+    fi
+  elif [ "$helper_started" != "yes" ]; then
+    failure="unknown"
+  else
+    failure="none"
+  fi
+  echo "identity_decode_status=${decode_status}"
+  echo "identity_command_status=${command_status}"
+  echo "identity_helper_started=${helper_started}"
+  echo "identity_failure=${failure}"
+  if [ "$failure" != "none" ]; then
     return 1
   fi
-  printf '%s\n' "$output"
+  printf '%s\n' "$body"
 }
 
 recorded_site_flags() {
@@ -640,13 +690,13 @@ if recorded_site_flags; then
   else
     identity_output="$(collect_recorded_identity)"
     identity_status=$?
-    if [ "$identity_status" -ne 0 ]; then
-      echo "process_identity=unavailable"
-    else
-      printf '%s\n' "$identity_output"
+    printf '%s\n' "$identity_output"
+    if [ "$identity_status" -eq 0 ]; then
       if process_identity_matches "$identity_output"; then
         identity_ok=1
       fi
+    else
+      echo "process_identity=unavailable"
     fi
   fi
 else
