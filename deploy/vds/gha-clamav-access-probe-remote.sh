@@ -10,6 +10,14 @@
 # A root connection is not application access. The container is not warmed and env values are not embedded.
 set -u
 
+if ulimit -c 0; then
+  echo "access_probe_core=disabled"
+  core_disabled=1
+else
+  echo "access_probe_core=unknown"
+  core_disabled=0
+fi
+
 echo "access_probe=read-only"
 echo "access_probe_changes_access=no"
 echo "dac_check=test_rwx"
@@ -195,45 +203,70 @@ identity_stage_label() {
   printf '%s' "unknown"
 }
 
+probe_php_code=""
+probe_php_code_ready=0
+
+prepare_probe_php_code() {
+  local decoded="" marker_count=""
+  probe_php_code=""
+  probe_php_code_ready=0
+  if [ "$core_disabled" -ne 1 ] || [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
+    return 1
+  fi
+  decoded="$(printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d 2>/dev/null; status=$?; printf 'X'; exit "$status")" || return 1
+  decoded="${decoded%X}"
+  case "$decoded" in
+    '<?php'$'\n'*) ;;
+    *) return 1 ;;
+  esac
+  decoded="${decoded#<?php$'\n'}"
+  marker_count="$(printf '%s' "$decoded" | awk 'BEGIN { count = 0 } $0 == "// CLAMAV_ACCESS_PROBE_ENTRY" { count++ } END { print count + 0 }')"
+  if [ "$marker_count" != "1" ]; then
+    return 1
+  fi
+  case "$decoded" in
+    *'// CLAMAV_ACCESS_PROBE_ENTRY'$'\n') ;;
+    *) return 1 ;;
+  esac
+  local entry_marker='// CLAMAV_ACCESS_PROBE_ENTRY'
+  decoded="${decoded%"$entry_marker"$'\n'}"
+  probe_php_code="${decoded}clamav_access_probe_cli_main();"$'\n'
+  probe_php_code_ready=1
+  return 0
+}
+
+invoke_probe_php() {
+  set +e
+  if [ -n "$root" ]; then
+    timeout 12 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php-bin" -r "$probe_php_code" -- "$@" </dev/null 2>/dev/null
+  else
+    timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -r "$probe_php_code" -- "$@" </dev/null 2>/dev/null
+  fi
+  probe_php_status=${PIPESTATUS[0]-}
+}
+
 collect_recorded_identity() {
-  local raw="" stage_line="" printf_status="" decode_status="" command_status="" helper_started="no" failure="unknown" body=""
-  if [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
-    echo "identity_decode_status=unknown"
-    echo "identity_command_status=unknown"
+  local raw="" stage_line="" command_status="" helper_started="no" failure="unknown" body=""
+  if [ "$probe_php_code_ready" -ne 1 ]; then
+    echo "identity_command_status=not_attempted"
     echo "identity_helper_started=no"
     echo "identity_failure=unknown"
     return 1
   fi
-  if [ -n "$root" ]; then
-    raw="$(
-      set +e
-      { printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php-bin" -- --identity; } 2>/dev/null
-      printf '\nidentity_stage_status=%s,%s,%s\n' "${PIPESTATUS[0]-}" "${PIPESTATUS[1]-}" "${PIPESTATUS[2]-}"
-    )"
-  else
-    raw="$(
-      set +e
-      { printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity; } 2>/dev/null
-      printf '\nidentity_stage_status=%s,%s,%s\n' "${PIPESTATUS[0]-}" "${PIPESTATUS[1]-}" "${PIPESTATUS[2]-}"
-    )"
-  fi
+  raw="$(
+    set +e
+    invoke_probe_php --identity
+    printf '\nidentity_stage_status=%s\n' "${probe_php_status-}"
+  )"
   stage_line="$(printf '%s\n' "$raw" | awk '/^identity_stage_status=/ { line = $0 } END { print line }')"
   body="$(printf '%s\n' "$raw" | awk '!/^identity_stage_status=/')"
-  printf_status="${stage_line#identity_stage_status=}"
-  decode_status="${printf_status#*,}"
-  command_status="${decode_status#*,}"
-  printf_status="${printf_status%%,*}"
-  decode_status="${decode_status%%,*}"
+  command_status="${stage_line#identity_stage_status=}"
   if printf '%s\n' "$body" | grep -qx 'identity_helper_started=yes'; then
     helper_started="yes"
   fi
-  printf_status="$(identity_stage_label "$printf_status")"
-  decode_status="$(identity_stage_label "$decode_status")"
   command_status="$(identity_stage_label "$command_status")"
-  if [ "$printf_status" = "unknown" ] || [ "$decode_status" = "unknown" ] || [ "$command_status" = "unknown" ] || [ "$printf_status" -ne 0 ]; then
+  if [ "$command_status" = "unknown" ]; then
     failure="unknown"
-  elif [ "$decode_status" -ne 0 ]; then
-    failure="decode"
   elif [ "$command_status" -eq 124 ]; then
     failure="timeout"
   elif [ "$command_status" -eq 125 ] || [ "$command_status" -eq 126 ] || [ "$command_status" -eq 127 ]; then
@@ -253,7 +286,6 @@ collect_recorded_identity() {
   else
     failure="none"
   fi
-  echo "identity_decode_status=${decode_status}"
   echo "identity_command_status=${command_status}"
   echo "identity_helper_started=${helper_started}"
   echo "identity_failure=${failure}"
@@ -681,6 +713,8 @@ dac_check() {
   done
 }
 
+prepare_probe_php_code || true
+
 if recorded_site_flags; then
   if [ -n "$root" ] && [ -f "${root}/fixture-php" ] && [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
     identity_output="$(probe_php -- --identity 2>/dev/null || true)"
@@ -750,7 +784,7 @@ unit_state "clamav-freshclam.service" "is-enabled"
 
 app_ping="not_attempted"
 app_version="not_attempted"
-if [ "$identity_ok" -eq 1 ] && [ -n "$socket_path" ] && { [ -n "${ACCESS_PROBE_PHP_B64:-}" ] || [ -n "$root" ]; }; then
+if [ "$identity_ok" -eq 1 ] && [ -n "$socket_path" ] && { [ "$probe_php_code_ready" -eq 1 ] || [ -n "$root" ]; }; then
   socket_read="no"
   socket_write="no"
   if as_app_timed test -r "$(host_path "$socket_path")" 2>/dev/null; then
@@ -760,12 +794,21 @@ if [ "$identity_ok" -eq 1 ] && [ -n "$socket_path" ] && { [ -n "${ACCESS_PROBE_P
     socket_write="yes"
   fi
   if [ "$socket_read" = "yes" ] && [ "$socket_write" = "yes" ]; then
-    if [ -n "$root" ]; then
+    if [ "$probe_php_code_ready" -eq 1 ]; then
+      probe="$(
+        set +e
+        invoke_probe_php "$(host_path "$socket_path")"
+        printf '\nprobe_stage_status=%s\n' "$probe_php_status"
+      )"
+      probe_status="$(printf '%s\n' "$probe" | awk '/^probe_stage_status=/ { line = $0 } END { print line }')"
+      probe_status="${probe_status#probe_stage_status=}"
+      probe="$(printf '%s\n' "$probe" | awk '!/^probe_stage_status=/')"
+    elif [ -n "$root" ]; then
       probe="$(probe_php -- "$(host_path "$socket_path")" 2>/dev/null || true)"
       probe_status=0
     else
-      probe="$(printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- "$(host_path "$socket_path")" 2>/dev/null)"
-      probe_status=$?
+      probe=""
+      probe_status=127
     fi
     if [ "$probe_status" -eq 124 ]; then
       app_ping="timed_out"

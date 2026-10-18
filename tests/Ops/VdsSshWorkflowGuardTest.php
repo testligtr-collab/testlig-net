@@ -643,9 +643,12 @@ BASH);
         self::assertNotNull($bash);
         $remote = $this->read('deploy/vds/gha-clamav-access-probe-remote.sh');
         self::assertStringContainsString(
-            'printf \'%s\' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity',
+            'timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -r "$probe_php_code" -- "$@" </dev/null',
             $remote,
         );
+        self::assertStringNotContainsString('base64 -d | timeout', $remote);
+        self::assertStringNotContainsString('identity_decode_status', $remote);
+        self::assertStringContainsString('ulimit -c 0', $remote);
 
         $helper = $this->read('deploy/vds/gha-clamav-access-probe.php');
         $expected = $this->directHelperIdentity($helper);
@@ -660,7 +663,7 @@ BASH);
         );
         self::assertStringContainsString($expected, $output);
         self::assertStringContainsString('identity_helper_started=yes', $output);
-        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringNotContainsString('identity_decode_status', $output);
         self::assertStringContainsString('identity_command_status=0', $output);
         self::assertStringContainsString('identity_failure=none', $output);
         self::assertStringContainsString('identity_caller_continues=yes', $output);
@@ -674,6 +677,56 @@ BASH);
         }
     }
 
+    public function testRecordedIdentityDashRClosesStdinAndKeepsDataArgsSeparate(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $helper = $this->read('deploy/vds/gha-clamav-access-probe.php');
+        $root = $this->identityPipelineRoot('dash-r', $bash);
+        file_put_contents($root.'/fixture-php-bin', <<<'BASH'
+#!/bin/bash
+dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+code=""
+data=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-r" ]; then
+    code="$arg"
+  fi
+  if [ "$prev" = "--" ]; then
+    data="$arg"
+  fi
+  prev="$arg"
+done
+printf '%s\n' "$data" > "$dir/launcher-data"
+if printf '%s' "$code" | grep -q 'clamav_access_probe_cli_main();'; then
+  printf '%s\n' yes > "$dir/launcher-entry"
+else
+  printf '%s\n' no > "$dir/launcher-entry"
+fi
+if printf '%s' "$code" | grep -F -q -- '/probe-data-socket-not-in-source'; then
+  printf '%s\n' embedded > "$dir/launcher-separation"
+else
+  printf '%s\n' separated > "$dir/launcher-separation"
+fi
+payload=$(cat)
+if [ -z "$payload" ]; then
+  printf '%s\n' EOF > "$dir/launcher-stdin"
+else
+  printf '%s\n' CONSUMED > "$dir/launcher-stdin"
+fi
+exit 0
+BASH);
+        $output = $this->runIdentityProbe($bash, $root, base64_encode($helper));
+        self::assertSame("--identity\n", (string) file_get_contents($root.'/launcher-data'));
+        self::assertSame("yes\n", (string) file_get_contents($root.'/launcher-entry'));
+        self::assertSame("separated\n", (string) file_get_contents($root.'/launcher-separation'));
+        self::assertSame("EOF\n", (string) file_get_contents($root.'/launcher-stdin'));
+        self::assertStringContainsString('bash_continues=yes', $output);
+        self::assertStringNotContainsString('<?php', $output);
+        self::assertStringNotContainsString($root, $output);
+    }
+
     public function testRecordedIdentityInvalidAndPartialBase64StayClosed(): void
     {
         $bash = $this->probeBash();
@@ -682,9 +735,10 @@ BASH);
         foreach (['@@@not-base64@@@', $partial] as $payload) {
             $root = $this->identityPipelineRoot('decode', $bash);
             $output = $this->runIdentityProbe($bash, $root, $payload);
-            self::assertStringContainsString('identity_failure=decode', $output);
-            self::assertMatchesRegularExpression('/identity_decode_status=[1-9][0-9]*/', $output);
-            self::assertMatchesRegularExpression('/identity_command_status=[0-9]+/', $output);
+            self::assertStringContainsString('identity_failure=unknown', $output);
+            self::assertStringContainsString('identity_command_status=not_attempted', $output);
+            self::assertStringNotContainsString('identity_decode_status', $output);
+            self::assertStringContainsString('identity_helper_started=no', $output);
             self::assertStringNotContainsString('identity_failure=php', $output);
             $this->assertIdentityGateStaysClosed($output, $root);
         }
@@ -696,9 +750,14 @@ BASH);
         self::assertNotNull($bash);
         $root = $this->identityPipelineRoot('command-start', $bash);
         file_put_contents($root.'/fixture-php-bin', "#!/bin/bash\nexit 127\n");
-        $output = $this->runIdentityProbe($bash, $root, base64_encode("<?php\necho \"identity_helper_started=yes\\n\";\n"));
+        $output = $this->runIdentityProbe($bash, $root, base64_encode($this->probeEntrySource(<<<'PHP'
+function clamav_access_probe_cli_main(): void
+{
+    echo "identity_helper_started=yes\n";
+}
+PHP)));
         self::assertStringContainsString('identity_failure=command_start', $output);
-        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringNotContainsString('identity_decode_status', $output);
         self::assertStringContainsString('identity_command_status=127', $output);
         self::assertStringContainsString('identity_helper_started=no', $output);
         self::assertStringNotContainsString('identity_failure=php', $output);
@@ -710,10 +769,16 @@ BASH);
         $bash = $this->probeBash();
         self::assertNotNull($bash);
         $root = $this->identityPipelineRoot('php-error', $bash);
-        $payload = base64_encode("<?php\necho \"identity_helper_started=yes\\nprocess_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nexit(1);\n");
+        $payload = base64_encode($this->probeEntrySource(<<<'PHP'
+function clamav_access_probe_cli_main(): void
+{
+    echo "identity_helper_started=yes\nprocess_euid=5002\nprocess_egid=5002\nprocess_group=5002\n";
+    exit(1);
+}
+PHP));
         $output = $this->runIdentityProbe($bash, $root, $payload);
         self::assertStringContainsString('identity_failure=php', $output);
-        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringNotContainsString('identity_decode_status', $output);
         self::assertStringContainsString('identity_command_status=1', $output);
         self::assertStringContainsString('identity_helper_started=yes', $output);
         self::assertStringNotContainsString('identity_failure=command_start', $output);
@@ -724,7 +789,13 @@ BASH);
     {
         $bash = $this->probeBash();
         self::assertNotNull($bash);
-        $payload = base64_encode("<?php\necho \"identity_helper_started=yes\\nprocess_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nsleep(30);\n");
+        $payload = base64_encode($this->probeEntrySource(<<<'PHP'
+function clamav_access_probe_cli_main(): void
+{
+    echo "identity_helper_started=yes\nprocess_euid=5002\nprocess_egid=5002\nprocess_group=5002\n";
+    sleep(30);
+}
+PHP));
         $root = $this->identityPipelineRoot('timeout', $bash);
         $started = microtime(true);
         $output = $this->runProbe(
@@ -1212,16 +1283,32 @@ BASH,
         return $root;
     }
 
+    private function probeEntrySource(string $body): string
+    {
+        return "<?php\n".$body."\n// CLAMAV_ACCESS_PROBE_ENTRY\n";
+    }
+
+    private function probeEvalCode(string $helper): string
+    {
+        $marker = "// CLAMAV_ACCESS_PROBE_ENTRY\n";
+        self::assertStringStartsWith("<?php\n", $helper);
+        self::assertSame(1, substr_count($helper, $marker));
+        self::assertStringEndsWith($marker, $helper);
+        $code = substr($helper, \strlen("<?php\n"));
+        self::assertStringNotContainsString('/probe-data-socket-not-in-source', $code);
+
+        return substr($code, 0, -\strlen($marker))."clamav_access_probe_cli_main();\n";
+    }
+
     private function directHelperIdentity(string $helper): string
     {
         $pipes = [];
         $process = proc_open(
-            [\PHP_BINARY, '--', '--identity'],
+            [\PHP_BINARY, '-r', $this->probeEvalCode($helper), '--', '--identity'],
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
         );
         self::assertIsResource($process);
-        fwrite($pipes[0], $helper);
         fclose($pipes[0]);
         $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
         foreach ([1, 2] as $index) {

@@ -155,11 +155,6 @@ function clamav_access_probe_is_cli_entry(): bool
     if (\PHP_SAPI !== 'cli') {
         return false;
     }
-    // The workflow decodes the helper and passes it on stdin: php -- "$socket".
-    // That invocation has no real file path, so __FILE__ is the stdin label.
-    if ('Standard input code' === __FILE__) {
-        return true;
-    }
     $script = $_SERVER['SCRIPT_FILENAME'] ?? null;
     if (!is_string($script) || '' === $script) {
         return false;
@@ -249,6 +244,13 @@ function clamav_access_probe_emit_for_credentials(?array $credentials, callable 
     $onMatch();
 }
 
+function self_path_ok(string $path): bool
+{
+    return strlen($path) >= 2
+        && strlen($path) <= 108
+        && 1 === preg_match('#^/(?:[A-Za-z0-9._-]{1,64}/){0,16}[A-Za-z0-9._-]{1,64}$#', $path);
+}
+
 function clamav_access_probe_run(string $path): void
 {
     $connect = static function (float $timeout) use ($path): mixed {
@@ -264,7 +266,8 @@ function clamav_access_probe_run(string $path): void
     echo ClamavAccessProbeClient::report($connect);
 }
 
-if (clamav_access_probe_is_cli_entry()) {
+function clamav_access_probe_cli_main(): void
+{
     $arguments = $_SERVER['argv'] ?? null;
     $path = is_array($arguments) && isset($arguments[1]) && is_string($arguments[1]) ? $arguments[1] : '';
     if ('--identity' === $path) {
@@ -280,9 +283,4 @@ if (clamav_access_probe_is_cli_entry()) {
     );
 }
 
-function self_path_ok(string $path): bool
-{
-    return strlen($path) >= 2
-        && strlen($path) <= 108
-        && 1 === preg_match('#^/(?:[A-Za-z0-9._-]{1,64}/){0,16}[A-Za-z0-9._-]{1,64}$#', $path);
-}
+// CLAMAV_ACCESS_PROBE_ENTRY
