@@ -814,6 +814,84 @@ PHP));
         $this->assertIdentityGateStaysClosed($output, $root);
     }
 
+    public function testSocketProbeDiscardsPingVersionUnlessStatusIsZero(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+
+        foreach (['139', '1'] as $status) {
+            $output = $this->runSocketStatusProbe($bash, 'socket-'.$status, <<<BASH
+printf '%s\n' 'LEAKED_SOCKET_STDOUT'
+printf '%s\n' 'LEAKED_SOCKET_STDERR' >&2
+printf '%s\n' app_ping=pong app_version_daily=59
+exit {$status}
+BASH);
+            self::assertStringContainsString('identity_command_status=0', $output);
+            self::assertStringContainsString('identity_failure=none', $output);
+            self::assertStringContainsString('process_identity_match=yes', $output);
+            self::assertStringContainsString('socket_command_status='.$status, $output);
+            self::assertStringContainsString('app_ping=failed', $output);
+            self::assertStringContainsString('app_version_daily=failed', $output);
+            self::assertStringNotContainsString('app_ping=pong', $output);
+            self::assertStringNotContainsString('app_version_daily=59', $output);
+            self::assertStringNotContainsString('LEAKED_SOCKET_STDOUT', $output);
+            self::assertStringNotContainsString('LEAKED_SOCKET_STDERR', $output);
+        }
+
+        $accepted = $this->runSocketStatusProbe($bash, 'socket-ok', <<<'BASH'
+printf '%s\n' 'LEAKED_SOCKET_STDOUT'
+printf '%s\n' app_ping=pong app_version_daily=59
+exit 0
+BASH);
+        self::assertStringContainsString('process_identity_match=yes', $accepted);
+        self::assertStringContainsString('app_ping=pong', $accepted);
+        self::assertStringContainsString('app_version_daily=59', $accepted);
+        self::assertStringNotContainsString('app_ping=failed', $accepted);
+        self::assertStringNotContainsString('socket_command_status=', $accepted);
+        self::assertStringNotContainsString('LEAKED_SOCKET_STDOUT', $accepted);
+
+        $started = microtime(true);
+        $timedOut = $this->runSocketStatusProbe($bash, 'socket-timeout', <<<'BASH'
+printf '%s\n' app_ping=pong app_version_daily=59
+sleep 30
+exit 0
+BASH);
+        $elapsed = microtime(true) - $started;
+        self::assertGreaterThan(10.0, $elapsed);
+        self::assertLessThan(20.0, $elapsed);
+        self::assertStringContainsString('app_ping=timed_out', $timedOut);
+        self::assertStringContainsString('app_version_daily=timed_out', $timedOut);
+        self::assertStringNotContainsString('app_ping=pong', $timedOut);
+        self::assertStringNotContainsString('app_ping=failed', $timedOut);
+        self::assertStringNotContainsString('socket_command_status=', $timedOut);
+
+        $mismatch = $this->runSocketStatusProbe($bash, 'socket-mismatch', <<<'BASH'
+printf '%s\n' process_identity_match=no app_ping=pong app_version_daily=59
+exit 0
+BASH);
+        self::assertStringContainsString('connecting_process_identity_match=no', $mismatch);
+        self::assertStringContainsString('app_ping=not_attempted', $mismatch);
+        self::assertStringContainsString('app_version_daily=not_attempted', $mismatch);
+        self::assertStringNotContainsString('app_ping=pong', $mismatch);
+        self::assertStringNotContainsString('app_ping=failed', $mismatch);
+
+        $closed = $this->recordedProbeRoot('socket-status', '5002', '4999', 'testl3865', 'match', 'match');
+        $classified = $this->runProbe($bash, $this->bashPath($bash, $closed), '', <<<'BASH'
+emit_socket_probe '' "$(printf '%s\n' 'app_ping=pong' 'app_version_daily=59' 'LEAKED_SOCKET_STDOUT')"
+printf '%s\n' "classify_missing_ping=${app_ping}" "classify_missing_version=${app_version}"
+emit_socket_probe 'nope' "$(printf '%s\n' 'app_ping=pong' 'app_version_daily=59' 'LEAKED_SOCKET_STDOUT')"
+printf '%s\n' "classify_corrupt_ping=${app_ping}" "classify_corrupt_version=${app_version}"
+BASH);
+        self::assertStringContainsString('socket_command_status=unknown', $classified);
+        self::assertStringContainsString('classify_missing_ping=failed', $classified);
+        self::assertStringContainsString('classify_missing_version=failed', $classified);
+        self::assertStringContainsString('classify_corrupt_ping=failed', $classified);
+        self::assertStringContainsString('classify_corrupt_version=failed', $classified);
+        self::assertStringNotContainsString('app_ping=pong', $classified);
+        self::assertStringNotContainsString('app_version_daily=59', $classified);
+        self::assertStringNotContainsString('LEAKED_SOCKET_STDOUT', $classified);
+    }
+
     public function testPhpIdentityExitDiagnosticStaysReadOnly(): void
     {
         $workflow = $this->read('.github/workflows/ops-php-identity-exit-diagnostic.yml');
@@ -1128,6 +1206,39 @@ BASH);
         mkdir($root.'/proc/'.$pid, 0777, true);
         file_put_contents($root.'/proc/'.$pid.'/comm', $comm);
         file_put_contents($root.'/proc/'.$pid.'/status', $status);
+    }
+
+    private function runSocketStatusProbe(string $bash, string $label, string $socketCommands): string
+    {
+        $root = $this->recordedProbeRoot($label, '5002', '5002', 'testl3865', 'match', 'match');
+        file_put_contents($root.'/fixture-php-bin', <<<BASH
+#!/bin/bash
+data=""
+prev=""
+for arg in "\$@"; do
+  if [ "\$prev" = "--" ]; then
+    data="\$arg"
+  fi
+  prev="\$arg"
+done
+if [ "\$data" = "--identity" ]; then
+  printf '%s\n' identity_helper_started=yes process_euid=5002 process_egid=5002 process_group=5002
+  exit 0
+fi
+{$socketCommands}
+BASH);
+        $payload = base64_encode($this->probeEntrySource(<<<'PHP'
+function clamav_access_probe_cli_main(): void
+{
+    echo "unused\n";
+}
+PHP));
+
+        return $this->runProbe(
+            $bash,
+            $this->bashPath($bash, $root),
+            "ACCESS_PROBE_PHP_B64='".$payload."'\n",
+        );
     }
 
     private function runIdentityProbe(string $bash, string $root, string $payload): string

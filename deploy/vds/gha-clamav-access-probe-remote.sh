@@ -203,6 +203,41 @@ identity_stage_label() {
   printf '%s' "unknown"
 }
 
+emit_socket_probe() {
+  local status="$1"
+  local probe="$2"
+  status="$(identity_stage_label "$status")"
+  if [ "$status" = "124" ]; then
+    app_ping="timed_out"
+    app_version="timed_out"
+    return 0
+  fi
+  if [ "$status" != "0" ]; then
+    echo "socket_command_status=${status}"
+    app_ping="failed"
+    app_version="failed"
+    return 0
+  fi
+  if printf '%s\n' "$probe" | grep -Eq '^process_identity_match=no$'; then
+    echo "connecting_process_identity_match=no"
+    app_ping="not_attempted"
+    app_version="not_attempted"
+    return 0
+  fi
+  printf '%s\n' "$probe" | awk '
+    $0 ~ /^app_ping=(pong|eof|partial|timed_out|unavailable|unreadable)$/ { ping = substr($0, 10) }
+    $0 ~ /^app_version_daily=(0|[1-9][0-9]*|eof|partial|timed_out|unavailable|unreadable)$/ { version = substr($0, 19) }
+    END {
+      if (ping == "") ping = "unreadable"
+      if (version == "") version = "unreadable"
+      print "app_ping=" ping
+      print "app_version_daily=" version
+    }
+  '
+  app_ping="reported"
+  app_version="reported"
+}
+
 probe_php_code=""
 probe_php_code_ready=0
 
@@ -810,27 +845,7 @@ if [ "$identity_ok" -eq 1 ] && [ -n "$socket_path" ] && { [ "$probe_php_code_rea
       probe=""
       probe_status=127
     fi
-    if [ "$probe_status" -eq 124 ]; then
-      app_ping="timed_out"
-      app_version="timed_out"
-    elif printf '%s\n' "$probe" | grep -Eq '^process_identity_match=no$'; then
-      echo "connecting_process_identity_match=no"
-      app_ping="not_attempted"
-      app_version="not_attempted"
-    else
-      printf '%s\n' "$probe" | awk '
-        $0 ~ /^app_ping=(pong|eof|partial|timed_out|unavailable|unreadable)$/ { ping = substr($0, 10) }
-        $0 ~ /^app_version_daily=(0|[1-9][0-9]*|eof|partial|timed_out|unavailable|unreadable)$/ { version = substr($0, 19) }
-        END {
-          if (ping == "") ping = "unreadable"
-          if (version == "") version = "unreadable"
-          print "app_ping=" ping
-          print "app_version_daily=" version
-        }
-      '
-      app_ping="reported"
-      app_version="reported"
-    fi
+    emit_socket_probe "$probe_status" "$probe"
   fi
 fi
 if [ "$app_ping" != "reported" ]; then
