@@ -59,32 +59,104 @@ final class ClamavAccessProbeCommandTest extends TestCase
         self::assertFalse(clamav_access_probe_is_cli_entry());
     }
 
-    public function testWorkflowBase64StdinProbeUsesSeparatePingAndVersionConnections(): void
+    public function testWorkflowBase64StdinProbeRefusesBeforeConnectingWhenIdentityDiffers(): void
     {
         $result = $this->workflowProbe('split');
 
-        self::assertSame("app_ping=pong\napp_version_daily=59\n", $result['output']);
-        self::assertSame(0, $result['serverExit']);
-        self::assertLessThan(12.0, $result['elapsed']);
-    }
-
-    public function testWorkflowBase64StdinProbeTimeoutStaysBounded(): void
-    {
-        $result = $this->workflowProbe('timeout', 30);
-
-        self::assertMatchesRegularExpression('/^app_ping=timed_out\napp_version_daily=(timed_out|unavailable)\n$/', $result['output']);
-        self::assertGreaterThan(4.0, $result['elapsed']);
-        self::assertLessThan(12.0, $result['elapsed']);
+        self::assertSame("process_identity_match=no\n", $result['output']);
         self::assertStringNotContainsString('PONG', $result['output']);
-        self::assertStringNotContainsString('ClamAV ', $result['output']);
+        self::assertStringNotContainsString('app_ping=', $result['output']);
+        self::assertLessThan(12.0, $result['elapsed']);
     }
 
-    private function probe(string $mode, float $timeout = 2.0): string
+    public function testRecordedIdentityMatchIgnoresGroupOrderAndRejectsDifferentSets(): void
+    {
+        self::assertTrue(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5002,
+            'groups' => [5002],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5003,
+            'groups' => [5002],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5002,
+            'groups' => [7, 5002],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5002,
+            'groups' => [5002, 7],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5002,
+            'groups' => [],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches([
+            'euid' => 5002,
+            'egid' => 5002,
+            'groups' => ['5002'],
+        ]));
+        self::assertFalse(clamav_access_probe_recorded_identity_matches(null));
+        self::assertSame("process_identity=unavailable\n", clamav_access_probe_format_identity(null));
+    }
+
+    public function testConnectingProcessDoesNotOpenASocketWhenIdentityDiffers(): void
+    {
+        $opened = false;
+        ob_start();
+        clamav_access_probe_emit_for_credentials(
+            ['euid' => 5002, 'egid' => 5002, 'groups' => [5002, 5002]],
+            static function () use (&$opened): void {
+                $opened = true;
+            },
+        );
+        $output = ob_get_clean();
+
+        self::assertFalse($opened);
+        self::assertSame("process_identity_match=no\n", $output);
+
+        $opened = false;
+        ob_start();
+        clamav_access_probe_emit_for_credentials(
+            ['euid' => 5002, 'egid' => 5002, 'groups' => [5002]],
+            static function () use (&$opened): void {
+                $opened = true;
+            },
+        );
+        ob_end_clean();
+
+        self::assertTrue($opened);
+    }
+
+    public function testPingAndVersionTimeoutStayBounded(): void
+    {
+        $started = hrtime(true);
+        $output = $this->probe('timeout', 5.0, 8);
+        $elapsed = (hrtime(true) - $started) / 1_000_000_000;
+
+        self::assertMatchesRegularExpression('/^app_ping=timed_out\napp_version_daily=(timed_out|unavailable)\n$/', $output);
+        self::assertGreaterThan(4.0, $elapsed);
+        self::assertLessThan(12.0, $elapsed);
+        self::assertStringNotContainsString('PONG', $output);
+        self::assertStringNotContainsString('ClamAV ', $output);
+    }
+
+    private function probe(string $mode, float $timeout = 2.0, ?int $holdSeconds = null): string
     {
         $server = \dirname(__DIR__, 2).'/tests/Ops/ClamavAccessProbeFakeServer.php';
+        $command = [\PHP_BINARY, $server, $mode];
+        if (null !== $holdSeconds) {
+            $command[] = '';
+            $command[] = (string) $holdSeconds;
+        }
         $pipes = [];
         $process = proc_open(
-            [\PHP_BINARY, $server, $mode],
+            $command,
             [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
         );

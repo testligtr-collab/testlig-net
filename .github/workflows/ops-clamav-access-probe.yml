@@ -1,9 +1,11 @@
 name: Ops ClamAV access probe (VDS)
 
-# Manual read-only measurement of the live lsphp uid against the ClamAV socket
-# and signature directory. It does not change access, services, groups, ACL,
-# environment files, or production assets, and it does not scan with INSTREAM.
-# A green run means the measurement finished. It is not application access.
+# Manual read-only measurement of the recorded web identity against the ClamAV
+# socket and signature directory. The ^lsphp scan does not select the user.
+# It does not change access, services, groups, ACL, environment files, or
+# production assets, and it does not scan with INSTREAM.
+# A green run means the measurement finished. It is CLI access under the
+# recorded identity, not web or SELinux acceptance.
 # No HTTPS request is sent from this workflow. Absence of lsphp is unknown;
 # an external request is not assumed to leave a persistent PHP process.
 # Symfony cache:warmup is not run. Runtime env values are not embedded by warmup.
