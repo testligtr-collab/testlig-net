@@ -1,0 +1,85 @@
+name: Ops PHP identity exit diagnostic (VDS)
+
+# Manual read-only check of whether the site PHP binary can start.
+# It does not run the ClamAV access probe, open a socket, or scan a file.
+# Exit 139 is reported as a number. It is not a root-cause claim.
+# A green run is not ClamAV acceptance and not web or SELinux acceptance.
+# No HTTPS request is sent from this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "diagnose-php-identity-exit. Any other value stops before SSH."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "PHP identity exit diagnostic skipped because SSH paused"
+          {
+            echo "## PHP identity exit diagnostic skipped because SSH paused"
+            echo "No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  not-confirmed:
+    name: PHP identity exit diagnostic not confirmed
+    if: >-
+      vars.VDS_SSH_PAUSED != 'true' &&
+      github.event.inputs.confirm != 'diagnose-php-identity-exit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report missing confirmation
+        run: echo "PHP identity exit diagnostic not confirmed"
+
+  vds:
+    name: VDS PHP identity exit diagnostic
+    if: >-
+      vars.VDS_SSH_PAUSED != 'true' &&
+      github.event.inputs.confirm == 'diagnose-php-identity-exit'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote read-only PHP start diagnostic
+        run: |
+          set -euo pipefail
+          set +e
+          ssh testlig-vds "bash -s" < deploy/vds/gha-php-identity-exit-remote.sh
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi

@@ -174,6 +174,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-clamav-preflight.yml',
             '.github/workflows/ops-clamav-install.yml',
             '.github/workflows/ops-clamav-access-probe.yml',
+            '.github/workflows/ops-php-identity-exit-diagnostic.yml',
             '.github/workflows/ops-web-runtime-identity-window.yml',
         ];
         foreach ($ops as $relative) {
@@ -742,6 +743,106 @@ BASH);
         $this->assertIdentityGateStaysClosed($output, $root);
     }
 
+    public function testPhpIdentityExitDiagnosticStaysReadOnly(): void
+    {
+        $workflow = $this->read('.github/workflows/ops-php-identity-exit-diagnostic.yml');
+        $remote = $this->read('deploy/vds/gha-php-identity-exit-remote.sh');
+
+        self::assertStringContainsString('workflow_dispatch:', $workflow);
+        self::assertStringContainsString("github.event.inputs.confirm == 'diagnose-php-identity-exit'", $workflow);
+        self::assertStringContainsString("github.event.inputs.confirm != 'diagnose-php-identity-exit'", $workflow);
+        self::assertStringContainsString('PHP identity exit diagnostic not confirmed', $workflow);
+        self::assertStringContainsString("vars.VDS_SSH_PAUSED == 'true'", $workflow);
+        self::assertStringContainsString('PHP identity exit diagnostic skipped because SSH paused', $workflow);
+        self::assertStringContainsString('group: testlig-vds-ssh', $workflow);
+        self::assertStringContainsString('cancel-in-progress: false', $workflow);
+        self::assertSame(1, $this->commandCount($workflow, 'ssh'));
+        self::assertSame(0, $this->commandCount($workflow, 'scp'));
+        self::assertStringContainsString('ssh testlig-vds "bash -s" < deploy/vds/gha-php-identity-exit-remote.sh', $workflow);
+        self::assertStringNotContainsString('gha-clamav-access-probe', $workflow);
+        self::assertStringContainsString('ulimit -c 0', $remote);
+        self::assertStringContainsString('runuser -u testl3865 --', $remote);
+        self::assertStringNotContainsString(' -g ', $remote);
+        self::assertStringNotContainsString(' -G ', $remote);
+        self::assertStringNotContainsString('php -n', $remote);
+        self::assertStringNotContainsString('phpinfo', $remote);
+        self::assertStringNotContainsString('printenv', $remote);
+        self::assertStringNotContainsString('cmdline', $remote);
+        self::assertStringNotContainsString('environ', $remote);
+        self::assertStringContainsString('timeout 5 runuser -u testl3865 -- "$php_bin" -v', $remote);
+        self::assertDoesNotMatchRegularExpression('/>(?!\/dev\/null\b|&1\b)/', $remote);
+    }
+
+    public function testPhpIdentityExitDiagnosticRunsRealStdinScript(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $root = $this->phpDiagRoot('real', $bash, 'real');
+        $output = $this->runPhpDiag($bash, $root, "echo bash_continues=yes\n");
+        self::assertStringContainsString('site_account_uid_match=yes', $output);
+        self::assertStringContainsString('site_account_name_match=yes', $output);
+        self::assertStringContainsString('site_owner_match=yes', $output);
+        self::assertStringContainsString('php_diag_core=disabled', $output);
+        self::assertStringContainsString("php_diag_test=version\nphp_diag_exit=0\nphp_diag_marker=no\nphp_diag_timeout=no", $output);
+        self::assertStringContainsString("php_diag_test=inline\nphp_diag_exit=0\nphp_diag_marker=yes\nphp_diag_timeout=no", $output);
+        self::assertStringContainsString("php_diag_test=stdin\nphp_diag_exit=0\nphp_diag_marker=yes\nphp_diag_timeout=no", $output);
+        self::assertStringContainsString('php_diag_caller_continues=yes', $output);
+        self::assertStringContainsString('bash_continues=yes', $output);
+        self::assertStringNotContainsString('PHP ', $output);
+        self::assertFileDoesNotExist($root.'/core');
+    }
+
+    public function testPhpIdentityExitDiagnosticSkipsImpersonationWhenSiteDiffers(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $root = $this->phpDiagRoot('site-differs', $bash, 'crash');
+        file_put_contents($root.'/fixture-id', <<<'BASH'
+#!/bin/bash
+if [ "$1" = "-u" ] && [ "$2" = "testl3865" ]; then
+  printf '%s\n' 4242
+  exit 0
+fi
+exit 1
+BASH);
+        $output = $this->runPhpDiag($bash, $root);
+        self::assertStringContainsString('site_account_uid_match=no', $output);
+        self::assertSame(3, substr_count($output, 'php_diag_exit=not_attempted'));
+        self::assertFileDoesNotExist($root.'/runuser-attempts');
+    }
+
+    public function testPhpIdentityExitDiagnosticPreservesLauncherStatusWithoutLeakingOutput(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+
+        $crash = $this->phpDiagRoot('crash', $bash, 'crash');
+        $crashOutput = $this->runPhpDiag($bash, $crash);
+        self::assertSame(3, substr_count($crashOutput, 'php_diag_exit=139'));
+        self::assertStringContainsString('php_diag_marker=no', $crashOutput);
+        self::assertStringContainsString('php_diag_timeout=no', $crashOutput);
+        self::assertStringNotContainsString('LEAKED_STDOUT', $crashOutput);
+        self::assertStringNotContainsString('LEAKED_STDERR', $crashOutput);
+        self::assertStringContainsString('php_diag_caller_continues=yes', $crashOutput);
+
+        $missing = $this->phpDiagRoot('missing', $bash, 'nostart');
+        $missingOutput = $this->runPhpDiag($bash, $missing);
+        self::assertSame(3, substr_count($missingOutput, 'php_diag_exit=127'));
+        self::assertStringContainsString('php_diag_timeout=no', $missingOutput);
+        self::assertStringContainsString('php_diag_marker=no', $missingOutput);
+
+        $hang = $this->phpDiagRoot('hang', $bash, 'hang');
+        $started = microtime(true);
+        $hangOutput = $this->runPhpDiag($bash, $hang, "echo bash_continues=yes\n");
+        $elapsed = microtime(true) - $started;
+        self::assertGreaterThan(12.0, $elapsed);
+        self::assertLessThan(22.0, $elapsed);
+        self::assertSame(3, substr_count($hangOutput, 'php_diag_exit=124'));
+        self::assertSame(3, substr_count($hangOutput, 'php_diag_timeout=yes'));
+        self::assertStringNotContainsString('LEAKED_PARTIAL', $hangOutput);
+        self::assertStringContainsString('bash_continues=yes', $hangOutput);
+    }
+
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
     {
         $workflow = $this->read('.github/workflows/ops-clamav-install.yml');
@@ -820,7 +921,7 @@ BASH);
                 $paths[] = $path;
             }
         }
-        self::assertCount(13, $paths);
+        self::assertCount(14, $paths);
 
         return $paths;
     }
@@ -841,6 +942,7 @@ BASH);
             $this->root().'/deploy/vds/gha-clamav-preflight-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-install-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-access-probe-remote.sh',
+            $this->root().'/deploy/vds/gha-php-identity-exit-remote.sh',
             $this->root().'/deploy/vds/gha-web-runtime-identity-window-remote.sh',
         ];
     }
@@ -954,6 +1056,90 @@ BASH);
         self::assertStringContainsString('bash_continues=yes', $output);
         self::assertFileDoesNotExist($root.'/dac-attempts');
         self::assertFileDoesNotExist($root.'/connect-attempts');
+    }
+
+    private function phpDiagRoot(string $label, string $bash, string $mode): string
+    {
+        $root = str_replace('\\', '/', sys_get_temp_dir()).'/php-identity-exit-'.$label.'-'.bin2hex(random_bytes(4));
+        mkdir($root.'/home/testlig.net', 0777, true);
+        file_put_contents($root.'/fixture-id', <<<'BASH'
+#!/bin/bash
+if [ "$1" = "-u" ] && [ "$2" = "testl3865" ]; then
+  printf '%s\n' 5002
+  exit 0
+fi
+if [ "$1" = "-nu" ] && [ "$2" = "5002" ]; then
+  printf '%s\n' testl3865
+  exit 0
+fi
+exit 1
+BASH);
+        file_put_contents($root.'/fixture-stat', <<<'BASH'
+#!/bin/bash
+if [ "$1" = "-c" ] && [ "$2" = "%u" ]; then
+  printf '%s\n' 5002
+  exit 0
+fi
+exit 1
+BASH);
+        file_put_contents($root.'/fixture-runuser', <<<'BASH'
+#!/bin/bash
+if [ "$1" != "-u" ] || [ "$2" != "testl3865" ] || [ "$3" != "--" ]; then
+  exit 1
+fi
+shift 3
+dir=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+printf '%s\n' "$*" >> "$dir/runuser-attempts"
+"$@"
+BASH);
+        $php = $this->bashPath($bash, str_replace('\\', '/', \PHP_BINARY));
+        $quoted = "'".str_replace("'", "'\\''", $php)."'";
+        $launcher = match ($mode) {
+            'crash' => <<<'BASH'
+#!/bin/bash
+printf '%s\n' 'LEAKED_STDOUT_VERSION'
+printf '%s\n' 'LEAKED_STDERR' >&2
+exit 139
+BASH,
+            'nostart' => <<<'BASH'
+#!/bin/bash
+exit 127
+BASH,
+            'hang' => <<<'BASH'
+#!/bin/bash
+printf '%s\n' 'php_diag_started=yes'
+printf '%s\n' 'LEAKED_PARTIAL'
+sleep 30
+BASH,
+            default => "#!/bin/bash\nexec {$quoted} \"\$@\"\n",
+        };
+        file_put_contents($root.'/fixture-php', $launcher);
+
+        return $root;
+    }
+
+    private function runPhpDiag(string $bash, string $root, string $suffix = ''): string
+    {
+        $script = str_replace(
+            'root="${TESTLIG_PHP_DIAG_ROOT:-}"',
+            "root='".str_replace("'", '', $root)."'",
+            $this->read('deploy/vds/gha-php-identity-exit-remote.sh'),
+        );
+        $pipes = [];
+        $process = proc_open([$bash], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        self::assertIsResource($process);
+        fwrite($pipes[0], $script.$suffix);
+        fclose($pipes[0]);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        $stderr = \is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';
+        foreach ([1, 2] as $index) {
+            if (\is_resource($pipes[$index])) {
+                fclose($pipes[$index]);
+            }
+        }
+        self::assertSame(0, proc_close($process), $stdout."\n".$stderr);
+
+        return $stdout;
     }
 
     private function probeBash(): ?string
