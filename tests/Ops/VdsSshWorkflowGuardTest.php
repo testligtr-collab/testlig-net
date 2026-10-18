@@ -636,6 +636,92 @@ BASH);
         self::assertFileExists($matched.'/connect-attempts');
     }
 
+    public function testRecordedIdentityRunsRealHelperBytesWithoutReadingBashStdin(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $remote = $this->read('deploy/vds/gha-clamav-access-probe-remote.sh');
+        self::assertStringContainsString(
+            'printf \'%s\' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity',
+            $remote,
+        );
+
+        $helper = $this->read('deploy/vds/gha-clamav-access-probe.php');
+        $expected = $this->directHelperIdentity($helper);
+        self::assertMatchesRegularExpression('/^(process_identity=unavailable|process_euid=[0-9]+)$/m', $expected);
+
+        $root = $this->identityPipelineRoot('real-helper');
+        $output = $this->runProbe(
+            $bash,
+            $this->bashPath($bash, $root),
+            "ACCESS_PROBE_PHP_B64='".base64_encode($helper)."'\n",
+            "echo bash_continues=yes\n",
+        );
+        self::assertStringContainsString($expected, $output);
+        self::assertStringContainsString('identity_caller_continues=yes', $output);
+        self::assertStringContainsString('bash_continues=yes', $output);
+        if ("process_euid=5002\nprocess_egid=5002\nprocess_group=5002" !== $expected) {
+            self::assertStringNotContainsString('process_identity_match=yes', $output);
+            self::assertStringContainsString('app_dac=not_attempted', $output);
+            self::assertStringContainsString('app_ping=not_attempted', $output);
+            self::assertFileDoesNotExist($root.'/dac-attempts');
+            self::assertFileDoesNotExist($root.'/connect-attempts');
+        }
+    }
+
+    public function testRecordedIdentityDecodeAndPhpFailuresStayClosed(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $payloads = [
+            '@@@not-base64@@@',
+            base64_encode("<?php\necho \"process_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nexit(1);\n"),
+        ];
+        foreach ($payloads as $payload) {
+            $root = $this->identityPipelineRoot('closed');
+            $output = $this->runProbe(
+                $bash,
+                $this->bashPath($bash, $root),
+                "ACCESS_PROBE_PHP_B64='".$payload."'\n",
+                "echo bash_continues=yes\n",
+            );
+            self::assertStringContainsString('process_identity=unavailable', $output);
+            self::assertStringNotContainsString('process_euid=5002', $output);
+            self::assertStringNotContainsString('process_identity_match=yes', $output);
+            self::assertStringContainsString('app_dac=not_attempted', $output);
+            self::assertStringContainsString('app_ping=not_attempted', $output);
+            self::assertStringContainsString('bash_continues=yes', $output);
+            self::assertFileDoesNotExist($root.'/dac-attempts');
+            self::assertFileDoesNotExist($root.'/connect-attempts');
+        }
+    }
+
+    public function testRecordedIdentityTimeoutDiscardsPartialOutput(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $payload = base64_encode("<?php\necho \"process_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nsleep(30);\n");
+        $root = $this->identityPipelineRoot('timeout');
+        $started = microtime(true);
+        $output = $this->runProbe(
+            $bash,
+            $this->bashPath($bash, $root),
+            "ACCESS_PROBE_PHP_B64='".$payload."'\n",
+            "echo bash_continues=yes\n",
+        );
+        $elapsed = microtime(true) - $started;
+        self::assertGreaterThan(10.0, $elapsed);
+        self::assertLessThan(20.0, $elapsed);
+        self::assertStringContainsString('process_identity=unavailable', $output);
+        self::assertStringNotContainsString('process_euid=5002', $output);
+        self::assertStringNotContainsString('process_identity_match=yes', $output);
+        self::assertStringContainsString('app_dac=not_attempted', $output);
+        self::assertStringContainsString('app_ping=not_attempted', $output);
+        self::assertStringContainsString('bash_continues=yes', $output);
+        self::assertFileDoesNotExist($root.'/dac-attempts');
+        self::assertFileDoesNotExist($root.'/connect-attempts');
+    }
+
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
     {
         $workflow = $this->read('.github/workflows/ops-clamav-install.yml');
@@ -827,6 +913,41 @@ BASH);
         file_put_contents($root.'/proc/'.$pid.'/status', $status);
     }
 
+    private function identityPipelineRoot(string $label): string
+    {
+        $root = $this->recordedProbeRoot($label, '5002', '5002', 'testl3865', 'match', 'match');
+        unlink($root.'/fixture-php');
+        $php = $this->bashPath($this->bashBinary() ?? 'bash', str_replace('\\', '/', \PHP_BINARY));
+        $quoted = "'".str_replace("'", "'\\''", $php)."'";
+        file_put_contents($root.'/fixture-php-bin', "#!/bin/bash\nexec {$quoted} \"\$@\"\n");
+
+        return $root;
+    }
+
+    private function directHelperIdentity(string $helper): string
+    {
+        $pipes = [];
+        $process = proc_open(
+            [\PHP_BINARY, '--', '--identity'],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+        );
+        self::assertIsResource($process);
+        fwrite($pipes[0], $helper);
+        fclose($pipes[0]);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        foreach ([1, 2] as $index) {
+            if (\is_resource($pipes[$index])) {
+                fclose($pipes[$index]);
+            }
+        }
+        self::assertSame(0, proc_close($process));
+        $stdout = trim($stdout);
+        self::assertNotSame('', $stdout);
+
+        return $stdout;
+    }
+
     private function recordedProbeRoot(string $label, string $accountUid, string $ownerUid, string $recordedName, string $identityMode, string $connectMode): string
     {
         $root = $this->probeRoot($label);
@@ -986,7 +1107,7 @@ BASH);
         return str_contains($stdout, 'mnt') ? '/mnt/'.$suffix : '/'.$suffix;
     }
 
-    private function runProbe(string $bash, string $root): string
+    private function runProbe(string $bash, string $root, string $prefix = '', string $suffix = ''): string
     {
         $script = str_replace(
             'root="${TESTLIG_CLAMAV_ACCESS_ROOT:-}"',
@@ -1000,7 +1121,7 @@ BASH);
             $pipes,
         );
         self::assertIsResource($process);
-        fwrite($pipes[0], $script);
+        fwrite($pipes[0], $prefix.$script.$suffix);
         fclose($pipes[0]);
         $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
         $stderr = \is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';

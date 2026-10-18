@@ -186,6 +186,33 @@ probe_php() {
   as_app /usr/local/lsws/lsphp83/bin/php "$@"
 }
 
+collect_recorded_identity() {
+  local output="" status=0
+  if [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
+    return 1
+  fi
+  if [ -n "$root" ]; then
+    if [ ! -f "${root}/fixture-runuser" ] || [ ! -f "${root}/fixture-php-bin" ]; then
+      return 1
+    fi
+    output="$(
+      set -o pipefail
+      printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 bash "${root}/fixture-runuser" -u testl3865 -- bash "${root}/fixture-php-bin" -- --identity 2>/dev/null
+    )"
+    status=$?
+  else
+    output="$(
+      set -o pipefail
+      printf '%s' "$ACCESS_PROBE_PHP_B64" | base64 -d | timeout 12 runuser -u testl3865 -- /usr/local/lsws/lsphp83/bin/php -- --identity 2>/dev/null
+    )"
+    status=$?
+  fi
+  if [ "$status" -ne 0 ]; then
+    return 1
+  fi
+  printf '%s\n' "$output"
+}
+
 recorded_site_flags() {
   local account_uid="" recorded_name="" site_uid="" site_path=""
   account_uid="$(probe_id -u testl3865 2>/dev/null || true)"
@@ -605,13 +632,27 @@ dac_check() {
 }
 
 if recorded_site_flags; then
-  identity_output="$(probe_php -- --identity 2>/dev/null || true)"
-  if process_identity_matches "$identity_output"; then
-    identity_ok=1
+  if [ -n "$root" ] && [ -f "${root}/fixture-php" ] && [ -z "${ACCESS_PROBE_PHP_B64:-}" ]; then
+    identity_output="$(probe_php -- --identity 2>/dev/null || true)"
+    if process_identity_matches "$identity_output"; then
+      identity_ok=1
+    fi
+  else
+    identity_output="$(collect_recorded_identity)"
+    identity_status=$?
+    if [ "$identity_status" -ne 0 ]; then
+      echo "process_identity=unavailable"
+    else
+      printf '%s\n' "$identity_output"
+      if process_identity_matches "$identity_output"; then
+        identity_ok=1
+      fi
+    fi
   fi
 else
   echo "process_identity_match=no"
 fi
+echo "identity_caller_continues=yes"
 
 if [ "$identity_ok" -eq 1 ]; then
   if [ -n "$socket_path" ]; then
