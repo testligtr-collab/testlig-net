@@ -268,6 +268,7 @@ if (clamav_access_probe_is_cli_entry()) {
     $arguments = $_SERVER['argv'] ?? null;
     $path = is_array($arguments) && isset($arguments[1]) && is_string($arguments[1]) ? $arguments[1] : '';
     if ('--identity' === $path) {
+        echo "identity_helper_started=yes\n";
         echo clamav_access_probe_format_identity(clamav_access_probe_posix_credentials());
         exit(0);
     }

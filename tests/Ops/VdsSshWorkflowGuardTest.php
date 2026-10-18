@@ -638,7 +638,7 @@ BASH);
 
     public function testRecordedIdentityRunsRealHelperBytesWithoutReadingBashStdin(): void
     {
-        $bash = $this->bashBinary();
+        $bash = $this->probeBash();
         self::assertNotNull($bash);
         $remote = $this->read('deploy/vds/gha-clamav-access-probe-remote.sh');
         self::assertStringContainsString(
@@ -650,7 +650,7 @@ BASH);
         $expected = $this->directHelperIdentity($helper);
         self::assertMatchesRegularExpression('/^(process_identity=unavailable|process_euid=[0-9]+)$/m', $expected);
 
-        $root = $this->identityPipelineRoot('real-helper');
+        $root = $this->identityPipelineRoot('real-helper', $bash);
         $output = $this->runProbe(
             $bash,
             $this->bashPath($bash, $root),
@@ -658,6 +658,10 @@ BASH);
             "echo bash_continues=yes\n",
         );
         self::assertStringContainsString($expected, $output);
+        self::assertStringContainsString('identity_helper_started=yes', $output);
+        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringContainsString('identity_command_status=0', $output);
+        self::assertStringContainsString('identity_failure=none', $output);
         self::assertStringContainsString('identity_caller_continues=yes', $output);
         self::assertStringContainsString('bash_continues=yes', $output);
         if ("process_euid=5002\nprocess_egid=5002\nprocess_group=5002" !== $expected) {
@@ -669,39 +673,58 @@ BASH);
         }
     }
 
-    public function testRecordedIdentityDecodeAndPhpFailuresStayClosed(): void
+    public function testRecordedIdentityInvalidAndPartialBase64StayClosed(): void
     {
-        $bash = $this->bashBinary();
+        $bash = $this->probeBash();
         self::assertNotNull($bash);
-        $payloads = [
-            '@@@not-base64@@@',
-            base64_encode("<?php\necho \"process_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nexit(1);\n"),
-        ];
-        foreach ($payloads as $payload) {
-            $root = $this->identityPipelineRoot('closed');
-            $output = $this->runProbe(
-                $bash,
-                $this->bashPath($bash, $root),
-                "ACCESS_PROBE_PHP_B64='".$payload."'\n",
-                "echo bash_continues=yes\n",
-            );
-            self::assertStringContainsString('process_identity=unavailable', $output);
-            self::assertStringNotContainsString('process_euid=5002', $output);
-            self::assertStringNotContainsString('process_identity_match=yes', $output);
-            self::assertStringContainsString('app_dac=not_attempted', $output);
-            self::assertStringContainsString('app_ping=not_attempted', $output);
-            self::assertStringContainsString('bash_continues=yes', $output);
-            self::assertFileDoesNotExist($root.'/dac-attempts');
-            self::assertFileDoesNotExist($root.'/connect-attempts');
+        $partial = base64_encode("<?php\necho \"identity_helper_started=yes\\nprocess_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\n").'***';
+        foreach (['@@@not-base64@@@', $partial] as $payload) {
+            $root = $this->identityPipelineRoot('decode', $bash);
+            $output = $this->runIdentityProbe($bash, $root, $payload);
+            self::assertStringContainsString('identity_failure=decode', $output);
+            self::assertMatchesRegularExpression('/identity_decode_status=[1-9][0-9]*/', $output);
+            self::assertMatchesRegularExpression('/identity_command_status=[0-9]+/', $output);
+            self::assertStringNotContainsString('identity_failure=php', $output);
+            $this->assertIdentityGateStaysClosed($output, $root);
         }
+    }
+
+    public function testRecordedIdentityCommandCannotStart(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $root = $this->identityPipelineRoot('command-start', $bash);
+        file_put_contents($root.'/fixture-php-bin', "#!/bin/bash\nexit 127\n");
+        $output = $this->runIdentityProbe($bash, $root, base64_encode("<?php\necho \"identity_helper_started=yes\\n\";\n"));
+        self::assertStringContainsString('identity_failure=command_start', $output);
+        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringContainsString('identity_command_status=127', $output);
+        self::assertStringContainsString('identity_helper_started=no', $output);
+        self::assertStringNotContainsString('identity_failure=php', $output);
+        $this->assertIdentityGateStaysClosed($output, $root);
+    }
+
+    public function testRecordedIdentityPhpErrorDiscardsPartialOutput(): void
+    {
+        $bash = $this->probeBash();
+        self::assertNotNull($bash);
+        $root = $this->identityPipelineRoot('php-error', $bash);
+        $payload = base64_encode("<?php\necho \"identity_helper_started=yes\\nprocess_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nexit(1);\n");
+        $output = $this->runIdentityProbe($bash, $root, $payload);
+        self::assertStringContainsString('identity_failure=php', $output);
+        self::assertStringContainsString('identity_decode_status=0', $output);
+        self::assertStringContainsString('identity_command_status=1', $output);
+        self::assertStringContainsString('identity_helper_started=yes', $output);
+        self::assertStringNotContainsString('identity_failure=command_start', $output);
+        $this->assertIdentityGateStaysClosed($output, $root);
     }
 
     public function testRecordedIdentityTimeoutDiscardsPartialOutput(): void
     {
-        $bash = $this->bashBinary();
+        $bash = $this->probeBash();
         self::assertNotNull($bash);
-        $payload = base64_encode("<?php\necho \"process_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nsleep(30);\n");
-        $root = $this->identityPipelineRoot('timeout');
+        $payload = base64_encode("<?php\necho \"identity_helper_started=yes\\nprocess_euid=5002\\nprocess_egid=5002\\nprocess_group=5002\\n\";\nsleep(30);\n");
+        $root = $this->identityPipelineRoot('timeout', $bash);
         $started = microtime(true);
         $output = $this->runProbe(
             $bash,
@@ -712,14 +735,11 @@ BASH);
         $elapsed = microtime(true) - $started;
         self::assertGreaterThan(10.0, $elapsed);
         self::assertLessThan(20.0, $elapsed);
-        self::assertStringContainsString('process_identity=unavailable', $output);
-        self::assertStringNotContainsString('process_euid=5002', $output);
-        self::assertStringNotContainsString('process_identity_match=yes', $output);
-        self::assertStringContainsString('app_dac=not_attempted', $output);
-        self::assertStringContainsString('app_ping=not_attempted', $output);
-        self::assertStringContainsString('bash_continues=yes', $output);
-        self::assertFileDoesNotExist($root.'/dac-attempts');
-        self::assertFileDoesNotExist($root.'/connect-attempts');
+        self::assertStringContainsString('identity_failure=timeout', $output);
+        self::assertStringContainsString('identity_command_status=124', $output);
+        self::assertStringContainsString('identity_helper_started=yes', $output);
+        self::assertStringNotContainsString('identity_failure=php', $output);
+        $this->assertIdentityGateStaysClosed($output, $root);
     }
 
     public function testClamavInstallStaysClosedWithoutConfirmation(): void
@@ -913,11 +933,47 @@ BASH);
         file_put_contents($root.'/proc/'.$pid.'/status', $status);
     }
 
-    private function identityPipelineRoot(string $label): string
+    private function runIdentityProbe(string $bash, string $root, string $payload): string
     {
+        return $this->runProbe(
+            $bash,
+            $this->bashPath($bash, $root),
+            "ACCESS_PROBE_PHP_B64='".$payload."'\n",
+            "echo bash_continues=yes\n",
+        );
+    }
+
+    private function assertIdentityGateStaysClosed(string $output, string $root): void
+    {
+        self::assertStringContainsString('process_identity=unavailable', $output);
+        self::assertStringNotContainsString('process_euid=', $output);
+        self::assertStringNotContainsString('process_identity_match=yes', $output);
+        self::assertStringContainsString('app_dac=not_attempted', $output);
+        self::assertStringContainsString('app_ping=not_attempted', $output);
+        self::assertStringContainsString('identity_caller_continues=yes', $output);
+        self::assertStringContainsString('bash_continues=yes', $output);
+        self::assertFileDoesNotExist($root.'/dac-attempts');
+        self::assertFileDoesNotExist($root.'/connect-attempts');
+    }
+
+    private function probeBash(): ?string
+    {
+        // Git Bash passes the full helper to Windows PHP. The default bash here is WSL, and that pipe stops at 8192 bytes.
+        $git = 'C:\\Program Files\\Git\\bin\\bash.exe';
+        if (is_file($git)) {
+            return $git;
+        }
+
+        return $this->bashBinary();
+    }
+
+    private function identityPipelineRoot(string $label, ?string $bash = null): string
+    {
+        $bash = $bash ?? $this->probeBash();
+        self::assertNotNull($bash);
         $root = $this->recordedProbeRoot($label, '5002', '5002', 'testl3865', 'match', 'match');
         unlink($root.'/fixture-php');
-        $php = $this->bashPath($this->bashBinary() ?? 'bash', str_replace('\\', '/', \PHP_BINARY));
+        $php = $this->bashPath($bash, str_replace('\\', '/', \PHP_BINARY));
         $quoted = "'".str_replace("'", "'\\''", $php)."'";
         file_put_contents($root.'/fixture-php-bin', "#!/bin/bash\nexec {$quoted} \"\$@\"\n");
 
