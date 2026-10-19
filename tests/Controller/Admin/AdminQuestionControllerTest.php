@@ -344,13 +344,8 @@ final class AdminQuestionControllerTest extends WebTestCase
         }
         $ids = $this->seedCurriculum('qbdurable');
         $this->createPrivileged('qb-super-durable@example.com', UserRole::SuperAdmin);
-        $client = $this->newClient();
-        $this->login($client, 'qb-super-durable@example.com');
-        $client->disableReboot();
-        $client->getContainer()->set(ClamavSignatureObservation::class, new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)));
-
+        $client = $this->scanClient('qb-super-durable@example.com', new RecordingClamdTransport("stream: Eicar FOUND\n"));
         $infected = $this->uploadQuestionImage($client, $ids, 'Zararli kok');
-        $client->getContainer()->set(ClamdInstreamTransport::class, new RecordingClamdTransport("stream: Eicar FOUND\n"));
         $client->request('POST', $infected.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan')]);
         $client->followRedirect();
         $infectedPage = (string) $client->getResponse()->getContent();
@@ -359,28 +354,39 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client->request('GET', $infected);
         self::assertStringContainsString('Karantinada', (string) $client->getResponse()->getContent());
 
-        $failed = $this->uploadQuestionImage($client, $ids, 'Hatali kok');
-        $client->getContainer()->set(ClamdInstreamTransport::class, new RecordingClamdTransport("stream: ERROR\n"));
-        $client->request('POST', $failed.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan')]);
-        $client->followRedirect();
-        $failedPage = (string) $client->getResponse()->getContent();
+        $failedClient = $this->scanClient('qb-super-durable@example.com', new RecordingClamdTransport("stream: ERROR\n"));
+        $failed = $this->uploadQuestionImage($failedClient, $ids, 'Hatali kok');
+        $failedClient->request('POST', $failed.'/gorsel-tara', ['_token' => $this->csrf($failedClient, 'question_image_scan')]);
+        $failedClient->followRedirect();
+        $failedPage = (string) $failedClient->getResponse()->getContent();
         self::assertStringContainsString('Tarama başarısız.', $failedPage);
         self::assertStringNotContainsString('ClamAV bağlantısı kurulamadı.', $failedPage);
-        $client->request('GET', $failed);
-        self::assertStringContainsString('Tarama başarısız', (string) $client->getResponse()->getContent());
+        $failedClient->request('GET', $failed);
+        self::assertStringContainsString('Tarama başarısız', (string) $failedClient->getResponse()->getContent());
 
-        $offline = $this->uploadQuestionImage($client, $ids, 'Baglanti kok');
-        $client->getContainer()->set(ClamdInstreamTransport::class, new ConnectionFailedClamdTransport());
-        $client->request('GET', $offline);
-        self::assertStringContainsString('Tarama bekliyor', (string) $client->getResponse()->getContent());
-        $client->request('POST', $offline.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan')]);
-        $client->followRedirect();
-        $offlinePage = (string) $client->getResponse()->getContent();
+        $offlineClient = $this->scanClient('qb-super-durable@example.com', new ConnectionFailedClamdTransport());
+        $offline = $this->uploadQuestionImage($offlineClient, $ids, 'Baglanti kok');
+        $offlineClient->request('GET', $offline);
+        self::assertStringContainsString('Tarama bekliyor', (string) $offlineClient->getResponse()->getContent());
+        $offlineClient->request('POST', $offline.'/gorsel-tara', ['_token' => $this->csrf($offlineClient, 'question_image_scan')]);
+        $offlineClient->followRedirect();
+        $offlinePage = (string) $offlineClient->getResponse()->getContent();
         self::assertStringContainsString('ClamAV bağlantısı kurulamadı.', $offlinePage);
         self::assertStringContainsString('Tarama başarısız', $offlinePage);
         self::assertStringNotContainsString('Kullanıma hazır', $offlinePage);
-        $client->request('GET', $offline.'/clamav-baglanti');
+        $offlineClient->request('GET', $offline.'/clamav-baglanti');
         self::assertResponseStatusCodeSame(405);
+    }
+
+    private function scanClient(string $email, ClamdInstreamTransport $transport): KernelBrowser
+    {
+        $client = $this->newClient();
+        $this->login($client, $email);
+        $client->disableReboot();
+        $client->getContainer()->set(ClamavSignatureObservation::class, new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)));
+        $client->getContainer()->set(ClamdInstreamTransport::class, $transport);
+
+        return $client;
     }
 
     /**

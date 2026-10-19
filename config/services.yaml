@@ -130,6 +130,10 @@ services:
         arguments:
             $groupGid: '%env(string:QUESTION_IMAGE_CLAMAV_LINK_GROUP_GID)%'
 
+    App\Question\Image\Scan\UnixQuestionImageClamavLinkTransport:
+        arguments:
+            $socketPath: '%env(QUESTION_IMAGE_CLAMAV_SOCKET)%'
+
     App\Question\Image\Scan\QuestionImageClamavLinkTransport:
         alias: App\Question\Image\Scan\UnixQuestionImageClamavLinkTransport
         public: true

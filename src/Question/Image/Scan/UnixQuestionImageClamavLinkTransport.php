@@ -11,9 +11,11 @@ final class UnixQuestionImageClamavLinkTransport implements QuestionImageClamavL
 {
     private const TIMEOUT_SECONDS = 5.0;
 
-    public function __construct(
-        private readonly UnixClamdTransport $sockets,
-    ) {
+    private readonly UnixClamdTransport $sockets;
+
+    public function __construct(string $socketPath)
+    {
+        $this->sockets = new UnixClamdTransport($socketPath);
     }
 
     public function ping(): string

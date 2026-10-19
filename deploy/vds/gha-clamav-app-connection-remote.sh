@@ -221,6 +221,7 @@ directory_protects_record() {
 record_metadata_ok() {
   local target="$1"
   local meta_uid="" meta_gid="" meta_mode=""
+  directory_protects_record "$shared" || return 1
   if [ -L "$target" ] || [ ! -f "$target" ]; then
     return 1
   fi
@@ -230,7 +231,6 @@ record_metadata_ok() {
   [ "$meta_uid" = "$record_uid" ] || return 1
   [ "$meta_gid" = "$record_gid" ] || return 1
   [ "$meta_mode" = "600" ] || return 1
-  directory_protects_record "$shared"
 }
 
 record_field() {
