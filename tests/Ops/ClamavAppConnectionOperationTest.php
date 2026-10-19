@@ -132,13 +132,14 @@ final class ClamavAppConnectionOperationTest extends TestCase
         $this->write($root.'/etc/clamd.d/scan.conf', "LocalSocket {$bashSocket}\nDatabaseDirectory {$bashDatabase}\n");
         $site = $this->bashPath($root.'/home/testlig.net');
         $this->bash('chmod 755 '.$this->quote($root.'/home/testlig.net/shared')."; ln -sfn releases/rel '$site/app'");
-        $this->servers[] = $server;
+        $this->openSockets[] = $server;
+        self::assertNotEmpty($this->openSockets);
 
         return $bashSocket;
     }
 
     /** @var list<resource> */
-    private array $servers = [];
+    private array $openSockets = [];
 
     /**
      * @param array<string, string> $extra
@@ -149,7 +150,6 @@ final class ClamavAppConnectionOperationTest extends TestCase
     {
         $script = $this->bashPath(\dirname(__DIR__, 2).'/deploy/vds/gha-clamav-app-connection-remote.sh');
         $env = getenv();
-        self::assertIsArray($env);
         $env['TESTLIG_CLAMAV_LINK_ROOT'] = $this->bashPath($root);
         $env['CLAMAV_LINK_MODE'] = $mode;
         $env['EXPECTED_SHA'] = $sha;

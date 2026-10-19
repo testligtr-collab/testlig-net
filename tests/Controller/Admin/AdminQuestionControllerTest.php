@@ -23,7 +23,7 @@ use App\Service\SubjectManager;
 use App\Service\UserFactory;
 use App\Tests\Question\Image\FixedSignatureObservation;
 use App\Tests\Question\Image\RecordingClamdTransport;
-use App\Tests\Question\Image\ThrowingClamdTransport;
+use App\Tests\Question\Image\ConnectionFailedClamdTransport;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -370,7 +370,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringContainsString('Tarama başarısız', (string) $client->getResponse()->getContent());
 
         $offline = $this->uploadQuestionImage($client, $ids, 'Baglanti kok');
-        $client->getContainer()->set(ClamdInstreamTransport::class, new ThrowingClamdTransport());
+        $client->getContainer()->set(ClamdInstreamTransport::class, new ConnectionFailedClamdTransport());
         $client->request('GET', $offline);
         self::assertStringContainsString('Tarama bekliyor', (string) $client->getResponse()->getContent());
         $client->request('POST', $offline.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan')]);
