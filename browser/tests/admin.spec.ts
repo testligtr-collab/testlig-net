@@ -79,8 +79,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await login(saPage, data.users.superadmin);
   await saPage.goto('/yonetim');
   await expect(saPage.locator('.panel-role')).toHaveText('Süper Yönetici');
-  for (const label of ['Genel', 'Yönetim', 'Eğitim', 'Operasyon', 'Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
-    await expect(saPage.getByText(label).first()).toBeVisible();
+  for (const label of ['Genel Bakış', 'Kullanıcılar ve Başvurular', 'Kurumlar', 'Eğitim İçerikleri', 'Ticaret', 'Sistem', 'Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim']) {
+    const node = saPage.getByText(label).first();
+    await node.scrollIntoViewIfNeeded();
+    await expect(node).toBeVisible();
   }
   const kurum = await saPage.request.get('/kurum');
   expect(kurum.status()).toBe(403);
@@ -92,7 +94,9 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await shot(saPage, info, 'superadmin', viewport.width === 1920 ? 'dashboard' : 'ozet', viewport.name);
     if (viewport.width >= 1024) {
       await expect(saPage.locator('#panel-sidebar')).toBeVisible();
-      await expect(saPage.locator('#nav-group-operations')).toBeVisible();
+      const commerce = saPage.locator('#nav-group-commerce');
+      await commerce.scrollIntoViewIfNeeded();
+      await expect(commerce).toBeVisible();
       if (viewport.width !== 1920) {
         await shot(saPage, info, 'superadmin', 'operasyon', viewport.name);
       }
@@ -125,8 +129,8 @@ async function assertOverviewChrome(page: import('@playwright/test').Page, width
   expect(chrome!.sideOverflow).toBe('hidden');
 
   if (width >= 1024) {
-    await expect(page.locator('#nav-group-general')).toBeVisible();
-    const genel = await page.locator('#nav-group-general').boundingBox();
+    await expect(page.locator('#nav-group-overview')).toBeVisible();
+    const genel = await page.locator('#nav-group-overview').boundingBox();
     const navBox = await page.locator('.panel-sidebar__nav').boundingBox();
     expect(genel).not.toBeNull();
     expect(navBox).not.toBeNull();
