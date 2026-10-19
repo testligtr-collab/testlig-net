@@ -46,7 +46,7 @@ if [ -n "$root" ]; then
 fi
 shared="${site}/shared"
 record="${shared}/clamav-socket-group.record"
-app_link="${site}/current"
+app_link="${site}/app"
 release_dir=""
 virus_gid=""
 membership_added="no"
@@ -122,21 +122,23 @@ numeric_token() {
 require_release() {
   local current=""
   printf '%s' "$expected" | grep -Eq '^[0-9a-f]{40}$' || stop release_sha
-  [ -f "${shared}/CURRENT_REVISION" ] || stop release_sha
+  if [ -L "${shared}/CURRENT_REVISION" ] || [ ! -f "${shared}/CURRENT_REVISION" ]; then
+    stop release_sha
+  fi
   current="$(tr -d '[:space:]' < "${shared}/CURRENT_REVISION")"
   [ "$current" = "$expected" ] || stop release_mismatch
-  if [ -n "$root" ]; then
-    release_dir="${site}/releases/${expected}"
-  elif [ -L "$app_link" ]; then
-    release_dir="$(readlink -f "$app_link")"
-  else
+  if [ ! -L "$app_link" ] || [ ! -d "$app_link" ]; then
     stop app_link
   fi
+  release_dir="$(readlink -f "$app_link" 2>/dev/null || true)"
+  [ -n "$release_dir" ] || stop app_link
   case "$release_dir" in
     "${site}/releases/"*) ;;
     *) stop release_dir ;;
   esac
-  [ -f "${release_dir}/REVISION" ] || stop release_sha
+  if [ -L "${release_dir}/REVISION" ] || [ ! -f "${release_dir}/REVISION" ]; then
+    stop release_sha
+  fi
   current="$(tr -d '[:space:]' < "${release_dir}/REVISION")"
   [ "$current" = "$expected" ] || stop release_mismatch
 }

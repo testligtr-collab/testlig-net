@@ -42,6 +42,9 @@ final class ClamavSocketGroupOperationTest extends TestCase
         self::assertStringNotContainsString('chmod 666', $remote);
         self::assertStringContainsString('gpasswd -a "$account" virusgroup', $remote);
         self::assertStringContainsString('gpasswd -d "$account" virusgroup', $remote);
+        self::assertStringContainsString('app_link="${site}/app"', $remote);
+        self::assertStringNotContainsString('app_link="${site}/current"', $remote);
+        self::assertStringNotContainsString('release_dir="${site}/releases/${expected}"', $remote);
         self::assertStringContainsString('clamav_socket_group_accept_main();', $remote);
         self::assertStringContainsString('recorded_group=5002', $this->read('deploy/vds/gha-clamav-access-probe-remote.sh'));
         self::assertTrue(clamav_access_probe_recorded_identity_matches([
@@ -249,6 +252,36 @@ final class ClamavSocketGroupOperationTest extends TestCase
         self::assertSame("testl3865\n", (string) file_get_contents($contradictory.'/state/members'));
     }
 
+    public function testReleaseResolutionStopsBeforeMembershipOrRecordChanges(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $other = str_repeat('a', 40);
+        $cases = [
+            ['missing', 'rm -rf app', 'app_link'],
+            ['directory', 'rm -rf app && mkdir app', 'app_link'],
+            ['broken', 'rm -rf app; ln -sfn releases/missing app; if [ -L app ] && [ ! -e app ]; then exit 0; fi; rm -rf app; mkdir -p releases/missing; cmd //c "mklink /J app releases\\missing" >/dev/null 2>&1 || true; rm -rf releases/missing; if [ -L app ] && [ ! -e app ]; then exit 0; fi; echo cannot-break-app-link; exit 1', 'app_link'],
+            ['outside', 'mkdir -p ../outside; rm -rf app; ln -sfn ../outside app; if [ -L app ]; then exit 0; fi; rm -rf app; cmd //c "mklink /J app ..\\outside" >/dev/null 2>&1 || true; if [ -L app ]; then exit 0; fi; echo cannot-escape-app-link; exit 1', 'release_dir'],
+        ];
+        foreach (['apply', 'restore'] as $mode) {
+            foreach ($cases as [$label, $command, $reason]) {
+                $root = $this->operationRoot($mode.'-'.$label);
+                $this->prepareRestore($root, 'restore' === $mode);
+                $this->bashExec($bash, $command, $root.'/home/testlig.net');
+                $this->assertReleaseUnchanged($bash, $root, $mode, $reason, 'restore' === $mode);
+            }
+            $current = $this->operationRoot($mode.'-current');
+            $this->prepareRestore($current, 'restore' === $mode);
+            file_put_contents($current.'/home/testlig.net/shared/CURRENT_REVISION', $other);
+            $this->assertReleaseUnchanged($bash, $current, $mode, 'release_mismatch', 'restore' === $mode);
+
+            $revision = $this->operationRoot($mode.'-revision');
+            $this->prepareRestore($revision, 'restore' === $mode);
+            file_put_contents($revision.'/home/testlig.net/releases/'.self::SHA.'/REVISION', $other);
+            $this->assertReleaseUnchanged($bash, $revision, $mode, 'release_mismatch', 'restore' === $mode);
+        }
+    }
+
     private function acceptSource(): string
     {
         $helper = $this->read('deploy/vds/gha-clamav-access-probe.php');
@@ -306,11 +339,57 @@ final class ClamavSocketGroupOperationTest extends TestCase
         file_put_contents($root.'/state/members', '');
         $this->writeFixtureCommands($root);
         $bash = $this->bashBinary();
-        if (null !== $bash) {
-            $this->bashExec($bash, 'chmod 755 home/testlig.net/shared', $root);
+        if (null === $bash) {
+            self::markTestSkipped('Git Bash is required to create the production app symlink.');
         }
+        self::assertNotNull($bash);
+        $this->bashExec($bash, 'chmod 755 home/testlig.net/shared', $root);
+        $this->linkApp($bash, $root);
 
         return $root;
+    }
+
+    /**
+     * Linux CI uses ln -sfn, the same relative symlink as release-deploy.sh.
+     * Windows ln copies a directory, and mklink /D is not permitted here. A directory
+     * junction is only a local stand-in for Git Bash -L and readlink -f. The remote
+     * script does not accept that stand-in as a plain directory and has no fixture bypass.
+     */
+    private function linkApp(string $bash, string $root): void
+    {
+        $site = $root.'/home/testlig.net';
+        $kind = trim($this->bashExec($bash, 'rm -rf app; ln -sfn releases/'.self::SHA.' app; if [ -L app ] && [ "$(readlink -f app)" = "$(readlink -f releases/'.self::SHA.')" ]; then echo symlink; exit 0; fi; rm -rf app; cmd //c "mklink /J app releases\\'.self::SHA.'" >/dev/null 2>&1 || true; if [ -L app ] && [ "$(readlink -f app)" = "$(readlink -f releases/'.self::SHA.')" ]; then echo junction; exit 0; fi; echo unavailable', $site));
+        if ('unavailable' === $kind) {
+            self::markTestSkipped('Windows cannot create the production app symlink. The remote script still requires /home/testlig.net/app to be a symlink into site/releases, and this fixture does not bypass that check.');
+        }
+        self::assertContains($kind, ['symlink', 'junction']);
+    }
+
+    private function prepareRestore(string $root, bool $restore): void
+    {
+        if (!$restore) {
+            return;
+        }
+        file_put_contents($root.'/state/members', "testl3865\n");
+        $this->writeRecord($root, "virusgroup_gid=4242\n");
+    }
+
+    private function assertReleaseUnchanged(string $bash, string $root, string $mode, string $reason, bool $recordKept): void
+    {
+        $record = $root.'/home/testlig.net/shared/clamav-socket-group.record';
+        $before = is_file($record) ? (string) file_get_contents($record) : null;
+        $members = (string) file_get_contents($root.'/state/members');
+        $output = $this->runOperation($bash, $root, $mode, 1);
+        self::assertStringContainsString('stop_reason='.$reason, $output);
+        self::assertStringContainsString('result=stopped', $output);
+        self::assertStringContainsString($recordKept ? 'record=kept' : 'record=absent', $output);
+        self::assertFileDoesNotExist($root.'/state/gpasswd-calls');
+        self::assertSame($members, (string) file_get_contents($root.'/state/members'));
+        if ($recordKept) {
+            self::assertSame($before, (string) file_get_contents($record));
+        } else {
+            self::assertFileDoesNotExist($record);
+        }
     }
 
     private function writeFixtureCommands(string $root): void
