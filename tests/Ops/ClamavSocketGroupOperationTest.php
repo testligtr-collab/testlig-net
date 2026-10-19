@@ -45,6 +45,10 @@ final class ClamavSocketGroupOperationTest extends TestCase
         self::assertStringContainsString('app_link="${site}/app"', $remote);
         self::assertStringNotContainsString('app_link="${site}/current"', $remote);
         self::assertStringNotContainsString('release_dir="${site}/releases/${expected}"', $remote);
+        self::assertStringContainsString("grep -Eq '^[0-9a-f]{40}$'", $remote);
+        self::assertStringNotContainsString('[ "$sha" = "$expected" ]', $remote);
+        self::assertStringNotContainsString('source "$record"', $remote);
+        self::assertStringNotContainsString('eval ', $remote);
         self::assertStringContainsString('clamav_socket_group_accept_main();', $remote);
         self::assertStringContainsString('recorded_group=5002', $this->read('deploy/vds/gha-clamav-access-probe-remote.sh'));
         self::assertTrue(clamav_access_probe_recorded_identity_matches([
@@ -280,6 +284,122 @@ final class ClamavSocketGroupOperationTest extends TestCase
             file_put_contents($revision.'/home/testlig.net/releases/'.self::SHA.'/REVISION', $other);
             $this->assertReleaseUnchanged($bash, $revision, $mode, 'release_mismatch', 'restore' === $mode);
         }
+    }
+
+    public function testHistoricalRecordRestoresOnALaterReleaseWithoutRewritingIt(): void
+    {
+        $bash = $this->bashBinary();
+        self::assertNotNull($bash);
+        $historical = '7d941ed696b076ab48246eb24e7eeab9ae4d0e98';
+        $later = $this->operationRoot('later-release');
+        file_put_contents($later.'/state/members', "testl3865\n");
+        $this->writeRecord($later, "virusgroup_gid=4242\n", $historical);
+        $record = $later.'/home/testlig.net/shared/clamav-socket-group.record';
+        $original = (string) file_get_contents($record);
+        self::assertStringContainsString('release_sha='.$historical, $original);
+        self::assertStringNotContainsString('release_sha='.self::SHA, $original);
+        $output = $this->runOperation($bash, $later, 'restore', 0);
+        self::assertStringContainsString('result=restored', $output);
+        self::assertStringContainsString('record=removed', $output);
+        self::assertFileDoesNotExist($record);
+        self::assertSame('', trim((string) file_get_contents($later.'/state/members')));
+        self::assertSame("-d testl3865 virusgroup\n", (string) file_get_contents($later.'/state/gpasswd-calls'));
+
+        $kept = $this->operationRoot('later-delete');
+        file_put_contents($kept.'/state/members', "testl3865\n");
+        file_put_contents($kept.'/state/fail-record-delete', "1\n");
+        $this->writeRecord($kept, "virusgroup_gid=4242\n", $historical);
+        $keptRecord = $kept.'/home/testlig.net/shared/clamav-socket-group.record';
+        $keptBytes = (string) file_get_contents($keptRecord);
+        $keptOutput = $this->runOperation($bash, $kept, 'restore', 1);
+        self::assertStringContainsString('result=rollback_failed', $keptOutput);
+        self::assertStringContainsString('record=kept', $keptOutput);
+        self::assertSame($keptBytes, (string) file_get_contents($keptRecord));
+        self::assertSame('', trim((string) file_get_contents($kept.'/state/members')));
+
+        $blocked = $this->operationRoot('apply-existing');
+        $this->writeRecord($blocked, "virusgroup_gid=4242\n", $historical);
+        $blockedRecord = $blocked.'/home/testlig.net/shared/clamav-socket-group.record';
+        $blockedBytes = (string) file_get_contents($blockedRecord);
+        $blockedOutput = $this->runOperation($bash, $blocked, 'apply', 1);
+        self::assertStringContainsString('stop_reason=record_present', $blockedOutput);
+        self::assertStringContainsString('record=kept', $blockedOutput);
+        self::assertSame($blockedBytes, (string) file_get_contents($blockedRecord));
+        self::assertFileDoesNotExist($blocked.'/state/gpasswd-calls');
+
+        $mismatch = $this->operationRoot('live-mismatch');
+        file_put_contents($mismatch.'/state/members', "testl3865\n");
+        $this->writeRecord($mismatch, "virusgroup_gid=4242\n", $historical);
+        $mismatchRecord = $mismatch.'/home/testlig.net/shared/clamav-socket-group.record';
+        $mismatchBytes = (string) file_get_contents($mismatchRecord);
+        $mismatchOutput = $this->runOperation($bash, $mismatch, 'restore', 1, $historical);
+        self::assertStringContainsString('stop_reason=release_mismatch', $mismatchOutput);
+        self::assertSame($mismatchBytes, (string) file_get_contents($mismatchRecord));
+        self::assertSame("testl3865\n", (string) file_get_contents($mismatch.'/state/members'));
+        self::assertFileDoesNotExist($mismatch.'/state/gpasswd-calls');
+
+        foreach ([
+            ['missing-sha', ''],
+            ['bad-sha', 'not-a-sha'],
+            ['short-sha', str_repeat('a', 39)],
+            ['upper-sha', strtoupper($historical)],
+        ] as [$label, $sha]) {
+            $bad = $this->operationRoot('sha-'.$label);
+            file_put_contents($bad.'/state/members', "testl3865\n");
+            $this->writeRecord($bad, "virusgroup_gid=4242\n", $sha);
+            $badRecord = $bad.'/home/testlig.net/shared/clamav-socket-group.record';
+            $badBytes = (string) file_get_contents($badRecord);
+            $badOutput = $this->runOperation($bash, $bad, 'restore', 1);
+            self::assertStringContainsString('stop_reason=record_fields', $badOutput, $label);
+            self::assertSame($badBytes, (string) file_get_contents($badRecord), $label);
+            self::assertSame("testl3865\n", (string) file_get_contents($bad.'/state/members'), $label);
+            self::assertFileDoesNotExist($bad.'/state/gpasswd-calls');
+        }
+
+        $duplicate = $this->operationRoot('duplicate-sha');
+        file_put_contents($duplicate.'/state/members', "testl3865\n");
+        $this->writeRecord($duplicate, "virusgroup_gid=4242\nrelease_sha={$historical}\n", $historical);
+        $duplicateRecord = $duplicate.'/home/testlig.net/shared/clamav-socket-group.record';
+        $duplicateBytes = (string) file_get_contents($duplicateRecord);
+        $duplicateOutput = $this->runOperation($bash, $duplicate, 'restore', 1);
+        self::assertStringContainsString('stop_reason=record_fields', $duplicateOutput);
+        self::assertSame($duplicateBytes, (string) file_get_contents($duplicateRecord));
+        self::assertFileDoesNotExist($duplicate.'/state/gpasswd-calls');
+
+        $gid = $this->operationRoot('gid-mismatch');
+        file_put_contents($gid.'/state/members', "testl3865\n");
+        file_put_contents($gid.'/state/gid', "1111\n");
+        $this->writeRecord($gid, "virusgroup_gid=4242\n", $historical);
+        $gidRecord = $gid.'/home/testlig.net/shared/clamav-socket-group.record';
+        $gidBytes = (string) file_get_contents($gidRecord);
+        $gidOutput = $this->runOperation($bash, $gid, 'restore', 1);
+        self::assertStringContainsString('stop_reason=record_fields', $gidOutput);
+        self::assertSame($gidBytes, (string) file_get_contents($gidRecord));
+        self::assertSame("testl3865\n", (string) file_get_contents($gid.'/state/members'));
+        self::assertFileDoesNotExist($gid.'/state/gpasswd-calls');
+
+        $extra = $this->operationRoot('unexpected-group');
+        file_put_contents($extra.'/state/members', "testl3865\n");
+        file_put_contents($extra.'/state/extra-group', "9\n");
+        $this->writeRecord($extra, "virusgroup_gid=4242\n", $historical);
+        $extraRecord = $extra.'/home/testlig.net/shared/clamav-socket-group.record';
+        $extraBytes = (string) file_get_contents($extraRecord);
+        $extraOutput = $this->runOperation($bash, $extra, 'restore', 1);
+        self::assertStringContainsString('stop_reason=unexpected_groups', $extraOutput);
+        self::assertSame($extraBytes, (string) file_get_contents($extraRecord));
+        self::assertSame("testl3865\n", (string) file_get_contents($extra.'/state/members'));
+        self::assertFileDoesNotExist($extra.'/state/gpasswd-calls');
+
+        $account = $this->operationRoot('unexpected-account');
+        file_put_contents($account.'/state/members', "testl3865\n");
+        $this->writeRecord($account, "virusgroup_gid=4242\n", $historical, '5003');
+        $accountRecord = $account.'/home/testlig.net/shared/clamav-socket-group.record';
+        $accountBytes = (string) file_get_contents($accountRecord);
+        $accountOutput = $this->runOperation($bash, $account, 'restore', 1);
+        self::assertStringContainsString('stop_reason=record_fields', $accountOutput);
+        self::assertSame($accountBytes, (string) file_get_contents($accountRecord));
+        self::assertSame("testl3865\n", (string) file_get_contents($account.'/state/members'));
+        self::assertFileDoesNotExist($account.'/state/gpasswd-calls');
     }
 
     private function acceptSource(): string
@@ -575,25 +695,27 @@ exit 0
 BASH);
     }
 
-    private function writeRecord(string $root, string $body): void
+    private function writeRecord(string $root, string $body, string $releaseSha = self::SHA, string $previousGroups = '5002'): void
     {
         $path = $root.'/home/testlig.net/shared/clamav-socket-group.record';
-        file_put_contents($path, "format=1\nrelease_sha=".self::SHA."\n".$body."previous_groups=5002\nmembership_added=yes\n");
+        $shaLine = '' === $releaseSha ? '' : "release_sha={$releaseSha}\n";
+        file_put_contents($path, "format=1\n".$shaLine.$body."previous_groups={$previousGroups}\nmembership_added=yes\n");
         $bash = $this->bashBinary() ?? 'bash';
         $this->bashExec($bash, 'chmod 600 clamav-socket-group.record', \dirname($path));
         $bashRecord = trim($this->bashExec($bash, 'pwd', \dirname($path))).'/clamav-socket-group.record';
         file_put_contents($root.'/state/chmod-log', "600 {$bashRecord}\n", \FILE_APPEND);
     }
 
-    private function runOperation(string $bash, string $root, string $mode, int $expectedExit): string
+    private function runOperation(string $bash, string $root, string $mode, int $expectedExit, string $expectedSha = self::SHA): string
     {
+        self::assertMatchesRegularExpression('/^[0-9a-f]{40}$/', $expectedSha);
         $bashRoot = trim($this->bashExec($bash, 'cd '.escapeshellarg($root).' && pwd'));
         $script = str_replace(
             'root="${TESTLIG_CLAMAV_GROUP_ROOT:-}"',
             "root='".str_replace("'", '', $bashRoot)."'",
             $this->read('deploy/vds/gha-clamav-socket-group-remote.sh'),
         );
-        $prefix = "EXPECTED_SHA='".self::SHA."'\nCLAMAV_GROUP_MODE='".$mode."'\nACCESS_PROBE_PHP_B64='".base64_encode($this->read('deploy/vds/gha-clamav-access-probe.php'))."'\n";
+        $prefix = "EXPECTED_SHA='".$expectedSha."'\nCLAMAV_GROUP_MODE='".$mode."'\nACCESS_PROBE_PHP_B64='".base64_encode($this->read('deploy/vds/gha-clamav-access-probe.php'))."'\n";
         $pipes = [];
         $process = proc_open([$bash], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         self::assertIsResource($process);

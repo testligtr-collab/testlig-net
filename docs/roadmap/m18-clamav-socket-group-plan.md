@@ -56,3 +56,11 @@ Başka GID varsa veya ölçülen GID yoksa soket açılmaz. Doğrulama `runuser 
 ## Araç
 
 `.github/workflows/ops-clamav-socket-group.yml` bu planın kodudur ve çalıştırılmamıştır. Varsayılan onay boştur. Uygulama onayı `apply-clamav-socket-group`, geri alma onayı `restore-clamav-socket-group` değeridir. Önkoşul sırası sabittir: release, site hesabı, ölçülen GID, soket ve üst dizin, imza dosyalarının mevcut okuma/yazma durumu, sonra yeni süreçte tam `[5002]`. Bu kimlik tutmuyorsa yazılmaz; hesap ek grup olarak `virusgroup` taşıyorsa bu duruş mevcut üyeliği korur. GID `5002` ise birincil grup zaten o gruptur, ekleme yapılmaz. `getent` hesabı listelerken POSIX hâlâ tam `[5002]` ve GID farklıysa çelişki sayılır ve yazılmaz. Bu belge dispatch yetkisi değildir. Tarihî `[5002]` kapısı ve 17 Ekim 2026 web kaydı değişmez.
+
+## Canlı CLI kabulü
+
+19 Ekim 2026 SHA `7d941ed696b076ab48246eb24e7eeab9ae4d0e98` üzerinde apply bir kez çalıştı: https://github.com/testligtr-collab/testlig-net/actions/runs/39234379972. Ölçülen `virusgroup_gid=985` yalnız bu çalıştırmanın değeridir; sonraki operasyon GID’yi yeniden ölçer ve 985’i varsaymaz. `result=applied`, `membership_added=yes`, `record=kept`, `cli_socket_acceptance=yes`. Aynı PHP sürecinde kimlik doğrulandı. `app_ping=pong`, `app_version_daily=28158`. Soket okuma/yazma yes. Üst dizin okuma/yazma no, geçiş yes. İmza dosyaları okuma yes, yazma no. Bu CLI kabulüdür. Web veya SELinux kabulü değildir. `loaded_main` ve `loaded_bytecode` unproven kalır. 17 Ekim 2026 tek web isteği `5002 / 5002 / [5002]` durur. Gerçek varlık taraması ve öğrenci görsel sunumu bu sonuç değildir. Kurtarma kaydı durur. Restore bu kayıtta çalıştırılmamıştır.
+
+## Tarihî kurtarma kaydı
+
+Güncel `EXPECTED_SHA` yalnız çalıştırılan workflow ile canlı release’in eşleşmesini doğrular. Kayıttaki `release_sha` üyeliğin oluşturulduğu tarihî SHA olarak kalır ve güncel SHA’ya eşit olmak zorunda değildir. Eski `format=1` kayıt değiştirilmeden okunur. Apply mevcut kaydı ezmez ve yeni SHA’ya taşımaz. Restore yalnız bu kaydın eklediği hedef üyeliği kaldırır. Beklenmeyen UID, GID, grup kümesi veya hesap değişikliğinde yazmadan durur ve kaydı korur. Kayıt shell kodu olarak çalıştırılmaz.
