@@ -1,6 +1,6 @@
 # M18 ClamAV soket grubu — sonraki operasyon planı
 
-Bu belge 18 Ekim 2026 ölçümünün kaydıdır ve henüz uygulanmamış bir operasyon planıdır. Ölçüm: https://github.com/testligtr-collab/testlig-net/actions/runs/39144577065 SHA `3aa786cc9dcfaac1f2205149d1ede18c60aec63a`. Bu plan workflow, grup, ACL, env, OLS, servis veya tarama değiştirmez.
+Bu belge 18 Ekim 2026 ölçümünün kaydıdır. Plan 18 Ekim 2026’da yazıldığında henüz uygulanmamış bir operasyon planıydı. Ölçüm: https://github.com/testligtr-collab/testlig-net/actions/runs/39144577065 SHA `3aa786cc9dcfaac1f2205149d1ede18c60aec63a`. Bu plan workflow, grup, ACL, env, OLS, servis veya tarama değiştirmez.
 
 ## Ölçülen durum
 
@@ -55,7 +55,7 @@ Başka GID varsa veya ölçülen GID yoksa soket açılmaz. Doğrulama `runuser 
 
 ## Araç
 
-`.github/workflows/ops-clamav-socket-group.yml` bu planın kodudur ve çalıştırılmamıştır. Varsayılan onay boştur. Uygulama onayı `apply-clamav-socket-group`, geri alma onayı `restore-clamav-socket-group` değeridir. Önkoşul sırası sabittir: release, site hesabı, ölçülen GID, soket ve üst dizin, imza dosyalarının mevcut okuma/yazma durumu, sonra yeni süreçte tam `[5002]`. Bu kimlik tutmuyorsa yazılmaz; hesap ek grup olarak `virusgroup` taşıyorsa bu duruş mevcut üyeliği korur. GID `5002` ise birincil grup zaten o gruptur, ekleme yapılmaz. `getent` hesabı listelerken POSIX hâlâ tam `[5002]` ve GID farklıysa çelişki sayılır ve yazılmaz. Bu belge dispatch yetkisi değildir. Tarihî `[5002]` kapısı ve 17 Ekim 2026 web kaydı değişmez.
+`.github/workflows/ops-clamav-socket-group.yml` bu planın kodudur. Araç hazırlandığında çalıştırılmamıştır. Varsayılan onay boştur. Uygulama onayı `apply-clamav-socket-group`, geri alma onayı `restore-clamav-socket-group` değeridir. Önkoşul sırası sabittir: release, site hesabı, ölçülen GID, soket ve üst dizin, imza dosyalarının mevcut okuma/yazma durumu, sonra yeni süreçte tam `[5002]`. Bu kimlik tutmuyorsa yazılmaz; hesap ek grup olarak `virusgroup` taşıyorsa bu duruş mevcut üyeliği korur. GID `5002` ise birincil grup zaten o gruptur, ekleme yapılmaz. `getent` hesabı listelerken POSIX hâlâ tam `[5002]` ve GID farklıysa çelişki sayılır ve yazılmaz. Bu belge dispatch yetkisi değildir. Tarihî `[5002]` kapısı ve 17 Ekim 2026 web kaydı değişmez.
 
 ## Canlı CLI kabulü
 
