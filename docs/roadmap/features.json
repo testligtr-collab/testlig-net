@@ -1138,7 +1138,9 @@
         "templates/admin/dashboard.html.twig aynı izinli bağlantılardan bölüm kısayolu gösterir. Yeni sayaç sorgusu yoktur. Medya, haber, video, simülasyon ve site yönetimi bağlantısı eklenmedi.",
         "Admin kabuğunda mobil alt çubuk bütün menüyü taşımaz. İzinli bölümler mevcut açılır yan menüdedir. Bu kayıt kod ve ekran düzenidir. CI yeşili production kabulü değildir. Deploy ve canlı kabul bu dilimde yoktur."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/150"
+      ],
       "acceptance": "SuperAdmin ve Admin yalnız erişebildiği bağlantıları görür. Detay sayfasında ilgili menü seçilidir. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
     }
