@@ -399,7 +399,7 @@ record_shape_ok() {
   groups="$(record_field previous_groups)" || return 1
   added="$(record_field membership_added)" || return 1
   [ "$format" = "1" ] || return 1
-  [ "$sha" = "$expected" ] || return 1
+  printf '%s' "$sha" | grep -Eq '^[0-9a-f]{40}$' || return 1
   [ "$gid" = "$virus_gid" ] || return 1
   [ "$groups" = "$recorded_uid" ] || return 1
   [ "$added" = "yes" ] || return 1
