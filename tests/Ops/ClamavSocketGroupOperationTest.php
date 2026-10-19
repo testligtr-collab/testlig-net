@@ -342,7 +342,6 @@ final class ClamavSocketGroupOperationTest extends TestCase
         if (null === $bash) {
             self::markTestSkipped('Git Bash is required to create the production app symlink.');
         }
-        self::assertNotNull($bash);
         $this->bashExec($bash, 'chmod 755 home/testlig.net/shared', $root);
         $this->linkApp($bash, $root);
 
