@@ -60,7 +60,7 @@ final class AdminNavBuilder
 
         $items = [];
         if ($canShell) {
-            $items[] = $this->item('dashboard', 'Genel Bakış', 'app_admin_dashboard', $currentPath);
+            $items[] = $this->item('dashboard', 'Genel Bakış', 'app_admin_dashboard', $currentPath, null, true);
             $items[] = $this->item('system', 'Sistem', 'app_admin_system', $currentPath);
         } elseif ($workspaceShell) {
             $items[] = $this->item('dashboard', 'Çalışma alanı', 'app_workspace_dashboard', $currentPath);
@@ -109,11 +109,12 @@ final class AdminNavBuilder
         }
 
         $items[] = $this->item('account', 'Hesabım', 'app_account', $currentPath);
+        $items = $this->singleCurrent($items);
 
         return [
             'nav_items' => $items,
-            'nav_sections' => $this->sections($items),
-            'mobile_nav' => $items,
+            'nav_sections' => $this->sections($items, $workspaceShell),
+            'mobile_nav' => $workspaceShell ? $items : [],
             'panel_role_label' => $isSa ? 'Süper Yönetici' : ($canShell ? 'Yönetici' : WorkspaceRoleLabels::content($actor->getRoles())),
             'display_name' => trim($actor->getFirstName().' '.$actor->getLastName()),
             'greeting_name' => $this->greetingName->friendlyFirstName($actor->getFirstName()) ?? '',
@@ -127,7 +128,7 @@ final class AdminNavBuilder
      *
      * @return list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool, icon: string}>}>
      */
-    private function sections(array $items): array
+    private function sections(array $items, bool $workspaceShell): array
     {
         $byId = [];
         foreach ($items as $item) {
@@ -137,12 +138,21 @@ final class AdminNavBuilder
             $byId[$item['id']] = $item;
         }
 
-        $groups = [
-            ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
-            ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
-            ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
-            ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
-        ];
+        $groups = $workspaceShell
+            ? [
+                ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
+                ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
+                ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
+                ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
+            ]
+            : [
+                ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
+                ['id' => 'people', 'label' => 'Kullanıcılar ve Başvurular', 'ids' => ['users', 'teacher_applications', 'institution_applications']],
+                ['id' => 'institutions', 'label' => 'Kurumlar', 'ids' => ['institutions']],
+                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests']],
+                ['id' => 'commerce', 'label' => 'Ticaret', 'ids' => ['payments', 'webhooks', 'reconciliations']],
+                ['id' => 'system', 'label' => 'Sistem', 'ids' => ['system', 'audit']],
+            ];
 
         $sections = [];
         foreach ($groups as $group) {
@@ -168,12 +178,13 @@ final class AdminNavBuilder
     /**
      * @return array{id: string, label: string, href: string, current: bool, icon: string}
      */
-    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null): array
+    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false): array
     {
         $href = $this->urlGenerator->generate($route);
-        $prefix = $pathPrefix ?? $href;
-        $current = $currentPath === $href || str_starts_with($currentPath, rtrim($prefix, '/').'/')
-            || $currentPath === rtrim($prefix, '/');
+        $prefix = rtrim($pathPrefix ?? $href, '/');
+        $current = $exact
+            ? $currentPath === $href
+            : ($currentPath === $prefix || str_starts_with($currentPath, $prefix.'/'));
 
         return [
             'id' => $id,
@@ -182,6 +193,35 @@ final class AdminNavBuilder
             'current' => $current,
             'icon' => $this->icons->resolve($id),
         ];
+    }
+
+    /**
+     * @param list<array{id: string, label: string, href: string, current: bool, icon: string}> $items
+     *
+     * @return list<array{id: string, label: string, href: string, current: bool, icon: string}>
+     */
+    private function singleCurrent(array $items): array
+    {
+        $winner = null;
+        $winnerLength = -1;
+        foreach ($items as $index => $item) {
+            if (!$item['current']) {
+                continue;
+            }
+            $length = \strlen($item['href']);
+            if ($length > $winnerLength) {
+                $winner = $index;
+                $winnerLength = $length;
+            }
+        }
+        if (null === $winner) {
+            return $items;
+        }
+        foreach ($items as $index => $item) {
+            $items[$index]['current'] = $index === $winner;
+        }
+
+        return $items;
     }
 
     private function holdsTeacherProfile(User $actor): bool

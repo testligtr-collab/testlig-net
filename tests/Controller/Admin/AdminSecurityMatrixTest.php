@@ -46,7 +46,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
     public function testAdminCanOpenShellAndSystemButNotPayments(): void
     {
         $client = static::createClient();
-        $this->loginAs($client, 'admin_matrix_admin@example.com', UserRole::Admin);
+        $admin = $this->loginAs($client, 'admin_matrix_admin@example.com', UserRole::Admin);
 
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
@@ -54,19 +54,31 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
         self::assertSelectorTextContains('body', 'Testlig Yönetim Özeti');
         self::assertSelectorTextContains('body', 'Genel Bakış');
-        self::assertSelectorTextContains('body', 'Genel');
+        self::assertSelectorTextContains('body', 'Kullanıcılar ve Başvurular');
         self::assertSelectorTextContains('body', 'Aktif kullanıcı');
+        self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
+        self::assertSelectorNotExists('#panel-sidebar a[href="/yonetim/sistem"][aria-current="page"]');
+        self::assertSelectorExists('#admin-nav-shortcuts a[href="/yonetim/kullanicilar"]');
+        self::assertSelectorNotExists('#admin-nav-shortcuts a[href="/yonetim/odemeler"]');
         self::assertSelectorExists('a[href="/yonetim/kullanicilar"]');
         self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
         self::assertSelectorNotExists('a[href="/yonetim/webhook"]');
         self::assertSelectorNotExists('a[href="/yonetim/uzlastirma"]');
         self::assertSelectorNotExists('a[href="/yonetim/denetim"]');
-        self::assertSelectorNotExists('#nav-group-operations');
+        self::assertSelectorNotExists('#nav-group-commerce');
+        self::assertSelectorNotExists('nav.bottom-nav');
         self::assertSelectorNotExists('a[href="/yonetim/kurumlar/yeni"]');
 
         $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Sistem durumu');
+        self::assertSelectorExists('#panel-sidebar a[href="/yonetim/sistem"][aria-current="page"]');
+        self::assertSelectorNotExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
+
+        $client->request('GET', '/yonetim/kullanicilar/'.$admin->getId()->toRfc4122());
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#panel-sidebar a[href="/yonetim/kullanicilar"][aria-current="page"]');
+        self::assertSelectorNotExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
 
         $client->request('GET', '/yonetim/odemeler');
         self::assertResponseStatusCodeSame(403);
@@ -88,12 +100,13 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
         self::assertSelectorTextContains('body', 'Genel Bakış');
         self::assertSelectorExists('a[href="/yonetim/kurumlar/yeni"]');
-        self::assertSelectorExists('#nav-group-operations');
+        self::assertSelectorExists('#nav-group-commerce');
+        self::assertSelectorExists('#nav-group-system');
         self::assertSelectorExists('a[href="/yonetim/odemeler"]');
         self::assertSelectorExists('a[href="/yonetim/denetim"]');
         self::assertSelectorExists('a[href="/yonetim/uzlastirma"]');
-        self::assertSelectorExists('.bottom-nav a[href="/yonetim/uzlastirma"]');
-        self::assertSelectorExists('.bottom-nav a[href="/yonetim/denetim"]');
+        self::assertSelectorExists('#admin-nav-shortcuts a[href="/yonetim/uzlastirma"]');
+        self::assertSelectorNotExists('nav.bottom-nav');
 
         foreach ([
             '/yonetim/odemeler',
@@ -105,6 +118,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
             self::assertResponseIsSuccessful(\sprintf('%s should be allowed for SA', $path));
             self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
             self::assertResponseHeaderSame('Pragma', 'no-cache');
+            self::assertSelectorExists(\sprintf('#panel-sidebar a[href="%s"][aria-current="page"]', $path));
+            self::assertSelectorNotExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
         }
     }
 
