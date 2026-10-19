@@ -29,6 +29,9 @@ parameters:
     env(BUNNY_STORAGE_ENDPOINT): ''
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
     env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
+    env(QUESTION_IMAGE_CLAMAV_LINK_ENABLED): '0'
+    env(QUESTION_IMAGE_CLAMAV_LINK_EXPIRES_AT): ''
+    env(QUESTION_IMAGE_CLAMAV_LINK_GROUP_GID): ''
     env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
     env(WEB_RUNTIME_IDENTITY_EXPIRES_AT): ''
     payment_platform_settlement_actor_id_default: ''
@@ -117,6 +120,19 @@ services:
         arguments:
             $enabled: '%env(bool:WEB_RUNTIME_IDENTITY_ENABLED)%'
             $expiresAt: '%env(string:WEB_RUNTIME_IDENTITY_EXPIRES_AT)%'
+
+    App\Question\Image\Scan\QuestionImageClamavLinkGate:
+        arguments:
+            $enabled: '%env(bool:QUESTION_IMAGE_CLAMAV_LINK_ENABLED)%'
+            $expiresAt: '%env(string:QUESTION_IMAGE_CLAMAV_LINK_EXPIRES_AT)%'
+
+    App\Question\Image\Scan\QuestionImageClamavLinkCheck:
+        arguments:
+            $groupGid: '%env(string:QUESTION_IMAGE_CLAMAV_LINK_GROUP_GID)%'
+
+    App\Question\Image\Scan\QuestionImageClamavLinkTransport:
+        alias: App\Question\Image\Scan\UnixQuestionImageClamavLinkTransport
+        public: true
 
     App\Question\Image\QuestionImageStoreResolver:
         arguments:

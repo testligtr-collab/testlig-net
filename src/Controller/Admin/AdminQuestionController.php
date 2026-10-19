@@ -24,7 +24,10 @@ use App\Presentation\ContentWorkflowReason;
 use App\Presentation\QuestionWorkflowProgress;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionImageStem;
+use App\Question\Image\QuestionRevisionImageStatus;
 use App\Question\Image\QuestionRevisionPendingImage;
+use App\Question\Image\Scan\QuestionImageClamavLinkCheck;
+use App\Question\Image\Scan\QuestionImageClamavLinkGate;
 use App\Question\Image\Scan\QuestionImageScanAction;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
@@ -65,6 +68,9 @@ final class AdminQuestionController extends AdminBaseController
         private readonly QuestionImageRegistrar $images,
         private readonly QuestionRevisionPendingImage $pendingImages,
         private readonly QuestionImageScanAction $imageScans,
+        private readonly QuestionRevisionImageStatus $imageStatus,
+        private readonly QuestionImageClamavLinkGate $clamavLinkGate,
+        private readonly QuestionImageClamavLinkCheck $clamavLink,
         private readonly ActiveVerifiedUserPolicy $actors,
     ) {
         parent::__construct($adminNavBuilder);
@@ -135,7 +141,32 @@ final class AdminQuestionController extends AdminBaseController
                 'is_revision_author' => $isAuthor,
             ]),
             'can_scan_image' => $this->canScanImage($actor, $question, $revision),
+            'image_status' => $this->imageStatus->label($question, $revision),
+            'clamav_link_open' => $this->clamavLinkGate->isOpen() && $this->actors->isActiveVerifiedSuperAdmin($actor),
         ]);
+    }
+
+    #[Route('/yonetim/sorular/{id}/clamav-baglanti', name: 'app_admin_question_clamav_link', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
+    #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
+    public function clamavLink(Request $request, string $id): Response
+    {
+        if (!$this->clamavLinkGate->isOpen()) {
+            throw $this->createNotFoundException();
+        }
+        $actor = $this->requireActorUser();
+        if (!$this->actors->isActiveVerifiedSuperAdmin($actor)) {
+            throw $this->createNotFoundException();
+        }
+        if (!$this->isCsrfTokenValid('question_image_clamav_link', $request->request->getString('_token'))) {
+            throw $this->createAccessDeniedException('Oturum doğrulaması başarısız.');
+        }
+        $question = $this->visibleQuestion($id);
+        $result = $this->clamavLink->run();
+        $this->addFlash('yes' === $result['version'] ? 'success' : 'error', $this->clamavLink->message($result));
+        $response = $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
+        $this->applyNoStore($response);
+
+        return $response;
     }
 
     #[Route('/yonetim/sorular/{id}/gorsel-tara', name: 'app_admin_question_image_scan', requirements: ['id' => '[0-9a-fA-F-]{36}'], methods: ['POST'])]
