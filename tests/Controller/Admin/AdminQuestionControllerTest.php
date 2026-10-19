@@ -372,8 +372,11 @@ final class AdminQuestionControllerTest extends WebTestCase
         $offlineClient->followRedirect();
         $offlinePage = (string) $offlineClient->getResponse()->getContent();
         self::assertStringContainsString('ClamAV bağlantısı kurulamadı.', $offlinePage);
-        self::assertStringContainsString('Tarama başarısız', $offlinePage);
+        self::assertStringContainsString('Tarama bekliyor', $offlinePage);
+        self::assertStringNotContainsString('Tarama başarısız', $offlinePage);
         self::assertStringNotContainsString('Kullanıma hazır', $offlinePage);
+        $offlineClient->request('GET', $offline);
+        self::assertStringContainsString('Tarama bekliyor', (string) $offlineClient->getResponse()->getContent());
         $offlineClient->request('GET', $offline.'/clamav-baglanti');
         self::assertResponseStatusCodeSame(405);
     }
