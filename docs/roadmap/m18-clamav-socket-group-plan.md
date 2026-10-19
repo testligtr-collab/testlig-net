@@ -52,3 +52,7 @@ Başka GID varsa veya ölçülen GID yoksa soket açılmaz. Doğrulama `runuser 
 ## Bu operasyonun açmadığı kapsam
 
 İlk izin operasyonu `QUESTION_IMAGE_CLAMAV_SOCKET` ve `QUESTION_IMAGE_CLAMAV_DATABASE` ayarlarını açmaz, OLS’i yenilemez ve gerçek varlık taramaz. Sonraki kabul yalnız aynı yeni CLI sürecinde kimlik doğrulaması ve `nPING` / `nVERSION` olur. `INSTREAM` yoktur. Yüklenmiş main/bytecode kanıtı ve web/SELinux kabulü açık kalır. M18 partial kalır.
+
+## Araç
+
+`.github/workflows/ops-clamav-socket-group.yml` bu planın kodudur ve çalıştırılmamıştır. Varsayılan onay boştur. Uygulama onayı `apply-clamav-socket-group`, geri alma onayı `restore-clamav-socket-group` değeridir. Önkoşul sırası sabittir: release, site hesabı, ölçülen GID, soket ve üst dizin, imza dosyalarının mevcut okuma/yazma durumu, sonra yeni süreçte tam `[5002]`. Bu kimlik tutmuyorsa yazılmaz; hesap ek grup olarak `virusgroup` taşıyorsa bu duruş mevcut üyeliği korur. GID `5002` ise birincil grup zaten o gruptur, ekleme yapılmaz. `getent` hesabı listelerken POSIX hâlâ tam `[5002]` ve GID farklıysa çelişki sayılır ve yazılmaz. Bu belge dispatch yetkisi değildir. Tarihî `[5002]` kapısı ve 17 Ekim 2026 web kaydı değişmez.

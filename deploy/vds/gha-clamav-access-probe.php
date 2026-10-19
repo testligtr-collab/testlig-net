@@ -266,6 +266,60 @@ function clamav_access_probe_run(string $path): void
     echo ClamavAccessProbeClient::report($connect);
 }
 
+/**
+ * Separate CLI acceptance for the socket-group operation.
+ * The recorded web identity remains exactly 5002 / 5002 / [5002].
+ *
+ * @param array<string, mixed>|null $credentials
+ */
+function clamav_socket_group_accept_matches(?array $credentials, string $extraGroup): bool
+{
+    if (1 !== preg_match('/^[1-9][0-9]*$/', $extraGroup)) {
+        return false;
+    }
+    $extra = (int) $extraGroup;
+    if ((string) $extra !== $extraGroup || 5002 === $extra) {
+        return false;
+    }
+    if (!is_array($credentials)) {
+        return false;
+    }
+    $euid = $credentials['euid'] ?? null;
+    $egid = $credentials['egid'] ?? null;
+    $rawGroups = $credentials['groups'] ?? null;
+    if (5002 !== $euid || 5002 !== $egid || !is_array($rawGroups)) {
+        return false;
+    }
+    $groups = [];
+    foreach ($rawGroups as $group) {
+        if (!is_int($group) || $group < 0) {
+            return false;
+        }
+        $groups[] = $group;
+    }
+    sort($groups);
+    $expected = [5002, $extra];
+    sort($expected);
+
+    return $groups === $expected;
+}
+
+function clamav_socket_group_accept_main(): void
+{
+    $arguments = $_SERVER['argv'] ?? null;
+    $socket = is_array($arguments) && isset($arguments[1]) && is_string($arguments[1]) ? $arguments[1] : '';
+    $extraGroup = is_array($arguments) && isset($arguments[2]) && is_string($arguments[2]) ? $arguments[2] : '';
+    $credentials = clamav_access_probe_posix_credentials();
+    if (!clamav_socket_group_accept_matches($credentials, $extraGroup)) {
+        echo "process_identity_match=no\n";
+        exit(1);
+    }
+    echo "identity_helper_started=yes\n";
+    echo "process_identity_match=yes\n";
+    clamav_access_probe_run($socket);
+    exit(0);
+}
+
 function clamav_access_probe_cli_main(): void
 {
     $arguments = $_SERVER['argv'] ?? null;
