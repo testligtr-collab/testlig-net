@@ -1,0 +1,25 @@
+<form class="admin-form" method="post" action="{{ action }}">
+    <input type="hidden" name="_token" value="{{ csrf_token(token_id) }}">
+    <label>
+        <span>Başlık</span>
+        <input type="text" name="title" value="{{ title_value }}" required maxlength="180" autocomplete="off">
+    </label>
+    <label>
+        <span>Özet</span>
+        <input type="text" name="summary" value="{{ summary_value }}" required maxlength="500" autocomplete="off">
+    </label>
+    <label>
+        <span>Kategori</span>
+        <select name="category_id">
+            <option value="">Kategori yok</option>
+            {% for category in categories %}
+                <option value="{{ category.id.toRfc4122 }}"{% if category_id == category.id.toRfc4122 %} selected{% endif %}>{{ category.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        <span>Metin</span>
+        <textarea name="body" required maxlength="20000" rows="10">{{ body_value }}</textarea>
+    </label>
+    <button type="submit" class="btn btn--primary">{{ submit_label }}</button>
+</form>

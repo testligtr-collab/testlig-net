@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { assertClean, assertLayout, installVideoAbort, login, manifest, shot, VIEWPORTS, watch } from './support';
 
+const NEWS_VIEWPORTS = [
+  { name: '390', width: 390, height: 844 },
+  { name: '768', width: 768, height: 1024 },
+  { name: '1280', width: 1280, height: 900 },
+] as const;
+
 test('admin and superadmin menus stay inside their roles', async ({ browser }, info) => {
   const data = manifest();
   const admin = await browser.newContext();
@@ -108,6 +114,62 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await shot(saPage, info, 'superadmin', 'denetim', '1280');
   await assertClean(saPage);
   await sa.close();
+});
+
+test('news drafts stay on the admin screen', async ({ browser }, info) => {
+  const data = manifest();
+  const admin = await browser.newContext();
+  const adminPage = await admin.newPage();
+  installVideoAbort(adminPage);
+  await watch(adminPage);
+  await login(adminPage, data.users.admin);
+  const link = adminPage.locator('#panel-sidebar a[href="/yonetim/haberler"]');
+  await link.scrollIntoViewIfNeeded();
+  await expect(link).toBeVisible();
+  for (const viewport of NEWS_VIEWPORTS) {
+    await adminPage.setViewportSize(viewport);
+    await adminPage.goto('/yonetim/haberler');
+    await expect(adminPage.getByRole('heading', { level: 1, name: 'Haberler' })).toBeVisible();
+    await assertLayout(adminPage);
+    await shot(adminPage, info, 'admin', 'haberler', viewport.name);
+    await adminPage.goto('/yonetim/haberler/yeni');
+    await expect(adminPage.getByRole('heading', { level: 1, name: 'Yeni haber' })).toBeVisible();
+    await assertLayout(adminPage);
+    await shot(adminPage, info, 'admin', 'haber-form', viewport.name);
+  }
+  await adminPage.setViewportSize({ width: 1280, height: 900 });
+  await adminPage.goto('/yonetim/haberler');
+  await adminPage.getByLabel('Kategori adı').fill('Tarayici Kategori');
+  await adminPage.getByRole('button', { name: 'Kategoriyi kaydet' }).click();
+  await expect(adminPage.getByText('Tarayici Kategori')).toBeVisible();
+  await adminPage.goto('/yonetim/haberler/yeni');
+  await adminPage.getByLabel('Başlık').fill('Tarayici Taslak Haber');
+  await adminPage.getByLabel('Özet').fill('Tarayici taslak ozeti sitede gorunmez.');
+  await adminPage.getByLabel('Metin').fill('Tarayici taslak metni yalnizca yonetimde kalir.');
+  await adminPage.getByLabel('Kategori').selectOption({ label: 'Tarayici Kategori' });
+  await adminPage.getByRole('button', { name: 'Taslağı kaydet' }).click();
+  await expect(adminPage.getByRole('heading', { level: 1, name: 'Tarayici Taslak Haber' })).toBeVisible();
+  await shot(adminPage, info, 'admin', 'haber-taslak', '1280');
+
+  const anon = await browser.newContext();
+  const page = await anon.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  for (const viewport of NEWS_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto('/haberler');
+    await expect(page.getByRole('heading', { level: 1, name: 'Haberler' })).toBeVisible();
+    await expect(page.getByText('Tarayici Taslak Haber')).toHaveCount(0);
+    await assertLayout(page);
+    await shot(page, info, 'public', 'haberler', viewport.name);
+  }
+  await page.goto('/');
+  await expect(page.locator('#haberler')).not.toContainText('Tarayici Taslak Haber');
+  expect((await page.request.get('/haberler/tarayici-taslak-haber')).status()).toBe(404);
+  await assertClean(page);
+  await anon.close();
+  await assertClean(adminPage);
+  await admin.close();
 });
 
 async function assertOverviewChrome(page: import('@playwright/test').Page, width: number): Promise<void> {
