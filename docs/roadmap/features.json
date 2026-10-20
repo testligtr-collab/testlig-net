@@ -1147,7 +1147,8 @@
       "evidence": [
         "Yönetim menüsü açılır gruplarla Genel Bakış, Kullanıcılar ve Yetkiler, Kurum ve Sınıf, Eğitim, Medya, Etkileşimli Eğitim, İletişim, Site Yönetimi, Ticaret, Entegrasyonlar ve Sistem bölümlerini gösterir. Boş grup basılmaz. Aktif grubun ayrıntısı açık kalır.",
         "Çalışan ekranlar kendi adreslerinde durur. Ekranı olmayan bölümler yalnız aktif doğrulanmış süper yöneticiye açılan bölüm girişidir ve Geliştirme aşamasında olarak işaretlenir. Bu girişler ürün akışını tamamlamaz.",
-        "Ödeme ve denetim yetkisi genişletilmedi. Öğretmen çalışma alanı eski gruplarını korur. Genel Bakış kısayolları çalışan ve geliştirme aşamasındaki bölümleri ayırır. CI yeşili production kabulü değildir."
+        "Ödeme ve denetim yetkisi genişletilmedi. Öğretmen çalışma alanı eski gruplarını korur. Genel Bakış kısayolları çalışan ve geliştirme aşamasındaki bölümleri ayırır. CI yeşili production kabulü değildir.",
+        "Genel Bakış, izinli sayaç kartları ve bütün bölüm gruplarının ızgarasıyla yönetim kabuğunda yeniden düzenlendi. Sabit sistem çalışıyor iddiası ile kapalı arama ve bildirim kontrolü kaldırıldı. Ekran görüntüsü production kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

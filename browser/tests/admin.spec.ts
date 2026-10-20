@@ -31,7 +31,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await expect(adminPage.getByRole('link', { name: label })).toHaveCount(0);
   }
   await expect(adminPage.locator('a.panel-nav-link[aria-current="page"]')).toHaveText('Genel Bakış');
-  for (const viewport of [...VIEWPORTS, { name: '1920', width: 1920, height: 1080 }]) {
+  for (const viewport of [...VIEWPORTS, { name: '390', width: 390, height: 844 }, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim');
     await assertLayout(adminPage);
@@ -58,7 +58,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   expect(zoomBox).not.toBeNull();
   expect(zoomBox!.width).toBeGreaterThanOrEqual(44);
   expect(zoomBox!.height).toBeGreaterThanOrEqual(44);
-  await expect(adminPage.getByRole('heading', { level: 1, name: /Günaydın .+ sistem hazır/ })).toBeVisible();
+  await expect(adminPage.getByRole('heading', { level: 1, name: 'Genel Bakış' })).toBeVisible();
   await expect(adminPage.getByRole('heading', { level: 1 })).toHaveCount(1);
   await adminPage.setViewportSize({ width: 1280, height: 900 });
   for (const [path, name] of [
@@ -112,7 +112,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await saPage.setViewportSize({ width: 1280, height: 900 });
   const kurum = await saPage.request.get('/kurum');
   expect(kurum.status()).toBe(403);
-  for (const viewport of [...VIEWPORTS, { name: '1920', width: 1920, height: 1080 }]) {
+  for (const viewport of [...VIEWPORTS, { name: '390', width: 390, height: 844 }, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
     await saPage.setViewportSize(viewport);
     await saPage.goto('/yonetim');
     await assertLayout(saPage);
@@ -213,6 +213,8 @@ async function assertOverviewChrome(page: import('@playwright/test').Page, width
   expect(chrome!.scroll).toBe(0);
   expect(chrome!.navOverflow).toBe('auto');
   expect(chrome!.sideOverflow).toBe('hidden');
+  await expect(page.locator('.admin-search, .admin-icon-btn')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Genel Bakış' })).toBeVisible();
 
   if (width >= 1024) {
     await expect(page.locator('#nav-group-overview')).toBeVisible();
@@ -222,16 +224,16 @@ async function assertOverviewChrome(page: import('@playwright/test').Page, width
     expect(navBox).not.toBeNull();
     expect(genel!.y).toBeGreaterThanOrEqual(navBox!.y - 1);
     expect(genel!.y).toBeLessThan(navBox!.y + navBox!.height);
-    const search = await page.locator('.admin-search input').boundingBox();
-    const bell = await page.locator('.admin-icon-btn').boundingBox();
     const avatar = await page.locator('.admin-topbar-initials').boundingBox();
     const bar = await page.locator('.panel-topbar').boundingBox();
-    expect(search && bell && avatar && bar).toBeTruthy();
-    expect(Math.abs(search!.y - bell!.y)).toBeLessThan(16);
-    expect(Math.abs(bell!.y - avatar!.y)).toBeLessThan(12);
+    const side = await page.locator('#panel-sidebar').boundingBox();
+    const foot = await page.locator('.admin-sidebar__foot').boundingBox();
+    expect(avatar && bar && side && foot).toBeTruthy();
+    expect(avatar!.y).toBeGreaterThanOrEqual(bar!.y - 1);
+    expect(avatar!.y + avatar!.height).toBeLessThanOrEqual(bar!.y + bar!.height + 1);
     expect(bar!.height).toBeLessThan(88);
-    await expect(page.locator('.admin-search input')).toHaveAttribute('tabindex', '-1');
-    await expect(page.locator('.admin-icon-btn')).toHaveAttribute('tabindex', '-1');
+    expect(foot!.y).toBeGreaterThan(navBox!.y);
+    expect(foot!.y + foot!.height).toBeLessThanOrEqual(side!.y + side!.height + 1);
   }
   if (width >= 1280) {
     const tops = await page.locator('.admin-metric').evaluateAll((nodes) =>

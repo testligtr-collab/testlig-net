@@ -30,8 +30,26 @@
                     </div>
                 </div>
             {% else %}
+                {% set group_icons = {
+                    overview: 'dashboard',
+                    people: 'users',
+                    campus: 'institutions',
+                    learning: 'catalog',
+                    media: 'learning_contents',
+                    interactive: 'questions',
+                    communication: 'account',
+                    site: 'default',
+                    commerce: 'payments',
+                    integrations: 'webhooks',
+                    system: 'system'
+                } %}
                 <details class="panel-nav-group panel-nav-group--{{ section.id }}" id="nav-group-{{ section.id }}" {% if section.open|default(false) %}open{% endif %}>
-                    <summary class="panel-nav-group__label">{{ section.label }}</summary>
+                    <summary class="panel-nav-group__label">
+                        <span class="panel-nav-group__mark">
+                            {% include 'components/admin_icon.html.twig' with { icon: group_icons[section.id]|default('default') } only %}
+                        </span>
+                        <span class="panel-nav-group__title">{{ section.label }}</span>
+                    </summary>
                     <div>
                         {% for item in section['items'] %}
                             <a
