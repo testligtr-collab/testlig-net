@@ -2316,6 +2316,16 @@ a:hover {
     font-size: 0.9rem;
 }
 
+.homepage-v2 .hp-news__list {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.homepage-v2 .hp-news__list a {
+    overflow-wrap: anywhere;
+}
+
 .homepage-v2 .hp-footer__trust {
     padding-top: 1.25rem;
 }

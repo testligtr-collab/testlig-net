@@ -4,9 +4,17 @@
             <span class="hp-news__symbol" aria-hidden="true">▤</span>
             <div class="hp-news__copy">
                 <h2 id="news-title" class="hp-news__title">{{ view.newsTitle }}</h2>
-                <p class="hp-news__lead">{{ view.newsBody }}</p>
+                {% if news_items is defined and news_items is not empty %}
+                    <ul class="hp-news__list">
+                        {% for article in news_items %}
+                            <li><a href="{{ path('app_news_show', {slug: article.slug}) }}">{{ article.title }}</a></li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="hp-news__lead">{{ view.newsBody }}</p>
+                {% endif %}
             </div>
-            <span class="hp-chip" role="status">{{ view.newsStatus }}</span>
+            <span class="hp-chip" role="status">{{ news_items is defined and news_items is not empty ? 'Yayında' : view.newsStatus }}</span>
         </div>
     </div>
 </section>

@@ -922,6 +922,28 @@ body.is-admin-panel {
     }
 }
 
+.is-admin-panel .admin-form {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 40rem;
+}
+
+.is-admin-panel .admin-form input,
+.is-admin-panel .admin-form textarea,
+.is-admin-panel .admin-form select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.is-admin-panel .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .is-admin-panel .panel-sidebar,
     .is-admin-panel .admin-nav-backdrop,

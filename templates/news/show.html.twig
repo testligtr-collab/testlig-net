@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ article.title }} — Testlig{% endblock %}
+{% block meta_description %}{{ article.summary }}{% endblock %}
+{% block body_class %}public-catalog{% endblock %}
+
+{% block body %}
+    <article class="catalog-wrap">
+        <p><a href="{{ path('app_news_index') }}">Haberler</a></p>
+        <h1>{{ article.title }}</h1>
+        {% if article.category %}
+            <p>{{ article.category.name }}</p>
+        {% endif %}
+        <p>{{ article.summary }}</p>
+        <div>{{ article.body|nl2br }}</div>
+    </article>
+{% endblock %}
