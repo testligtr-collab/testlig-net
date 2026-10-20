@@ -1,6 +1,6 @@
 # Admin bölüm uygulama sırası
 
-Bu sıra eksik kullanıcı işlemlerini kaydeder. Haber yönetimi bu sıranın ilk dilimidir ve admin kapsamını kapatmaz. Çalışan ekranlar yeniden yazılmaz.
+Bu sıra eksik kullanıcı işlemlerini kaydeder. Menüdeki bölüm girişleri bu işlemleri tamamlamaz. Haber yönetimi metin akışı başladı ve admin kapsamını kapatmaz. Çalışan ekranlar yeniden yazılmaz.
 
 1. M27-news — Haber, kategori ve yayın. Bu dilim: menü, liste, kategori, taslak, inceleme, başka yöneticinin yayını, arşiv, yalnız yayındaki public liste/detay, ana sayfa bandı. Açık: haber görseli. Görsel, M18-cloud-storage ve bekleyen PR #149 ile canlı tarama bağlantısına bağlıdır; metin akışı onu beklemez.
 2. M29-cms — Site sayfası oluşturma ve düzenleme, ana sayfa bölümlerini yönetme, menü ve footer düzenleme. Haber bandının yayındaki kayıtlardan beslenmesi bu CMS değildir.

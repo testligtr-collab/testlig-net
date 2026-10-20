@@ -56,6 +56,7 @@
                                         <a href="{{ item.href }}">
                                             {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
                                             <span>{{ item.label }}</span>
+                                            <span class="admin-stage">{{ item.stage|default('ready') == 'planned' ? 'Geliştirme aşamasında' : 'Çalışıyor' }}</span>
                                         </a>
                                     </li>
                                 {% endfor %}

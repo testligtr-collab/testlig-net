@@ -1,0 +1,45 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}{{ section.label }} — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>{{ section.label }}</span>
+    </nav>
+    <h1 class="panel-greeting">{{ section.label }}</h1>
+    <p class="admin-stage">Geliştirme aşamasında</p>
+    <p>{{ section.purpose }}</p>
+
+    <section class="admin-section" aria-labelledby="section-current">
+        <h2 id="section-current">Şu an kullanılabilenler</h2>
+        {% if section.current is empty %}
+            <p>Bu bölümde çalışan bir yönetim ekranı yok.</p>
+        {% else %}
+            <ul>
+                {% for line in section.current %}
+                    <li>{{ line }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        {% if section.related_route %}
+            <p><a href="{{ path(section.related_route) }}">{{ section.related_label }}</a></p>
+        {% endif %}
+    </section>
+
+    <section class="admin-section" aria-labelledby="section-missing">
+        <h2 id="section-missing">Eksik işlemler</h2>
+        <ul>
+            {% for line in section.missing %}
+                <li>{{ line }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <section class="admin-section" aria-labelledby="section-next">
+        <h2 id="section-next">Sonraki iş</h2>
+        <p>{{ section.next }}</p>
+        <p class="muted">Bu sayfa bölüm girişidir. Kayıt oluşturma ve yayın akışı burada tamamlanmış değildir.</p>
+    </section>
+{% endblock %}

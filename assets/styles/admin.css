@@ -238,6 +238,36 @@ body.is-admin-panel {
     color: #1f6499;
 }
 
+.is-admin-panel .panel-nav-group--campus,
+.is-admin-panel .panel-nav-group--media,
+.is-admin-panel .panel-nav-group--interactive,
+.is-admin-panel .panel-nav-group--communication,
+.is-admin-panel .panel-nav-group--site,
+.is-admin-panel .panel-nav-group--integrations {
+    background: #f7f9fc;
+}
+
+.is-admin-panel details.panel-nav-group > summary {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin: 0 0.2rem;
+    padding: 0.2rem 0.45rem;
+    cursor: pointer;
+    list-style: none;
+}
+
+.is-admin-panel details.panel-nav-group > summary::-webkit-details-marker {
+    display: none;
+}
+
+.is-admin-panel .admin-stage {
+    margin-left: auto;
+    color: #5d6b7a;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 .is-admin-panel .admin-shortcut-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
@@ -261,6 +291,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-shortcut a {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
     min-height: 2.75rem;
     color: inherit;

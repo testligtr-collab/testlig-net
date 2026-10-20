@@ -35,9 +35,9 @@ final class AdminNavBuilder
 
     /**
      * @return array{
-     *     nav_items: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
-     *     nav_sections: list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool, icon: string}>}>,
-     *     mobile_nav: list<array{id: string, label: string, href: string, current: bool, icon: string}>,
+     *     nav_items: list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}>,
+     *     nav_sections: list<array{id: string, label: string, open: bool, items: list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}>}>,
+     *     mobile_nav: list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}>,
      *     panel_role_label: string,
      *     display_name: string,
      *     greeting_name: string,
@@ -110,6 +110,11 @@ final class AdminNavBuilder
         if ($canAudit) {
             $items[] = $this->item('audit', 'Denetim', 'app_admin_audit', $currentPath);
         }
+        if ($this->adminAuthorization->canViewPlannedAdminSections($actor)) {
+            foreach (AdminSectionCatalog::all() as $section) {
+                $items[] = $this->plannedItem($section['id'], $section['label'], $section['key'], $currentPath);
+            }
+        }
 
         $items[] = $this->item('account', 'Hesabım', 'app_account', $currentPath);
         $items = $this->singleCurrent($items);
@@ -127,9 +132,9 @@ final class AdminNavBuilder
     }
 
     /**
-     * @param list<array{id: string, label: string, href: string, current: bool, icon: string}> $items
+     * @param list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}> $items
      *
-     * @return list<array{id: string, label: string, items: list<array{id: string, label: string, href: string, current: bool, icon: string}>}>
+     * @return list<array{id: string, label: string, open: bool, items: list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}>}>
      */
     private function sections(array $items, bool $workspaceShell): array
     {
@@ -150,27 +155,50 @@ final class AdminNavBuilder
             ]
             : [
                 ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
-                ['id' => 'people', 'label' => 'Kullanıcılar ve Başvurular', 'ids' => ['users', 'teacher_applications', 'institution_applications']],
-                ['id' => 'institutions', 'label' => 'Kurumlar', 'ids' => ['institutions']],
-                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'news', 'classrooms', 'teacher_profile']],
-                ['id' => 'commerce', 'label' => 'Ticaret', 'ids' => ['payments', 'webhooks', 'reconciliations']],
-                ['id' => 'system', 'label' => 'Sistem', 'ids' => ['system', 'audit']],
+                ['id' => 'people', 'label' => 'Kullanıcılar ve Yetkiler', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'teachers', 'role_permissions']],
+                ['id' => 'campus', 'label' => 'Kurum ve Sınıf', 'ids' => ['institutions', 'branches', 'academic_years', 'classes', 'classrooms']],
+                ['id' => 'learning', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'assignments', 'reports', 'teacher_profile']],
+                ['id' => 'media', 'label' => 'Medya', 'ids' => ['storage', 'documents', 'videos']],
+                ['id' => 'interactive', 'label' => 'Etkileşimli Eğitim', 'ids' => ['simulations', 'games', 'live_lessons', 'qna', 'guidance', 'gamification']],
+                ['id' => 'communication', 'label' => 'İletişim', 'ids' => ['messages', 'notifications', 'support']],
+                ['id' => 'site', 'label' => 'Site Yönetimi', 'ids' => ['news', 'pages', 'home_sections', 'menu_footer', 'seo', 'traffic_ads']],
+                ['id' => 'commerce', 'label' => 'Ticaret', 'ids' => ['packages', 'orders', 'coupons', 'payments', 'webhooks', 'reconciliations']],
+                ['id' => 'integrations', 'label' => 'Entegrasyonlar', 'ids' => ['sms', 'ai', 'identity_providers', 'mobile_api']],
+                ['id' => 'system', 'label' => 'Sistem', 'ids' => ['system', 'audit', 'operations']],
             ];
 
         $sections = [];
         foreach ($groups as $group) {
+            $adminLabels = [
+                'learning_contents' => 'Öğrenme içerikleri',
+                'questions' => 'Soru havuzu',
+                'tests' => 'Test ve sınavlar',
+                'system' => 'Sistem durumu',
+            ];
             $grouped = [];
             foreach ($group['ids'] as $id) {
-                if (isset($byId[$id])) {
-                    $grouped[] = $byId[$id];
+                if (!isset($byId[$id])) {
+                    continue;
                 }
+                $item = $byId[$id];
+                if (!$workspaceShell && isset($adminLabels[$id])) {
+                    $item['label'] = $adminLabels[$id];
+                }
+                $grouped[] = $item;
             }
             if ([] === $grouped) {
                 continue;
             }
+            $open = false;
+            foreach ($grouped as $item) {
+                if ($item['current']) {
+                    $open = true;
+                }
+            }
             $sections[] = [
                 'id' => $group['id'],
                 'label' => $group['label'],
+                'open' => $open,
                 'items' => $grouped,
             ];
         }
@@ -179,7 +207,7 @@ final class AdminNavBuilder
     }
 
     /**
-     * @return array{id: string, label: string, href: string, current: bool, icon: string}
+     * @return array{id: string, label: string, href: string, current: bool, icon: string, stage: string}
      */
     private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false): array
     {
@@ -195,13 +223,31 @@ final class AdminNavBuilder
             'href' => $href,
             'current' => $current,
             'icon' => $this->icons->resolve($id),
+            'stage' => 'ready',
         ];
     }
 
     /**
-     * @param list<array{id: string, label: string, href: string, current: bool, icon: string}> $items
+     * @return array{id: string, label: string, href: string, current: bool, icon: string, stage: string}
+     */
+    private function plannedItem(string $id, string $label, string $key, string $currentPath): array
+    {
+        $href = $this->urlGenerator->generate('app_admin_section', ['key' => $key]);
+
+        return [
+            'id' => $id,
+            'label' => $label,
+            'href' => $href,
+            'current' => $currentPath === $href,
+            'icon' => $this->icons->resolve('default'),
+            'stage' => 'planned',
+        ];
+    }
+
+    /**
+     * @param list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}> $items
      *
-     * @return list<array{id: string, label: string, href: string, current: bool, icon: string}>
+     * @return list<array{id: string, label: string, href: string, current: bool, icon: string, stage: string}>
      */
     private function singleCurrent(array $items): array
     {

@@ -207,6 +207,11 @@ final class AdminAuthorization
         return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
     }
 
+    public function canViewPlannedAdminSections(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
     public function canViewSecurityAudit(User $actor): bool
     {
         return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
