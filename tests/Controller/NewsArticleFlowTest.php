@@ -16,7 +16,7 @@ final class NewsArticleFlowTest extends WebTestCase
 {
     public function testAnonymousTeacherAndStudentCannotManageNews(): void
     {
-        $client = static::createClient();
+        $client = $this->browser();
         $client->request('GET', '/yonetim/haberler');
         self::assertResponseRedirects('/giris');
 
@@ -25,7 +25,7 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Haberler');
         self::assertSelectorTextContains('body', 'Yayımlanmış haber yok.');
 
-        $teacher = static::createClient();
+        $teacher = $this->browser();
         $this->loginAs($teacher, 'news_flow_teacher@example.com', UserRole::Teacher);
         $teacher->request('GET', '/yonetim/haberler');
         self::assertResponseStatusCodeSame(403);
@@ -33,7 +33,7 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('a[href="/yonetim/haberler"]');
 
-        $student = static::createClient();
+        $student = $this->browser();
         $this->loginAs($student, 'news_flow_student@example.com', UserRole::Student);
         $student->request('GET', '/yonetim/haberler');
         self::assertResponseStatusCodeSame(403);
@@ -44,7 +44,7 @@ final class NewsArticleFlowTest extends WebTestCase
         $this->createPrivilegedUser('news_flow_author@example.com', UserRole::Admin);
         $this->createPrivilegedUser('news_flow_publisher@example.com', UserRole::Admin);
 
-        $author = static::createClient();
+        $author = $this->browser();
         $this->submitLogin($author, 'news_flow_author@example.com');
         $author->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
@@ -92,7 +92,7 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Haberi yazan veya incelemeye gönderen kişi yayımlayamaz.');
         self::assertSelectorTextContains('body', 'İncelemede');
 
-        $public = static::createClient();
+        $public = $this->browser();
         $public->request('GET', '/haberler/yayin-haber-basligi');
         self::assertResponseStatusCodeSame(404);
         $public->request('GET', '/haberler/taslak-haber-basligi');
@@ -106,14 +106,14 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertStringNotContainsString('Yayin Haber Basligi', (string) $public->getResponse()->getContent());
         self::assertSelectorTextContains('#haberler', 'Platform duyuruları ve eğitim rehberleri burada yer alacak.');
 
-        $publisher = static::createClient();
+        $publisher = $this->browser();
         $this->submitLogin($publisher, 'news_flow_publisher@example.com');
         $publisher->request('GET', '/yonetim/haberler/'.$id);
         $publisher->submit($publisher->getCrawler()->selectButton('Yayımla')->form());
         $publisher->followRedirect();
         self::assertSelectorTextContains('body', 'Yayında');
 
-        $published = static::createClient();
+        $published = $this->browser();
         $published->request('GET', '/haberler');
         self::assertSelectorTextContains('body', 'Yayin Haber Basligi');
         self::assertStringNotContainsString('Taslak Haber Basligi', (string) $published->getResponse()->getContent());
@@ -124,13 +124,13 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertSelectorTextContains('#haberler', 'Yayin Haber Basligi');
         self::assertStringNotContainsString('Taslak Haber Basligi', (string) $published->getResponse()->getContent());
 
-        $archivist = static::createClient();
+        $archivist = $this->browser();
         $this->submitLogin($archivist, 'news_flow_publisher@example.com');
         $archivist->request('GET', '/yonetim/haberler/'.$id);
         $archivist->submit($archivist->getCrawler()->selectButton('Arşivle')->form());
         $archivist->followRedirect();
         self::assertSelectorTextContains('body', 'Arşivlenmiş');
-        $afterArchive = static::createClient();
+        $afterArchive = $this->browser();
         $afterArchive->request('GET', '/haberler/yayin-haber-basligi');
         self::assertResponseStatusCodeSame(404);
         $afterArchive->request('GET', '/');
@@ -140,7 +140,7 @@ final class NewsArticleFlowTest extends WebTestCase
     public function testHtmlAndMissingCsrfAreRejected(): void
     {
         $this->createPrivilegedUser('news_flow_editor@example.com', UserRole::Admin);
-        $client = static::createClient();
+        $client = $this->browser();
         $this->submitLogin($client, 'news_flow_editor@example.com');
 
         $client->request('POST', '/yonetim/haberler/kategoriler', ['name' => 'Deneme']);
@@ -156,9 +156,16 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'HTML kullanılamaz.');
 
-        $public = static::createClient();
+        $public = $this->browser();
         $public->request('GET', '/haberler');
         self::assertStringNotContainsString('Bozuk Haber', (string) $public->getResponse()->getContent());
+    }
+
+    private function browser(): KernelBrowser
+    {
+        self::ensureKernelShutdown();
+
+        return static::createClient();
     }
 
     private function loginAs(KernelBrowser $client, string $email, UserRole $role): void
