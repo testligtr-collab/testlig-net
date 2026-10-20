@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\NewsArticle;
-use App\Entity\User;
 use App\Exception\NewsArticleException;
 use App\Repository\NewsArticleRepository;
 use App\Repository\NewsCategoryRepository;
@@ -211,10 +210,7 @@ final class AdminNewsController extends AdminBaseController
 
     private function renderArticle(NewsArticle $article): Response
     {
-        $actor = $this->requireActorUser();
-        $submittedBy = $article->getSubmittedBy();
-        $canPublish = !$article->getAuthor()->getId()->equals($actor->getId())
-            && (!$submittedBy instanceof User || !$submittedBy->getId()->equals($actor->getId()));
+        $canPublish = !$article->blocksPublishBy($this->requireActorUser());
 
         return $this->renderAdmin('admin/news/show.html.twig', [
             'article' => $article,

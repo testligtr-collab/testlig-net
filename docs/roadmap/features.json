@@ -925,6 +925,7 @@
       "evidence": [
         "V1: Content / NewsCategory",
         "Metin haberleri için taslak, inceleme, başka yöneticinin yayını, arşiv, kategori ve yalnız yayındaki public sayfalar kodda başlar.",
+        "Yayın, ilk yazarı, son içerik düzenleyicisini ve incelemeye göndereni engeller. Düzenleme ve durum geçişi kilit altında güncel kaydı okur.",
         "Haber görseli bu dilimde yoktur. Görsel akış M18-cloud-storage ve bekleyen PR #149 kapsamındadır; canlı tarama bağlantısı kurulmadı.",
         "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur."
       ],

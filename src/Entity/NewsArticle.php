@@ -19,6 +19,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\Index(name: 'idx_news_article_status_published', columns: ['status', 'published_at'])]
 #[ORM\Index(name: 'idx_news_article_category', columns: ['category_id'])]
 #[ORM\Index(name: 'idx_news_article_author', columns: ['author_id'])]
+#[ORM\Index(name: 'idx_news_article_last_editor', columns: ['last_content_editor_id'])]
 #[ORM\Index(name: 'idx_news_article_submitted_by', columns: ['submitted_by_id'])]
 #[ORM\Index(name: 'idx_news_article_published_by', columns: ['published_by_id'])]
 class NewsArticle
@@ -34,6 +35,10 @@ class NewsArticle
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'author_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private User $author;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'last_content_editor_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
+    private User $lastContentEditor;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'submitted_by_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
@@ -84,6 +89,7 @@ class NewsArticle
     ) {
         $this->id = new UuidV7();
         $this->author = $author;
+        $this->lastContentEditor = $author;
         $this->title = $title;
         $this->slug = $slug;
         $this->summary = $summary;
@@ -106,7 +112,7 @@ class NewsArticle
         return new self($author, $title, $slug, $summary, $body, $category, $now);
     }
 
-    public function reviseDraft(string $title, string $summary, string $body, ?NewsCategory $category, \DateTimeImmutable $now): void
+    public function reviseDraft(User $editor, string $title, string $summary, string $body, ?NewsCategory $category, \DateTimeImmutable $now): void
     {
         if (NewsArticleStatus::Draft !== $this->status) {
             throw NewsArticleException::invalidTransition();
@@ -115,7 +121,17 @@ class NewsArticle
         $this->summary = $summary;
         $this->body = $body;
         $this->category = $category;
+        $this->lastContentEditor = $editor;
         $this->updatedAt = $now;
+    }
+
+    public function blocksPublishBy(User $actor): bool
+    {
+        $actorId = $actor->getId();
+
+        return $this->author->getId()->equals($actorId)
+            || $this->lastContentEditor->getId()->equals($actorId)
+            || ($this->submittedBy instanceof User && $this->submittedBy->getId()->equals($actorId));
     }
 
     public function markSubmitted(User $actor, \DateTimeImmutable $now): void
@@ -163,6 +179,11 @@ class NewsArticle
     public function getAuthor(): User
     {
         return $this->author;
+    }
+
+    public function getLastContentEditor(): User
+    {
+        return $this->lastContentEditor;
     }
 
     public function getSubmittedBy(): ?User

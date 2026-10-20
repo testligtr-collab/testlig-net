@@ -42,7 +42,7 @@ final class NewsArticleException extends \RuntimeException
 
     public static function separationOfDuties(): self
     {
-        return new self(NewsFailureReason::SeparationOfDuties, 'Haberi yazan veya incelemeye gönderen kişi yayımlayamaz.');
+        return new self(NewsFailureReason::SeparationOfDuties, 'Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.');
     }
 
     public static function categoryRequired(): self

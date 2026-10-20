@@ -11,7 +11,13 @@ use App\Exception\NewsArticleException;
 use App\Repository\NewsArticleRepository;
 use App\Repository\NewsCategoryRepository;
 use App\Security\AdminAuthorization;
+use App\Service\FreshUserLoader;
+use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\LockWaitTimeoutException;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -22,89 +28,151 @@ final class NewsArticleManager
         private readonly NewsArticleRepository $articles,
         private readonly NewsCategoryRepository $categories,
         private readonly AdminAuthorization $adminAuthorization,
+        private readonly FreshUserLoader $freshUsers,
         private readonly ClockInterface $clock,
     ) {
     }
 
     public function createCategory(User $actor, string $name): NewsCategory
     {
-        $this->assertManager($actor);
+        $actorId = $actor->getId();
         $name = NewsText::plain($name, 2, 80, false);
-        $slug = $this->uniqueCategorySlug(NewsText::slug($name, 'kategori'));
-        $category = NewsCategory::create($name, $slug, $actor, $this->clock->now());
-        $this->entityManager->persist($category);
-        $this->entityManager->flush();
 
-        return $category;
+        return $this->transactional(function () use ($actorId, $name): NewsCategory {
+            $freshActor = $this->freshActor($actorId);
+            $category = NewsCategory::create($name, $this->uniqueCategorySlug(NewsText::slug($name, 'kategori')), $freshActor, $this->clock->now());
+            $this->entityManager->persist($category);
+            $this->entityManager->flush();
+
+            return $category;
+        });
     }
 
     public function createDraft(User $actor, string $title, string $summary, string $body, ?Uuid $categoryId): NewsArticle
     {
-        $this->assertManager($actor);
+        $actorId = $actor->getId();
         [$title, $summary, $body] = $this->fields($title, $summary, $body);
-        $category = $this->optionalCategory($categoryId);
-        $article = NewsArticle::createDraft(
-            $actor,
-            $title,
-            $this->uniqueArticleSlug(NewsText::slug($title, 'haber')),
-            $summary,
-            $body,
-            $category,
-            $this->clock->now(),
-        );
-        $this->entityManager->persist($article);
-        $this->entityManager->flush();
 
-        return $article;
+        return $this->transactional(function () use ($actorId, $title, $summary, $body, $categoryId): NewsArticle {
+            $freshActor = $this->freshActor($actorId);
+            $article = NewsArticle::createDraft(
+                $freshActor,
+                $title,
+                $this->uniqueArticleSlug(NewsText::slug($title, 'haber')),
+                $summary,
+                $body,
+                $this->optionalCategory($categoryId),
+                $this->clock->now(),
+            );
+            $this->entityManager->persist($article);
+            $this->entityManager->flush();
+
+            return $article;
+        });
     }
 
     public function updateDraft(User $actor, NewsArticle $article, string $title, string $summary, string $body, ?Uuid $categoryId): void
     {
-        $this->assertManager($actor);
+        $actorId = $actor->getId();
+        $articleId = $article->getId();
         [$title, $summary, $body] = $this->fields($title, $summary, $body);
-        $article->reviseDraft($title, $summary, $body, $this->optionalCategory($categoryId), $this->clock->now());
-        $this->entityManager->flush();
+        $this->transactional(function () use ($actorId, $articleId, $title, $summary, $body, $categoryId): void {
+            $locked = $this->lockArticle($articleId);
+            $freshActor = $this->freshActor($actorId);
+            $locked->reviseDraft($freshActor, $title, $summary, $body, $this->optionalCategory($categoryId), $this->clock->now());
+            $this->entityManager->flush();
+        });
     }
 
     public function submitForReview(User $actor, NewsArticle $article): void
     {
-        $this->assertManager($actor);
-        $article->markSubmitted($actor, $this->clock->now());
-        $this->entityManager->flush();
+        $this->transition($actor, $article, static function (NewsArticle $locked, User $freshActor, \DateTimeImmutable $now): void {
+            $locked->markSubmitted($freshActor, $now);
+        });
     }
 
     public function returnToDraft(User $actor, NewsArticle $article): void
     {
-        $this->assertManager($actor);
-        $article->markReturnedToDraft($this->clock->now());
-        $this->entityManager->flush();
+        $this->transition($actor, $article, static function (NewsArticle $locked, User $freshActor, \DateTimeImmutable $now): void {
+            $locked->markReturnedToDraft($now);
+        });
     }
 
     public function publish(User $actor, NewsArticle $article): void
     {
-        $this->assertManager($actor);
-        if ($article->getAuthor()->getId()->equals($actor->getId())) {
-            throw NewsArticleException::separationOfDuties();
-        }
-        $submittedBy = $article->getSubmittedBy();
-        if ($submittedBy instanceof User && $submittedBy->getId()->equals($actor->getId())) {
-            throw NewsArticleException::separationOfDuties();
-        }
-        $article->markPublished($actor, $this->clock->now());
-        $this->entityManager->flush();
+        $this->transition($actor, $article, static function (NewsArticle $locked, User $freshActor, \DateTimeImmutable $now): void {
+            if ($locked->blocksPublishBy($freshActor)) {
+                throw NewsArticleException::separationOfDuties();
+            }
+            $locked->markPublished($freshActor, $now);
+        });
     }
 
     public function archive(User $actor, NewsArticle $article): void
     {
-        $this->assertManager($actor);
-        $article->markArchived($this->clock->now());
-        $this->entityManager->flush();
+        $this->transition($actor, $article, static function (NewsArticle $locked, User $freshActor, \DateTimeImmutable $now): void {
+            $locked->markArchived($now);
+        });
     }
 
-    private function assertManager(User $actor): void
+    /**
+     * @param \Closure(NewsArticle, User, \DateTimeImmutable): void $mutate
+     */
+    private function transition(User $actor, NewsArticle $article, \Closure $mutate): void
     {
-        if (!$this->adminAuthorization->canManageNews($actor)) {
+        $actorId = $actor->getId();
+        $articleId = $article->getId();
+        $this->transactional(function () use ($actorId, $articleId, $mutate): void {
+            $locked = $this->lockArticle($articleId);
+            $freshActor = $this->freshActor($actorId);
+            $mutate($locked, $freshActor, $this->clock->now());
+            $this->entityManager->flush();
+        });
+    }
+
+    private function lockArticle(Uuid $articleId): NewsArticle
+    {
+        $article = $this->entityManager->createQueryBuilder()
+            ->select('article')
+            ->from(NewsArticle::class, 'article')
+            ->andWhere('article.id = :id')
+            ->setParameter('id', $articleId, 'uuid')
+            ->getQuery()
+            ->setLockMode(LockMode::PESSIMISTIC_WRITE)
+            ->setHint(Query::HINT_REFRESH, true)
+            ->getOneOrNullResult();
+        if (!$article instanceof NewsArticle) {
+            throw NewsArticleException::notFound();
+        }
+
+        return $article;
+    }
+
+    private function freshActor(Uuid $actorId): User
+    {
+        $actor = $this->freshUsers->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
+        if (!$actor instanceof User || !$this->adminAuthorization->canManageNews($actor)) {
             throw NewsArticleException::unauthorized();
+        }
+
+        return $actor;
+    }
+
+    /**
+     * @template T
+     *
+     * @param \Closure(): T $work
+     *
+     * @return T
+     */
+    private function transactional(\Closure $work): mixed
+    {
+        try {
+            return $this->entityManager->wrapInTransaction($work);
+        } catch (NewsArticleException $e) {
+            throw $e;
+        } catch (UniqueConstraintViolationException|DeadlockException|LockWaitTimeoutException) {
+            throw NewsArticleException::conflict();
         }
     }
 
