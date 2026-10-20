@@ -19,6 +19,7 @@ final class AdminSectionDirectoryTest extends WebTestCase
     {
         $client = $this->browser();
         $this->login($client, 'section_dir_sa@example.com', UserRole::SuperAdmin);
+        $client->disableReboot();
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#admin-nav-shortcuts', 'Geliştirme aşamasında');
@@ -109,6 +110,7 @@ final class AdminSectionDirectoryTest extends WebTestCase
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
         $users->save($user);
+        $this->closeDatabase();
         self::ensureKernelShutdown();
 
         $crawler = $client->request('GET', '/giris');
@@ -119,8 +121,20 @@ final class AdminSectionDirectoryTest extends WebTestCase
         $client->followRedirect();
     }
 
+    private function closeDatabase(): void
+    {
+        if (!static::$booted) {
+            return;
+        }
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        if ($em instanceof EntityManagerInterface && $em->getConnection()->isConnected()) {
+            $em->getConnection()->close();
+        }
+    }
+
     protected function tearDown(): void
     {
+        $this->closeDatabase();
         try {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
@@ -129,6 +143,7 @@ final class AdminSectionDirectoryTest extends WebTestCase
                     "DELETE FROM users WHERE normalized_email LIKE 'section_dir_%@example.com'",
                 );
             }
+            $this->closeDatabase();
         } catch (\Throwable) {
         }
         parent::tearDown();
