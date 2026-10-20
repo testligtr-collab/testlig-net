@@ -27,7 +27,8 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -177,7 +178,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $client->request('GET', '/ogretmen/profil');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/ogretmen/profil"][aria-current="page"]');
-        $current = $this->currentNavIds();
+        $current = $this->currentNavIds('admin_matrix_teacher@example.com', '/ogretmen/profil');
         self::assertTrue($current['teacher_profile'] ?? false);
         self::assertArrayNotHasKey('classrooms', $current);
         self::assertArrayNotHasKey('dashboard', $current);
@@ -202,7 +203,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $client->request('GET', '/ogretmen/siniflarim');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/ogretmen/siniflarim"][aria-current="page"]');
-        $current = $this->currentNavIds();
+        $current = $this->currentNavIds('admin_matrix_nav_admin@example.com', '/ogretmen/siniflarim');
         self::assertTrue($current['classrooms'] ?? false);
         self::assertArrayNotHasKey('teacher_profile', $current);
     }
@@ -280,16 +281,26 @@ final class AdminSecurityMatrixTest extends WebTestCase
     /**
      * @return array<string, bool>
      */
-    private function currentNavIds(): array
+    private function currentNavIds(string $email, string $path): array
     {
+        self::ensureKernelShutdown();
+        self::bootKernel();
         $builder = static::getContainer()->get(AdminNavBuilder::class);
-        $storage = static::getContainer()->get(TokenStorageInterface::class);
+        $users = static::getContainer()->get(UserRepository::class);
+        $stack = static::getContainer()->get(RequestStack::class);
         self::assertInstanceOf(AdminNavBuilder::class, $builder);
-        self::assertInstanceOf(TokenStorageInterface::class, $storage);
-        $actor = $storage->getToken()?->getUser();
+        self::assertInstanceOf(UserRepository::class, $users);
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $actor = $users->findOneByNormalizedEmail($email);
         self::assertInstanceOf(User::class, $actor);
+        $stack->push(Request::create($path));
+        try {
+            $sections = $builder->build($actor)['nav_sections'];
+        } finally {
+            $stack->pop();
+        }
         $current = [];
-        foreach ($builder->build($actor)['nav_sections'] as $section) {
+        foreach ($sections as $section) {
             foreach ($section['items'] as $item) {
                 if ($item['current']) {
                     $current[$item['id']] = true;
