@@ -929,7 +929,8 @@
         "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/151"
+        "https://github.com/testligtr-collab/testlig-net/pull/151",
+        "https://github.com/testligtr-collab/testlig-net/pull/152"
       ],
       "acceptance": "Yönetici haber taslağı oluşturur ve başka bir yönetici yayımlar. Taslak anonim kullanıcıya ve ana sayfaya çıkmaz. Haber görseli ve production kabulü açık kalır.",
       "scope_decision": null
@@ -960,7 +961,8 @@
         "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/151"
+        "https://github.com/testligtr-collab/testlig-net/pull/151",
+        "https://github.com/testligtr-collab/testlig-net/pull/152"
       ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
       "scope_decision": null
@@ -1147,7 +1149,8 @@
         "Ödeme ve denetim yetkisi genişletilmedi. Öğretmen çalışma alanı eski gruplarını korur. Genel Bakış kısayolları çalışan ve geliştirme aşamasındaki bölümleri ayırır. CI yeşili production kabulü değildir."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/150"
+        "https://github.com/testligtr-collab/testlig-net/pull/150",
+        "https://github.com/testligtr-collab/testlig-net/pull/152"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
