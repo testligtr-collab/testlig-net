@@ -273,6 +273,7 @@ final class NewsArticleFlowTest extends WebTestCase
             'Bu govde yetkisi kalkan aktorden sonra degismemeli.',
             null,
         );
+        $articleId = $article->getId();
         $suspended->transitionTo(UserStatus::Suspended);
         $em->flush();
 
@@ -290,10 +291,19 @@ final class NewsArticleFlowTest extends WebTestCase
             self::assertSame(NewsFailureReason::Unauthorized, $e->getReason());
         }
 
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = $this->entityManager();
+        $fresh = $em->find(NewsArticle::class, $articleId);
+        self::assertInstanceOf(NewsArticle::class, $fresh);
+        self::assertSame('Pasif Yazar Basligi', $fresh->getTitle());
+        self::assertSame(NewsArticleStatus::Draft, $fresh->getStatus());
+
+        $demoted = $this->reloadAdmin('news_flow_demoted@example.com');
         $demoted->setGlobalRoles([]);
         $em->flush();
         try {
-            $news->createDraft(
+            $this->newsManager()->createDraft(
                 $demoted,
                 'Yetkisiz Yeni Baslik',
                 'Bu ozet yetkisiz aktorden gelmemeli.',
@@ -304,12 +314,6 @@ final class NewsArticleFlowTest extends WebTestCase
         } catch (NewsArticleException $e) {
             self::assertSame(NewsFailureReason::Unauthorized, $e->getReason());
         }
-
-        $em->clear();
-        $fresh = $em->find(NewsArticle::class, $article->getId());
-        self::assertInstanceOf(NewsArticle::class, $fresh);
-        self::assertSame('Pasif Yazar Basligi', $fresh->getTitle());
-        self::assertSame(NewsArticleStatus::Draft, $fresh->getStatus());
     }
 
     public function testHtmlAndMissingCsrfAreRejected(): void
