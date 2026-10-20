@@ -51,7 +51,7 @@
         {% if (workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest)) or overview.can_create_news or overview.can_create_institution %}
             <div class="admin-quick">
                 {% if workspace and workspace.canCreateContent %}
-                    <a class="btn btn--cta" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                    <a class="btn btn--primary" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
                 {% endif %}
                 {% if overview.can_create_news %}
                     <a class="btn admin-btn-accent" href="{{ path('app_admin_news_new') }}">Haber oluştur</a>
