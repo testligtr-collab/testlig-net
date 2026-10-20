@@ -67,6 +67,7 @@ final class AdminVoter extends Voter
                     AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE => $this->adminAuthorization->canManageLearningContentWorkspace($actor),
                     AdminPermission::ADMIN_QUESTION_VIEW => $this->adminAuthorization->canViewQuestionBank($actor),
                     AdminPermission::ADMIN_TEST_VIEW => $this->adminAuthorization->canViewTestBank($actor),
+                    AdminPermission::ADMIN_NEWS_MANAGE => $this->adminAuthorization->canManageNews($actor),
                     default => false,
                 };
             });

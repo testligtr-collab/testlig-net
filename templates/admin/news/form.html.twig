@@ -1,0 +1,24 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni haber — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_news') }}">Haberler</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni</span>
+    </nav>
+    <h1 class="panel-greeting">Yeni haber</h1>
+    <p class="muted">Kayıt taslak olarak kalır. HTML etiketleri kabul edilmez.</p>
+    {% include 'admin/news/_fields.html.twig' with {
+        action: path('app_admin_news_create'),
+        token_id: 'news_article',
+        title_value: title_value,
+        summary_value: summary_value,
+        body_value: body_value,
+        category_id: category_id,
+        submit_label: 'Taslağı kaydet'
+    } %}
+{% endblock %}

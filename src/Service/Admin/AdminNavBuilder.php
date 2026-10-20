@@ -92,6 +92,9 @@ final class AdminNavBuilder
         if ($this->adminAuthorization->canViewTestBank($actor)) {
             $items[] = $this->item('tests', 'Testler', 'app_admin_tests', $currentPath, '/yonetim/testler');
         }
+        if ($this->adminAuthorization->canManageNews($actor)) {
+            $items[] = $this->item('news', 'Haberler', 'app_admin_news', $currentPath, '/yonetim/haberler');
+        }
         if ($classroomCount > 0) {
             $items[] = $this->item('classrooms', 'Sınıflarım', 'app_teacher_classrooms', $currentPath, '/ogretmen/siniflarim');
         }
@@ -149,7 +152,7 @@ final class AdminNavBuilder
                 ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
                 ['id' => 'people', 'label' => 'Kullanıcılar ve Başvurular', 'ids' => ['users', 'teacher_applications', 'institution_applications']],
                 ['id' => 'institutions', 'label' => 'Kurumlar', 'ids' => ['institutions']],
-                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
+                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'news', 'classrooms', 'teacher_profile']],
                 ['id' => 'commerce', 'label' => 'Ticaret', 'ids' => ['payments', 'webhooks', 'reconciliations']],
                 ['id' => 'system', 'label' => 'Sistem', 'ids' => ['system', 'audit']],
             ];

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-12",
+  "updated_at": "2026-10-20",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
       "active_feature_ids": [
-    "X10-admin-navigation"
+    "M27-news"
   ],
   "features": [
     {
@@ -916,17 +916,19 @@
       "id": "M27-news",
       "module": "M27",
       "title": "Haber/blog yayın ve kategoriler",
-      "status": "planned",
-      "source": "V1: Content / NewsCategory",
+      "status": "partial",
+      "source": "src/Controller/Admin/AdminNewsController.php ve src/Controller/NewsController.php",
       "depends_on": [
         "M18-cloud-storage"
       ],
       "evidence": [
         "V1: Content / NewsCategory",
-        "Haber resmi yükleme Bunny PDF adaptörünün kapsamı dışındadır. M18-cloud-storage bağımlılığı açık kalır."
+        "Metin haberleri için taslak, inceleme, başka yöneticinin yayını, arşiv, kategori ve yalnız yayındaki public sayfalar kodda başlar.",
+        "Haber görseli bu dilimde yoktur. Görsel akış M18-cloud-storage ve bekleyen PR #149 kapsamındadır; canlı tarama bağlantısı kurulmadı.",
+        "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Yönetici haber taslağı oluşturur ve başka bir yönetici yayımlar. Taslak anonim kullanıcıya ve ana sayfaya çıkmaz. Haber görseli ve production kabulü açık kalır.",
       "scope_decision": null
     },
     {
@@ -951,7 +953,8 @@
       "source": "V1: Page/Nav/HomeSection; V2 HomepageView statik",
       "depends_on": [],
       "evidence": [
-        "V1: Page/Nav/HomeSection; V2 HomepageView statik"
+        "V1: Page/Nav/HomeSection; V2 HomepageView statik",
+        "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır."
       ],
       "pr_links": [],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
