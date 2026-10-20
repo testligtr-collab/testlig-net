@@ -149,7 +149,7 @@ final class AdminNavBuilder
                 ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
                 ['id' => 'people', 'label' => 'Kullanıcılar ve Başvurular', 'ids' => ['users', 'teacher_applications', 'institution_applications']],
                 ['id' => 'institutions', 'label' => 'Kurumlar', 'ids' => ['institutions']],
-                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests']],
+                ['id' => 'learning', 'label' => 'Eğitim İçerikleri', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
                 ['id' => 'commerce', 'label' => 'Ticaret', 'ids' => ['payments', 'webhooks', 'reconciliations']],
                 ['id' => 'system', 'label' => 'Sistem', 'ids' => ['system', 'audit']],
             ];

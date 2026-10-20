@@ -4,14 +4,30 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Entity\Institution;
+use App\Entity\InstitutionMembership;
 use App\Entity\User;
+use App\Enum\GradeLevel;
+use App\Enum\InstitutionMembershipRole;
+use App\Enum\InstitutionType;
+use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Repository\InstitutionMembershipRepository;
+use App\Repository\InstitutionRepository;
 use App\Repository\UserRepository;
+use App\Service\AcademicYearManager;
+use App\Service\Admin\AdminNavBuilder;
+use App\Service\ClassroomManager;
+use App\Service\ClassroomTeacherAssignmentManager;
+use App\Service\InstitutionCreator;
+use App\Service\InstitutionMembershipManager;
+use App\Service\InstitutionStatusManager;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -65,6 +81,9 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/yonetim/webhook"]');
         self::assertSelectorNotExists('a[href="/yonetim/uzlastirma"]');
         self::assertSelectorNotExists('a[href="/yonetim/denetim"]');
+        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/profil"][aria-current="page"]');
+        self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
         self::assertSelectorNotExists('#nav-group-commerce');
         self::assertSelectorNotExists('nav.bottom-nav');
         self::assertSelectorNotExists('a[href="/yonetim/kurumlar/yeni"]');
@@ -123,6 +142,71 @@ final class AdminSecurityMatrixTest extends WebTestCase
         }
     }
 
+    public function testAdminWithoutTeacherRoleHidesTeacherLinks(): void
+    {
+        $admin = $this->createPrivilegedUser('admin_matrix_plain@example.com', UserRole::Admin);
+        self::bootKernel();
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $stored = $users->findOneById($admin->getId());
+        self::assertInstanceOf(User::class, $stored);
+        $stored->setGlobalRoles([UserRole::Admin]);
+        $users->save($stored);
+        self::ensureKernelShutdown();
+
+        $client = static::createClient();
+        $this->submitLogin($client, 'admin_matrix_plain@example.com');
+        $client->request('GET', '/yonetim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#nav-group-learning');
+        self::assertSelectorNotExists('a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
+    }
+
+    public function testAdminTeacherProfileStaysInTheLearningGroup(): void
+    {
+        $client = static::createClient();
+        $this->loginAs($client, 'admin_matrix_teacher@example.com', UserRole::Admin);
+        $client->request('GET', '/yonetim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/profil"][aria-current="page"]');
+        self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
+        self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
+
+        $client->request('GET', '/ogretmen/profil');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/ogretmen/profil"][aria-current="page"]');
+        $current = $this->currentNavIds();
+        self::assertTrue($current['teacher_profile'] ?? false);
+        self::assertArrayNotHasKey('classrooms', $current);
+        self::assertArrayNotHasKey('dashboard', $current);
+    }
+
+    public function testAssignedAdminKeepsClassroomsInTheLearningGroup(): void
+    {
+        $this->createPrivilegedUser('admin_matrix_nav_sa@example.com', UserRole::SuperAdmin);
+        $this->createPrivilegedUser('admin_matrix_nav_owner@example.com', UserRole::User);
+        $this->createPrivilegedUser('admin_matrix_nav_admin@example.com', UserRole::Admin);
+        $this->assignAdminToClassroom();
+
+        $client = static::createClient();
+        $this->submitLogin($client, 'admin_matrix_nav_admin@example.com');
+        $client->request('GET', '/yonetim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/siniflarim"]');
+        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/siniflarim"][aria-current="page"]');
+        self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
+
+        $client->request('GET', '/ogretmen/siniflarim');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a[href="/ogretmen/siniflarim"][aria-current="page"]');
+        $current = $this->currentNavIds();
+        self::assertTrue($current['classrooms'] ?? false);
+        self::assertArrayNotHasKey('teacher_profile', $current);
+    }
+
     public function testStaleSuperAdminDenied(): void
     {
         $client = static::createClient();
@@ -178,14 +262,91 @@ final class AdminSecurityMatrixTest extends WebTestCase
     private function loginAs(KernelBrowser $client, string $email, UserRole $role): User
     {
         $user = $this->createPrivilegedUser($email, $role);
+        $this->submitLogin($client, $email);
+
+        return $user;
+    }
+
+    private function submitLogin(KernelBrowser $client, string $email): void
+    {
         $crawler = $client->request('GET', '/giris');
         $client->submit($crawler->selectButton('Giriş yap')->form([
             '_username' => $email,
             '_password' => 'Guclu-Parola-123!',
         ]));
         $client->followRedirect();
+    }
 
-        return $user;
+    /**
+     * @return array<string, bool>
+     */
+    private function currentNavIds(): array
+    {
+        $builder = static::getContainer()->get(AdminNavBuilder::class);
+        $storage = static::getContainer()->get(TokenStorageInterface::class);
+        self::assertInstanceOf(AdminNavBuilder::class, $builder);
+        self::assertInstanceOf(TokenStorageInterface::class, $storage);
+        $actor = $storage->getToken()?->getUser();
+        self::assertInstanceOf(User::class, $actor);
+        $current = [];
+        foreach ($builder->build($actor)['nav_sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['current']) {
+                    $current[$item['id']] = true;
+                }
+            }
+        }
+
+        return $current;
+    }
+
+    private function assignAdminToClassroom(): void
+    {
+        self::bootKernel();
+        $users = static::getContainer()->get(UserRepository::class);
+        $institutions = static::getContainer()->get(InstitutionRepository::class);
+        $memberships = static::getContainer()->get(InstitutionMembershipRepository::class);
+        $creator = static::getContainer()->get(InstitutionCreator::class);
+        $status = static::getContainer()->get(InstitutionStatusManager::class);
+        $members = static::getContainer()->get(InstitutionMembershipManager::class);
+        $years = static::getContainer()->get(AcademicYearManager::class);
+        $classrooms = static::getContainer()->get(ClassroomManager::class);
+        $assignments = static::getContainer()->get(ClassroomTeacherAssignmentManager::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        self::assertInstanceOf(InstitutionRepository::class, $institutions);
+        self::assertInstanceOf(InstitutionMembershipRepository::class, $memberships);
+        self::assertInstanceOf(InstitutionCreator::class, $creator);
+        self::assertInstanceOf(InstitutionStatusManager::class, $status);
+        self::assertInstanceOf(InstitutionMembershipManager::class, $members);
+        self::assertInstanceOf(AcademicYearManager::class, $years);
+        self::assertInstanceOf(ClassroomManager::class, $classrooms);
+        self::assertInstanceOf(ClassroomTeacherAssignmentManager::class, $assignments);
+
+        $superAdmin = $users->findOneByNormalizedEmail('admin_matrix_nav_sa@example.com');
+        $owner = $users->findOneByNormalizedEmail('admin_matrix_nav_owner@example.com');
+        $admin = $users->findOneByNormalizedEmail('admin_matrix_nav_admin@example.com');
+        self::assertInstanceOf(User::class, $superAdmin);
+        self::assertInstanceOf(User::class, $owner);
+        self::assertInstanceOf(User::class, $admin);
+
+        $creator->create($superAdmin, $owner, 'Nav Menu Okulu', InstitutionType::School, 'nav_seed');
+        $institution = $institutions->findOneBy(['name' => 'Nav Menu Okulu']);
+        self::assertInstanceOf(Institution::class, $institution);
+        $status->activate($institution, $superAdmin, 'nav_seed');
+        $members->addMember($institution, $superAdmin, $admin, InstitutionMembershipRole::Teacher, 'nav_seed');
+        $year = $years->createPlanned(
+            $institution,
+            $superAdmin,
+            'Nav Yili',
+            new \DateTimeImmutable('2026-09-01'),
+            new \DateTimeImmutable('2027-06-15'),
+            'nav_seed',
+        );
+        $classroom = $classrooms->create($year, $superAdmin, 'Nav Sinifi', GradeLevel::Grade3, 'nav_seed', 'A', 20);
+        $membership = $memberships->findMembership($admin, $institution);
+        self::assertInstanceOf(InstitutionMembership::class, $membership);
+        $assignments->assign($classroom, $superAdmin, $membership, TeacherAssignmentRole::AssistantTeacher, 'nav_seed');
+        self::ensureKernelShutdown();
     }
 
     private function createPrivilegedUser(string $email, UserRole $role): User
