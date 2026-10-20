@@ -1152,7 +1152,8 @@
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
-        "https://github.com/testligtr-collab/testlig-net/pull/152"
+        "https://github.com/testligtr-collab/testlig-net/pull/152",
+        "https://github.com/testligtr-collab/testlig-net/pull/153"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
