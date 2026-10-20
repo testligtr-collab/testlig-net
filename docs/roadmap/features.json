@@ -927,7 +927,9 @@
         "Haber görseli bu dilimde yoktur. Görsel akış M18-cloud-storage ve bekleyen PR #149 kapsamındadır; canlı tarama bağlantısı kurulmadı.",
         "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/151"
+      ],
       "acceptance": "Yönetici haber taslağı oluşturur ve başka bir yönetici yayımlar. Taslak anonim kullanıcıya ve ana sayfaya çıkmaz. Haber görseli ve production kabulü açık kalır.",
       "scope_decision": null
     },
@@ -956,7 +958,9 @@
         "V1: Page/Nav/HomeSection; V2 HomepageView statik",
         "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/151"
+      ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
       "scope_decision": null
     },
