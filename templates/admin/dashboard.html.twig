@@ -18,21 +18,48 @@
     {% set published_share = content_total > 0 ? ((published * 100) / content_total)|round(0, 'floor') : 0 %}
     {% set review_share = content_total > 0 ? ((review * 100) / content_total)|round(0, 'floor') : 0 %}
     {% set draft_share = content_total > 0 ? (100 - published_share - review_share) : 0 %}
+    {% set section_blurbs = {
+        people: 'Kullanıcılar, başvurular ve roller.',
+        campus: 'Kurumlar, kampüsler, yıllar ve sınıflar.',
+        learning: 'Müfredat, içerik, soru ve testler.',
+        media: 'Depolama, doküman ve video.',
+        interactive: 'Simülasyon, oyun ve canlı ders.',
+        communication: 'Mesaj, bildirim ve destek.',
+        site: 'Haber, sayfa ve site ayarları.',
+        commerce: 'Paket, sipariş ve ödeme işlemleri.',
+        integrations: 'SMS, yapay zeka ve dış bağlantılar.',
+        system: 'Sistem durumu, denetim ve operasyon.'
+    } %}
+    {% set section_icons = {
+        people: 'users',
+        campus: 'institutions',
+        learning: 'catalog',
+        media: 'learning_contents',
+        interactive: 'questions',
+        communication: 'account',
+        site: 'default',
+        commerce: 'payments',
+        integrations: 'webhooks',
+        system: 'system'
+    } %}
 
-    <div class="admin-hello-row">
+    <header class="admin-hello-row">
         <div>
-            <h1 class="panel-greeting admin-hello">{% if greeting_name %}Günaydın {{ greeting_name }}, sistem hazır.{% else %}Günaydın, sistem hazır.{% endif %}</h1>
-            <p class="admin-hello__lead">Platformun güncel durumunu ve sıradaki işleri buradan takip edebilirsin.</p>
+            <h1 class="panel-greeting admin-hello">Genel Bakış</h1>
+            <p class="admin-hello__lead">İzinli bölümler, kayıt sayıları ve hızlı işlemler.</p>
         </div>
-        {% if workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest or overview.can_create_institution) %}
+        {% if (workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest)) or overview.can_create_news or overview.can_create_institution %}
             <div class="admin-quick">
-                {% if workspace.canCreateContent %}
-                    <a class="btn btn--cta" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                {% if workspace and workspace.canCreateContent %}
+                    <a class="btn btn--primary" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
                 {% endif %}
-                {% if workspace.canCreateQuestion %}
+                {% if overview.can_create_news %}
+                    <a class="btn admin-btn-accent" href="{{ path('app_admin_news_new') }}">Haber oluştur</a>
+                {% endif %}
+                {% if workspace and workspace.canCreateQuestion %}
                     <a class="btn admin-btn-outline" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
                 {% endif %}
-                {% if workspace.canCreateTest %}
+                {% if workspace and workspace.canCreateTest %}
                     <a class="btn admin-btn-outline" href="{{ path('app_admin_test_new') }}">Yeni test</a>
                 {% endif %}
                 {% if overview.can_create_institution %}
@@ -40,59 +67,24 @@
                 {% endif %}
             </div>
         {% endif %}
-    </div>
-
-    {% if nav_sections|default([]) is not empty %}
-        <section class="admin-section" id="admin-nav-shortcuts" aria-labelledby="nav-shortcuts-heading">
-            <h2 id="nav-shortcuts-heading">Bölümler</h2>
-            <div class="admin-shortcut-grid">
-                {% for section in nav_sections %}
-                    {% if section.id != 'overview' %}
-                        <section class="admin-panel-card admin-shortcut" aria-labelledby="nav-shortcut-{{ section.id }}">
-                            <h3 id="nav-shortcut-{{ section.id }}">{{ section.label }}</h3>
-                            <ul>
-                                {% for item in section['items'] %}
-                                    <li>
-                                        <a href="{{ item.href }}">
-                                            {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
-                                            <span>{{ item.label }}</span>
-                                            <span class="admin-stage">{{ item.stage|default('ready') == 'planned' ? 'Geliştirme aşamasında' : 'Çalışıyor' }}</span>
-                                        </a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </section>
-                    {% endif %}
-                {% endfor %}
-            </div>
-        </section>
-    {% endif %}
-
-    <section class="admin-summary-band" aria-labelledby="summary-heading">
-        <div>
-            <h2 id="summary-heading">Testlig Yönetim Özeti</h2>
-            <p class="admin-summary-band__status"><span class="admin-status__dot" aria-hidden="true"></span> Sistem çalışıyor</p>
-            <p class="muted u-m0">İçerik üretimine hazır</p>
-        </div>
-        {% include 'admin/_study_art.html.twig' with { art: 'books' } only %}
-    </section>
+    </header>
 
     {% if shell_metrics is defined and shell_metrics is not empty %}
         <section class="admin-section" aria-labelledby="metrics-heading">
-            <h2 id="metrics-heading" class="sr-only">Kayıt sayıları</h2>
+            <h2 id="metrics-heading">Kayıt sayıları</h2>
             <div class="admin-metric-grid" aria-label="Yetkili kayıt sayıları">
                 {% for card in shell_metrics %}
                     {% if card.href %}
                         <a class="admin-metric admin-metric--link admin-metric--{{ card.tone }}" href="{{ card.href }}">
-                            {% include 'components/admin_icon.html.twig' with { icon: card.icon|default('default') } only %}
-                            <p class="admin-metric__label">{{ card.label }}</p>
-                            <p class="admin-metric__value">{{ card.value }}</p>
+                            <span class="admin-metric__icon">{% include 'components/admin_icon.html.twig' with { icon: card.icon|default('default') } only %}</span>
+                            <span class="admin-metric__label">{{ card.label }}</span>
+                            <span class="admin-metric__value">{{ card.value }}</span>
                         </a>
                     {% else %}
                         <div class="admin-metric admin-metric--{{ card.tone }}">
-                            {% include 'components/admin_icon.html.twig' with { icon: card.icon|default('default') } only %}
-                            <p class="admin-metric__label">{{ card.label }}</p>
-                            <p class="admin-metric__value">{{ card.value }}</p>
+                            <span class="admin-metric__icon">{% include 'components/admin_icon.html.twig' with { icon: card.icon|default('default') } only %}</span>
+                            <span class="admin-metric__label">{{ card.label }}</span>
+                            <span class="admin-metric__value">{{ card.value }}</span>
                         </div>
                     {% endif %}
                 {% endfor %}
@@ -100,74 +92,68 @@
         </section>
     {% endif %}
 
-    <div class="admin-overview-grid">
-        <section class="admin-panel-card" aria-labelledby="activity-heading">
-            <div class="admin-panel-card__head">
-                <h2 id="activity-heading">Platform etkinliği</h2>
-            </div>
-            <div class="admin-empty">
-                {% include 'admin/_study_art.html.twig' with { art: 'activity' } only %}
-                <p class="admin-empty__title">Grafik için henüz yeterli veri yok.</p>
-                <p class="muted u-m0">İçerik, kullanıcı veya test eklendikçe burada platform etkinliğini görebilirsin.</p>
-            </div>
-        </section>
-
-        <section class="admin-panel-card" aria-labelledby="next-heading">
-            <div class="admin-panel-card__head">
-                <h2 id="next-heading">Sıradaki işler</h2>
-            </div>
-            {% if overview.tasks is empty %}
-                <p class="muted u-m0">Şu an sırada bekleyen bir iş yok.</p>
-            {% else %}
-                <ul class="admin-task-list">
-                    {% for task in overview.tasks %}
-                        <li>
-                            <a class="admin-task" href="{{ task.href }}">
-                                {% include 'components/admin_icon.html.twig' with { icon: task.icon|default('default') } only %}
-                                <span>
-                                    <span class="admin-task__label">{{ task.label }}</span>
-                                    <span class="admin-task__hint">{{ task.hint }}</span>
+    {% if nav_sections|default([]) is not empty %}
+        <section class="admin-section" id="admin-nav-shortcuts" aria-labelledby="nav-shortcuts-heading">
+            <h2 id="nav-shortcuts-heading">Yönetim bölümleri</h2>
+            <div class="admin-directory">
+                {% for section in nav_sections %}
+                    {% if section.id != 'overview' %}
+                        {% set ready_items = section['items']|filter(item => item.stage != 'planned') %}
+                        {% set planned_items = section['items']|filter(item => item.stage == 'planned') %}
+                        <article class="admin-directory-card" aria-labelledby="nav-shortcut-{{ section.id }}">
+                            <div class="admin-directory-card__head">
+                                <span class="admin-directory-card__icon admin-directory-card__icon--{{ section.id }}">
+                                    {% include 'components/admin_icon.html.twig' with { icon: section_icons[section.id]|default('default') } only %}
                                 </span>
-                            </a>
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% endif %}
-        </section>
-
-        <section class="admin-panel-card" aria-labelledby="content-status-heading">
-            <div class="admin-panel-card__head">
-                <h2 id="content-status-heading">İçerik durumu</h2>
+                                <div>
+                                    <h3 id="nav-shortcut-{{ section.id }}">{{ section.label }}</h3>
+                                    <p>{{ section_blurbs[section.id]|default('İzinli yönetim bağlantıları.') }}</p>
+                                </div>
+                            </div>
+                            {% if ready_items is not empty %}
+                                <p class="admin-stage-label">Çalışıyor</p>
+                                <ul>
+                                    {% for item in ready_items %}
+                                        <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                            {% if planned_items is not empty %}
+                                <p class="admin-stage-label">Geliştirme aşamasında</p>
+                                <ul>
+                                    {% for item in planned_items %}
+                                        <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </article>
+                    {% endif %}
+                {% endfor %}
             </div>
+        </section>
+    {% endif %}
+
+    <section class="admin-panel-card admin-content-summary" aria-labelledby="content-status-heading">
+        <h2 id="content-status-heading">İçerik özeti</h2>
+        {% if content_total > 0 %}
             <div
                 class="admin-mix"
                 role="img"
                 aria-label="İçerik durumu: yayımlanmış {{ published }}, incelemede {{ review }}, taslak {{ draft }}"
             >
                 <svg class="admin-mix__bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-                    {% if content_total > 0 %}
-                        <rect x="0" y="0" width="{{ published_share }}" height="8" class="admin-mix__seg admin-mix__seg--published"></rect>
-                        <rect x="{{ published_share }}" y="0" width="{{ review_share }}" height="8" class="admin-mix__seg admin-mix__seg--review"></rect>
-                        <rect x="{{ published_share + review_share }}" y="0" width="{{ draft_share }}" height="8" class="admin-mix__seg admin-mix__seg--draft"></rect>
-                    {% endif %}
+                    <rect x="0" y="0" width="{{ published_share }}" height="8" class="admin-mix__seg admin-mix__seg--published"></rect>
+                    <rect x="{{ published_share }}" y="0" width="{{ review_share }}" height="8" class="admin-mix__seg admin-mix__seg--review"></rect>
+                    <rect x="{{ published_share + review_share }}" y="0" width="{{ draft_share }}" height="8" class="admin-mix__seg admin-mix__seg--draft"></rect>
                 </svg>
             </div>
-            <ul class="admin-mix__legend">
-                <li><span class="admin-mix__swatch admin-mix__swatch--published" aria-hidden="true"></span> Yayımlanmış içerik <strong>{{ published }}</strong></li>
-                <li><span class="admin-mix__swatch admin-mix__swatch--review" aria-hidden="true"></span> İncelemede <strong>{{ review }}</strong></li>
-                <li><span class="admin-mix__swatch admin-mix__swatch--draft" aria-hidden="true"></span> Taslak <strong>{{ draft }}</strong></li>
-            </ul>
-        </section>
-
-        <section class="admin-panel-card" aria-labelledby="activity-log-heading">
-            <div class="admin-panel-card__head">
-                <h2 id="activity-log-heading">Son hareketler</h2>
-            </div>
-            <div class="admin-empty">
-                {% include 'admin/_study_art.html.twig' with { art: 'books' } only %}
-                <p class="admin-empty__title">Henüz hareket yok.</p>
-                <p class="muted u-m0">Kullanıcı, içerik veya test eklendiğinde son hareketler burada listelenecek.</p>
-            </div>
-        </section>
-    </div>
+        {% else %}
+            <p class="muted u-m0">Henüz kayıtlı içerik yok.</p>
+        {% endif %}
+        <ul class="admin-mix__legend">
+            <li><span class="admin-mix__swatch admin-mix__swatch--published" aria-hidden="true"></span> Yayımlanmış içerik <strong>{{ published }}</strong></li>
+            <li><span class="admin-mix__swatch admin-mix__swatch--review" aria-hidden="true"></span> İncelemede <strong>{{ review }}</strong></li>
+            <li><span class="admin-mix__swatch admin-mix__swatch--draft" aria-hidden="true"></span> Taslak <strong>{{ draft }}</strong></li>
+        </ul>
+    </section>
 {% endblock %}

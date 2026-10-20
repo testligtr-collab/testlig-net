@@ -18,6 +18,7 @@ use App\Repository\InstitutionRepository;
 use App\Repository\UserRepository;
 use App\Service\AcademicYearManager;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\Admin\AdminShellMetrics;
 use App\Service\ClassroomManager;
 use App\Service\ClassroomTeacherAssignmentManager;
 use App\Service\InstitutionCreator;
@@ -69,8 +70,19 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
-        self::assertSelectorTextContains('body', 'Testlig Yönetim Özeti');
+        self::assertSelectorTextSame('h1', 'Genel Bakış');
+        self::assertSelectorTextContains('body', 'Yönetim bölümleri');
         self::assertSelectorTextContains('body', 'Genel Bakış');
+        self::assertStringNotContainsString('Sistem çalışıyor', (string) $client->getResponse()->getContent());
+        self::assertSelectorNotExists('.admin-search');
+        self::assertSelectorNotExists('.admin-icon-btn');
+        self::assertSelectorExists('a[href="/yonetim/haberler/yeni"]');
+        self::assertCount(1, $client->getCrawler()->filter('a[href="/yonetim/haberler/yeni"]'));
+        /** @var AdminShellMetrics $metrics */
+        $metrics = static::getContainer()->get(AdminShellMetrics::class);
+        foreach ($metrics->forActor($admin) as $card) {
+            self::assertSelectorTextSame('.admin-metric--'.$card['tone'].' .admin-metric__value', (string) $card['value']);
+        }
         self::assertSelectorTextContains('body', 'Kullanıcılar ve Yetkiler');
         self::assertSelectorTextContains('body', 'Aktif kullanıcı');
         self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
@@ -126,6 +138,9 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertSelectorExists('a[href="/yonetim/denetim"]');
         self::assertSelectorExists('a[href="/yonetim/uzlastirma"]');
         self::assertSelectorExists('#admin-nav-shortcuts a[href="/yonetim/uzlastirma"]');
+        self::assertSelectorTextContains('article[aria-labelledby="nav-shortcut-learning"]', 'Çalışıyor');
+        self::assertSelectorTextContains('article[aria-labelledby="nav-shortcut-learning"]', 'Geliştirme aşamasında');
+        self::assertStringNotContainsString('Tamamlandı', (string) $client->getResponse()->getContent());
         self::assertSelectorNotExists('nav.bottom-nav');
 
         foreach ([

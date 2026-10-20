@@ -76,7 +76,7 @@ final class AdminShellMetrics
     /**
      * @param list<array{key: string, label: string, value: int, href: string|null, icon: string, tone: string}> $cards
      *
-     * @return array{can_create_institution: bool, published_contents: int, tasks: list<array{label: string, hint: string, href: string, icon: string}>}
+     * @return array{can_create_institution: bool, can_create_news: bool, published_contents: int, tasks: list<array{label: string, hint: string, href: string, icon: string}>}
      */
     public function overview(User $actor, ?ContentWorkspaceSummaryView $workspace, array $cards, int $publishedContents): array
     {
@@ -115,6 +115,7 @@ final class AdminShellMetrics
 
         return [
             'can_create_institution' => $this->adminAuthorization->canCreateInstitutions($actor),
+            'can_create_news' => $this->adminAuthorization->canManageNews($actor),
             'published_contents' => max(0, $publishedContents),
             'tasks' => $tasks,
         ];
