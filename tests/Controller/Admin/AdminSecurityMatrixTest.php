@@ -81,8 +81,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/yonetim/webhook"]');
         self::assertSelectorNotExists('a[href="/yonetim/uzlastirma"]');
         self::assertSelectorNotExists('a[href="/yonetim/denetim"]');
-        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
-        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/profil"][aria-current="page"]');
+        self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('.panel-nav-group--learning a[href="/ogretmen/profil"][aria-current="page"]');
         self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
         self::assertSelectorNotExists('#nav-group-commerce');
         self::assertSelectorNotExists('nav.bottom-nav');
@@ -169,8 +169,8 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $this->loginAs($client, 'admin_matrix_teacher@example.com', UserRole::Admin);
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
-        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/profil"][aria-current="page"]');
+        self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('.panel-nav-group--learning a[href="/ogretmen/profil"][aria-current="page"]');
         self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
         self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
 
@@ -194,9 +194,9 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $this->submitLogin($client, 'admin_matrix_nav_admin@example.com');
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/siniflarim"]');
-        self::assertSelectorExists('#nav-group-learning a[href="/ogretmen/profil"]');
-        self::assertSelectorNotExists('#nav-group-learning a[href="/ogretmen/siniflarim"][aria-current="page"]');
+        self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/siniflarim"]');
+        self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('.panel-nav-group--learning a[href="/ogretmen/siniflarim"][aria-current="page"]');
         self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
 
         $client->request('GET', '/ogretmen/siniflarim');
