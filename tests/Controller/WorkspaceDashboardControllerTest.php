@@ -86,6 +86,10 @@ final class WorkspaceDashboardControllerTest extends WebTestCase
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.admin-breadcrumb', 'Çalışma alanı');
+        self::assertSelectorExists('.panel-nav-group--education a[href="/ogretmen/profil"]');
+        self::assertSelectorNotExists('#nav-group-learning');
+        self::assertSelectorNotExists('a[href="/ogretmen/siniflarim"]');
+        self::assertSelectorExists('nav.bottom-nav');
         $client->request('GET', '/yonetim/sorular');
         self::assertSelectorTextContains('.admin-breadcrumb', 'Çalışma alanı');
         self::assertSelectorTextContains('.admin-breadcrumb', 'Sorular');

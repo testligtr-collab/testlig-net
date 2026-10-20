@@ -42,6 +42,31 @@
         {% endif %}
     </div>
 
+    {% if nav_sections|default([]) is not empty %}
+        <section class="admin-section" id="admin-nav-shortcuts" aria-labelledby="nav-shortcuts-heading">
+            <h2 id="nav-shortcuts-heading">Bölümler</h2>
+            <div class="admin-shortcut-grid">
+                {% for section in nav_sections %}
+                    {% if section.id != 'overview' %}
+                        <section class="admin-panel-card admin-shortcut" aria-labelledby="nav-shortcut-{{ section.id }}">
+                            <h3 id="nav-shortcut-{{ section.id }}">{{ section.label }}</h3>
+                            <ul>
+                                {% for item in section['items'] %}
+                                    <li>
+                                        <a href="{{ item.href }}">
+                                            {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
+                                            <span>{{ item.label }}</span>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </section>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
+
     <section class="admin-summary-band" aria-labelledby="summary-heading">
         <div>
             <h2 id="summary-heading">Testlig Yönetim Özeti</h2>

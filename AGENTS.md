@@ -13,7 +13,7 @@
 - Günlük kontrol başarısızsa eksik kayıt giderilmeden yeni feature önermek veya “tamamlandı” demek yok.
 
 ## Çalışma sınırları
-- Tek aktif uygulama işi; ilk başlangıç M12-institution-authoring / PR #112. Bu belge PR'ı uygulama işini başlatmaz/merge etmez.
+- Tek aktif uygulama işi X10-admin-navigation. M18-cloud-storage partial kalır; PR #149 incelemede ayrıdır. Bu belge PR'ı uygulama işini başlatmaz/merge etmez.
 - Kullanıcı istemedikçe yerel Docker/XAMPP servislerini açma. GitHub CI tercih edilir.
 - SSH polling/retry/ikinci deploy yok. Production işlemi ayrı açık kapsam gerektirir. Bu yönerge production yetkisi vermez.
 - Kurum izolasyonu, entitlement ve revision yazar/yayıncı ayrılığı gevşetilmez.

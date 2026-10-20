@@ -3,7 +3,7 @@
   "updated_at": "2026-10-12",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
       "active_feature_ids": [
-    "M18-cloud-storage"
+    "X10-admin-navigation"
   ],
   "features": [
     {
@@ -1124,6 +1124,24 @@
         "https://github.com/testligtr-collab/testlig-net/pull/113"
       ],
       "acceptance": "Kayıt kaybı kontrolü main'de. Guard kanıt doğruluğu, branch protection veya production kabulü garantisi değildir.",
+      "scope_decision": null
+    },
+    {
+      "id": "X10-admin-navigation",
+      "module": "X10",
+      "title": "Yönetim paneli sol menüsü ve bölüm düzeni",
+      "status": "partial",
+      "source": "src/Service/Admin/AdminNavBuilder.php",
+      "depends_on": [],
+      "evidence": [
+        "src/Service/Admin/AdminNavBuilder.php mevcut izin kapılarıyla Genel Bakış, Kullanıcılar ve Başvurular, Kurumlar, Eğitim İçerikleri, Ticaret ve Sistem gruplarını kurar. Boş grup basılmaz. Genel Bakış yalnız /yonetim yolunda seçilidir. Öğretmen rolü veya sınıf atamasıyla zaten oluşan Mesleki profil ve Sınıflarım bağlantıları Eğitim İçerikleri grubunda kalır. Hesabım, Ana sayfa ve CSRF çıkışı alt alanda kalır. Öğretmen çalışma alanı eski gruplarını korur.",
+        "templates/admin/dashboard.html.twig aynı izinli bağlantılardan bölüm kısayolu gösterir. Yeni sayaç sorgusu yoktur. Medya, haber, video, simülasyon ve site yönetimi bağlantısı eklenmedi.",
+        "Admin kabuğunda mobil alt çubuk bütün menüyü taşımaz. İzinli bölümler mevcut açılır yan menüdedir. Bu kayıt kod ve ekran düzenidir. CI yeşili production kabulü değildir. Deploy ve canlı kabul bu dilimde yoktur."
+      ],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/150"
+      ],
+      "acceptance": "SuperAdmin ve Admin yalnız erişebildiği bağlantıları görür. Detay sayfasında ilgili menü seçilidir. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
     }
   ]

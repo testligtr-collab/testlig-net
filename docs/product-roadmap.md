@@ -157,6 +157,8 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 ## 7. Mevcut açık kabul ve korunacak kayıtlar
 
+- Aktif uygulama işi X10-admin-navigation. M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
+
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.
 - Öğretmen sonuç tablosunun gerçek pilot kabulü açık. Engel ekran eksikliği değil; production kayıtları ve uygun oturum doğrulanmadı. Bölüm 9 planı uygulanmadı. Platform MAT testi kurum testinin yerine kullanılmaz.

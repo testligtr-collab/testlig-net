@@ -62,8 +62,10 @@ export default class extends Controller {
         }
         const navBox = nav.getBoundingClientRect();
         const linkBox = current.getBoundingClientRect();
-        if (linkBox.top < navBox.top || linkBox.bottom > navBox.bottom) {
-            current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        if (linkBox.top < navBox.top) {
+            nav.scrollTop += linkBox.top - navBox.top;
+        } else if (linkBox.bottom > navBox.bottom) {
+            nav.scrollTop += linkBox.bottom - navBox.bottom;
         }
     }
 

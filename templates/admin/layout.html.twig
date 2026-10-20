@@ -80,6 +80,8 @@
         </div>
     </div>
 
-    {% include 'components/mobile_bottom_nav.html.twig' %}
+    {% if mobile_nav|default([]) is not empty %}
+        {% include 'components/mobile_bottom_nav.html.twig' %}
+    {% endif %}
 </div>
 {% endblock %}
