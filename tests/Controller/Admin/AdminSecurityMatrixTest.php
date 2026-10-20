@@ -71,7 +71,7 @@ final class AdminSecurityMatrixTest extends WebTestCase
         self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow');
         self::assertSelectorTextContains('body', 'Testlig Yönetim Özeti');
         self::assertSelectorTextContains('body', 'Genel Bakış');
-        self::assertSelectorTextContains('body', 'Kullanıcılar ve Başvurular');
+        self::assertSelectorTextContains('body', 'Kullanıcılar ve Yetkiler');
         self::assertSelectorTextContains('body', 'Aktif kullanıcı');
         self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
         self::assertSelectorNotExists('#panel-sidebar a[href="/yonetim/sistem"][aria-current="page"]');
@@ -195,9 +195,9 @@ final class AdminSecurityMatrixTest extends WebTestCase
         $this->submitLogin($client, 'admin_matrix_nav_admin@example.com');
         $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/siniflarim"]');
+        self::assertSelectorExists('.panel-nav-group--campus a[href="/ogretmen/siniflarim"]');
         self::assertSelectorExists('.panel-nav-group--learning a[href="/ogretmen/profil"]');
-        self::assertSelectorNotExists('.panel-nav-group--learning a[href="/ogretmen/siniflarim"][aria-current="page"]');
+        self::assertSelectorNotExists('.panel-nav-group--campus a[href="/ogretmen/siniflarim"][aria-current="page"]');
         self::assertSelectorExists('#panel-sidebar a[href="/yonetim"][aria-current="page"]');
 
         $client->request('GET', '/ogretmen/siniflarim');

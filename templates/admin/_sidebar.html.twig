@@ -12,22 +12,41 @@
     </div>
     <nav class="panel-sidebar__nav" aria-label="Yönetim bölümleri">
         {% for section in nav_sections|default([]) %}
-            <div class="panel-nav-group panel-nav-group--{{ section.id }}">
-                <p class="panel-nav-group__label" id="nav-group-{{ section.id }}">{{ section.label }}</p>
-                <div role="group" aria-labelledby="nav-group-{{ section.id }}">
-                    {% for item in section['items'] %}
-                        <a
-                            class="panel-nav-link"
-                            href="{{ item.href }}"
-                            data-action="click->panel-shell#closeMenu"
-                            {% if item.current %}aria-current="page"{% endif %}
-                        >
-                            {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
-                            <span>{{ item.label }}</span>
-                        </a>
-                    {% endfor %}
+            {% if workspace_shell|default(false) %}
+                <div class="panel-nav-group panel-nav-group--{{ section.id }}">
+                    <p class="panel-nav-group__label" id="nav-group-{{ section.id }}">{{ section.label }}</p>
+                    <div role="group" aria-labelledby="nav-group-{{ section.id }}">
+                        {% for item in section['items'] %}
+                            <a
+                                class="panel-nav-link"
+                                href="{{ item.href }}"
+                                data-action="click->panel-shell#closeMenu"
+                                {% if item.current %}aria-current="page"{% endif %}
+                            >
+                                {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
+                                <span>{{ item.label }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
                 </div>
-            </div>
+            {% else %}
+                <details class="panel-nav-group panel-nav-group--{{ section.id }}" id="nav-group-{{ section.id }}" {% if section.open|default(false) %}open{% endif %}>
+                    <summary class="panel-nav-group__label">{{ section.label }}</summary>
+                    <div>
+                        {% for item in section['items'] %}
+                            <a
+                                class="panel-nav-link"
+                                href="{{ item.href }}"
+                                data-action="click->panel-shell#closeMenu"
+                                {% if item.current %}aria-current="page"{% endif %}
+                            >
+                                {% include 'components/admin_icon.html.twig' with { icon: item.icon|default('default') } only %}
+                                <span>{{ item.label }}</span>
+                            </a>
+                        {% endfor %}
+                    </div>
+                </details>
+            {% endif %}
         {% endfor %}
     </nav>
     <div class="admin-sidebar__foot">

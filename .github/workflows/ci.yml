@@ -139,6 +139,10 @@ jobs:
           echo "MariaDB did not become ready in time"
           exit 1
 
+      - name: Raise MariaDB connection limit
+        run: |
+          php -r '$pdo = new PDO("mysql:host=127.0.0.1;port=3306", "root", "root_ci"); $pdo->exec("SET GLOBAL max_connections=1000");'
+
       - name: Run Doctrine migrations
         run: php bin/console doctrine:migrations:migrate --no-interaction --all-or-nothing
 

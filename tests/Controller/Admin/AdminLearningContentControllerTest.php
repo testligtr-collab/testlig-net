@@ -43,7 +43,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $this->login($client, 'lc-admin-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('nav', 'İçerikler');
+        self::assertSelectorTextContains('nav', 'Öğrenme içerikleri');
 
         $client = $this->newClient();
         $this->login($client, 'lc-teacher-list@example.com');

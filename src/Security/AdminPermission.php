@@ -28,6 +28,8 @@ final class AdminPermission
     public const ADMIN_LEARNING_CONTENT_MANAGE = 'ADMIN_LEARNING_CONTENT_MANAGE';
     public const ADMIN_QUESTION_VIEW = 'ADMIN_QUESTION_VIEW';
     public const ADMIN_TEST_VIEW = 'ADMIN_TEST_VIEW';
+    public const ADMIN_NEWS_MANAGE = 'ADMIN_NEWS_MANAGE';
+    public const ADMIN_SECTION_ENTRY = 'ADMIN_SECTION_ENTRY';
 
     /**
      * @return list<string>
@@ -54,6 +56,8 @@ final class AdminPermission
             self::ADMIN_LEARNING_CONTENT_MANAGE,
             self::ADMIN_QUESTION_VIEW,
             self::ADMIN_TEST_VIEW,
+            self::ADMIN_NEWS_MANAGE,
+            self::ADMIN_SECTION_ENTRY,
         ];
     }
 }

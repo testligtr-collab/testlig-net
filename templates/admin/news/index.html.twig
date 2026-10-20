@@ -1,0 +1,67 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Haberler — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Haberler</span>
+    </nav>
+    <div class="admin-page-header">
+        <h1 class="panel-greeting">Haberler</h1>
+        <a class="btn btn--primary" href="{{ path('app_admin_news_new') }}">Yeni haber</a>
+    </div>
+    <p class="muted">Taslaklar yalnız yönetim ekranında durur. Sitede yalnızca yayındaki haberler görünür. Haber görseli bu bölümde yoktur.</p>
+
+    {% if articles is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Henüz haber yok',
+            body: 'İlk haberi taslak olarak kaydedebilirsin.'
+        } %}
+    {% else %}
+        <div class="admin-table-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Başlık</th>
+                        <th>Kategori</th>
+                        <th>Durum</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                        <tr>
+                            <td>{{ article.title }}</td>
+                            <td>{{ article.category ? article.category.name : '—' }}</td>
+                            <td>{{ article.status.labelTr }}</td>
+                            <td><a href="{{ path('app_admin_news_show', {id: article.id.toRfc4122}) }}">Aç</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    <section class="admin-section" aria-labelledby="news-categories-title">
+        <h2 id="news-categories-title">Kategoriler</h2>
+        {% if categories is empty %}
+            <p>Henüz kategori yok.</p>
+        {% else %}
+            <ul>
+                {% for category in categories %}
+                    <li>{{ category.name }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <form class="admin-form" method="post" action="{{ path('app_admin_news_category_create') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('news_category') }}">
+            <label>
+                <span>Kategori adı</span>
+                <input type="text" name="name" required maxlength="80" autocomplete="off">
+            </label>
+            <button type="submit" class="btn btn--primary">Kategoriyi kaydet</button>
+        </form>
+    </section>
+{% endblock %}

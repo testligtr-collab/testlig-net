@@ -77,9 +77,9 @@ PR #112 kurum test ekranını main’e aldı. PR #114 merge SHA ff4cd745b4e479ed
 | M24 | Mesajlaşma: öğretmen/veli/admin, SupportMessage paylaşımlı | Ürün karşılığı bulunamadı | İzinli konuşma modeli ve rol/sınıf/kurum sınırları; destek kaydıyla aynı entity'ye sıkıştırma |
 | M25 | Bildirim: StudentNotification ve olay servisleri | Ürün bildirim modeli/merkezi bulunamadı | Olay → kuyruk → kanal; kullanıcı tercihleri, okundu durumu, e-posta/web/mobile push |
 | M26 | Destek: Contact/Feedback/SupportAdmin, spam kayıtları | Ürün karşılığı bulunamadı | İletişim formu, talep yönetimi, cevap/durum ve spam koruması |
-| M27 | Haber: Content/NewsCategory, hub, editor access | Ana sayfa bölümü var; çalışan haber ürünü yok | Haber/blog içerik modeli, editör/yayın, kategori ve public sayfalar |
+| M27 | Haber: Content/NewsCategory, hub, editor access | Metin haber yönetimi başladı; görsel ve canlı kabul açık | Haber görseli M18’e bağlı kalır; kategori ve yayın akışının production kabulü ayrıdır |
 | M28 | SEO: metadata, SchemaOrg, sitemap, robots | sitemap/robots+yanıt güvenliği mevcut | İçerik başına SEO/structured data yönetimi; public route allowlist'ini bilinçli koru |
-| M29 | Sayfa yönetimi: Page/Nav/Footer/Home/Showcase/Slider/SiteModuleSetting | Ana sayfa/yasal yüzey mevcut; DB-backed CMS yok | Sayfa/menü/footer/slider/bölüm/SSS ve site ayarlarının yönetimi |
+| M29 | Sayfa yönetimi: Page/Nav/Footer/Home/Showcase/Slider/SiteModuleSetting | Ana sayfa haber bandı yayındaki haberi gösterebilir; DB-backed CMS yok | Sayfa/menü/footer/slider/bölüm/SSS ve site ayarlarının yönetimi |
 | M30 | Mobil API: /api/v1, JWT ve ApiRefreshToken | API/Flutter ürünü yok | Ortak DTO sözleşmesi, auth/refresh/device ve endpoint'ler; sonra Flutter/offline/push |
 | M31 | Analitik/Ads: SiteVisitLog, AdSlot, AdImpression, AdsConfig | Eğitim analytics temeli var; site ziyaret/reklam ürünü yok | Site trafik analitiği ve reklam/slot yönetimi ayrı; çocuk mahremiyeti ve consent kararı gerekir |
 

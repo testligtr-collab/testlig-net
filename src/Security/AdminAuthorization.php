@@ -192,12 +192,22 @@ final class AdminAuthorization
         return $this->isActiveVerifiedAdminOrSuperAdmin($actor);
     }
 
+    public function canManageNews(User $actor): bool
+    {
+        return $this->canAccessAdminShell($actor);
+    }
+
     public function canViewSystemSummary(User $actor): bool
     {
         return $this->canAccessAdminShell($actor);
     }
 
     public function canOperatePayments(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canViewPlannedAdminSections(User $actor): bool
     {
         return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
     }
