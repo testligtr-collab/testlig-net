@@ -341,7 +341,9 @@ final class NewsArticleFlowTest extends WebTestCase
         if (!static::$booted) {
             self::bootKernel();
         }
-        $user = static::getContainer()->get(UserRepository::class)->findOneByNormalizedEmail($email);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $user = $users->findOneByNormalizedEmail($email);
         self::assertInstanceOf(User::class, $user);
 
         return $user;
