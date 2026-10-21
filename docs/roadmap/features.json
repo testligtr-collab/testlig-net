@@ -1174,7 +1174,8 @@
         "lsphp83 güvenlik uygulama aracı ayrı manuel dispatch olarak hazırdır ve boş onay SSH açmaz. Yamalı paket varsa yalnız lsphp83 ailesini günceller, ana php.ini içinde session.upload_progress.enabled=0 yazar ve yalnız bu LSAPI işçilerini yeniler. Diğer PHP dalları değişmez. Bu cümle o aracı çalıştırılmış saymaz."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/156"
+        "https://github.com/testligtr-collab/testlig-net/pull/156",
+        "https://github.com/testligtr-collab/testlig-net/pull/157"
       ],
       "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web çalışma değeri unknown kalır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null
