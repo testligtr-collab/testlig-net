@@ -1361,9 +1361,8 @@ body.is-admin-panel {
     column-gap: 0.75rem;
     min-height: 4.6rem;
     padding: 0.7rem 0.75rem;
-    border: 1px solid #d5e3f5;
+    border: 1px solid transparent;
     border-radius: 0.75rem;
-    background: #fff;
     color: #13213c;
     text-decoration: none;
     overflow: hidden;
@@ -1371,7 +1370,6 @@ body.is-admin-panel {
 .is-admin-panel .admin-directory-card--media a.admin-media-link:hover,
 .is-admin-panel .admin-directory-card--media a.admin-media-link:focus-visible {
     color: #13213c;
-    background: #fbfdff;
 }
 .is-admin-panel .admin-directory-card--media a.admin-media-link:focus-visible {
     outline: 2px solid #0b6e99;
@@ -1425,11 +1423,35 @@ body.is-admin-panel {
     font-size: 1.2rem;
     line-height: 1;
 }
-.is-admin-panel .admin-media-link--documents { border-color: #c9daf6; }
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents {
+    background: #f6f9fe;
+    border-color: #c5d8f6;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents:focus-visible {
+    background: #eaf2ff;
+    border-color: #a8c4f2;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos {
+    background: #f8f7fd;
+    border-color: #d9cef6;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos:focus-visible {
+    background: #f1ebfd;
+    border-color: #c4b0ef;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage {
+    background: #f3fcfb;
+    border-color: #b9e3df;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage:focus-visible {
+    background: #e6f7f5;
+    border-color: #8fd4ce;
+}
 .is-admin-panel .admin-media-link--documents .admin-media-link__icon { background: #e7f1ff; color: #2f6fe4; }
-.is-admin-panel .admin-media-link--videos { border-color: #ddd0f6; }
 .is-admin-panel .admin-media-link--videos .admin-media-link__icon { background: #f3eaff; color: #7a45d6; }
-.is-admin-panel .admin-media-link--storage { border-color: #bfe8e4; }
 .is-admin-panel .admin-media-link--storage .admin-media-link__icon { background: #e5f8f6; color: #12998f; }
 .is-admin-panel .admin-section-links__body {
     padding: 0.4rem 1rem 1rem;

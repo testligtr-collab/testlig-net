@@ -157,6 +157,29 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       expect(overflow).toBe(false);
       const collided = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.some((node) => node.scrollWidth > node.clientWidth + 1));
       expect(collided).toBe(false);
+      const surfaces = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.map((node) => {
+        const style = getComputedStyle(node);
+        return { background: style.backgroundColor, border: style.borderTopColor };
+      }));
+      expect(surfaces).toEqual([
+        { background: 'rgb(246, 249, 254)', border: 'rgb(197, 216, 246)' },
+        { background: 'rgb(248, 247, 253)', border: 'rgb(217, 206, 246)' },
+        { background: 'rgb(243, 252, 251)', border: 'rgb(185, 227, 223)' },
+      ]);
+      const hovered: { background: string; border: string }[] = [];
+      for (const link of await openMedia.locator('a.admin-media-link').all()) {
+        await link.hover();
+        hovered.push(await link.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return { background: style.backgroundColor, border: style.borderTopColor };
+        }));
+      }
+      expect(hovered).toEqual([
+        { background: 'rgb(234, 242, 255)', border: 'rgb(168, 196, 242)' },
+        { background: 'rgb(241, 235, 253)', border: 'rgb(196, 176, 239)' },
+        { background: 'rgb(230, 247, 245)', border: 'rgb(143, 212, 206)' },
+      ]);
+      await saPage.mouse.move(0, 0);
       await shot(saPage, info, 'superadmin', 'medya', viewport.name);
     }
     if (viewport.width >= 1024) {
