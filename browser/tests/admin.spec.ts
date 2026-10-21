@@ -157,6 +157,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       expect(overflow).toBe(false);
       const collided = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.some((node) => node.scrollWidth > node.clientWidth + 1));
       expect(collided).toBe(false);
+      await saPage.mouse.move(0, 0);
       const surfaces = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.map((node) => {
         const style = getComputedStyle(node);
         return { background: style.backgroundColor, border: style.borderTopColor };
