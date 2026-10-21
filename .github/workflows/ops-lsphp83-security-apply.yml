@@ -1,0 +1,79 @@
+name: Ops lsphp83 security apply (VDS)
+
+# Manual apply for the Testlig lsphp83 PHP 2 security fix.
+# Default confirmation does not open SSH.
+# This file does not itself change packages, php.ini, or services.
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type apply-lsphp83-php2shell-mitigation to run. Any other value stops before SSH."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "lsphp83 security apply skipped because SSH paused"
+          {
+            echo "## lsphp83 security apply skipped because SSH paused"
+            echo "No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  not-confirmed:
+    name: lsphp83 security apply not confirmed
+    if: vars.VDS_SSH_PAUSED != 'true' && github.event.inputs.confirm != 'apply-lsphp83-php2shell-mitigation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report missing confirmation
+        run: echo "lsphp83 security apply not confirmed"
+
+  vds:
+    name: VDS lsphp83 security apply
+    if: vars.VDS_SSH_PAUSED != 'true' && github.event.inputs.confirm == 'apply-lsphp83-php2shell-mitigation'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Apply lsphp83 package and upload progress mitigation
+        run: |
+          set -euo pipefail
+          set +e
+          ssh testlig-vds bash -s < deploy/vds/gha-lsphp83-security-apply-remote.sh
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi
