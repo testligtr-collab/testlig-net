@@ -159,6 +159,79 @@ CONF);
         }
     }
 
+    public function testRealIniOrderCommentsAndEmptyCliSetting(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $this->write($root.'/usr/local/lsws/lsphp83/bin/php', $this->phpStub(''));
+            $this->write($root.'/usr/local/lsws/lsphp83/etc/php.ini', <<<'INI'
+; session.upload_progress.enabled = 1
+# session.upload_progress.enabled = 1
+session.upload_progress.enable = 1
+session.upload_progress.enabled_extra = 1
+session.upload_progress.enabled = 1
+session.upload_progress.enabled = 0
+INI);
+            $this->write($root.'/usr/local/lsws/lsphp83/etc/php.d/10-comments.ini', <<<'INI'
+; session.upload_progress.enabled = 1
+session.upload_progress.enabled_extra = 1
+INI);
+            $this->write($root.'/usr/local/lsws/lsphp83/etc/php.d/99-last.ini', <<<'INI'
+session.upload_progress.enabled = 1
+session.upload_progress.enabled = maybe
+INI);
+            mkdir($root.'/usr/local/lsws/lsphp83/etc/blocked.ini', 0777, true);
+            $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<'CONF'
+phpIniOverride /usr/local/lsws/lsphp83/etc/missing.ini
+phpIniOverride /usr/local/lsws/lsphp83/etc/blocked.ini
+CONF);
+            $output = $this->runInventory($root);
+            $this->assertContract($output);
+            self::assertStringContainsString('php_cli binary=/usr/local/lsws/lsphp83/bin/php version=8.3.33 upload_progress_enabled=0 loaded_ini=/usr/local/lsws/lsphp83/etc/php.ini label=cli web_acceptance=no', $output);
+            self::assertStringNotContainsString('loaded_ini=/usr/local/lsws/lsphp83/etc label', $output);
+            self::assertStringContainsString('php_ini_directive path=/usr/local/lsws/lsphp83/etc/php.ini key=session.upload_progress.enabled value=0 web_acceptance=no', $output);
+            self::assertStringContainsString('php_ini_directive path=/usr/local/lsws/lsphp83/etc/php.d/10-comments.ini key=session.upload_progress.enabled value=absent web_acceptance=no', $output);
+            self::assertStringContainsString('php_ini_directive path=/usr/local/lsws/lsphp83/etc/php.d/99-last.ini key=session.upload_progress.enabled value=unknown web_acceptance=no', $output);
+            self::assertStringContainsString('php_ini_directive path=/usr/local/lsws/lsphp83/etc/missing.ini key=session.upload_progress.enabled value=absent_file source=phpIniOverride web_acceptance=no', $output);
+            self::assertStringContainsString('php_ini_directive path=/usr/local/lsws/lsphp83/etc/blocked.ini key=session.upload_progress.enabled value=read_error source=phpIniOverride web_acceptance=no', $output);
+            self::assertStringNotContainsString('value=1 web_acceptance=no', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testFailedPhpCallRejectsPartialOutput(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $this->write($root.'/usr/local/lsws/lsphp83/bin/php', <<<'BASH'
+#!/bin/bash
+if [ "${1-}" = "-v" ]; then
+  printf '%s\n' "PHP 9.9.9 (cli)"
+  exit 1
+fi
+if [ "${1-}" = "--ini" ]; then
+  printf '%s\n' "Configuration File (php.ini) Path: /tmp"
+  printf '%s\n' "Loaded Configuration File:         /usr/local/lsws/lsphp83/etc/partial.ini"
+  exit 2
+fi
+if [ "${1-}" = "-r" ]; then
+  printf '%s' "1"
+  exit 3
+fi
+exit 1
+BASH);
+            $output = $this->runInventory($root);
+            $this->assertContract($output);
+            self::assertStringContainsString('php_cli binary=/usr/local/lsws/lsphp83/bin/php version=unreadable upload_progress_enabled=unreadable loaded_ini=unreadable label=cli web_acceptance=no', $output);
+            self::assertStringNotContainsString('9.9.9', $output);
+            self::assertStringNotContainsString('partial.ini', $output);
+            self::assertStringNotContainsString('upload_progress_enabled=1', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
     public function testScriptDoesNotMutateOrMeasureWeb(): void
     {
         $script = $this->read('deploy/vds/gha-php-security-inventory-remote.sh');
@@ -167,6 +240,7 @@ CONF);
         self::assertStringContainsString('label=cli', $script);
         self::assertStringContainsString('exposure=not_measured', $script);
         self::assertStringContainsString('--cacheonly', $script);
+        self::assertSame(3, substr_count($script, '</dev/null'));
         self::assertStringNotContainsString('phpinfo', $script);
         self::assertStringNotContainsString('printenv', $script);
         self::assertStringNotContainsString('.env', $script);
@@ -290,9 +364,11 @@ CONF);
         return $stdout;
     }
 
-    private function phpStub(): string
+    private function phpStub(string $progress = '1'): string
     {
-        return <<<'BASH'
+        $progress = str_replace(["\r", "\n", "'"], '', $progress);
+
+        return str_replace('__PROGRESS__', $progress, <<<'BASH'
 #!/bin/bash
 version="PHP 8.3.33 (cli) (built: Jul 28 2026 17:56:10) (NTS)"
 ini="/usr/local/lsws/lsphp83/etc/php.ini"
@@ -307,15 +383,18 @@ if [ "${1-}" = "-v" ]; then
   exit 0
 fi
 if [ "${1-}" = "--ini" ]; then
-  printf '%s\n' "Loaded Configuration File: ${ini}"
+  printf '%s\n' "Configuration File (php.ini) Path: ${ini%/php.ini}"
+  printf '%s\n' "Loaded Configuration File:         ${ini}"
+  printf '%s\n' "Scan for additional .ini files in: ${ini%/php.ini}/php.d"
+  printf '%s\n' "Additional .ini files parsed:      (none)"
   exit 0
 fi
 if [ "${1-}" = "-r" ]; then
-  printf '%s' "1"
+  printf '%s' '__PROGRESS__'
   exit 0
 fi
 exit 0
-BASH;
+BASH);
     }
 
     private function write(string $path, string $contents): void

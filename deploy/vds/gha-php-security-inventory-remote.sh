@@ -36,39 +36,81 @@ matches() {
   printf '%s' "$1" | grep -Eq -- "$2"
 }
 
+ini_directive_token() {
+  local raw="$1" token
+  if [ -z "$raw" ]; then
+    printf '%s' 'unknown'
+    return 0
+  fi
+  case "$raw" in
+    \"*)
+      token="${raw#\"}"
+      case "$token" in
+        *\"*) token="${token%%\"*}" ;;
+        *) printf '%s' 'unknown'; return 0 ;;
+      esac
+      ;;
+    \'*)
+      token="${raw#\'}"
+      case "$token" in
+        *\'*) token="${token%%\'*}" ;;
+        *) printf '%s' 'unknown'; return 0 ;;
+      esac
+      ;;
+    *)
+      token="${raw%%;*}"
+      token="${token%"${token##*[![:space:]]}"}"
+      ;;
+  esac
+  if allow_value "$token"; then
+    printf '%s' "$token"
+  else
+    printf '%s' 'unknown'
+  fi
+}
+
 read_ini_value() {
   local file="$1"
-  local host line value
+  local host line trimmed raw value found=0
   host="$(host_path "$file")"
-  if [ ! -f "$host" ]; then
+  if [ ! -e "$host" ]; then
     printf '%s' 'absent_file'
+    return 0
+  fi
+  if [ ! -f "$host" ] || [ ! -r "$host" ]; then
+    printf '%s' 'read_error'
     return 0
   fi
   value=""
   while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
     case "$line" in
       *[Ss][Ee][Cc][Rr][Ee][Tt]*|*[Pp][Aa][Ss][Ss][Ww][Oo][Rr][Dd]*|*[Tt][Oo][Kk][Ee][Nn]*) continue ;;
     esac
-    case "$line" in
-      *session.upload_progress.enabled*) ;;
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+    case "$trimmed" in
+      ''|';'*|'#'*) continue ;;
+    esac
+    case "$trimmed" in
+      'session.upload_progress.enabled'=*|'session.upload_progress.enabled'[[:space:]]*) ;;
       *) continue ;;
     esac
-    value="${line#*=}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%%;*}"
-    value="${value%"${value##*[![:space:]]}"}"
-    value="${value#\"}"
-    value="${value%\"}"
-    value="${value#\'}"
-    value="${value%\'}"
+    raw="${trimmed#session.upload_progress.enabled}"
+    raw="${raw#"${raw%%[![:space:]]*}"}"
+    case "$raw" in
+      '='*) ;;
+      *) continue ;;
+    esac
+    raw="${raw#=}"
+    raw="${raw#"${raw%%[![:space:]]*}"}"
+    found=1
+    value="$(ini_directive_token "$raw")"
   done < "$host"
-  if allow_value "$value"; then
-    printf '%s' "$value"
-  elif [ -z "$value" ]; then
+  if [ "$found" -eq 0 ]; then
     printf '%s' 'absent'
-  else
-    printf '%s' 'unreadable'
+    return 0
   fi
+  printf '%s' "$value"
 }
 
 echo "php_inventory=read-only"
@@ -295,7 +337,8 @@ scan_configs() {
 }
 
 report_cli() {
-  local base bin path version_raw version ini_raw loaded progress found=0
+  local base bin path version_raw version ini_raw loaded progress progress_raw found=0
+  local version_status ini_status progress_status
   base="$(host_path "/usr/local/lsws")"
   if [ ! -d "$base" ]; then
     echo "php_cli=absent"
@@ -310,22 +353,38 @@ report_cli() {
     fi
     matches "$path" '^/usr/local/lsws/lsphp[0-9]+/bin/php$' || continue
     found=1
-    version_raw="$(run_limited 8 "$bin" -v 2>/dev/null || true)"
-    ini_raw="$(run_limited 8 "$bin" --ini 2>/dev/null || true)"
-    progress="$(run_limited 8 "$bin" -r 'echo ini_get("session.upload_progress.enabled");' 2>/dev/null || true)"
-    version="$(printf '%s\n' "$version_raw" | awk 'NR==1 && $1=="PHP" && $2 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ { print $2; exit }')"
-    [ -n "$version" ] || version="unreadable"
-    loaded="$(printf '%s\n' "$ini_raw" | awk 'NR==1 && /^Loaded Configuration File: / { sub(/^Loaded Configuration File: /, ""); print; exit }')"
-    loaded="${loaded%%$'\r'*}"
-    if [ "$loaded" = "(none)" ]; then
-      loaded="none"
-    elif ! matches "$loaded" '^/usr/local/lsws/lsphp[0-9]+/[A-Za-z0-9._/-]+\.ini$' || matches "$loaded" '\.\.'; then
-      loaded="unreadable"
+    version="unreadable"
+    loaded="unreadable"
+    progress="unreadable"
+    version_raw="$(run_limited 8 "$bin" -v </dev/null 2>/dev/null)"
+    version_status=$?
+    ini_raw="$(run_limited 8 "$bin" --ini </dev/null 2>/dev/null)"
+    ini_status=$?
+    progress_raw="$(run_limited 8 "$bin" -r 'echo ini_get("session.upload_progress.enabled");' </dev/null 2>/dev/null)"
+    progress_status=$?
+    if [ "$version_status" -eq 0 ]; then
+      version="$(printf '%s\n' "$version_raw" | awk 'NR==1 && $1=="PHP" && $2 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ { print $2; exit }')"
+      [ -n "$version" ] || version="unreadable"
     fi
-    progress="${progress//$'\r'/}"
-    progress="${progress//$'\n'/}"
-    if ! allow_value "$progress"; then
-      progress="unreadable"
+    if [ "$ini_status" -eq 0 ]; then
+      loaded="$(printf '%s\n' "$ini_raw" | awk '/^Loaded Configuration File:/ { sub(/^Loaded Configuration File:[[:space:]]*/, ""); sub(/[[:space:]]+$/, ""); print; exit }')"
+      loaded="${loaded%%$'\r'*}"
+      if [ "$loaded" = "(none)" ]; then
+        loaded="none"
+      elif ! matches "$loaded" '^/usr/local/lsws/lsphp[0-9]+/[A-Za-z0-9._/-]+\.ini$' || matches "$loaded" '\.\.'; then
+        loaded="unreadable"
+      fi
+    fi
+    if [ "$progress_status" -eq 0 ]; then
+      progress_raw="${progress_raw//$'\r'/}"
+      progress_raw="${progress_raw//$'\n'/}"
+      if [ -z "$progress_raw" ]; then
+        progress="0"
+      elif allow_value "$progress_raw"; then
+        progress="$progress_raw"
+      else
+        progress="unreadable"
+      fi
     fi
     echo "php_cli binary=${path} version=${version} upload_progress_enabled=${progress} loaded_ini=${loaded} label=cli web_acceptance=no"
   done
