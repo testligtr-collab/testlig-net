@@ -827,6 +827,12 @@ CONF);
         if (!is_dir($root)) {
             return;
         }
+        $this->removeTreeWithBash($root);
+        $this->removeTreeRemaining($root);
+    }
+
+    private function removeTreeWithBash(string $root): void
+    {
         $bash = $this->bashBinary();
         $path = str_replace('\\', '/', $root);
         $process = @proc_open(
@@ -836,14 +842,19 @@ CONF);
             null,
             ['MSYS' => 'winsymlinks:lnk'],
         );
-        if (\is_resource($process)) {
-            foreach ($pipes as $pipe) {
-                if (\is_resource($pipe)) {
-                    fclose($pipe);
-                }
-            }
-            proc_close($process);
+        if (!\is_resource($process)) {
+            return;
         }
+        foreach ($pipes as $pipe) {
+            if (\is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        proc_close($process);
+    }
+
+    private function removeTreeRemaining(string $root): void
+    {
         if (!is_dir($root)) {
             return;
         }
