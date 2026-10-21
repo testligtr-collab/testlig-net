@@ -1172,7 +1172,9 @@
         "Web çalışma anındaki session.upload_progress.enabled bu okumayla kanıtlanmaz ve unknown kalır. CLI çıktısı ile php.ini dosyası web kabulü değildir. Yapılandırılmış handler internete açık sayılmaz. Araç ayar, paket veya servis değiştirmez. Public phpinfo ve geçici public PHP dosyası oluşturmaz.",
         "Araç bu kayıtta çalıştırılmamıştır. Workflow dispatch sonraki ölçüm için yeterlidir. CI yeşili ve bu kayıt production kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/156"
+      ],
       "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web çalışma değeri unknown kalır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null
     }
