@@ -1330,19 +1330,30 @@ body.is-admin-panel {
     padding-top: 0.85rem;
     border-top: 1px solid #f3c5d0;
 }
-.is-admin-panel .admin-media-panel::before {
+.is-admin-panel .admin-media-panel::before,
+.is-admin-panel .admin-media-panel::after {
     content: "";
     position: absolute;
-    top: -6px;
     left: 50%;
-    width: 11px;
-    height: 11px;
-    margin-left: -6px;
-    background: #fff6f8;
-    border-top: 1px solid #f3c5d0;
-    border-left: 1px solid #f3c5d0;
-    transform: rotate(45deg);
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    background: transparent;
 }
+.is-admin-panel .admin-media-panel::before {
+    top: -1px;
+    border-right: 6px solid transparent;
+    border-left: 6px solid transparent;
+    border-bottom: 6px solid #fff6f8;
+}
+.is-admin-panel .admin-media-panel::after {
+    top: -2px;
+    border-right: 7px solid transparent;
+    border-left: 7px solid transparent;
+    border-bottom: 7px solid #f3c5d0;
+    z-index: 0;
+}
+.is-admin-panel .admin-media-panel::before { z-index: 1; }
 .is-admin-panel .admin-directory-card--media a.admin-media-link {
     display: grid;
     grid-template-columns: 3rem minmax(0, 1fr) auto;
