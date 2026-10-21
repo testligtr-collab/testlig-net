@@ -175,6 +175,7 @@ final class VdsSshWorkflowGuardTest extends TestCase
             '.github/workflows/ops-clamav-install.yml',
             '.github/workflows/ops-clamav-access-probe.yml',
             '.github/workflows/ops-php-identity-exit-diagnostic.yml',
+            '.github/workflows/ops-php-security-inventory.yml',
             '.github/workflows/ops-web-runtime-identity-window.yml',
             '.github/workflows/ops-clamav-socket-group.yml',
         ];
@@ -1095,7 +1096,7 @@ BASH);
                 $paths[] = $path;
             }
         }
-        self::assertCount(15, $paths);
+        self::assertCount(16, $paths);
 
         return $paths;
     }
@@ -1117,6 +1118,7 @@ BASH);
             $this->root().'/deploy/vds/gha-clamav-install-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-access-probe-remote.sh',
             $this->root().'/deploy/vds/gha-php-identity-exit-remote.sh',
+            $this->root().'/deploy/vds/gha-php-security-inventory-remote.sh',
             $this->root().'/deploy/vds/gha-web-runtime-identity-window-remote.sh',
             $this->root().'/deploy/vds/gha-clamav-socket-group-remote.sh',
         ];
