@@ -1172,7 +1172,8 @@
         "Web çalışma anındaki session.upload_progress.enabled bu okumayla kanıtlanmaz ve unknown kalır. CLI çıktısı ile php.ini dosyası web kabulü değildir. Yapılandırılmış handler internete açık sayılmaz. Araç ayar, paket veya servis değiştirmez. Public phpinfo ve geçici public PHP dosyası oluşturmaz.",
         "Envanter bir kez çalıştı. Testlig handler lsphp83, CLI PHP 8.3.33 ve session.upload_progress.enabled=1 ölçüldü. Web çalışma değeri unknown kaldı. Bu kayıt yamanın uygulandığını söylemez.",
         "lsphp83 güvenlik uygulama aracı ayrı manuel dispatch olarak hazırdır ve boş onay SSH açmaz. Yamalı paket varsa yalnız lsphp83 ailesini günceller, ana php.ini içinde session.upload_progress.enabled=0 yazar ve yalnız bu LSAPI işçilerini yeniler. Diğer PHP dalları değişmez. Bu cümle o aracı çalıştırılmış saymaz.",
-        "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol edecek şekilde düzeltildi. Yamalı paket sonucu ile geçici önlem sonucu ayrıdır. Bu cümle aracı çalıştırılmış saymaz."
+        "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol edecek şekilde düzeltildi. Yamalı paket sonucu ile geçici önlem sonucu ayrıdır. Bu cümle aracı çalıştırılmış saymaz.",
+        "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/156",

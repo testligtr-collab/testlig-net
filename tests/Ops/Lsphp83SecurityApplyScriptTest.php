@@ -34,10 +34,15 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertStringContainsString('ini_after=0', $output);
             self::assertStringContainsString('ini_backup=saved', $output);
             self::assertStringContainsString('ini_backup_web_exposed=no', $output);
+            self::assertStringContainsString('release_identity=match', $output);
+            self::assertStringContainsString('release_sha='.$this->fixtureSha(), $output);
+            self::assertStringContainsString('release_name='.$this->fixtureRelease(), $output);
+            self::assertStringContainsString('worker_identity=ok', $output);
             self::assertStringContainsString('worker_deleted_exe=4242', $output);
             self::assertStringContainsString('worker_recycle=ols_lsapi_term', $output);
             self::assertStringContainsString('worker_recycle_verified=exited', $output);
             self::assertStringContainsString('wide_restart=no', $output);
+            self::assertStringNotContainsString('worker_recycle=none_running', $output);
             self::assertLessThan(strpos($output, 'worker_recycle='), strpos($output, 'php_cli '));
             self::assertStringContainsString('shared_handler_vhost=example.net', $output);
             self::assertStringNotContainsString('shared_handler_vhost=other.net', $output);
@@ -67,9 +72,12 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertFileDoesNotExist($root.'/home/testlig.net/shared/php-ini-backups/health.json');
             self::assertSame("session.upload_progress.enabled = 0\n", (string) file_get_contents($root.'/usr/local/lsws/lsphp82/etc/php.ini'));
             $kill = (string) file_get_contents($root.'/state/kill.log');
-            self::assertStringContainsString('4242', $kill);
-            self::assertStringNotContainsString('77', $kill);
-            self::assertStringNotContainsString('88', $kill);
+            self::assertStringContainsString('-TERM 4242', $kill);
+            self::assertStringNotContainsString('-TERM 77', $kill);
+            self::assertStringNotContainsString('-TERM 88', $kill);
+            self::assertStringNotContainsString('-TERM 76', $kill);
+            self::assertStringNotContainsString('-TERM 99', $kill);
+            self::assertStringNotContainsString('-TERM 66', $kill);
             self::assertSame('', (string) file_get_contents($root.'/state/lswsctl.log'));
             $dnf = (string) file_get_contents($root.'/state/dnf.log');
             self::assertStringContainsString('makecache --disablerepo=* --enablerepo=litespeed*', $dnf);
@@ -177,7 +185,10 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertStringContainsString('lsphp83_installed=8.3.36-1.el9', $output);
             self::assertStringContainsString('health_status=failed', $output);
             self::assertStringContainsString('ini_rollback=restored', $output);
+            self::assertStringContainsString('rollback_worker_identity=ok', $output);
             self::assertStringContainsString('rollback_worker_recycle_verified=exited', $output);
+            $kill = (string) file_get_contents($root.'/state/kill.log');
+            self::assertStringContainsString('-TERM 9242', $kill);
             self::assertStringContainsString('apply_result=failed', $output);
             self::assertStringContainsString('package_downgrade=no', $output);
             self::assertStringContainsString('php_apply_complete=no', $output);
@@ -213,6 +224,14 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         self::assertSame(3, substr_count($remote, '</dev/null'));
         self::assertStringContainsString('--max-time 15', $remote);
         self::assertStringContainsString('timeout "$seconds"', $remote);
+        self::assertStringContainsString('GITHUB_SHA', $workflow);
+        self::assertStringContainsString('bash -s --', $workflow);
+        self::assertStringContainsString('workflow_sha="${1:-}"', $remote);
+        self::assertStringContainsString('socket:\[[0-9]*\]', $remote);
+        self::assertStringNotContainsString('expected_sha=', $remote);
+        self::assertStringNotContainsString('expected_release=', $remote);
+        self::assertStringNotContainsString('3deca68635804136a53120605e9ff7caf3726170', $remote);
+        self::assertStringNotContainsString('20261021T151953Z-3deca6863580', $remote);
     }
 
     public function testBackupWriteAndRollbackFailures(): void
@@ -398,9 +417,79 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertStringContainsString('stop', $control);
             self::assertStringContainsString('start', $control);
             self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
-            $processes = (string) file_get_contents($root.'/state/processes');
-            self::assertStringContainsString('77|', $processes);
-            self::assertStringNotContainsString('4242|', $processes);
+            self::assertDirectoryExists($root.'/proc/77');
+            self::assertDirectoryDoesNotExist($root.'/proc/4242');
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testReleaseIdentityUsesWorkflowShaAndStopsOnMismatch(): void
+    {
+        $original = "memory_limit = 128M\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $output = $this->runApply($root, false, [], '3deca68635804136a53120605e9ff7caf3726170');
+            self::assertStringContainsString('release_identity=mismatch', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringNotContainsString('worker_recycle=none_running', $output);
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->write($root.'/home/testlig.net/releases/'.$this->fixtureRelease().'/REVISION', "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
+            $output = $this->runApply($root, false);
+            self::assertStringContainsString('release_identity=mismatch', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testUnreadableWorkerDiscoveryStopsBeforePackageAndIni(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            unlink($root.'/usr/local/lsws/tmp/testlig.net.sock');
+            $output = $this->runApply($root, false);
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringNotContainsString('worker_recycle=none_running', $output);
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->runBash(
+                'root="$1"; handler="/usr/local/lsws/lsphp83/bin/lsphp"; mkdir -p "$root/proc/55"; ln -s "$handler" "$root/proc/55/exe"; printf "%s\n" blocked > "$root/proc/55/fd"',
+                [str_replace('\\', '/', $root)],
+            );
+            $output = $this->runApply($root, false);
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringNotContainsString('worker_recycle=none_running', $output);
+            self::assertFileDoesNotExist($root.'/state/updated');
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
         } finally {
             $this->removeTree($root);
         }
@@ -444,9 +533,16 @@ case "$*" in
   *-y\ update*)
     cp "$root/state/next-version" "$root/state/version"
     cp "$root/state/changelog" "$root/state/installed-changelog"
-    if [ -f "$root/state/processes" ]; then
-      awk 'BEGIN { FS = OFS = "|" } $3 == "lshttpd" && $4 == "testlig.net" && $5 !~ / \(deleted\)$/ { $5 = $5 " (deleted)" } { print }' "$root/state/processes" > "$root/state/processes.tmp"
-      mv "$root/state/processes.tmp" "$root/state/processes"
+    handler="/usr/local/lsws/lsphp83/bin/lsphp"
+    if [ -d "$root/proc" ]; then
+      shopt -s nullglob
+      for dir in "$root/proc"/[0-9]*; do
+        exe="$(readlink "$dir/exe" 2>/dev/null || true)"
+        if [ "$exe" = "$handler" ]; then
+          rm -f "$dir/exe" "$dir/exe.lnk"
+          ln -s "$handler (deleted)" "$dir/exe"
+        fi
+      done
     fi
     printf '%s\n' 'updated' > "$root/state/updated"
     exit 0
@@ -537,11 +633,21 @@ pid="${2-}"
 if [ -f "$root/state/kill-no-exit" ]; then
   exit 0
 fi
-if [ -f "$root/state/processes" ]; then
-  awk -v pid="$pid" 'BEGIN { FS = OFS = "|" } $1 != pid { print }' "$root/state/processes" > "$root/state/processes.tmp"
-  mv "$root/state/processes.tmp" "$root/state/processes"
+dir="$root/proc/$pid"
+if [ -d "$dir" ]; then
+  fd_target=""
+  if [ -L "$dir/fd/3" ]; then
+    fd_target="$(readlink "$dir/fd/3" 2>/dev/null || true)"
+  fi
+  rm -rf "$dir"
   if [ ! -f "$root/state/no-respawn" ]; then
-    printf '%s\n' "$((pid + 5000))|2000|lshttpd|testlig.net|/usr/local/lsws/lsphp83/bin/lsphp" >> "$root/state/processes"
+    new="$((pid + 5000))"
+    mkdir -p "$root/proc/$new/fd"
+    ln -s "/usr/local/lsws/lsphp83/bin/lsphp" "$root/proc/$new/exe"
+    if [ -n "$fd_target" ]; then
+      ln -s "$fd_target" "$root/proc/$new/fd/3"
+    fi
+    printf '%s\n' "$new (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 2000" > "$root/proc/$new/stat"
   fi
 fi
 exit 0
@@ -553,9 +659,14 @@ printf '%s\n' "$*" >> "$root/state/lswsctl.log"
 if [ -f "$root/state/lswsctrl-fail" ]; then
   exit 1
 fi
-if [ "$1" = "stop" ] && [ -f "$root/state/processes" ]; then
-  awk 'BEGIN { FS = OFS = "|" } $3 != "lshttpd" { print }' "$root/state/processes" > "$root/state/processes.tmp"
-  mv "$root/state/processes.tmp" "$root/state/processes"
+if [ "$1" = "stop" ] && [ -d "$root/proc" ]; then
+  shopt -s nullglob
+  for dir in "$root/proc"/[0-9]*; do
+    exe="$(readlink "$dir/exe" 2>/dev/null || true)"
+    case "$exe" in
+      *lsphp83/bin/lsphp*) rm -rf "$dir" ;;
+    esac
+  done
 fi
 exit 0
 BASH);
@@ -563,11 +674,41 @@ BASH);
 
     private function writeProcesses(string $root): void
     {
-        $this->write($root.'/state/processes', <<<'TXT'
-4242|1000|lshttpd|testlig.net|/usr/local/lsws/lsphp83/bin/lsphp
-77|1001|bash|cli|/usr/local/lsws/lsphp83/bin/lsphp
-88|1002|lshttpd|example.net|/usr/local/lsws/lsphp83/bin/lsphp
-TXT);
+        $this->runBash(
+            <<<'BASH'
+set -euo pipefail
+root="$1"
+sock="$root/usr/local/lsws/tmp/testlig.net.sock"
+other="$root/usr/local/lsws/tmp/example.net.sock"
+inode="$(stat -c '%i' "$sock")"
+other_inode="$(stat -c '%i' "$other")"
+[ "$inode" != "$other_inode" ]
+handler="/usr/local/lsws/lsphp83/bin/lsphp"
+make_proc() {
+  pid="$1"
+  exe="$2"
+  fdtarget="$3"
+  start="$4"
+  mkdir -p "$root/proc/$pid/fd"
+  ln -s "$exe" "$root/proc/$pid/exe"
+  if [ -n "$fdtarget" ]; then
+    ln -s "$fdtarget" "$root/proc/$pid/fd/3"
+  fi
+  printf '%s\n' "$pid (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 $start" > "$root/proc/$pid/stat"
+}
+make_proc 4242 "$handler" "socket:[$inode]" 1000
+make_proc 77 "/usr/local/lsws/lsphp83/bin/php" "socket:[$inode]" 1001
+make_proc 88 "$handler" "socket:[$other_inode]" 1002
+make_proc 76 "$handler" "/usr/local/lsws/tmp/testlig.net.sock" 1003
+make_proc 99 "$handler" "socket:[$other_inode]" 1004
+ln -s "$root/home/testlig.net/public_html" "$root/proc/99/cwd"
+make_proc 66 "/bin/bash" "" 1005
+ln -s "$root/home/testlig.net/public_html" "$root/proc/66/cwd"
+target="$(readlink "$root/proc/4242/fd/3")"
+[ "$target" = "socket:[$inode]" ]
+BASH,
+            [str_replace('\\', '/', $root)],
+        );
     }
 
     private function writeTree(string $root, string $ini): void
@@ -577,6 +718,7 @@ TXT);
         $this->write($root.'/usr/local/lsws/lsphp80/bin/lsphp', "#!/bin/bash\nexit 0\n");
         $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<'CONF'
 docRoot /home/testlig.net/public_html
+address uds:///usr/local/lsws/tmp/testlig.net.sock
 phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
 # php_admin_value session.upload_progress.enabled 1
 path /usr/local/lsws/lsphp83/bin/lsphp
@@ -585,23 +727,27 @@ CONF);
         $this->write($root.'/usr/local/lsws/conf/vhosts/example.net/vhost.conf', "path /usr/local/lsws/lsphp83/bin/lsphp\n");
         $this->write($root.'/usr/local/lsws/conf/vhosts/other.net/vhost.conf', "path /usr/local/lsws/lsphp80/bin/lsphp\n");
         $this->write($root.'/home/testlig.net/public_html/index.html', "ok\n");
-        $this->write($root.'/home/testlig.net/shared/CURRENT_REVISION', "3deca68635804136a53120605e9ff7caf3726170\n");
-        $this->write($root.'/home/testlig.net/shared/CURRENT_RELEASE', "20261021T151953Z-3deca6863580\n");
+        $this->write($root.'/usr/local/lsws/tmp/testlig.net.sock', "socket\n");
+        $this->write($root.'/usr/local/lsws/tmp/example.net.sock', "other\n");
+        $this->write($root.'/proc/.keep', "keep\n");
+        $this->write($root.'/home/testlig.net/shared/CURRENT_REVISION', $this->fixtureSha()."\n");
+        $this->write($root.'/home/testlig.net/releases/'.$this->fixtureRelease().'/REVISION', $this->fixtureSha()."\n");
+        $this->linkApp($root);
     }
 
     /**
      * @param array<string, string> $extraEnv
      */
-    private function runApply(string $root, bool $expectSuccess = true, array $extraEnv = []): string
+    private function runApply(string $root, bool $expectSuccess = true, array $extraEnv = [], ?string $sha = null): string
     {
         $script = \dirname(__DIR__, 2).'/deploy/vds/gha-lsphp83-security-apply-remote.sh';
         $bash = $this->bashBinary();
         $process = proc_open(
-            [$bash, $script],
+            [$bash, $script, $sha ?? $this->fixtureSha()],
             [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
             $pipes,
             null,
-            ['TESTLIG_PHP_APPLY_ROOT' => $root] + $extraEnv,
+            ['TESTLIG_PHP_APPLY_ROOT' => $root, 'MSYS' => 'winsymlinks:lnk'] + $extraEnv,
         );
         self::assertIsResource($process);
         fclose($pipes[0]);
@@ -642,8 +788,62 @@ CONF);
         return $root;
     }
 
+    private function fixtureSha(): string
+    {
+        return 'c0ffee1234567890abcdef1234567890abcdef12';
+    }
+
+    private function fixtureRelease(): string
+    {
+        return '20261021T210100Z-c0ffee123456';
+    }
+
+    private function linkApp(string $root): void
+    {
+        $dir = str_replace('\\', '/', $root.'/home/testlig.net');
+        $this->runBash('cd "$1" && ln -s "releases/$2" app && [ -L app ]', [$dir, $this->fixtureRelease()]);
+    }
+
+    /**
+     * @param list<string> $args
+     */
+    private function runBash(string $script, array $args = []): void
+    {
+        $bash = $this->bashBinary();
+        $process = proc_open(array_merge([$bash, '-c', $script, 'bash'], $args), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, ['MSYS' => 'winsymlinks:lnk']);
+        self::assertIsResource($process);
+        $stdout = \is_resource($pipes[1]) ? stream_get_contents($pipes[1]) : '';
+        $stderr = \is_resource($pipes[2]) ? stream_get_contents($pipes[2]) : '';
+        foreach ($pipes as $pipe) {
+            if (\is_resource($pipe)) {
+                fclose($pipe);
+            }
+        }
+        self::assertSame(0, proc_close($process), $stdout."\n".$stderr);
+    }
+
     private function removeTree(string $root): void
     {
+        if (!is_dir($root)) {
+            return;
+        }
+        $bash = $this->bashBinary();
+        $path = str_replace('\\', '/', $root);
+        $process = @proc_open(
+            [$bash, '-c', 'rm -rf "$1"', 'bash', $path],
+            [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+            $pipes,
+            null,
+            ['MSYS' => 'winsymlinks:lnk'],
+        );
+        if (\is_resource($process)) {
+            foreach ($pipes as $pipe) {
+                if (\is_resource($pipe)) {
+                    fclose($pipe);
+                }
+            }
+            proc_close($process);
+        }
         if (!is_dir($root)) {
             return;
         }

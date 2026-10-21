@@ -66,8 +66,12 @@ jobs:
       - name: Apply lsphp83 package and upload progress mitigation
         run: |
           set -euo pipefail
+          if ! printf '%s' "$GITHUB_SHA" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "workflow sha unreadable"
+            exit 1
+          fi
           set +e
-          ssh testlig-vds bash -s < deploy/vds/gha-lsphp83-security-apply-remote.sh
+          ssh testlig-vds "bash -s -- $(printf '%q' "$GITHUB_SHA")" < deploy/vds/gha-lsphp83-security-apply-remote.sh
           status=$?
           bash deploy/vds/gha-ssh-close-master.sh
           close_status=$?

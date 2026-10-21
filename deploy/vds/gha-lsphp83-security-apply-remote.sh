@@ -11,13 +11,12 @@ php_bin="/usr/local/lsws/lsphp83/bin/php"
 handler_bin="/usr/local/lsws/lsphp83/bin/lsphp"
 lswsctrl_bin="/usr/local/lsws/bin/lswsctrl"
 backup_rel="/home/testlig.net/shared/php-ini-backups"
-revision_rel="/home/testlig.net/shared/CURRENT_REVISION"
-release_rel="/home/testlig.net/shared/CURRENT_RELEASE"
-expected_sha="3deca68635804136a53120605e9ff7caf3726170"
-expected_release="20261021T151953Z-3deca6863580"
 key="session.upload_progress.enabled"
 fixed_version="8.3.36"
 snapshot_lines=""
+worker_lines=""
+worker_identity="unresolved"
+socket_inode=""
 shared_handler="no"
 backup_file=""
 original_meta=""
@@ -157,13 +156,6 @@ handler_exe_match() {
   return 1
 }
 
-ols_parent() {
-  case "$1" in
-    lshttpd|openlitespeed|litespeed) return 0 ;;
-    *) return 1 ;;
-  esac
-}
-
 copy_preserved() {
   local src="$1" dest="$2"
   if [ -n "$root" ] && [ -f "$root/state/fail-copy" ]; then
@@ -227,113 +219,131 @@ rollback_ini() {
   return 0
 }
 
-process_table() {
-  if [ -n "$root" ] && [ -f "$root/state/processes" ]; then
-    printf '%s' "$root/state/processes"
-  fi
+starttime_of() {
+  local stat_file="$1/stat" rest start
+  [ -r "$stat_file" ] || return 1
+  rest="$(sed -n 's/.*) //p' "$stat_file" 2>/dev/null || true)"
+  start="$(printf '%s\n' "$rest" | awk '{ print $20; exit }')"
+  matches "$start" '^[0-9]+$' || return 1
+  printf '%s' "$start"
 }
 
-remember_worker() {
-  local pid="$1" start="$2"
-  matches "$pid" '^[0-9]+$' || return 0
-  matches "$start" '^[0-9]+$' || return 0
-  snapshot_lines="${snapshot_lines}${pid}|${start}"$'\n'
-}
-
-snapshot_workers() {
-  local table pid start parent vhost exe count=0
-  snapshot_lines=""
-  table="$(process_table)"
-  if [ -n "$table" ]; then
-    while IFS='|' read -r pid start parent vhost exe || [ -n "${pid:-}" ]; do
-      [ -n "${pid:-}" ] || continue
-      ols_parent "$parent" || continue
-      [ "$vhost" = "testlig.net" ] || continue
-      handler_exe_match "$exe" || continue
-      remember_worker "$pid" "$start"
-      count=$((count + 1))
-    done < "$table"
-  elif [ -z "$root" ]; then
-    local proc pid exe ppid parent start rest
-    for proc in /proc/[0-9]*; do
-      [ -d "$proc" ] || continue
-      pid="$(basename "$proc")"
-      exe="$(readlink "$proc/exe" 2>/dev/null || true)"
-      handler_exe_match "$exe" || continue
-      ppid="$(awk '/^PPid:/ { print $2; exit }' "$proc/status" 2>/dev/null || true)"
-      matches "$ppid" '^[0-9]+$' || continue
-      parent="$(tr -d '[:space:]' < "/proc/${ppid}/comm" 2>/dev/null || true)"
-      ols_parent "$parent" || continue
-      rest="$(sed -n 's/.*) //p' "$proc/stat" 2>/dev/null || true)"
-      start="$(printf '%s\n' "$rest" | awk '{ print $20; exit }')"
-      matches "$start" '^[0-9]+$' || continue
-      if process_is_testlig "$pid"; then
-        remember_worker "$pid" "$start"
-        count=$((count + 1))
-      fi
-    done
-  fi
-  echo "worker_snapshot_count=${count}"
-}
-
-process_is_testlig() {
-  local pid="$1" fd target docroot socket
-  docroot="$(host_path "/home/testlig.net/public_html")"
-  socket=""
-  if [ -n "${testlig_socket:-}" ]; then
-    socket="$testlig_socket"
-  fi
-  if [ -n "$socket" ]; then
-    for fd in "/proc/${pid}/fd"/*; do
-      target="$(readlink "$fd" 2>/dev/null || true)"
-      [ "$target" = "$socket" ] && return 0
-    done
-  fi
-  target="$(readlink "/proc/${pid}/cwd" 2>/dev/null || true)"
-  [ -n "$docroot" ] && [ "$target" = "$docroot" ] && return 0
+fd_matches_inode() {
+  local pid_dir="$1" inode="$2" fd target got
+  [ -d "$pid_dir/fd" ] || return 2
+  [ -r "$pid_dir/fd" ] || return 2
+  shopt -s nullglob
+  for fd in "$pid_dir/fd"/*; do
+    [ -L "$fd" ] || [ -e "$fd" ] || continue
+    target="$(readlink "$fd" 2>/dev/null || true)"
+    if [ -z "$target" ]; then
+      return 2
+    fi
+    case "$target" in
+      socket:\[[0-9]*\])
+        got="${target#socket:[}"
+        got="${got%]}"
+        if matches "$got" '^[0-9]+$' && [ "$got" = "$inode" ]; then
+          return 0
+        fi
+        ;;
+    esac
+  done
   return 1
 }
 
-lookup_worker() {
-  local want="$1" table pid start parent vhost exe
-  LOOK_START=""
-  LOOK_PARENT=""
-  LOOK_VHOST=""
-  LOOK_EXE=""
-  table="$(process_table)"
-  if [ -n "$table" ]; then
-    while IFS='|' read -r pid start parent vhost exe || [ -n "${pid:-}" ]; do
-      if [ "${pid:-}" = "$want" ]; then
-        LOOK_START="$start"
-        LOOK_PARENT="$parent"
-        LOOK_VHOST="$vhost"
-        LOOK_EXE="$exe"
+discover_workers() {
+  local socket_file proc pid_dir pid exe matched start lines="" count=0
+  worker_lines=""
+  worker_identity="unresolved"
+  socket_inode=""
+  if [ -z "${testlig_socket:-}" ] || ! matches "$testlig_socket" '^/(usr/local/lsws|tmp|run)/[A-Za-z0-9._/-]+$' || matches "$testlig_socket" '\.\.'; then
+    return 1
+  fi
+  socket_file="$(host_path "$testlig_socket")"
+  if [ ! -e "$socket_file" ] || [ -L "$socket_file" ] || [ -d "$socket_file" ]; then
+    return 1
+  fi
+  socket_inode="$(tool stat -c '%i' "$socket_file" 2>/dev/null || true)"
+  if ! matches "$socket_inode" '^[0-9]+$'; then
+    return 1
+  fi
+  proc="$(host_path "/proc")"
+  if [ ! -d "$proc" ] || [ ! -r "$proc" ]; then
+    return 1
+  fi
+  shopt -s nullglob
+  for pid_dir in "$proc"/[0-9]*; do
+    pid="$(basename "$pid_dir")"
+    if [ ! -e "$pid_dir/exe" ] && [ ! -L "$pid_dir/exe" ]; then
+      continue
+    fi
+    exe="$(readlink "$pid_dir/exe" 2>/dev/null || true)"
+    if [ -z "$exe" ]; then
+      continue
+    fi
+    handler_exe_match "$exe" || continue
+    fd_matches_inode "$pid_dir" "$socket_inode"
+    matched=$?
+    if [ "$matched" -eq 2 ]; then
+      worker_lines=""
+      worker_identity="unresolved"
+      return 1
+    fi
+    if [ "$matched" -eq 0 ]; then
+      start="$(starttime_of "$pid_dir" || true)"
+      if ! matches "${start:-}" '^[0-9]+$'; then
+        worker_lines=""
+        worker_identity="unresolved"
+        return 1
       fi
-    done < "$table"
-    return 0
-  fi
-  [ -d "/proc/${want}" ] || return 0
-  LOOK_EXE="$(readlink "/proc/${want}/exe" 2>/dev/null || true)"
-  local ppid rest
-  ppid="$(awk '/^PPid:/ { print $2; exit }' "/proc/${want}/status" 2>/dev/null || true)"
-  if matches "$ppid" '^[0-9]+$'; then
-    LOOK_PARENT="$(tr -d '[:space:]' < "/proc/${ppid}/comm" 2>/dev/null || true)"
-  fi
-  rest="$(sed -n 's/.*) //p' "/proc/${want}/stat" 2>/dev/null || true)"
-  LOOK_START="$(printf '%s\n' "$rest" | awk '{ print $20; exit }')"
-  if process_is_testlig "$want"; then
-    LOOK_VHOST="testlig.net"
+      lines="${lines}${pid}|${start}"$'\n'
+      count=$((count + 1))
+    fi
+  done
+  worker_lines="$lines"
+  if [ "$count" -eq 0 ]; then
+    worker_identity="none"
   else
-    LOOK_VHOST="other"
+    worker_identity="ok"
   fi
+  return 0
+}
+
+snapshot_workers() {
+  local pid start count=0
+  snapshot_lines=""
+  if ! discover_workers; then
+    echo "worker_identity=unresolved"
+    echo "worker_snapshot_count=0"
+    return 1
+  fi
+  snapshot_lines="$worker_lines"
+  while IFS='|' read -r pid start || [ -n "${pid:-}" ]; do
+    [ -n "${pid:-}" ] || continue
+    count=$((count + 1))
+  done <<< "$snapshot_lines"
+  echo "worker_identity=${worker_identity}"
+  echo "worker_snapshot_count=${count}"
+  return 0
+}
+
+current_testlig_workers() {
+  discover_workers || return 1
+  printf '%s' "$worker_lines"
 }
 
 worker_still_same() {
-  local pid="$1" start="$2"
-  lookup_worker "$pid"
-  [ -n "$LOOK_START" ] || return 1
-  [ "$LOOK_START" = "$start" ] || return 1
-  return 0
+  local pid="$1" start="$2" proc current
+  proc="$(host_path "/proc")/${pid}"
+  if [ ! -d "$proc" ]; then
+    return 1
+  fi
+  current="$(starttime_of "$proc" || true)"
+  if [ -z "$current" ]; then
+    return 0
+  fi
+  [ "$current" = "$start" ]
 }
 
 verify_workers_exited() {
@@ -359,32 +369,23 @@ verify_workers_exited() {
   return 1
 }
 
-current_testlig_workers() {
-  local table pid start parent vhost exe lines=""
-  table="$(process_table)"
-  if [ -n "$table" ]; then
-    while IFS='|' read -r pid start parent vhost exe || [ -n "${pid:-}" ]; do
-      [ -n "${pid:-}" ] || continue
-      ols_parent "$parent" || continue
-      [ "$vhost" = "testlig.net" ] || continue
-      handler_exe_match "$exe" || continue
-      lines="${lines}${pid}|${start}"$'\n'
-    done < "$table"
-  fi
-  printf '%s' "$lines"
-}
-
 signal_workers() {
-  local lines="$1" pid start
+  local lines="$1" pid start proc exe matched
   while IFS='|' read -r pid start || [ -n "${pid:-}" ]; do
     [ -n "${pid:-}" ] || continue
-    if ! worker_still_same "$pid" "$start"; then
+    proc="$(host_path "/proc")/${pid}"
+    if [ ! -d "$proc" ]; then
       continue
     fi
-    ols_parent "$LOOK_PARENT" || continue
-    [ "$LOOK_VHOST" = "testlig.net" ] || continue
-    handler_exe_match "$LOOK_EXE" || continue
-    case "$LOOK_EXE" in
+    exe="$(readlink "$proc/exe" 2>/dev/null || true)"
+    handler_exe_match "$exe" || continue
+    fd_matches_inode "$proc" "$socket_inode"
+    matched=$?
+    if [ "$matched" -eq 2 ]; then
+      return 1
+    fi
+    [ "$matched" -eq 0 ] || continue
+    case "$exe" in
       *" (deleted)") echo "worker_deleted_exe=${pid}" ;;
     esac
     if ! tool kill -TERM "$pid"; then
@@ -396,13 +397,31 @@ signal_workers() {
 
 refresh_workers() {
   local phase="$1" lines="$2" method="ols_lsapi_term"
+  if [ "$phase" = "rollback_" ]; then
+    if ! current_testlig_workers >/dev/null; then
+      echo "${phase}worker_identity=unresolved"
+      echo "${phase}worker_recycle=failed"
+      echo "${phase}worker_recycle_verified=unresolved"
+      return 1
+    fi
+    lines="$worker_lines"
+    echo "${phase}worker_identity=${worker_identity}"
+  fi
   if [ "$shared_handler" = "no" ]; then
     method="ols_restart"
   fi
-  if [ -z "$lines" ] && [ "$method" = "ols_lsapi_term" ]; then
-    echo "${phase}worker_recycle=none_running"
-    echo "${phase}worker_recycle_verified=none"
-    return 0
+  if [ -z "$lines" ]; then
+    if [ "$worker_identity" != "none" ]; then
+      echo "${phase}worker_recycle=failed"
+      echo "${phase}worker_recycle_verified=unresolved"
+      return 1
+    fi
+    if [ "$method" = "ols_lsapi_term" ]; then
+      echo "${phase}wide_restart=no"
+      echo "${phase}worker_recycle=none_running"
+      echo "${phase}worker_recycle_verified=none"
+      return 0
+    fi
   fi
   if [ "$method" = "ols_restart" ]; then
     echo "${phase}wide_restart=yes"
@@ -444,7 +463,7 @@ rollback_and_refresh() {
   if rollback_ini; then
     file_ok=1
   fi
-  if ! refresh_workers "rollback_" "$(current_testlig_workers)"; then
+  if ! refresh_workers "rollback_" ""; then
     finish_no
   fi
   [ "$file_ok" -eq 1 ] || finish_no
@@ -593,24 +612,62 @@ echo "web_session_upload_progress_enabled=unknown"
 echo "package_downgrade=no"
 
 ini_host="$(host_path "$ini_path")"
-revision_file="$(host_path "$revision_rel")"
-release_file="$(host_path "$release_rel")"
-if ! regular_file "$revision_file" || ! regular_file "$release_file"; then
+workflow_sha="${1:-}"
+if ! matches "$workflow_sha" '^[0-9a-f]{40}$'; then
   echo "release_identity=unreadable"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
   finish_no
 fi
-release_sha="$(tr -d '[:space:]' < "$revision_file")"
-release_name="$(tr -d '[:space:]' < "$release_file")"
-if ! matches "$release_sha" '^[0-9a-f]{40}$' || ! matches "$release_name" '^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$'; then
+app_link="$(host_path "/home/testlig.net/app")"
+if [ ! -L "$app_link" ]; then
   echo "release_identity=unreadable"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
   finish_no
 fi
-if [ "$release_sha" != "$expected_sha" ] || [ "$release_name" != "$expected_release" ]; then
+app_target="$(readlink "$app_link" 2>/dev/null || true)"
+release_name="$(basename "$app_target")"
+if ! matches "$release_name" '^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{12}$'; then
+  echo "release_identity=unreadable"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
+  finish_no
+fi
+case "$app_target" in
+  "releases/${release_name}"|"/home/testlig.net/releases/${release_name}") ;;
+  *)
+    echo "release_identity=unreadable"
+    echo "package_update=not_attempted"
+    echo "ini_change=not_applied"
+    finish_no
+    ;;
+esac
+release_revision="$(host_path "/home/testlig.net/releases/${release_name}/REVISION")"
+current_revision="$(host_path "/home/testlig.net/shared/CURRENT_REVISION")"
+if ! regular_file "$release_revision" || ! regular_file "$current_revision"; then
+  echo "release_identity=unreadable"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
+  finish_no
+fi
+release_file_sha="$(tr -d '[:space:]' < "$release_revision")"
+current_sha="$(tr -d '[:space:]' < "$current_revision")"
+if ! matches "$release_file_sha" '^[0-9a-f]{40}$' || ! matches "$current_sha" '^[0-9a-f]{40}$'; then
+  echo "release_identity=unreadable"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
+  finish_no
+fi
+if [ "$release_file_sha" != "$workflow_sha" ] || [ "$current_sha" != "$workflow_sha" ]; then
   echo "release_identity=mismatch"
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
   finish_no
 fi
 echo "release_identity=match"
-echo "release_sha=${release_sha}"
+echo "release_sha=${workflow_sha}"
+echo "release_name=${release_name}"
 
 if [ -L "$ini_host" ]; then
   echo "ini_change=rejected_symlink"
@@ -704,7 +761,11 @@ if [ "$override" = "conflict" ]; then
   finish_no
 fi
 
-snapshot_workers
+if ! snapshot_workers; then
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
+  finish_no
+fi
 
 previous="unknown"
 pkg_line="$(tool rpm -q --qf '%{VERSION}|%{RELEASE}' lsphp83 2>/dev/null || true)"
