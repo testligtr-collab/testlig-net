@@ -95,6 +95,13 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await node.scrollIntoViewIfNeeded();
     await expect(node).toBeVisible();
   }
+  await saPage.locator('.admin-all-sections > summary').click();
+  await expect(saPage.locator('.admin-all-sections')).toHaveJSProperty('open', true);
+  const learningCard = saPage.locator('article[aria-labelledby="nav-shortcut-learning"]');
+  await learningCard.locator('summary').click();
+  await expect(learningCard.getByRole('link', { name: 'Soru havuzu', exact: true })).toBeVisible();
+  await expect(learningCard).toContainText('Çalışıyor');
+  await expect(learningCard).toContainText('Geliştirme aşamasında');
   const media = saPage.locator('#nav-group-media');
   await media.locator('summary').focus();
   await saPage.keyboard.press('Enter');
@@ -236,11 +243,19 @@ async function assertOverviewChrome(page: import('@playwright/test').Page, width
     expect(foot!.y + foot!.height).toBeLessThanOrEqual(side!.y + side!.height + 1);
   }
   if (width >= 1280) {
-    const tops = await page.locator('.admin-metric').evaluateAll((nodes) =>
+    const tops = await page.locator('.admin-metric-grid .admin-metric').evaluateAll((nodes) =>
       nodes.map((node) => node.getBoundingClientRect().top),
     );
-    expect(tops).toHaveLength(6);
+    expect(tops).toHaveLength(4);
     expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(8);
+    const compact = await page.locator('.admin-directory--featured .admin-directory-card').evaluateAll((nodes) =>
+      nodes.map((node) => node.getBoundingClientRect().height),
+    );
+    expect(compact.length).toBeGreaterThan(0);
+    expect(Math.max(...compact)).toBeLessThan(160);
+    const font = await page.locator('h1').evaluate((node) => getComputedStyle(node).fontFamily);
+    expect(font.toLowerCase()).not.toContain('georgia');
+    expect(font.toLowerCase()).not.toContain('times');
   }
 }
 
