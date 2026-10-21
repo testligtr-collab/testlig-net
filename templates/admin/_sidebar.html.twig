@@ -29,6 +29,15 @@
                         {% endfor %}
                     </div>
                 </div>
+            {% elseif section.id == 'overview' %}
+                <div class="panel-nav-group panel-nav-group--overview" id="nav-group-overview">
+                    {% for item in section['items'] %}
+                        <a class="panel-nav-link" href="{{ item.href }}" data-action="click->panel-shell#closeMenu" {% if item.current %}aria-current="page"{% endif %}>
+                            {% include 'components/admin_icon.html.twig' with {icon: item.icon|default('default')} only %}
+                            <span>{{ item.label }}</span>
+                        </a>
+                    {% endfor %}
+                </div>
             {% else %}
                 {% set group_icons = {
                     overview: 'dashboard',

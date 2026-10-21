@@ -44,3 +44,7 @@ Domain değeri değişmez. `AdminStatusLabels` onu Türkçe metne ve `neutral`, 
 5. Yazma formu POST, CSRF ve mevcut voter ile kalsın.
 6. E-posta, UUID, storage key, ciphertext ve parola özetini listeye koyma.
 7. `docs/browser-acceptance.md` içindeki ekran listesine sentetik görüntüyü ekle.
+
+## Genel Bakış görsel referansı (21 Ekim 2026)
+
+Üstte dört yatay ana sayaç; ders ve inceleme sayaçları içerik özetinde korunur. Altı öncelikli bölüm kartı kompakt başlar ve kendi alt bağlantılarını native details/summary ile açar. Kalan gruplar Tüm bölümleri göster altında ve bütün gruplar sol menüde erişilir. Karışık gruplar Kısmen hazır, yalnız geliştirme bağlantılı gruplar Geliştiriliyor olarak görünür. Sistem sağlığı ölçülmeden sağlık rozeti basılmaz. Başlıklar sans-serif, aktif menü turkuaz, ana oluşturma eylemi turuncudur. Görsel kontrol 1440/768/390 boyutlarında yapılır; CI ekranı production kabulünden ayrıdır.

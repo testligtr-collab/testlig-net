@@ -11,6 +11,7 @@
 {% endblock %}
 
 {% block panel_content %}
+<div class="admin-overview">
     {% set published = overview.published_contents|default(0) %}
     {% set review = workspace ? workspace.reviewContents : 0 %}
     {% set draft = workspace ? workspace.draftContents : 0 %}
@@ -46,24 +47,15 @@
     <header class="admin-hello-row">
         <div>
             <h1 class="panel-greeting admin-hello">Genel Bakış</h1>
-            <p class="admin-hello__lead">İzinli bölümler, kayıt sayıları ve hızlı işlemler.</p>
+            <p class="admin-hello__lead">Platformunu tek yerden yönet.</p>
         </div>
         {% if (workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest)) or overview.can_create_news or overview.can_create_institution %}
             <div class="admin-quick">
                 {% if workspace and workspace.canCreateContent %}
-                    <a class="btn btn--primary" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                    <a class="btn admin-btn-accent" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
                 {% endif %}
                 {% if overview.can_create_news %}
-                    <a class="btn admin-btn-accent" href="{{ path('app_admin_news_new') }}">Haber oluştur</a>
-                {% endif %}
-                {% if workspace and workspace.canCreateQuestion %}
-                    <a class="btn admin-btn-outline" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
-                {% endif %}
-                {% if workspace and workspace.canCreateTest %}
-                    <a class="btn admin-btn-outline" href="{{ path('app_admin_test_new') }}">Yeni test</a>
-                {% endif %}
-                {% if overview.can_create_institution %}
-                    <a class="btn admin-btn-outline" href="{{ path('app_admin_institution_new') }}">Yeni kurum</a>
+                    <a class="btn admin-btn-outline" href="{{ path('app_admin_news_new') }}">Haber oluştur</a>
                 {% endif %}
             </div>
         {% endif %}
@@ -71,9 +63,9 @@
 
     {% if shell_metrics is defined and shell_metrics is not empty %}
         <section class="admin-section" aria-labelledby="metrics-heading">
-            <h2 id="metrics-heading">Kayıt sayıları</h2>
+            <h2 id="metrics-heading" class="sr-only">Kayıt sayıları</h2>
             <div class="admin-metric-grid" aria-label="Yetkili kayıt sayıları">
-                {% for card in shell_metrics %}
+                {% for card in shell_metrics|filter(card => card.key in ['users', 'institutions', 'questions', 'tests']) %}
                     {% if card.href %}
                         <a class="admin-metric admin-metric--link admin-metric--{{ card.tone }}" href="{{ card.href }}">
                             <span class="admin-metric__icon">{% include 'components/admin_icon.html.twig' with { icon: card.icon|default('default') } only %}</span>
@@ -92,68 +84,71 @@
         </section>
     {% endif %}
 
-    {% if nav_sections|default([]) is not empty %}
-        <section class="admin-section" id="admin-nav-shortcuts" aria-labelledby="nav-shortcuts-heading">
-            <h2 id="nav-shortcuts-heading">Yönetim bölümleri</h2>
-            <div class="admin-directory">
-                {% for section in nav_sections %}
-                    {% if section.id != 'overview' %}
-                        {% set ready_items = section['items']|filter(item => item.stage != 'planned') %}
-                        {% set planned_items = section['items']|filter(item => item.stage == 'planned') %}
-                        <article class="admin-directory-card" aria-labelledby="nav-shortcut-{{ section.id }}">
-                            <div class="admin-directory-card__head">
-                                <span class="admin-directory-card__icon admin-directory-card__icon--{{ section.id }}">
-                                    {% include 'components/admin_icon.html.twig' with { icon: section_icons[section.id]|default('default') } only %}
-                                </span>
-                                <div>
-                                    <h3 id="nav-shortcut-{{ section.id }}">{{ section.label }}</h3>
-                                    <p>{{ section_blurbs[section.id]|default('İzinli yönetim bağlantıları.') }}</p>
-                                </div>
-                            </div>
-                            {% if ready_items is not empty %}
-                                <p class="admin-stage-label">Çalışıyor</p>
-                                <ul>
-                                    {% for item in ready_items %}
-                                        <li><a href="{{ item.href }}">{{ item.label }}</a></li>
-                                    {% endfor %}
-                                </ul>
-                            {% endif %}
-                            {% if planned_items is not empty %}
-                                <p class="admin-stage-label">Geliştirme aşamasında</p>
-                                <ul>
-                                    {% for item in planned_items %}
-                                        <li><a href="{{ item.href }}">{{ item.label }}</a></li>
-                                    {% endfor %}
-                                </ul>
-                            {% endif %}
-                        </article>
-                    {% endif %}
+    {% set sections = nav_sections|default([])|filter(section => section.id != 'overview') %}
+    {% set featured_ids = ['learning', 'people', 'campus', 'site', 'media', 'communication'] %}
+    {% if sections is not empty %}
+        <section class="admin-section admin-section-hub" id="admin-nav-shortcuts" aria-labelledby="nav-shortcuts-heading">
+            <div class="admin-hub-heading"><h2 id="nav-shortcuts-heading">Yönetim bölümleri</h2><span class="admin-section-count">{{ nav_sections|length }} bölüm</span></div>
+            <div class="admin-directory admin-directory--featured">
+                {% for id in featured_ids %}
+                    {% for section in sections|filter(section => section.id == id) %}
+                        {% include 'admin/_overview_section.html.twig' with {section: section, section_icons: section_icons, section_blurbs: section_blurbs} only %}
+                    {% endfor %}
                 {% endfor %}
             </div>
+            <details class="admin-all-sections">
+                <summary>Tüm bölümleri göster <span aria-hidden="true">→</span></summary>
+                <div class="admin-directory">
+                    {% for section in sections|filter(section => section.id not in featured_ids) %}
+                        {% include 'admin/_overview_section.html.twig' with {section: section, section_icons: section_icons, section_blurbs: section_blurbs} only %}
+                    {% endfor %}
+                </div>
+            </details>
         </section>
     {% endif %}
 
-    <section class="admin-panel-card admin-content-summary" aria-labelledby="content-status-heading">
-        <h2 id="content-status-heading">İçerik özeti</h2>
-        {% if content_total > 0 %}
-            <div
-                class="admin-mix"
-                role="img"
-                aria-label="İçerik durumu: yayımlanmış {{ published }}, incelemede {{ review }}, taslak {{ draft }}"
-            >
-                <svg class="admin-mix__bar" viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-                    <rect x="0" y="0" width="{{ published_share }}" height="8" class="admin-mix__seg admin-mix__seg--published"></rect>
-                    <rect x="{{ published_share }}" y="0" width="{{ review_share }}" height="8" class="admin-mix__seg admin-mix__seg--review"></rect>
-                    <rect x="{{ published_share + review_share }}" y="0" width="{{ draft_share }}" height="8" class="admin-mix__seg admin-mix__seg--draft"></rect>
-                </svg>
+    <div class="admin-overview-bottom">
+        <section class="admin-panel-card admin-content-summary" aria-labelledby="content-status-heading">
+            <h2 id="content-status-heading">İçerik özeti</h2>
+            <div class="admin-content-bars" role="img" aria-label="İçerik durumu: yayımlanmış {{ published }}, incelemede {{ review }}, taslak {{ draft }}">
+                {% for row in [{label: 'Yayında', value: published, tone: 'published'}, {label: 'İncelemede', value: review, tone: 'review'}, {label: 'Taslak', value: draft, tone: 'draft'}] %}
+                    <div class="admin-content-bar">
+                        <span>{{ row.label }}</span>
+                        <svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                            <rect width="100" height="8" rx="4" class="admin-content-bar__track"></rect>
+                            <rect width="{{ content_total > 0 ? ((row.value * 100) / content_total)|round(0, 'floor') : 0 }}" height="8" rx="4" class="admin-mix__seg--{{ row.tone }}"></rect>
+                        </svg>
+                        <strong>{{ row.value }}</strong>
+                    </div>
+                {% endfor %}
             </div>
-        {% else %}
-            <p class="muted u-m0">Henüz kayıtlı içerik yok.</p>
+            {% if shell_metrics is defined %}
+                <div class="admin-secondary-metrics">
+                    {% for card in shell_metrics|filter(card => card.key in ['lessons', 'review']) %}
+                        <a class="admin-metric admin-metric--link admin-metric--{{ card.tone }}" href="{{ card.href }}"><span class="admin-metric__label">{{ card.label }}</span><strong class="admin-metric__value">{{ card.value }}</strong></a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </section>
+        {% if workspace and (workspace.canCreateContent or workspace.canCreateQuestion or workspace.canCreateTest) or overview.can_create_institution %}
+            <section class="admin-panel-card" aria-labelledby="quick-actions-heading">
+                <h2 id="quick-actions-heading">Hızlı işlemler</h2>
+                <div class="admin-action-tiles">
+                    {% if workspace and workspace.canCreateContent %}
+                        <a class="admin-action-tile admin-action-tile--content" href="{{ path('app_admin_learning_content_new') }}">{% include 'components/admin_icon.html.twig' with {icon: 'catalog'} only %}<span>İçerik ekle</span><span aria-hidden="true">›</span></a>
+                    {% endif %}
+                    {% if workspace and workspace.canCreateQuestion %}
+                        <a class="admin-action-tile admin-action-tile--question" href="{{ path('app_admin_question_new') }}">{% include 'components/admin_icon.html.twig' with {icon: 'questions'} only %}<span>Yeni soru</span><span aria-hidden="true">›</span></a>
+                    {% endif %}
+                    {% if workspace and workspace.canCreateTest %}
+                        <a class="admin-action-tile admin-action-tile--test" href="{{ path('app_admin_test_new') }}">{% include 'components/admin_icon.html.twig' with {icon: 'tests'} only %}<span>Yeni test</span><span aria-hidden="true">›</span></a>
+                    {% endif %}
+                    {% if overview.can_create_institution %}
+                        <a class="admin-action-tile admin-action-tile--institution" href="{{ path('app_admin_institution_new') }}">{% include 'components/admin_icon.html.twig' with {icon: 'institutions'} only %}<span>Yeni kurum</span><span aria-hidden="true">›</span></a>
+                    {% endif %}
+                </div>
+            </section>
         {% endif %}
-        <ul class="admin-mix__legend">
-            <li><span class="admin-mix__swatch admin-mix__swatch--published" aria-hidden="true"></span> Yayımlanmış içerik <strong>{{ published }}</strong></li>
-            <li><span class="admin-mix__swatch admin-mix__swatch--review" aria-hidden="true"></span> İncelemede <strong>{{ review }}</strong></li>
-            <li><span class="admin-mix__swatch admin-mix__swatch--draft" aria-hidden="true"></span> Taslak <strong>{{ draft }}</strong></li>
-        </ul>
-    </section>
+    </div>
+</div>
 {% endblock %}
