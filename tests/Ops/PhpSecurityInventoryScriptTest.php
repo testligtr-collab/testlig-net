@@ -344,7 +344,11 @@ BASH;
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS));
         foreach ($iterator as $file) {
             if ($file instanceof \SplFileInfo && $file->isFile()) {
-                $files[$file->getPathname()] = hash_file('sha256', $file->getPathname());
+                $hash = hash_file('sha256', $file->getPathname());
+                if (!\is_string($hash)) {
+                    throw new \RuntimeException('snapshot hash failed');
+                }
+                $files[$file->getPathname()] = $hash;
             }
         }
         ksort($files);
