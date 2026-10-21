@@ -16,12 +16,15 @@ class ScopeGuardTest(unittest.TestCase):
         self.baseline = json.loads((ROOT / "docs/roadmap/baseline.json").read_text())
     def test_current_registry_valid(self):
         self.assertEqual([], guard.validate(self.registry, self.baseline))
+    def required_index(self):
+        required = set(self.baseline["required_feature_ids"])
+        return next(index for index, feature in enumerate(self.registry["features"]) if feature["id"] in required)
     def test_removing_record_fails(self):
-        self.registry["features"].pop()
+        self.registry["features"].pop(self.required_index())
         self.assertTrue(guard.validate(self.registry, self.baseline))
     def test_removing_record_and_baseline_fails_against_previous(self):
         old_registry, old_baseline = copy.deepcopy(self.registry), copy.deepcopy(self.baseline)
-        removed = self.registry["features"].pop()["id"]
+        removed = self.registry["features"].pop(self.required_index())["id"]
         self.baseline["required_feature_ids"].remove(removed)
         self.assertTrue(guard.validate(self.registry, self.baseline, old_registry, old_baseline))
     def test_duplicate_id_fails(self):
