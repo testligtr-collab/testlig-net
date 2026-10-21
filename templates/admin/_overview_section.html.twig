@@ -1,6 +1,6 @@
 {% set ready_items = section['items']|filter(item => item.stage != 'planned') %}
 {% set planned_items = section['items']|filter(item => item.stage == 'planned') %}
-<article class="admin-directory-card" aria-labelledby="nav-shortcut-{{ section.id }}">
+<article class="admin-directory-card{% if section.id == 'media' %} admin-directory-card--media{% endif %}" aria-labelledby="nav-shortcut-{{ section.id }}">
     <details class="admin-section-links">
         <summary class="admin-directory-card__head">
             <span class="admin-directory-card__icon admin-directory-card__icon--{{ section.id }}">{% include 'components/admin_icon.html.twig' with {icon: section_icons[section.id]|default('default')} only %}</span>
@@ -12,6 +12,9 @@
             <span class="admin-section-chevron" aria-hidden="true">›</span>
         </summary>
         <div class="admin-section-links__body">
+            {% if section.id == 'media' %}
+                {% include 'admin/_overview_media_links.html.twig' with { items: section['items'] } only %}
+            {% else %}
             {% if ready_items is not empty %}
                 <p class="admin-stage-label">Çalışıyor</p>
                 <ul>{% for item in ready_items %}<li><a href="{{ item.href }}">{{ item.label }}</a></li>{% endfor %}</ul>
@@ -19,6 +22,7 @@
             {% if planned_items is not empty %}
                 <p class="admin-stage-label">Geliştirme aşamasında</p>
                 <ul>{% for item in planned_items %}<li><a href="{{ item.href }}">{{ item.label }}</a></li>{% endfor %}</ul>
+            {% endif %}
             {% endif %}
         </div>
     </details>
