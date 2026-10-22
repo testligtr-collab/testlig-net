@@ -2036,7 +2036,7 @@ body.is-admin-panel {
     border-radius: 0;
     box-shadow: none;
 }
-.is-admin-panel .admin-user-table { min-width: 52rem; }
+.is-admin-panel .admin-user-table { width: 100%; min-width: 0; }
 .is-admin-panel .admin-user-table th {
     background: #f7f9fc;
     color: #53647d;
@@ -2133,15 +2133,12 @@ body.is-admin-panel {
     white-space: nowrap;
 }
 .is-admin-panel .admin-user-detail:hover { background: #eaf2ff; color: #1f6499; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-user-table { min-width: 52rem; }
+}
 @media (max-width: 1023px) {
     .is-admin-panel .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .is-admin-panel .admin-user-filters__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 767px) {
-    .is-admin-panel .admin-user-stats,
-    .is-admin-panel .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
-    .is-admin-panel .admin-user-filters__submit { width: 100%; }
-    .is-admin-panel .admin-user-table { min-width: 0; }
     .is-admin-panel .admin-user-table thead {
         position: absolute;
         width: 1px;
@@ -2177,4 +2174,9 @@ body.is-admin-panel {
     .is-admin-panel .admin-user-person { min-width: 0; }
     .is-admin-panel .admin-user-roles { max-width: none; }
     .is-admin-panel .admin-user-date { white-space: normal; }
+}
+@media (max-width: 767px) {
+    .is-admin-panel .admin-user-stats,
+    .is-admin-panel .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-user-filters__submit { width: 100%; }
 }

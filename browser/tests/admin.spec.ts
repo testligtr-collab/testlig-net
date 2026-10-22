@@ -82,6 +82,13 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await assertLayout(adminPage);
     await shot(adminPage, info, 'admin', name, '1280');
   }
+  await adminPage.goto('/yonetim/kullanicilar');
+  await adminPage.locator('#user-filter-role').selectOption('ROLE_STUDENT');
+  await adminPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(adminPage).toHaveURL(/role=ROLE_STUDENT/);
+  await expect(adminPage.locator('#user-filter-role')).toHaveValue('ROLE_STUDENT');
+  await adminPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(adminPage).toHaveURL(/\/yonetim\/kullanicilar$/);
   for (const viewport of [
     { name: '390', width: 390, height: 844 },
     { name: '768', width: 768, height: 1024 },
