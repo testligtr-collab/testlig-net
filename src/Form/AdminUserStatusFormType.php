@@ -51,6 +51,9 @@ final class AdminUserStatusFormType extends AbstractType
                 'label' => 'Yeni durum',
                 'choices' => $actions,
                 'placeholder' => 'İşlem seçin',
+                'setter' => static function (AdminUserStatusRequest $request, mixed $value): void {
+                    $request->action = \is_string($value) ? $value : '';
+                },
             ])
             ->add('reasonCode', ChoiceType::class, [
                 'label' => 'Değişiklik gerekçesi',
@@ -60,6 +63,9 @@ final class AdminUserStatusFormType extends AbstractType
                     'Operatör düzeltmesi' => AdminUserStatusRequest::REASON_OPERATOR_CORRECTION,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'setter' => static function (AdminUserStatusRequest $request, mixed $value): void {
+                    $request->reasonCode = \is_string($value) ? $value : '';
+                },
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Durum değişikliğini onaylıyorum',

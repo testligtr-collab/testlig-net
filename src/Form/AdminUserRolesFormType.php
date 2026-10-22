@@ -61,6 +61,9 @@ final class AdminUserRolesFormType extends AbstractType
                     'Politika uygulaması' => AdminUserRolesRequest::REASON_POLICY_ENFORCEMENT,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'setter' => static function (AdminUserRolesRequest $request, mixed $value): void {
+                    $request->reasonCode = \is_string($value) ? $value : '';
+                },
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Rol değişikliğini onaylıyorum',
