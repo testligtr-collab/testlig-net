@@ -1881,10 +1881,15 @@ body.is-admin-panel {
     .is-admin-panel .admin-action-tiles { grid-template-columns: minmax(0, 1fr); }
 }
 
+.is-admin-panel .panel-content:has(.admin-user-page) {
+    overflow-x: clip;
+}
 .is-admin-panel .admin-user-page {
     display: grid;
     gap: 1rem;
     min-width: 0;
+    max-width: 100%;
+    contain: inline-size;
 }
 .is-admin-panel .admin-user-head p {
     margin: 0;
@@ -1963,6 +1968,8 @@ body.is-admin-panel {
 .is-admin-panel .admin-user-filters input,
 .is-admin-panel .admin-user-filters select {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     border-color: #d5e0ec;
     border-radius: 0.65rem;
     background: #fff;

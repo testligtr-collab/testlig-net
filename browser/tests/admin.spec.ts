@@ -92,8 +92,11 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await expect(adminPage.getByRole('heading', { level: 1, name: 'Kullanıcılar' })).toBeVisible();
     await expect(adminPage.locator('[data-user-summary]')).toHaveCount(4);
     await expect(adminPage.getByRole('button', { name: 'Filtrele' })).toBeVisible();
-    const overflow = await adminPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-    expect(overflow).toBe(false);
+    const metrics = await adminPage.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(metrics.scroll, `${viewport.name} scroll ${metrics.scroll} client ${metrics.client}`).toBeLessThanOrEqual(metrics.client + 1);
     await adminPage.getByLabel('Ara').fill('user-list-browser-missing');
     await adminPage.getByRole('button', { name: 'Filtrele' }).click();
     await expect(adminPage.getByText('Filtrelere uygun kullanıcı bulunamadı.')).toBeVisible();

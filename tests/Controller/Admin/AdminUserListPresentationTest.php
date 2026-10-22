@@ -193,7 +193,9 @@ final class AdminUserListPresentationTest extends WebTestCase
     {
         self::ensureKernelShutdown();
         self::bootKernel();
-        $rows = static::getContainer()->get(EntityManagerInterface::class)->getConnection()->fetchAssociative(
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $rows = $em->getConnection()->fetchAssociative(
             "SELECT COUNT(*) AS total,
                     SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count,
                     SUM(CASE WHEN status = 'pending_verification' THEN 1 ELSE 0 END) AS pending_count,
