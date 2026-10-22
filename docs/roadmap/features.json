@@ -1149,13 +1149,15 @@
         "Çalışan ekranlar kendi adreslerinde durur. Ekranı olmayan bölümler yalnız aktif doğrulanmış süper yöneticiye açılan bölüm girişidir ve Geliştirme aşamasında olarak işaretlenir. Bu girişler ürün akışını tamamlamaz.",
         "Ödeme ve denetim yetkisi genişletilmedi. Öğretmen çalışma alanı eski gruplarını korur. Genel Bakış kısayolları çalışan ve geliştirme aşamasındaki bölümleri ayırır. CI yeşili production kabulü değildir.",
         "Genel Bakış, izinli sayaç kartları ve bütün bölüm gruplarının ızgarasıyla yönetim kabuğunda yeniden düzenlendi. Sabit sistem çalışıyor iddiası ile kapalı arama ve bildirim kontrolü kaldırıldı. Ekran görüntüsü production kabulü değildir.",
-        "Genel Bakış görsel referansa göre kompakt dört ana sayaç, altı açılır bölüm kartı ve içerik özeti/hızlı işlem panelleriyle düzenlendi. Diğer iki gerçek sayaç içerik özetinde, bütün izinli alt bağlantılar açılır kartlarda ve sol menüde korunur. Başlık sans-serif, menü başlıkları normal harf boyutundadır. Bu kod kaydı canlı görsel kabulü değildir."
+        "Genel Bakış görsel referansa göre kompakt dört ana sayaç, altı açılır bölüm kartı ve içerik özeti/hızlı işlem panelleriyle düzenlendi. Diğer iki gerçek sayaç içerik özetinde, bütün izinli alt bağlantılar açılır kartlarda ve sol menüde korunur. Başlık sans-serif, menü başlıkları normal harf boyutundadır. Bu kod kaydı canlı görsel kabulü değildir.",
+        "Açık Medya kartı Dokümanlar, Videolar ve Medya ve depolama mini kartlarını mevcut bölüm adresleriyle ve Geliştirme aşamasında etiketiyle gösterir. İzni olmayan bağlantı basılmaz. Diğer kartlar, sol menü ve sayaçlar aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
         "https://github.com/testligtr-collab/testlig-net/pull/152",
         "https://github.com/testligtr-collab/testlig-net/pull/153",
-        "https://github.com/testligtr-collab/testlig-net/pull/154"
+        "https://github.com/testligtr-collab/testlig-net/pull/154",
+        "https://github.com/testligtr-collab/testlig-net/pull/155"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null

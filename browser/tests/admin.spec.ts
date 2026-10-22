@@ -102,6 +102,29 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(learningCard.getByRole('link', { name: 'Soru havuzu', exact: true })).toBeVisible();
   await expect(learningCard).toContainText('Çalışıyor');
   await expect(learningCard).toContainText('Geliştirme aşamasında');
+  await expect(learningCard.locator('a.admin-media-link')).toHaveCount(0);
+  const mediaCard = saPage.locator('article[aria-labelledby="nav-shortcut-media"]');
+  const mediaDetails = mediaCard.locator('details');
+  await mediaCard.locator('summary').focus();
+  await saPage.keyboard.press('Enter');
+  await expect(mediaDetails).toHaveJSProperty('open', true);
+  await expect(mediaCard.locator('a.admin-media-link')).toHaveCount(3);
+  await expect(mediaCard.locator('a button, a a')).toHaveCount(0);
+  const mediaHrefs = await mediaCard.locator('a.admin-media-link').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')));
+  expect(mediaHrefs).toEqual(['/yonetim/bolum/dokumanlar', '/yonetim/bolum/videolar', '/yonetim/bolum/medya']);
+  const documents = mediaCard.locator('a[href="/yonetim/bolum/dokumanlar"]');
+  await expect(documents).toContainText('Dokümanlar');
+  await expect(documents).toContainText('PDF ve eğitim materyalleri.');
+  await expect(documents).toContainText('Geliştirme aşamasında');
+  await expect(mediaCard.locator('a[href="/yonetim/bolum/videolar"]')).toContainText('Ders ve anlatım videoları.');
+  await expect(mediaCard.locator('a[href="/yonetim/bolum/medya"]')).toContainText('Dosyalar ve depolama alanı.');
+  await mediaCard.locator('summary').focus();
+  await saPage.keyboard.press('Enter');
+  await expect(mediaDetails).toHaveJSProperty('open', false);
+  await mediaCard.locator('summary').click();
+  await expect(mediaDetails).toHaveJSProperty('open', true);
+  await mediaCard.locator('summary').click();
+  await expect(mediaDetails).toHaveJSProperty('open', false);
   const media = saPage.locator('#nav-group-media');
   await media.locator('summary').focus();
   await saPage.keyboard.press('Enter');
@@ -125,6 +148,41 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await assertLayout(saPage);
     await assertOverviewChrome(saPage, viewport.width);
     await shot(saPage, info, 'superadmin', viewport.width === 1920 ? 'dashboard' : 'ozet', viewport.name);
+    if ([390, 768, 1440].includes(viewport.width)) {
+      const openMedia = saPage.locator('article[aria-labelledby="nav-shortcut-media"]');
+      await openMedia.locator('summary').click();
+      await expect(openMedia.locator('details')).toHaveJSProperty('open', true);
+      await openMedia.scrollIntoViewIfNeeded();
+      const overflow = await saPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      expect(overflow).toBe(false);
+      const collided = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.some((node) => node.scrollWidth > node.clientWidth + 1));
+      expect(collided).toBe(false);
+      await saPage.mouse.move(0, 0);
+      const surfaces = await openMedia.locator('a.admin-media-link').evaluateAll((nodes) => nodes.map((node) => {
+        const style = getComputedStyle(node);
+        return { background: style.backgroundColor, border: style.borderTopColor };
+      }));
+      expect(surfaces).toEqual([
+        { background: 'rgb(246, 249, 254)', border: 'rgb(197, 216, 246)' },
+        { background: 'rgb(248, 247, 253)', border: 'rgb(217, 206, 246)' },
+        { background: 'rgb(243, 252, 251)', border: 'rgb(185, 227, 223)' },
+      ]);
+      const hovered: { background: string; border: string }[] = [];
+      for (const link of await openMedia.locator('a.admin-media-link').all()) {
+        await link.hover();
+        hovered.push(await link.evaluate((node) => {
+          const style = getComputedStyle(node);
+          return { background: style.backgroundColor, border: style.borderTopColor };
+        }));
+      }
+      expect(hovered).toEqual([
+        { background: 'rgb(234, 242, 255)', border: 'rgb(168, 196, 242)' },
+        { background: 'rgb(241, 235, 253)', border: 'rgb(196, 176, 239)' },
+        { background: 'rgb(230, 247, 245)', border: 'rgb(143, 212, 206)' },
+      ]);
+      await saPage.mouse.move(0, 0);
+      await shot(saPage, info, 'superadmin', 'medya', viewport.name);
+    }
     if (viewport.width >= 1024) {
       await expect(saPage.locator('#panel-sidebar')).toBeVisible();
       const commerce = saPage.locator('#nav-group-commerce');

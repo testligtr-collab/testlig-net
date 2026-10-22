@@ -24,6 +24,16 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#admin-nav-shortcuts', 'Geliştirme aşamasında');
         self::assertSelectorTextContains('#admin-nav-shortcuts', 'Çalışıyor');
+        $mediaLinks = $client->getCrawler()->filter('article.admin-directory-card--media a.admin-media-link');
+        self::assertCount(3, $mediaLinks);
+        self::assertSame('/yonetim/bolum/dokumanlar', $mediaLinks->eq(0)->attr('href'));
+        self::assertStringContainsString('PDF ve eğitim materyalleri.', $mediaLinks->eq(0)->text());
+        self::assertStringContainsString('Geliştirme aşamasında', $mediaLinks->eq(0)->text());
+        self::assertSame('/yonetim/bolum/videolar', $mediaLinks->eq(1)->attr('href'));
+        self::assertStringContainsString('Ders ve anlatım videoları.', $mediaLinks->eq(1)->text());
+        self::assertSame('/yonetim/bolum/medya', $mediaLinks->eq(2)->attr('href'));
+        self::assertStringContainsString('Dosyalar ve depolama alanı.', $mediaLinks->eq(2)->text());
+        self::assertSame(0, $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-media-link')->count());
 
         foreach (AdminSectionCatalog::all() as $section) {
             $href = '/yonetim/bolum/'.$section['key'];
@@ -51,6 +61,10 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSelectorExists('a[href="/yonetim/haberler"]');
         self::assertSelectorExists('a[href="/yonetim/kullanicilar"]');
         self::assertSelectorNotExists('a[href="/yonetim/bolum/subeler"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/dokumanlar"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/videolar"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/medya"]');
+        self::assertSelectorNotExists('article.admin-directory-card--media');
         self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
         $client->request('GET', '/yonetim/bolum/subeler');
         self::assertResponseStatusCodeSame(403);

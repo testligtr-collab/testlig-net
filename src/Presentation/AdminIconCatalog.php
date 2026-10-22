@@ -29,6 +29,10 @@ final class AdminIconCatalog
         'reconciliations',
         'audit',
         'account',
+        'media_page',
+        'media_pdf',
+        'media_play',
+        'media_cloud',
         self::DEFAULT,
     ];
 
