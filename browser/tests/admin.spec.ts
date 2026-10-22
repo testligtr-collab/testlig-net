@@ -380,7 +380,7 @@ async function expandAdminGroups(page: import('@playwright/test').Page): Promise
 async function openOverviewCards(page: Page): Promise<void> {
   const all = page.locator('.admin-all-sections');
   if ((await all.getAttribute('open')) === null) {
-    await all.locator('summary').click();
+    await page.locator('.admin-all-sections > summary').click();
   }
   await expect(all).toHaveJSProperty('open', true);
   const cards = page.locator('article.admin-directory-card');
@@ -390,7 +390,7 @@ async function openOverviewCards(page: Page): Promise<void> {
     const card = cards.nth(index);
     const details = card.locator('details');
     if ((await details.getAttribute('open')) === null) {
-      await card.locator('summary').click();
+      await card.locator('summary.admin-directory-card__head').click();
     }
     await expect(details).toHaveJSProperty('open', true);
     const links = card.locator('a.admin-mini-link, a.admin-media-link');
