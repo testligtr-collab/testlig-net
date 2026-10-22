@@ -29,10 +29,30 @@
         'ROLE_ADMIN': 'Yönetici',
         'ROLE_SUPER_ADMIN': 'Süper Yönetici'
     } %}
+    {% set role_tones = {
+        'ROLE_STUDENT': 'student',
+        'ROLE_PARENT': 'parent',
+        'ROLE_TEACHER': 'teacher',
+        'ROLE_EXPERT_TEACHER': 'teacher',
+        'ROLE_HEAD_TEACHER': 'teacher',
+        'ROLE_INSTITUTION_MANAGER': 'admin',
+        'ROLE_MODERATOR': 'moderator',
+        'ROLE_ADMIN': 'admin',
+        'ROLE_SUPER_ADMIN': 'admin'
+    } %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
     <div class="admin-user-page">
         <header class="admin-user-head">
-            <h1 class="panel-greeting">Kullanıcılar</h1>
-            <p>Kullanıcı hesaplarını ve erişim durumlarını yönet.</p>
+            <div>
+                <h1 class="panel-greeting">Kullanıcılar</h1>
+                <p>Kullanıcı hesaplarını ve erişim durumlarını yönet.</p>
+            </div>
+            {% if admin_filters_active(filters|default({})) %}
+                <a class="admin-user-clear" href="{{ path('app_admin_users') }}">Filtreleri temizle</a>
+            {% endif %}
         </header>
 
         <section class="admin-user-stats" aria-label="Kullanıcı özeti">
@@ -44,21 +64,21 @@
                 </span>
             </article>
             <article class="admin-user-stat admin-user-stat--active">
-                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
                 <span class="admin-user-stat__copy">
                     <span class="admin-user-stat__label">Aktif</span>
                     <strong class="admin-user-stat__value" data-user-summary="active">{{ summary.active }}</strong>
                 </span>
             </article>
             <article class="admin-user-stat admin-user-stat--pending">
-                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
                 <span class="admin-user-stat__copy">
                     <span class="admin-user-stat__label">Doğrulama bekliyor</span>
                     <strong class="admin-user-stat__value" data-user-summary="pending">{{ summary.pendingVerification }}</strong>
                 </span>
             </article>
             <article class="admin-user-stat admin-user-stat--suspended">
-                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'audit' } only %}</span>
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'ban' } only %}</span>
                 <span class="admin-user-stat__copy">
                     <span class="admin-user-stat__label">Askıda</span>
                     <strong class="admin-user-stat__value" data-user-summary="suspended">{{ summary.suspended }}</strong>
@@ -69,45 +89,47 @@
         <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_users') }}">
             <h2>Kullanıcıları filtrele</h2>
             <div class="admin-user-filters__fields">
-                <label for="user-filter-q">Ara
-                    <input id="user-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
+                <label class="admin-user-search" for="user-filter-q">
+                    <span class="sr-only">Ara</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="user-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Ad veya e-posta ile ara...">
                 </label>
-                <label for="user-filter-status">Durum
+                <label for="user-filter-status">
+                    <span class="sr-only">Durum</span>
                     <select id="user-filter-status" name="status">
-                        <option value="">—</option>
+                        <option value="">Durum</option>
                         {% for s in ['pending_verification','active','suspended','archived'] %}
                             <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status_labels[s] }}</option>
                         {% endfor %}
                     </select>
                 </label>
-                <label for="user-filter-role">Global rol
+                <label for="user-filter-role">
+                    <span class="sr-only">Global rol</span>
                     <select id="user-filter-role" name="role">
-                        <option value="">—</option>
+                        <option value="">Global rol</option>
                         {% for role in role_choices %}
                             <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role_labels[role.value]|default(role.value) }}</option>
                         {% endfor %}
                     </select>
                 </label>
-                <label for="user-filter-verified">Doğrulama
+                <label for="user-filter-verified">
+                    <span class="sr-only">Doğrulama</span>
                     <select id="user-filter-verified" name="verified">
-                        <option value="">—</option>
+                        <option value="">Doğrulama</option>
                         <option value="1" {% if filters.verified|default('') == '1' %}selected{% endif %}>Doğrulanmış</option>
                         <option value="0" {% if filters.verified|default('') == '0' %}selected{% endif %}>Doğrulanmamış</option>
                     </select>
                 </label>
-            </div>
-            <div class="admin-user-filters__actions">
-                <button type="submit" class="btn admin-user-filters__submit">Filtrele</button>
-                {% if admin_filters_active(filters|default({})) %}
-                    <a class="admin-user-filters__clear" href="{{ path('app_admin_users') }}">Filtreleri temizle</a>
-                {% endif %}
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                </div>
             </div>
         </form>
 
         <section class="admin-user-list" aria-labelledby="user-list-heading">
             <header class="admin-user-list__head">
                 <h2 id="user-list-heading">Kullanıcı listesi</h2>
-                <span class="admin-user-list__count">{{ result.totalCount }} kayıt</span>
+                <span class="admin-user-list__count">{{ result.totalCount }} kullanıcı</span>
             </header>
             {% if result.items is empty %}
                 {% include 'components/empty_state.html.twig' with {
@@ -148,18 +170,19 @@
                                     <td data-label="Roller">
                                         <span class="admin-user-roles">
                                             {% for role in row.globalRoles %}
-                                                <span class="admin-user-role">{{ role_labels[role]|default(role) }}</span>
+                                                <span class="admin-user-role admin-user-role--{{ role_tones[role]|default('user') }}">{{ role_labels[role]|default(role) }}</span>
                                             {% endfor %}
                                         </span>
                                     </td>
                                     <td data-label="Doğrulama">
                                         <span class="admin-user-verify admin-user-verify--{{ row.emailVerified ? 'yes' : 'no' }}">
-                                            {% include 'components/admin_icon.html.twig' with { icon: row.emailVerified ? 'tests' : 'default' } only %}
-                                            <span>{{ row.emailVerified ? 'Doğrulandı' : 'Doğrulanmadı' }}</span>
+                                            {% include 'components/admin_icon.html.twig' with { icon: row.emailVerified ? 'tests' : 'clock' } only %}
+                                            <span>{{ row.emailVerified ? 'Doğrulanmış' : 'Bekliyor' }}</span>
                                         </span>
                                     </td>
                                     <td class="admin-user-date" data-label="Kayıt tarihi">
-                                        <span>{{ row.createdAt|utc_present('d.m.Y') }}</span>
+                                        {% set created_month = row.createdAt|utc_present('n') %}
+                                        <span>{{ row.createdAt|utc_present('j') }} {{ month_labels[created_month]|default(created_month) }} {{ row.createdAt|utc_present('Y') }}</span>
                                         <span>{{ row.createdAt|utc_present('H:i') }}</span>
                                     </td>
                                     <td class="admin-user-action" data-label="İşlem">
@@ -171,17 +194,16 @@
                     </table>
                 </div>
             {% endif %}
+            {% include 'components/admin_pagination.html.twig' with {
+                result: result,
+                route: 'app_admin_users',
+                query: {
+                    q: filters.q|default(''),
+                    status: filters.status|default(''),
+                    role: filters.role|default(''),
+                    verified: filters.verified|default('')
+                }
+            } %}
         </section>
-
-        {% include 'components/admin_pagination.html.twig' with {
-            result: result,
-            route: 'app_admin_users',
-            query: {
-                q: filters.q|default(''),
-                status: filters.status|default(''),
-                role: filters.role|default(''),
-                verified: filters.verified|default('')
-            }
-        } %}
     </div>
 {% endblock %}

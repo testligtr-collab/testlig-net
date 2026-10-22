@@ -1891,11 +1891,25 @@ body.is-admin-panel {
     max-width: 100%;
     contain: inline-size;
 }
+.is-admin-panel .admin-user-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+}
 .is-admin-panel .admin-user-head p {
     margin: 0;
     color: #66758c;
     font-size: 0.95rem;
 }
+.is-admin-panel .admin-user-clear {
+    color: #1d6fb8;
+    font-weight: 650;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-user-clear:hover { text-decoration: underline; }
 .is-admin-panel .admin-user-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1918,7 +1932,7 @@ body.is-admin-panel {
     justify-content: center;
     width: 2.75rem;
     height: 2.75rem;
-    border-radius: 0.8rem;
+    border-radius: 999px;
     flex: 0 0 auto;
 }
 .is-admin-panel .admin-user-stat__icon .admin-icon { width: 1.35rem; height: 1.35rem; }
@@ -1957,9 +1971,22 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-user-filters__fields {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(12rem, 1.7fr) repeat(3, minmax(0, 1fr)) auto;
     gap: 0.75rem;
+    align-items: end;
 }
+.is-admin-panel .admin-user-search { position: relative; display: block; }
+.is-admin-panel .admin-user-search__icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    display: inline-flex;
+    color: #7a8b9c;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.is-admin-panel .admin-user-search__icon .admin-icon { width: 1rem; height: 1rem; }
+.is-admin-panel .admin-user-search input { padding-left: 2.35rem; }
 .is-admin-panel .admin-user-filters label {
     min-width: 0;
     color: #3e5168;
@@ -1977,7 +2004,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-user-filters input:focus-visible,
 .is-admin-panel .admin-user-filters select:focus-visible,
 .is-admin-panel .admin-user-filters__submit:focus-visible,
-.is-admin-panel .admin-user-filters__clear:focus-visible,
+.is-admin-panel .admin-user-clear:focus-visible,
 .is-admin-panel .admin-user-detail:focus-visible {
     outline: 2px solid #0b6e99;
     outline-offset: 2px;
@@ -1989,19 +2016,21 @@ body.is-admin-panel {
     gap: 0.85rem;
 }
 .is-admin-panel .admin-user-filters__submit {
+    display: inline-flex;
+    gap: 0.4rem;
     border: 0;
-    background: #079dbf;
+    background: #0f9d8e;
     color: #fff;
+    white-space: nowrap;
 }
+.is-admin-panel .admin-user-filters__submit .admin-icon { width: 1rem; height: 1rem; }
 .is-admin-panel .admin-user-filters__submit:hover,
 .is-admin-panel .admin-user-filters__submit:focus-visible {
-    background: #067f9b;
+    background: #0c8578;
     color: #fff;
 }
-.is-admin-panel .admin-user-filters__clear {
-    color: #1f6499;
-    font-weight: 700;
-}
+.is-admin-panel .admin-user-filters select:has(option[value=""]:checked) { color: #66758c; }
+.is-admin-panel .admin-user-filters select option { color: #16324f; }
 .is-admin-panel .admin-user-list {
     min-width: 0;
     padding: 1rem 1.05rem 0.4rem;
@@ -2014,8 +2043,8 @@ body.is-admin-panel {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    justify-content: flex-start;
+    gap: 0.65rem;
     margin-bottom: 0.75rem;
 }
 .is-admin-panel .admin-user-list__head h2 {
@@ -2091,7 +2120,7 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-user-role {
     max-width: 100%;
-    padding: 0.12rem 0.45rem;
+    padding: 0.12rem 0.55rem;
     border-radius: 999px;
     background: #f1f4f8;
     color: #3e5168;
@@ -2100,6 +2129,11 @@ body.is-admin-panel {
     line-height: 1.35;
     overflow-wrap: anywhere;
 }
+.is-admin-panel .admin-user-role--student { background: #f3eaff; color: #6d3ad6; }
+.is-admin-panel .admin-user-role--parent { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-user-role--teacher { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-user-role--admin { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-user-role--moderator { background: #e5f8f6; color: #0f8a80; }
 .is-admin-panel .admin-user-verify {
     display: inline-flex;
     align-items: center;
@@ -2123,22 +2157,28 @@ body.is-admin-panel {
     align-items: center;
     gap: 0.3rem;
     min-height: 2.25rem;
-    padding: 0.3rem 0.7rem;
-    border: 1px solid #c5d8f6;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid #d5e0ec;
     border-radius: 0.65rem;
-    background: #f7faff;
-    color: #1f6499;
-    font-weight: 750;
+    background: #fff;
+    color: #3e5168;
+    font-weight: 650;
     text-decoration: none;
     white-space: nowrap;
 }
-.is-admin-panel .admin-user-detail:hover { background: #eaf2ff; color: #1f6499; }
+.is-admin-panel .admin-user-detail:hover { background: #f7f9fc; color: #16324f; }
+.is-admin-panel .admin-user-list .admin-pagination {
+    margin-top: 0.35rem;
+    padding: 0.75rem 0 0.85rem;
+    border-top: 1px solid #e2eaf4;
+}
 @media (min-width: 1024px) {
     .is-admin-panel .admin-user-table { min-width: 52rem; }
 }
 @media (max-width: 1023px) {
     .is-admin-panel .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .is-admin-panel .admin-user-filters__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-user-filters__actions { grid-column: 1 / -1; }
     .is-admin-panel .admin-user-table thead {
         position: absolute;
         width: 1px;
@@ -2178,5 +2218,6 @@ body.is-admin-panel {
 @media (max-width: 767px) {
     .is-admin-panel .admin-user-stats,
     .is-admin-panel .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-user-filters__actions,
     .is-admin-panel .admin-user-filters__submit { width: 100%; }
 }

@@ -61,10 +61,10 @@ final class AdminUserListPresentationTest extends WebTestCase
         $client->request('GET', '/yonetim/kullanicilar', ['q' => 'user_list_view_pending@example.com']);
         self::assertResponseIsSuccessful();
         self::assertSame($open, $this->summary($client));
-        self::assertSelectorTextContains('.admin-user-list__count', '1 kayıt');
+        self::assertSelectorTextContains('.admin-user-list__count', '1 kullanıcı');
         self::assertSelectorTextContains('body', 'user_list_view_pending@example.com');
         self::assertSelectorTextContains('body', 'Doğrulama bekliyor');
-        self::assertSelectorTextContains('body', 'Doğrulanmadı');
+        self::assertSelectorTextContains('body', 'Bekliyor');
         self::assertSelectorExists('a.admin-user-detail');
 
         $client->request('GET', '/yonetim/kullanicilar', ['q' => $longEmail, 'status' => 'active', 'role' => UserRole::Parent->value, 'verified' => '1']);
@@ -79,7 +79,7 @@ final class AdminUserListPresentationTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Öğretmen');
         self::assertSelectorTextContains('body', 'Veli');
         self::assertSelectorTextContains('body', 'Ref ');
-        self::assertSelectorExists('a.admin-user-filters__clear[href="/yonetim/kullanicilar"]');
+        self::assertSelectorExists('a.admin-user-clear[href="/yonetim/kullanicilar"]');
         $detail = $client->getCrawler()->filter('a.admin-user-detail')->attr('href');
         self::assertIsString($detail);
         self::assertStringStartsWith('/yonetim/kullanicilar/', $detail);
@@ -93,7 +93,7 @@ final class AdminUserListPresentationTest extends WebTestCase
         $client->request('GET', '/yonetim/kullanicilar', ['q' => 'user_list_view_missing_token']);
         self::assertResponseIsSuccessful();
         self::assertSame($open, $this->summary($client));
-        self::assertSelectorTextContains('.admin-user-list__count', '0 kayıt');
+        self::assertSelectorTextContains('.admin-user-list__count', '0 kullanıcı');
         self::assertSelectorTextContains('body', 'Filtrelere uygun kullanıcı bulunamadı.');
         self::assertSelectorNotExists('a.admin-user-detail');
     }
