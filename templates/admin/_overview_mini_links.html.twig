@@ -1,0 +1,109 @@
+{% set icons = {
+    users: 'users',
+    teacher_applications: 'users',
+    teachers: 'users',
+    role_permissions: 'users',
+    institution_applications: 'institutions',
+    institutions: 'institutions',
+    branches: 'institutions',
+    academic_years: 'catalog',
+    classes: 'classrooms',
+    classrooms: 'classrooms',
+    catalog: 'catalog',
+    learning_contents: 'learning_contents',
+    questions: 'questions',
+    tests: 'tests',
+    assignments: 'learning_contents',
+    reports: 'tests',
+    teacher_profile: 'account',
+    news: 'media_page',
+    pages: 'learning_contents',
+    home_sections: 'dashboard',
+    menu_footer: 'catalog',
+    seo: 'catalog',
+    traffic_ads: 'dashboard',
+    packages: 'payments',
+    orders: 'payments',
+    coupons: 'payments',
+    payments: 'payments',
+    webhooks: 'webhooks',
+    reconciliations: 'reconciliations',
+    sms: 'webhooks',
+    ai: 'questions',
+    identity_providers: 'account',
+    mobile_api: 'webhooks',
+    simulations: 'questions',
+    games: 'questions',
+    live_lessons: 'media_play',
+    qna: 'questions',
+    guidance: 'account',
+    gamification: 'questions',
+    messages: 'account',
+    notifications: 'account',
+    support: 'account',
+    system: 'system',
+    audit: 'audit',
+    operations: 'system'
+} %}
+{% set blurbs = {
+    users: 'Kullanıcı hesaplarını listelemek.',
+    teacher_applications: 'Öğretmen başvurularını incelemek.',
+    institution_applications: 'Kurum başvurularını incelemek.',
+    teachers: 'Platformdaki öğretmen hesaplarını bir arada görmek.',
+    role_permissions: 'Hangi rolün hangi yönetim bölümünü kullanacağını görmek.',
+    institutions: 'Kurum kayıtlarını açmak.',
+    branches: 'Bir kurumun şube ve kampüslerini yönetmek.',
+    academic_years: 'Akademik yılı kurumdan bağımsız bir listede yönetmek.',
+    classes: 'Platformdaki sınıfları yönetmek.',
+    classrooms: 'Atanmış sınıfları görmek.',
+    catalog: 'Müfredat kataloğunu yönetmek.',
+    learning_contents: 'Öğrenme içeriklerini yönetmek.',
+    questions: 'Soru bankasını yönetmek.',
+    tests: 'Test ve sınavları yönetmek.',
+    assignments: 'Ödev ve proje vermek, teslim almak ve değerlendirmek.',
+    reports: 'Yönetim için sonuç ve kullanım raporlarını görmek.',
+    teacher_profile: 'Mesleki profili düzenlemek.',
+    news: 'Site haberlerini yönetmek.',
+    pages: 'Site sayfalarını oluşturmak ve düzenlemek.',
+    home_sections: 'Ana sayfadaki bölümleri yönetmek.',
+    menu_footer: 'Üst menüyü ve alt bilgiyi yönetmek.',
+    seo: 'İçerik başına arama bilgilerini yönetmek.',
+    traffic_ads: 'Site trafiğini ve reklam alanlarını yönetmek.',
+    packages: 'Satış paketlerini ve teklifleri yönetmek.',
+    orders: 'Siparişleri görmek ve durumunu izlemek.',
+    coupons: 'Kupon ve kampanya tanımlamak.',
+    payments: 'Ödeme denemelerini izlemek.',
+    webhooks: 'Webhook kuyruğunu görmek.',
+    reconciliations: 'Ödeme uzlaştırmasını görmek.',
+    sms: 'SMS gönderimini ve sağlayıcı durumunu görmek.',
+    ai: 'Yapay zeka sağlayıcısını ve kullanım sınırını yönetmek.',
+    identity_providers: 'Harici kimlik sağlayıcılarını yönetmek.',
+    mobile_api: 'Mobil API ve cihaz oturumunun durumunu görmek.',
+    simulations: 'Etkileşimli simülasyonları yayınlamak.',
+    games: 'Eğitsel oyunları kataloglamak ve skoru tutmak.',
+    live_lessons: 'Canlı ders planlamak ve katılımı görmek.',
+    qna: 'Öğrenci sorusunu ve uzman cevabını yönetmek.',
+    guidance: 'Rehberlik görüşmelerini ve notlarını yönetmek.',
+    gamification: 'Puan, rozet ve ilerleme kurallarını yönetmek.',
+    messages: 'İzinli mesajlaşmayı yönetmek.',
+    notifications: 'Bildirimleri ve tercihleri yönetmek.',
+    support: 'Destek talebini cevaplamak ve spam’i ayırmak.',
+    system: 'Servis durumu özeti.',
+    audit: 'Denetim kayıtlarını görmek.',
+    operations: 'Yedekleme ve operasyon durumunu görmek.'
+} %}
+<div class="admin-link-panel">
+    {% for item in items %}
+        <a class="admin-mini-link" href="{{ item.href }}">
+            <span class="admin-mini-link__icon">{% include 'components/admin_icon.html.twig' with { icon: icons[item.id]|default('default') } only %}</span>
+            <span class="admin-mini-link__copy">
+                <span class="admin-mini-link__line">
+                    <span class="admin-mini-link__title">{{ item.label }}</span>
+                    <span class="admin-mini-link__stage">{{ item.stage == 'planned' ? 'Geliştirme aşamasında' : 'Çalışıyor' }}</span>
+                </span>
+                <span class="admin-mini-link__blurb">{{ blurbs[item.id]|default('') }}</span>
+            </span>
+            <span class="admin-mini-link__arrow" aria-hidden="true">›</span>
+        </a>
+    {% endfor %}
+</div>

@@ -34,6 +34,26 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSame('/yonetim/bolum/medya', $mediaLinks->eq(2)->attr('href'));
         self::assertStringContainsString('Dosyalar ve depolama alanı.', $mediaLinks->eq(2)->text());
         self::assertSame(0, $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-media-link')->count());
+        self::assertSame(0, $client->getCrawler()->filter('article.admin-directory-card--media a.admin-mini-link')->count());
+        $learningLinks = $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-mini-link');
+        self::assertGreaterThan(0, $learningLinks->count());
+        self::assertSame($learningLinks->count(), $learningLinks->filter('svg')->count());
+        self::assertContains('/yonetim/sorular', $learningLinks->extract(['href']));
+        self::assertContains('/yonetim/bolum/odevler', $learningLinks->extract(['href']));
+        $roleLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/bolum/rol-izinleri"]');
+        self::assertCount(1, $roleLink);
+        self::assertStringContainsString('Rol ve modül izinleri', $roleLink->text());
+        self::assertStringContainsString('Hangi rolün hangi yönetim bölümünü kullanacağını görmek.', $roleLink->text());
+        self::assertStringContainsString('Geliştirme aşamasında', $roleLink->text());
+        self::assertStringNotContainsString('Çalışıyor', $roleLink->text());
+        $usersLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/kullanicilar"]');
+        self::assertCount(1, $usersLink);
+        self::assertStringContainsString('Çalışıyor', $usersLink->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $usersLink->text());
+        $operationsLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/bolum/operasyon"]');
+        self::assertCount(1, $operationsLink);
+        self::assertStringContainsString('Yedekleme ve operasyon durumu', $operationsLink->text());
+        self::assertStringContainsString('Geliştirme aşamasında', $operationsLink->text());
 
         foreach (AdminSectionCatalog::all() as $section) {
             $href = '/yonetim/bolum/'.$section['key'];
@@ -60,6 +80,10 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/yonetim/haberler"]');
         self::assertSelectorExists('a[href="/yonetim/kullanicilar"]');
+        self::assertGreaterThan(0, $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/haberler"]')->count());
+        self::assertSame(0, $client->getCrawler()->filter('a.admin-mini-link[href^="/yonetim/bolum/"]')->count());
+        self::assertSame(0, $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/odemeler"]')->count());
+        self::assertStringContainsString('Çalışıyor', $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/kullanicilar"]')->text());
         self::assertSelectorNotExists('a[href="/yonetim/bolum/subeler"]');
         self::assertSelectorNotExists('a[href="/yonetim/bolum/dokumanlar"]');
         self::assertSelectorNotExists('a[href="/yonetim/bolum/videolar"]');
