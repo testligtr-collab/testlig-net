@@ -98,9 +98,8 @@ final class AdminUserQuery
                 // ROLE_USER is implicit; match users with empty stored global_roles.
                 $qb->andWhere('u.globalRoles = :emptyRoles')->setParameter('emptyRoles', []);
             } else {
-                $roleJson = json_encode($role->value, \JSON_THROW_ON_ERROR);
-                $qb->andWhere('JSON_CONTAINS(u.globalRoles, :roleJson) = 1')
-                    ->setParameter('roleJson', $roleJson);
+                $qb->andWhere('u.globalRoles LIKE :roleLike')
+                    ->setParameter('roleLike', '%"'.$role->value.'"%');
             }
         }
 

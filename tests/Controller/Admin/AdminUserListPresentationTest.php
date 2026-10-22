@@ -67,12 +67,12 @@ final class AdminUserListPresentationTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Doğrulanmadı');
         self::assertSelectorExists('a.admin-user-detail');
 
-        $client->request('GET', '/yonetim/kullanicilar', ['q' => $longEmail, 'status' => 'active', 'verified' => '1']);
+        $client->request('GET', '/yonetim/kullanicilar', ['q' => $longEmail, 'status' => 'active', 'role' => UserRole::Parent->value, 'verified' => '1']);
         self::assertResponseIsSuccessful();
         self::assertSame($open, $this->summary($client));
         self::assertSelectorExists('#user-filter-status option[value="active"][selected]');
         self::assertSelectorExists('#user-filter-verified option[value="1"][selected]');
-        self::assertSelectorExists('#user-filter-role option[value="'.UserRole::Parent->value.'"]');
+        self::assertSelectorExists('#user-filter-role option[value="'.UserRole::Parent->value.'"][selected]');
         self::assertSelectorTextContains('body', $longFirst);
         self::assertSelectorTextContains('body', $longLast);
         self::assertSelectorTextContains('body', $longEmail);
