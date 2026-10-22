@@ -1,5 +1,6 @@
 {% set status = admin_status(code|default('')) %}
-<span class="admin-status admin-status--{{ status.variant }}">
+{% set shown_variant = variant|default(status.variant) %}
+<span class="admin-status admin-status--{{ shown_variant }}">
     <span class="admin-status__dot" aria-hidden="true"></span>
     {{ status.label }}
 </span>

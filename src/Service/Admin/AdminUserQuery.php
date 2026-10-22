@@ -7,6 +7,7 @@ namespace App\Service\Admin;
 use App\Dto\AdminPagedResult;
 use App\Dto\AdminUserDetailView;
 use App\Dto\AdminUserListItemView;
+use App\Dto\AdminUserListSummary;
 use App\Entity\User;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
@@ -137,6 +138,33 @@ final class AdminUserQuery
         return new AdminPagedResult($items, $page, $pageSize, $total);
     }
 
+    public function summary(Uuid $actorId): AdminUserListSummary
+    {
+        $this->actorGuard->requireUsersView($actorId);
+
+        $result = $this->em->createQueryBuilder()
+            ->select('COUNT(u.id) AS total')
+            ->addSelect('SUM(CASE WHEN u.status = :active THEN 1 ELSE 0 END) AS activeCount')
+            ->addSelect('SUM(CASE WHEN u.status = :pending THEN 1 ELSE 0 END) AS pendingCount')
+            ->addSelect('SUM(CASE WHEN u.status = :suspended THEN 1 ELSE 0 END) AS suspendedCount')
+            ->from(User::class, 'u')
+            ->setParameter('active', UserStatus::Active)
+            ->setParameter('pending', UserStatus::PendingVerification)
+            ->setParameter('suspended', UserStatus::Suspended)
+            ->getQuery()
+            ->getSingleResult();
+        if (!\is_array($result)) {
+            throw new \RuntimeException('User summary query did not return a row.');
+        }
+
+        return new AdminUserListSummary(
+            $this->countValue($result['total'] ?? 0),
+            $this->countValue($result['activeCount'] ?? 0),
+            $this->countValue($result['pendingCount'] ?? 0),
+            $this->countValue($result['suspendedCount'] ?? 0),
+        );
+    }
+
     public function getDetail(Uuid $actorId, Uuid $userId): AdminUserDetailView
     {
         $actor = $this->actorGuard->requireUsersView($actorId);
@@ -219,6 +247,18 @@ final class AdminUserQuery
         }
 
         return $out;
+    }
+
+    private function countValue(mixed $value): int
+    {
+        if (\is_int($value)) {
+            return $value;
+        }
+        if (\is_float($value) || (\is_string($value) && is_numeric($value))) {
+            return (int) $value;
+        }
+
+        return 0;
     }
 
     private function parseBoolFilter(mixed $value): bool
