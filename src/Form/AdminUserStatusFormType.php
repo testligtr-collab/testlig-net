@@ -36,15 +36,14 @@ final class AdminUserStatusFormType extends AbstractType
                 UserStatus::Active => AdminUserStatusRequest::ACTION_REACTIVATE,
                 default => null,
             };
-            $label = match ($status) {
+            if (null === $action) {
+                continue;
+            }
+            $actions[match ($status) {
                 UserStatus::Suspended => 'Askıda',
                 UserStatus::Archived => 'Arşivlenmiş',
                 UserStatus::Active => 'Aktif',
-                default => null,
-            };
-            if (null !== $action && null !== $label) {
-                $actions[$label] = $action;
-            }
+            }] = $action;
         }
 
         $builder

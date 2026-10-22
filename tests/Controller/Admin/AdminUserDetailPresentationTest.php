@@ -256,7 +256,7 @@ final class AdminUserDetailPresentationTest extends WebTestCase
         $users = static::getContainer()->get(UserRepository::class);
         $user = $users->findOneByNormalizedEmail(strtolower($email));
         self::assertNotNull($user);
-        $roles = array_values($user->getRoles());
+        $roles = $user->getRoles();
         sort($roles);
         $state = [
             'id' => $user->getId()->toRfc4122(),

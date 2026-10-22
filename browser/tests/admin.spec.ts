@@ -234,8 +234,13 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await expect(nextCheckbox).toBeFocused();
     const outline = await nextCheckbox.evaluate((node) => getComputedStyle(node).outlineStyle);
     expect(outline, viewport.name).toBe('solid');
+    const shotHeight = await adminPage.evaluate(() => document.documentElement.scrollHeight);
+    await adminPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(shotHeight, 2400)),
+    });
     const file = path.join('artifacts', 'screenshots', `admin-kullanici-detay-${viewport.name}.png`);
-    await adminPage.screenshot({ path: file, fullPage: true });
+    await adminPage.screenshot({ path: file, fullPage: false });
     await info.attach(`admin-kullanici-detay-${viewport.name}.png`, { path: file, contentType: 'image/png' });
   }
   await adminPage.setViewportSize({ width: 1280, height: 900 });
