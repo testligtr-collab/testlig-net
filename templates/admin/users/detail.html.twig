@@ -1,8 +1,8 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Kullanıcı {{ user.shortRef }} — Testlig{% endblock %}
+{% block title %}Kullanıcı detayı — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,54 +10,185 @@
         <span aria-hidden="true">/</span>
         <span>{{ user.shortRef }}</span>
     </nav>
-    <h1 class="panel-greeting">{{ user.displayName() }}</h1>
-    <p class="muted">Ref <code>{{ user.shortRef }}</code>
-        {% if audit_href %}
-            · <a href="{{ audit_href }}">İşlem geçmişi</a>
+{% endblock %}
+
+{% block panel_content %}
+    {% set role_labels = {
+        'ROLE_USER': 'Kullanıcı',
+        'ROLE_STUDENT': 'Öğrenci',
+        'ROLE_PARENT': 'Veli',
+        'ROLE_TEACHER': 'Öğretmen',
+        'ROLE_EXPERT_TEACHER': 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER': 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER': 'Kurum yöneticisi',
+        'ROLE_MODERATOR': 'Moderatör',
+        'ROLE_ADMIN': 'Yönetici',
+        'ROLE_SUPER_ADMIN': 'Süper Yönetici'
+    } %}
+    {% set role_tones = {
+        'ROLE_STUDENT': 'student',
+        'ROLE_PARENT': 'parent',
+        'ROLE_TEACHER': 'teacher',
+        'ROLE_EXPERT_TEACHER': 'teacher',
+        'ROLE_HEAD_TEACHER': 'teacher',
+        'ROLE_INSTITUTION_MANAGER': 'admin',
+        'ROLE_MODERATOR': 'moderator',
+        'ROLE_ADMIN': 'admin',
+        'ROLE_SUPER_ADMIN': 'admin'
+    } %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
+    {% set created_month = user.createdAt|utc_present('n') %}
+    {% set status_tone = user.status.value == 'suspended' ? 'danger' : (user.status.value == 'active' ? 'success' : (user.status.value == 'archived' ? 'neutral' : 'warning')) %}
+    <div class="admin-user-detail-page">
+        <header class="admin-user-detail-head">
+            <div>
+                <h1 class="panel-greeting">Kullanıcı detayı</h1>
+                <p>Hesap bilgilerini, rollerini ve durumunu yönet.</p>
+            </div>
+            <div class="admin-user-detail-head__actions">
+                <a class="admin-user-detail-link" href="{{ path('app_admin_users') }}">
+                    <span aria-hidden="true">←</span>
+                    Listeye dön
+                </a>
+                {% if audit_href %}
+                    <a class="admin-user-detail-link" href="{{ audit_href }}">
+                        {% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}
+                        İşlem geçmişi
+                    </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="admin-user-detail-profile" aria-label="Hesap özeti">
+            <div class="admin-user-detail-identity">
+                <span class="admin-user-avatar admin-user-avatar--{{ user.avatarTone() }}" aria-hidden="true">{{ user.initials() }}</span>
+                <div class="admin-user-detail-identity__copy">
+                    <h2 class="admin-user-detail-name">{{ user.displayName() }}</h2>
+                    <p class="admin-user-detail-email">{{ user.email }}</p>
+                    <p class="admin-user-detail-ref">Ref {{ user.shortRef }}</p>
+                    <div class="admin-user-detail-pills">
+                        {% if user.status.value == 'suspended' %}
+                            {% include 'admin/_status.html.twig' with { code: user.status.value, variant: 'danger' } only %}
+                        {% else %}
+                            {% include 'admin/_status.html.twig' with { code: user.status.value } only %}
+                        {% endif %}
+                        {% for role in user.globalRoles %}
+                            <span class="admin-user-role admin-user-role--{{ role_tones[role]|default('user') }}">{{ role_labels[role]|default(role) }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <dl class="admin-user-detail-meta">
+                <div>
+                    <dt>E-posta doğrulaması</dt>
+                    <dd class="admin-user-verify admin-user-verify--{{ user.emailVerified ? 'yes' : 'no' }}">
+                        {% include 'components/admin_icon.html.twig' with { icon: user.emailVerified ? 'tests' : 'clock' } only %}
+                        <span>{{ user.emailVerified ? 'Doğrulanmış' : 'Doğrulanmamış' }}</span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>Kayıt tarihi</dt>
+                    <dd class="admin-user-detail-date">{{ user.createdAt|utc_present('j') }} {{ month_labels[created_month]|default(created_month) }} {{ user.createdAt|utc_present('Y') }} · {{ user.createdAt|utc_present('H:i') }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        {% if user.isProtectedSuperAdmin %}
+            <p class="admin-flash admin-flash--warning" role="status">Süper yönetici hesabı uygulama üzerinden yönetilemez.</p>
+        {% elseif user.isSelf %}
+            <p class="admin-flash admin-flash--warning" role="status">Kendi hesabınız üzerinde rol/durum değişikliği yapılamaz.</p>
         {% endif %}
-    </p>
 
-    <dl class="admin-detail-grid">
-        <div><dt>E-posta</dt><dd>{{ user.email }}</dd></div>
-        <div><dt>Durum</dt><dd>{% include 'components/status_chip.html.twig' with { label: user.status.value, variant: 'accent' } %}</dd></div>
-        <div><dt>Doğrulama</dt><dd>{{ user.emailVerified ? 'Doğrulanmış' : 'Doğrulanmamış' }}</dd></div>
-        <div><dt>Oluşturulma</dt><dd>{{ user.createdAt|utc_present }}</dd></div>
-        <div><dt>Global roller</dt>
-            <dd>
-                {% for role in user.globalRoles %}
-                    {% include 'components/status_chip.html.twig' with { label: role, variant: 'neutral' } %}
-                {% endfor %}
-            </dd>
-        </div>
-    </dl>
+        {% if roles_form or status_form %}
+            <div class="admin-user-detail-forms">
+                {% if roles_form %}
+                    <section class="admin-user-detail-card" aria-labelledby="roles-heading">
+                        <h2 id="roles-heading">
+                            {% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}
+                            Rolleri güncelle
+                        </h2>
+                        <p>Kullanıcının global rollerini seçin.</p>
+                        {{ form_start(roles_form, { attr: { class: 'admin-user-detail-form' } }) }}
+                            {% if roles_form.vars.submitted and not roles_form.vars.valid %}
+                                <div class="admin-user-detail-errors" role="alert">
+                                    {{ form_errors(roles_form) }}
+                                    {{ form_errors(roles_form.roles) }}
+                                    {{ form_errors(roles_form.reasonCode) }}
+                                    {{ form_errors(roles_form.confirm) }}
+                                </div>
+                            {% endif %}
+                            <div class="admin-user-role-options">
+                                {% for child in roles_form.roles %}
+                                    <label class="admin-user-role-option">
+                                        {{ form_widget(child) }}
+                                        <span>{{ child.vars.label }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                            {% do roles_form.roles.setRendered %}
+                            <div class="admin-user-detail-field">
+                                {{ form_label(roles_form.reasonCode) }}
+                                {{ form_widget(roles_form.reasonCode) }}
+                            </div>
+                            <label class="admin-user-detail-confirm">
+                                {{ form_widget(roles_form.confirm) }}
+                                <span>{{ roles_form.confirm.vars.label }}</span>
+                            </label>
+                            <div class="admin-user-detail-actions">
+                                <button type="submit" class="admin-user-detail-submit">Rolleri kaydet</button>
+                            </div>
+                            {{ form_rest(roles_form) }}
+                        {{ form_end(roles_form, { render_rest: false }) }}
+                    </section>
+                {% endif %}
 
-    {% if user.isProtectedSuperAdmin %}
-        <p class="admin-flash admin-flash--warning" role="status">Süper yönetici hesabı uygulama üzerinden yönetilemez.</p>
-    {% elseif user.isSelf %}
-        <p class="admin-flash admin-flash--warning" role="status">Kendi hesabınız üzerinde rol/durum değişikliği yapılamaz.</p>
-    {% endif %}
-
-    {% if roles_form %}
-        <section class="admin-mutation-block" aria-labelledby="roles-heading">
-            <h2 id="roles-heading">Rolleri güncelle</h2>
-            {{ form_start(roles_form, { attr: { class: 'admin-mutation-form' } }) }}
-                {{ form_row(roles_form.roles) }}
-                {{ form_row(roles_form.reasonCode) }}
-                {{ form_row(roles_form.confirm) }}
-                <button type="submit" class="btn btn--primary">Rolleri kaydet</button>
-            {{ form_end(roles_form) }}
-        </section>
-    {% endif %}
-
-    {% if status_form %}
-        <section class="admin-mutation-block" aria-labelledby="status-heading">
-            <h2 id="status-heading">Durumu güncelle</h2>
-            {{ form_start(status_form, { attr: { class: 'admin-mutation-form' } }) }}
-                {{ form_row(status_form.action) }}
-                {{ form_row(status_form.reasonCode) }}
-                {{ form_row(status_form.confirm) }}
-                <button type="submit" class="btn btn--primary">Durumu kaydet</button>
-            {{ form_end(status_form) }}
-        </section>
-    {% endif %}
+                {% if status_form %}
+                    <section class="admin-user-detail-card" aria-labelledby="status-heading">
+                        <h2 id="status-heading">
+                            {% include 'components/admin_icon.html.twig' with { icon: 'audit' } only %}
+                            Durumu güncelle
+                        </h2>
+                        <p>Hesabın erişim durumunu düzenleyin.</p>
+                        {{ form_start(status_form, { attr: { class: 'admin-user-detail-form' } }) }}
+                            {% if status_form.vars.submitted and not status_form.vars.valid %}
+                                <div class="admin-user-detail-errors" role="alert">
+                                    {{ form_errors(status_form) }}
+                                    {{ form_errors(status_form.action) }}
+                                    {{ form_errors(status_form.reasonCode) }}
+                                    {{ form_errors(status_form.confirm) }}
+                                </div>
+                            {% endif %}
+                            <div class="admin-user-detail-current admin-user-detail-current--{{ status_tone }}">
+                                <span>Mevcut durum</span>
+                                {% if user.status.value == 'suspended' %}
+                                    {% include 'admin/_status.html.twig' with { code: user.status.value, variant: 'danger' } only %}
+                                {% else %}
+                                    {% include 'admin/_status.html.twig' with { code: user.status.value } only %}
+                                {% endif %}
+                            </div>
+                            <div class="admin-user-detail-field">
+                                {{ form_label(status_form.action) }}
+                                {{ form_widget(status_form.action) }}
+                            </div>
+                            <div class="admin-user-detail-field">
+                                {{ form_label(status_form.reasonCode) }}
+                                {{ form_widget(status_form.reasonCode) }}
+                            </div>
+                            <label class="admin-user-detail-confirm">
+                                {{ form_widget(status_form.confirm) }}
+                                <span>{{ status_form.confirm.vars.label }}</span>
+                            </label>
+                            <div class="admin-user-detail-actions">
+                                <button type="submit" class="admin-user-detail-submit">Durumu kaydet</button>
+                            </div>
+                            {{ form_rest(status_form) }}
+                        {{ form_end(status_form, { render_rest: false }) }}
+                    </section>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
 {% endblock %}

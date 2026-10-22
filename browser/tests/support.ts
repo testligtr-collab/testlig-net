@@ -32,6 +32,7 @@ type Manifest = {
     testTitle: string;
     foreignTitle: string;
     endedClassroom: string;
+    userDetail: string;
   };
 };
 

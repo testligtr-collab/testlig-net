@@ -36,8 +36,14 @@ final class AdminUserStatusFormType extends AbstractType
                 UserStatus::Active => AdminUserStatusRequest::ACTION_REACTIVATE,
                 default => null,
             };
-            if (null !== $action) {
-                $actions[$status->value] = $action;
+            $label = match ($status) {
+                UserStatus::Suspended => 'Askıda',
+                UserStatus::Archived => 'Arşivlenmiş',
+                UserStatus::Active => 'Aktif',
+                default => null,
+            };
+            if (null !== $action && null !== $label) {
+                $actions[$label] = $action;
             }
         }
 
@@ -48,7 +54,7 @@ final class AdminUserStatusFormType extends AbstractType
                 'placeholder' => 'İşlem seçin',
             ])
             ->add('reasonCode', ChoiceType::class, [
-                'label' => 'Gerekçe',
+                'label' => 'Değişiklik gerekçesi',
                 'choices' => [
                     'Politika ihlali' => AdminUserStatusRequest::REASON_POLICY_VIOLATION,
                     'Hesap incelemesi' => AdminUserStatusRequest::REASON_ACCOUNT_REVIEW,
