@@ -2176,6 +2176,20 @@ body.is-admin-panel {
 }
 @media (min-width: 1024px) {
     .is-admin-panel .admin-user-table { min-width: 52rem; }
+    .is-admin-panel .admin-user-table > tbody > tr > td {
+        display: table-cell;
+        border-bottom-color: transparent;
+    }
+    .is-admin-panel .admin-user-table > tbody > tr,
+    .is-admin-panel .admin-user-table > tbody > tr:hover {
+        background-image: linear-gradient(var(--tl-border), var(--tl-border));
+        background-repeat: no-repeat;
+        background-position: left bottom;
+        background-size: 100% 1px;
+    }
+    .is-admin-panel .admin-user-table > tbody > tr:hover {
+        background-color: #f7fafc;
+    }
 }
 @media (max-width: 1023px) {
     .is-admin-panel .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
