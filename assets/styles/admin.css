@@ -1308,7 +1308,7 @@ body.is-admin-panel {
     font-size: 1.3rem;
 }
 .is-admin-panel .admin-section-links[open] .admin-section-chevron { transform: rotate(90deg); }
-.is-admin-panel .admin-directory-card--media .admin-section-links[open] .admin-section-chevron { transform: rotate(-90deg); }
+.is-admin-panel .admin-overview .admin-directory-card .admin-section-links[open] .admin-section-chevron { transform: rotate(-90deg); }
 .is-admin-panel .admin-directory-card--media:has(.admin-section-links[open]) {
     background: #fff6f8;
     border-color: #f4c9d3;
@@ -1456,6 +1456,252 @@ body.is-admin-panel {
 .is-admin-panel .admin-section-links__body {
     padding: 0.4rem 1rem 1rem;
     border-top: 1px solid #edf1f6;
+}
+.is-admin-panel .admin-overview .admin-directory-card {
+    --section-shell: #f7f9fc;
+    --section-line: #d5e0ec;
+    --section-notch: #d5e0ec;
+    --section-shadow: 0 8px 22px #284c7a0f;
+    --section-mini: #f7f9fc;
+    --section-mini-line: #d5e0ec;
+    --section-mini-hover: #eef3f8;
+    --section-mini-hover-line: #b9c9db;
+    --section-icon-bg: #eef2f6;
+    --section-icon: #445066;
+}
+.is-admin-panel .admin-overview .admin-directory-card--learning {
+    --section-shell: #f3fbf6;
+    --section-line: #b7e4c7;
+    --section-notch: #b7e4c7;
+    --section-shadow: 0 8px 22px #0f8a4b0f;
+    --section-mini: #f4fbf7;
+    --section-mini-line: #c9ead6;
+    --section-mini-hover: #e7f6ee;
+    --section-mini-hover-line: #8fd4a8;
+    --section-icon-bg: #e5f6ec;
+    --section-icon: #0f8a4b;
+}
+.is-admin-panel .admin-overview .admin-directory-card--people {
+    --section-shell: #f4f8ff;
+    --section-line: #c5d8f6;
+    --section-notch: #c5d8f6;
+    --section-shadow: 0 8px 22px #2f6fe40f;
+    --section-mini: #f7faff;
+    --section-mini-line: #d0dff8;
+    --section-mini-hover: #eaf2ff;
+    --section-mini-hover-line: #a8c4f2;
+    --section-icon-bg: #e7f1ff;
+    --section-icon: #2f6fe4;
+}
+.is-admin-panel .admin-overview .admin-directory-card--campus {
+    --section-shell: #f7f5fd;
+    --section-line: #d9cef6;
+    --section-notch: #d9cef6;
+    --section-shadow: 0 8px 22px #7136db0f;
+    --section-mini: #faf8ff;
+    --section-mini-line: #e0d7f8;
+    --section-mini-hover: #f3efff;
+    --section-mini-hover-line: #c4b0ef;
+    --section-icon-bg: #f3eaff;
+    --section-icon: #7136db;
+}
+.is-admin-panel .admin-overview .admin-directory-card--site {
+    --section-shell: #fff8f1;
+    --section-line: #f6d7b5;
+    --section-notch: #f6d7b5;
+    --section-shadow: 0 8px 22px #d2610d0f;
+    --section-mini: #fffaf5;
+    --section-mini-line: #f3dcc0;
+    --section-mini-hover: #fff1e4;
+    --section-mini-hover-line: #efc091;
+    --section-icon-bg: #fff0dc;
+    --section-icon: #d2610d;
+}
+.is-admin-panel .admin-overview .admin-directory-card--communication {
+    --section-shell: #f3fbfe;
+    --section-line: #b9e3f2;
+    --section-notch: #b9e3f2;
+    --section-shadow: 0 8px 22px #0b7ea80f;
+    --section-mini: #f6fcfe;
+    --section-mini-line: #c5e7f4;
+    --section-mini-hover: #e7f6fc;
+    --section-mini-hover-line: #8fd0e6;
+    --section-icon-bg: #e5f6fc;
+    --section-icon: #0b7ea8;
+}
+.is-admin-panel .admin-overview .admin-directory-card--interactive {
+    --section-shell: #f7f6ff;
+    --section-line: #d5d2f6;
+    --section-notch: #d5d2f6;
+    --section-shadow: 0 8px 22px #4d46c80f;
+    --section-mini: #f8f7ff;
+    --section-mini-line: #ddd9f8;
+    --section-mini-hover: #f0efff;
+    --section-mini-hover-line: #bdb6ef;
+    --section-icon-bg: #eeebff;
+    --section-icon: #4d46c8;
+}
+.is-admin-panel .admin-overview .admin-directory-card--commerce {
+    --section-shell: #fffaf0;
+    --section-line: #f0ddb0;
+    --section-notch: #f0ddb0;
+    --section-shadow: 0 8px 22px #9a6b100f;
+    --section-mini: #fffbf4;
+    --section-mini-line: #f0e2c0;
+    --section-mini-hover: #fff6e4;
+    --section-mini-hover-line: #e6cc8a;
+    --section-icon-bg: #fff3d6;
+    --section-icon: #9a6b10;
+}
+.is-admin-panel .admin-overview .admin-directory-card--integrations {
+    --section-shell: #f6f8fb;
+    --section-line: #cdd6e2;
+    --section-notch: #cdd6e2;
+    --section-shadow: 0 8px 22px #3d55700f;
+    --section-mini: #f8fafc;
+    --section-mini-line: #d5dee8;
+    --section-mini-hover: #eef3f8;
+    --section-mini-hover-line: #b7c5d6;
+    --section-icon-bg: #e8eef5;
+    --section-icon: #3d5570;
+}
+.is-admin-panel .admin-overview .admin-directory-card--system {
+    --section-shell: #f4f7fa;
+    --section-line: #c9d5e2;
+    --section-notch: #c9d5e2;
+    --section-shadow: 0 8px 22px #3e53680f;
+    --section-mini: #f7f9fb;
+    --section-mini-line: #d3dee8;
+    --section-mini-hover: #eef2f6;
+    --section-mini-hover-line: #b4c4d4;
+    --section-icon-bg: #e7eef5;
+    --section-icon: #3e5368;
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media):has(.admin-section-links[open]) {
+    background: var(--section-shell);
+    border-color: var(--section-line);
+    box-shadow: var(--section-shadow);
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links[open] > summary,
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links[open] > summary:hover {
+    background: transparent;
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links__body {
+    border-top: 0;
+    padding: 0 0.85rem 0.9rem;
+}
+.is-admin-panel .admin-link-panel {
+    position: relative;
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.15rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--section-notch);
+}
+.is-admin-panel .admin-link-panel::before,
+.is-admin-panel .admin-link-panel::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    background: transparent;
+}
+.is-admin-panel .admin-link-panel::before {
+    top: -1px;
+    border-right: 6px solid transparent;
+    border-left: 6px solid transparent;
+    border-bottom: 6px solid var(--section-shell);
+    z-index: 1;
+}
+.is-admin-panel .admin-link-panel::after {
+    top: -2px;
+    border-right: 7px solid transparent;
+    border-left: 7px solid transparent;
+    border-bottom: 7px solid var(--section-notch);
+    z-index: 0;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.75rem;
+    min-height: 4.6rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid var(--section-mini-line);
+    border-radius: 0.75rem;
+    background: var(--section-mini);
+    color: #13213c;
+    font-weight: 500;
+    text-decoration: none;
+    overflow: hidden;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:hover,
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:focus-visible {
+    border-color: var(--section-mini-hover-line);
+    background: var(--section-mini-hover);
+    color: #13213c;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-mini-link__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: var(--section-icon-bg);
+    color: var(--section-icon);
+}
+.is-admin-panel .admin-mini-link__icon .admin-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+.is-admin-panel .admin-mini-link__copy { min-width: 0; }
+.is-admin-panel .admin-mini-link__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.45rem;
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-mini-link__title {
+    min-width: 0;
+    color: #13213c;
+    font-size: 0.92rem;
+    font-weight: 750;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__blurb {
+    display: block;
+    margin-top: 0.15rem;
+    color: #73829a;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__stage {
+    max-width: 100%;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #f1f4f8;
+    color: #66758c;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__arrow {
+    color: #8aa0b8;
+    font-size: 1.2rem;
+    line-height: 1;
 }
 .is-admin-panel .admin-all-sections {
     margin-top: 1.1rem;

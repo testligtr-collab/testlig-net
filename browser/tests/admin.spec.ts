@@ -1,4 +1,5 @@
-import { expect, test } from '@playwright/test';
+import path from 'node:path';
+import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { assertClean, assertLayout, installVideoAbort, login, manifest, shot, VIEWPORTS, watch } from './support';
 
 const NEWS_VIEWPORTS = [
@@ -50,6 +51,13 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       await closeDrawer(adminPage);
     }
   }
+  await adminPage.setViewportSize({ width: 1440, height: 900 });
+  await adminPage.goto('/yonetim');
+  await openOverviewCards(adminPage);
+  await expect(adminPage.locator('a[href^="/yonetim/bolum/"]')).toHaveCount(0);
+  await expect(adminPage.locator('a[href="/yonetim/odemeler"]')).toHaveCount(0);
+  await expect(adminPage.locator('a[href="/yonetim/denetim"]')).toHaveCount(0);
+  await expect(adminPage.locator('a.admin-mini-link[href="/yonetim/kullanicilar"]')).toContainText('Çalışıyor');
   await adminPage.setViewportSize({ width: 640, height: 800 });
   await adminPage.goto('/yonetim');
   const zoomMenu = adminPage.getByRole('button', { name: 'Menü', exact: true });
@@ -99,7 +107,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(saPage.locator('.admin-all-sections')).toHaveJSProperty('open', true);
   const learningCard = saPage.locator('article[aria-labelledby="nav-shortcut-learning"]');
   await learningCard.locator('summary').click();
-  await expect(learningCard.getByRole('link', { name: 'Soru havuzu', exact: true })).toBeVisible();
+  await expect(learningCard.getByRole('link', { name: 'Soru havuzu' })).toBeVisible();
   await expect(learningCard).toContainText('Çalışıyor');
   await expect(learningCard).toContainText('Geliştirme aşamasında');
   await expect(learningCard.locator('a.admin-media-link')).toHaveCount(0);
@@ -182,6 +190,47 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       ]);
       await saPage.mouse.move(0, 0);
       await shot(saPage, info, 'superadmin', 'medya', viewport.name);
+      await openOverviewCards(saPage);
+      await expect(saPage.locator('article.admin-directory-card')).toHaveCount(10);
+      const pageOverflow = await saPage.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+      expect(pageOverflow).toBe(false);
+      const peopleCard = saPage.locator('article[aria-labelledby="nav-shortcut-people"]');
+      await peopleCard.locator('summary').click();
+      await expect(peopleCard.locator('details')).toHaveJSProperty('open', false);
+      await peopleCard.locator('summary').focus();
+      await saPage.keyboard.press('Enter');
+      await expect(peopleCard.locator('details')).toHaveJSProperty('open', true);
+      await saPage.keyboard.press('Tab');
+      const peopleLink = peopleCard.locator('a.admin-mini-link').first();
+      await expect(peopleLink).toBeFocused();
+      const focusStyle = await peopleLink.evaluate((node) => getComputedStyle(node).outlineStyle);
+      expect(focusStyle).toBe('solid');
+      const hrefs = await saPage.locator('article.admin-directory-card a.admin-mini-link, article.admin-directory-card a.admin-media-link').evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')));
+      expect(hrefs).toEqual(expect.arrayContaining([
+        '/yonetim/sorular',
+        '/yonetim/kullanicilar',
+        '/yonetim/bolum/dokumanlar',
+        '/yonetim/bolum/videolar',
+        '/yonetim/bolum/medya',
+        '/yonetim/bolum/rol-izinleri',
+        '/yonetim/bolum/operasyon',
+        '/yonetim/denetim',
+        '/yonetim/odemeler',
+      ]));
+      await saPage.mouse.move(0, 0);
+      if (viewport.width === 1440) {
+        await shotFull(saPage, info, 'superadmin-gruplar-1440.png');
+      }
+      if (viewport.width === 768 || viewport.width === 390) {
+        await peopleCard.scrollIntoViewIfNeeded();
+        await shot(saPage, info, 'superadmin', 'kisiler', String(viewport.width));
+        const systemCard = saPage.locator('article[aria-labelledby="nav-shortcut-system"]');
+        await systemCard.scrollIntoViewIfNeeded();
+        await shot(saPage, info, 'superadmin', 'sistem', String(viewport.width));
+        const siteCard = saPage.locator('article[aria-labelledby="nav-shortcut-site"]');
+        await siteCard.scrollIntoViewIfNeeded();
+        await shot(saPage, info, 'superadmin', 'site', String(viewport.width));
+      }
     }
     if (viewport.width >= 1024) {
       await expect(saPage.locator('#panel-sidebar')).toBeVisible();
@@ -326,6 +375,56 @@ async function expandAdminGroups(page: import('@playwright/test').Page): Promise
       await group.locator('summary').click();
     }
   }
+}
+
+async function openOverviewCards(page: Page): Promise<void> {
+  const all = page.locator('.admin-all-sections');
+  if ((await all.getAttribute('open')) === null) {
+    await all.locator('summary').click();
+  }
+  await expect(all).toHaveJSProperty('open', true);
+  const cards = page.locator('article.admin-directory-card');
+  const count = await cards.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    const card = cards.nth(index);
+    const details = card.locator('details');
+    if ((await details.getAttribute('open')) === null) {
+      await card.locator('summary').click();
+    }
+    await expect(details).toHaveJSProperty('open', true);
+    const links = card.locator('a.admin-mini-link, a.admin-media-link');
+    expect(await links.count()).toBeGreaterThan(0);
+    const collided = await links.evaluateAll((nodes) => nodes.some((node) => {
+      if (!(node instanceof HTMLElement) || node.scrollWidth > node.clientWidth + 1) {
+        return true;
+      }
+      if (!node.classList.contains('admin-mini-link')) {
+        return false;
+      }
+      const copy = node.querySelector('.admin-mini-link__copy, .admin-media-link__copy');
+      const icon = node.querySelector('.admin-mini-link__icon, .admin-media-link__icon');
+      const arrow = node.querySelector('.admin-mini-link__arrow, .admin-media-link__arrow');
+      if (!(copy instanceof HTMLElement) || !(icon instanceof HTMLElement) || !(arrow instanceof HTMLElement)) {
+        return true;
+      }
+      const copyBox = copy.getBoundingClientRect();
+      const iconBox = icon.getBoundingClientRect();
+      const arrowBox = arrow.getBoundingClientRect();
+      if (copyBox.left < iconBox.right - 1 || copyBox.right > arrowBox.left + 1) {
+        return true;
+      }
+      return Array.from(node.querySelectorAll('.admin-mini-link__title, .admin-mini-link__blurb, .admin-mini-link__stage, .admin-media-link__title, .admin-media-link__blurb, .admin-media-link__stage')).some((text) => text instanceof HTMLElement && text.scrollWidth > text.clientWidth + 1);
+    }));
+    expect(collided).toBe(false);
+  }
+}
+
+async function shotFull(page: Page, info: TestInfo, name: string): Promise<void> {
+  expect(name).not.toMatch(/@|[0-9a-f]{8}-[0-9a-f]{4}-/i);
+  const file = path.join('artifacts', 'screenshots', name);
+  await page.screenshot({ path: file, fullPage: true });
+  await info.attach(name, { path: file, contentType: 'image/png' });
 }
 
 async function closeDrawer(page: import('@playwright/test').Page): Promise<void> {
