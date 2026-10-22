@@ -136,7 +136,7 @@
       "evidence": [
         "src/Controller/Admin/AdminUserController.php",
         "Kullanıcı listesi özet sayaçları filtrelerden bağımsız ve mevcut görüntüleme yetkisiyle gerçek kayıtlardan gelir. Arama, durum, rol ve doğrulama filtreleri aynı GET parametrelerinde kalır. Rol ve durum değiştirme bu görsel dilimde değişmedi. Kullanıcı yönetiminin bütün kapsamı tamamlanmış değildir. Ekran görüntüsü canlı görsel kabul değildir.",
-        "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz."
+        "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Satır ayırıcısı satırın kendi çizgisidir. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz."
       ],
       "pr_links": [],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
@@ -1155,7 +1155,7 @@
         "Açık Medya kartı Dokümanlar, Videolar ve Medya ve depolama mini kartlarını mevcut bölüm adresleriyle ve Geliştirme aşamasında etiketiyle gösterir. İzni olmayan bağlantı basılmaz. Diğer kartlar, sol menü ve sayaçlar aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Medya dışındaki Genel Bakış kartları ve Tüm bölümleri göster grupları ortak mini kart düzenini kullanır. Her grubun açık renk ailesi ayrıdır. Çalışan ekranlar kendi adresinde, geliştirme aşamasındaki bölümler mevcut bölüm girişinde kalır. Durum etiketi gerçek aşamayı gösterir. Medya kartının kabul edilmiş renkleri aynıdır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcılar listesinin görsel düzeni yönetim kabuğunun içinde yenilendi. Sol menü, Genel Bakış, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

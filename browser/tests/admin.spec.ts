@@ -108,7 +108,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     const alignment = await adminPage.evaluate(() => {
       const row = document.querySelector('.admin-user-table tbody tr');
       if (!(row instanceof HTMLTableRowElement)) {
-        return { rows: 0, cells: [], dateDisplay: '', personDisplay: '' };
+        return { rows: 0, cells: [], dateDisplay: '', personDisplay: '', dateBorder: '', rowLine: '' };
       }
       const cells = [...row.querySelectorAll(':scope > td')].map((cell) => {
         const box = cell.getBoundingClientRect();
@@ -122,11 +122,14 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       });
       const stack = row.querySelector('.admin-user-date__stack');
       const person = row.querySelector('.admin-user-person__layout');
+      const date = row.querySelector('td.admin-user-date');
       return {
         rows: 1,
         cells,
         dateDisplay: stack instanceof HTMLElement ? getComputedStyle(stack).display : '',
         personDisplay: person instanceof HTMLElement ? getComputedStyle(person).display : '',
+        dateBorder: date instanceof HTMLElement ? getComputedStyle(date).borderBottomColor : '',
+        rowLine: getComputedStyle(row).backgroundImage,
       };
     });
     expect(alignment.rows, viewport.name).toBe(1);
@@ -140,6 +143,8 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       }
       expect(alignment.dateDisplay, viewport.name).toBe('grid');
       expect(alignment.personDisplay, viewport.name).toBe('flex');
+      expect(alignment.dateBorder, viewport.name).toBe('rgba(0, 0, 0, 0)');
+      expect(alignment.rowLine, viewport.name).toContain('linear-gradient');
       await adminPage.locator('.admin-user-date').first().hover();
       const hoverState = await adminPage.evaluate(() => {
         const row = document.querySelector('.admin-user-table tbody tr');
