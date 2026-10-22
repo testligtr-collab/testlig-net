@@ -72,6 +72,7 @@ final class AdminUserController extends AdminBaseController
             'result' => $result,
             'filters' => $filters,
             'role_choices' => UserRole::cases(),
+            'summary' => $this->userQuery->summary($this->requireActorId()),
         ]);
     }
 

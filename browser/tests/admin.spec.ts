@@ -82,6 +82,51 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await assertLayout(adminPage);
     await shot(adminPage, info, 'admin', name, '1280');
   }
+  await adminPage.goto('/yonetim/kullanicilar');
+  await adminPage.locator('#user-filter-role').selectOption('ROLE_STUDENT');
+  await adminPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(adminPage).toHaveURL(/role=ROLE_STUDENT/);
+  await expect(adminPage.locator('#user-filter-role')).toHaveValue('ROLE_STUDENT');
+  await adminPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(adminPage).toHaveURL(/\/yonetim\/kullanicilar$/);
+  for (const viewport of [
+    { name: '390', width: 390, height: 844 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '1440', width: 1440, height: 900 },
+  ]) {
+    await adminPage.setViewportSize(viewport);
+    await adminPage.goto('/yonetim/kullanicilar');
+    await expect(adminPage.getByRole('heading', { level: 1, name: 'Kullanıcılar' })).toBeVisible();
+    await expect(adminPage.locator('[data-user-summary]')).toHaveCount(4);
+    await expect(adminPage.getByRole('button', { name: 'Filtrele' })).toBeVisible();
+    const metrics = await adminPage.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }));
+    expect(metrics.scroll, `${viewport.name} scroll ${metrics.scroll} client ${metrics.client}`).toBeLessThanOrEqual(metrics.client + 1);
+    await adminPage.getByLabel('Ara').fill('user-list-browser-missing');
+    await adminPage.getByRole('button', { name: 'Filtrele' }).click();
+    await expect(adminPage.getByText('Filtrelere uygun kullanıcı bulunamadı.')).toBeVisible();
+    await adminPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+    await expect(adminPage).toHaveURL(/\/yonetim\/kullanicilar$/);
+    const filter = adminPage.getByRole('button', { name: 'Filtrele' });
+    await adminPage.locator('#user-filter-q').focus();
+    await adminPage.keyboard.press('Tab');
+    await adminPage.keyboard.press('Tab');
+    await adminPage.keyboard.press('Tab');
+    await adminPage.keyboard.press('Tab');
+    await expect(filter).toBeFocused();
+    const outline = await filter.evaluate((node) => getComputedStyle(node).outlineStyle);
+    expect(outline).toBe('solid');
+    const detail = adminPage.locator('a.admin-user-detail').first();
+    if (await detail.count()) {
+      await detail.click();
+      await expect(adminPage).toHaveURL(/\/yonetim\/kullanicilar\/[0-9a-f-]{36}$/i);
+      await adminPage.goto('/yonetim/kullanicilar');
+    }
+    await adminPage.mouse.move(0, 0);
+    await shot(adminPage, info, 'admin', 'kullanicilar', viewport.name);
+  }
   await adminPage.goto(data.paths.reviewDetail);
   await expect(adminPage.getByRole('button', { name: 'Yayımla' })).toBeVisible();
   const logout = adminPage.locator('form.admin-logout-form');
