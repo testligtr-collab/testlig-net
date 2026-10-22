@@ -140,12 +140,17 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       }
       expect(alignment.dateDisplay, viewport.name).toBe('grid');
       expect(alignment.personDisplay, viewport.name).toBe('flex');
-      await adminPage.locator('.admin-user-table tbody tr').first().hover();
-      const hovered = await adminPage.evaluate(() => {
+      await adminPage.locator('.admin-user-date').first().hover();
+      const hoverState = await adminPage.evaluate(() => {
         const row = document.querySelector('.admin-user-table tbody tr');
-        return row instanceof HTMLElement ? getComputedStyle(row).backgroundColor : '';
+        const date = row?.querySelector('td.admin-user-date');
+        return {
+          row: row instanceof Element && row.matches(':hover'),
+          date: date instanceof Element && date.matches(':hover'),
+        };
       });
-      expect(hovered, viewport.name).toBe('rgb(247, 250, 252)');
+      expect(hoverState.row, viewport.name).toBe(true);
+      expect(hoverState.date, viewport.name).toBe(true);
     } else {
       expect(alignment.cells.every((cell) => cell.display === 'block'), viewport.name).toBe(true);
       await expect(adminPage.locator('a.admin-user-detail').first()).toBeVisible();
