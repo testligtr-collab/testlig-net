@@ -2071,7 +2071,7 @@ body.is-admin-panel {
     color: #53647d;
     font-size: 0.78rem;
 }
-.is-admin-panel .admin-user-person {
+.is-admin-panel .admin-user-person__layout {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
@@ -2146,12 +2146,14 @@ body.is-admin-panel {
 .is-admin-panel .admin-user-verify--yes { color: #0f8a4b; }
 .is-admin-panel .admin-user-verify--no { color: #9a4b12; }
 .is-admin-panel .admin-user-date {
-    display: grid;
-    gap: 0.1rem;
     color: #16324f;
     white-space: nowrap;
 }
-.is-admin-panel .admin-user-date span:last-child { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel .admin-user-date__stack {
+    display: grid;
+    gap: 0.1rem;
+}
+.is-admin-panel .admin-user-date__stack span:last-child { color: #66758c; font-size: 0.78rem; }
 .is-admin-panel .admin-user-detail {
     display: inline-flex;
     align-items: center;
@@ -2211,7 +2213,7 @@ body.is-admin-panel {
         font-weight: 750;
     }
     .is-admin-panel .admin-user-person::before { content: none; }
-    .is-admin-panel .admin-user-person { min-width: 0; }
+    .is-admin-panel .admin-user-person__layout { min-width: 0; }
     .is-admin-panel .admin-user-roles { max-width: none; }
     .is-admin-panel .admin-user-date { white-space: normal; }
 }
