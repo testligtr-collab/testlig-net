@@ -153,11 +153,13 @@
                             {% for row in result.items %}
                                 <tr>
                                     <td class="admin-user-person" data-label="Kullanıcı">
-                                        <span class="admin-user-avatar admin-user-avatar--{{ row.avatarTone() }}" aria-hidden="true">{{ row.initials() }}</span>
-                                        <span class="admin-user-person__copy">
-                                            <span class="admin-user-person__name">{{ row.displayName() }}</span>
-                                            <span class="admin-user-person__email">{{ row.email }}</span>
-                                            <span class="admin-user-person__ref">Ref {{ row.shortRef }}</span>
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar admin-user-avatar--{{ row.avatarTone() }}" aria-hidden="true">{{ row.initials() }}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.displayName() }}</span>
+                                                <span class="admin-user-person__email">{{ row.email }}</span>
+                                                <span class="admin-user-person__ref">Ref {{ row.shortRef }}</span>
+                                            </span>
                                         </span>
                                     </td>
                                     <td data-label="Durum">
@@ -182,8 +184,10 @@
                                     </td>
                                     <td class="admin-user-date" data-label="Kayıt tarihi">
                                         {% set created_month = row.createdAt|utc_present('n') %}
-                                        <span>{{ row.createdAt|utc_present('j') }} {{ month_labels[created_month]|default(created_month) }} {{ row.createdAt|utc_present('Y') }}</span>
-                                        <span>{{ row.createdAt|utc_present('H:i') }}</span>
+                                        <span class="admin-user-date__stack">
+                                            <span>{{ row.createdAt|utc_present('j') }} {{ month_labels[created_month]|default(created_month) }} {{ row.createdAt|utc_present('Y') }}</span>
+                                            <span>{{ row.createdAt|utc_present('H:i') }}</span>
+                                        </span>
                                     </td>
                                     <td class="admin-user-action" data-label="İşlem">
                                         <a class="admin-user-detail" href="{{ path('app_admin_user_detail', { id: row.id }) }}">Detay <span aria-hidden="true">›</span></a>

@@ -93,6 +93,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     { name: '390', width: 390, height: 844 },
     { name: '768', width: 768, height: 1024 },
     { name: '1440', width: 1440, height: 900 },
+    { name: '1920', width: 1920, height: 1080 },
   ]) {
     await adminPage.setViewportSize(viewport);
     await adminPage.goto('/yonetim/kullanicilar');
@@ -104,6 +105,56 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       client: document.documentElement.clientWidth,
     }));
     expect(metrics.scroll, `${viewport.name} scroll ${metrics.scroll} client ${metrics.client}`).toBeLessThanOrEqual(metrics.client + 1);
+    const alignment = await adminPage.evaluate(() => {
+      const row = document.querySelector('.admin-user-table tbody tr');
+      if (!(row instanceof HTMLTableRowElement)) {
+        return { rows: 0, cells: [], dateDisplay: '', personDisplay: '' };
+      }
+      const cells = [...row.querySelectorAll(':scope > td')].map((cell) => {
+        const box = cell.getBoundingClientRect();
+        const style = getComputedStyle(cell);
+        return {
+          display: style.display,
+          background: style.backgroundColor,
+          top: box.top,
+          bottom: box.bottom,
+        };
+      });
+      const stack = row.querySelector('.admin-user-date__stack');
+      const person = row.querySelector('.admin-user-person__layout');
+      return {
+        rows: 1,
+        cells,
+        dateDisplay: stack instanceof HTMLElement ? getComputedStyle(stack).display : '',
+        personDisplay: person instanceof HTMLElement ? getComputedStyle(person).display : '',
+      };
+    });
+    expect(alignment.rows, viewport.name).toBe(1);
+    if (viewport.width >= 1024) {
+      const first = alignment.cells[0];
+      for (const cell of alignment.cells) {
+        expect(cell.display, viewport.name).toBe('table-cell');
+        expect(cell.background, viewport.name).toBe('rgba(0, 0, 0, 0)');
+        expect(Math.abs(cell.top - first.top), viewport.name).toBeLessThanOrEqual(1);
+        expect(Math.abs(cell.bottom - first.bottom), viewport.name).toBeLessThanOrEqual(1);
+      }
+      expect(alignment.dateDisplay, viewport.name).toBe('grid');
+      expect(alignment.personDisplay, viewport.name).toBe('flex');
+      await adminPage.locator('.admin-user-date').first().hover();
+      const hoverState = await adminPage.evaluate(() => {
+        const row = document.querySelector('.admin-user-table tbody tr');
+        const date = row?.querySelector('td.admin-user-date');
+        return {
+          row: row instanceof Element && row.matches(':hover'),
+          date: date instanceof Element && date.matches(':hover'),
+        };
+      });
+      expect(hoverState.row, viewport.name).toBe(true);
+      expect(hoverState.date, viewport.name).toBe(true);
+    } else {
+      expect(alignment.cells.every((cell) => cell.display === 'block'), viewport.name).toBe(true);
+      await expect(adminPage.locator('a.admin-user-detail').first()).toBeVisible();
+    }
     await adminPage.getByLabel('Ara').fill('user-list-browser-missing');
     await adminPage.getByRole('button', { name: 'Filtrele' }).click();
     await expect(adminPage.getByText('Filtrelere uygun kullanıcı bulunamadı.')).toBeVisible();

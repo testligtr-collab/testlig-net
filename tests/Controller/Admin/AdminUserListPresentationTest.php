@@ -79,6 +79,8 @@ final class AdminUserListPresentationTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Öğretmen');
         self::assertSelectorTextContains('body', 'Veli');
         self::assertSelectorTextContains('body', 'Ref ');
+        self::assertSelectorExists('td.admin-user-person .admin-user-person__layout');
+        self::assertSelectorExists('td.admin-user-date .admin-user-date__stack');
         self::assertSelectorExists('a.admin-user-clear[href="/yonetim/kullanicilar"]');
         $detail = $client->getCrawler()->filter('a.admin-user-detail')->attr('href');
         self::assertIsString($detail);
