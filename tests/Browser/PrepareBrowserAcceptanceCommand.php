@@ -386,7 +386,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $detailUser->addGlobalRole(UserRole::HeadTeacher);
         $this->users->save($detailUser);
         $detailMembership = $this->memberships->addMember($institution, $owner, $detailUser, InstitutionMembershipRole::Teacher, 'browser_detail_teacher');
-        $this->teacherAssignments->assign($classroom, $owner, $detailMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_detail_assign');
+        $this->teacherAssignments->assign($classroom, $owner, $detailMembership, TeacherAssignmentRole::AssistantTeacher, 'browser_detail_assign');
         $profileNow = new \DateTimeImmutable('2026-10-23T12:00:00+00:00');
         $province = Location::create(LocationLevel::Province, 'Tarayici Ili', null, $profileNow);
         $district = Location::create(LocationLevel::District, 'Tarayici Ilcesi', $province, $profileNow);

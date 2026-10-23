@@ -211,9 +211,10 @@ final class AdminTeacherDirectoryHttpTest extends WebTestCase
         $this->withKernel(static function (): void {
             $em = static::getContainer()->get(EntityManagerInterface::class);
             self::assertInstanceOf(EntityManagerInterface::class, $em);
+            /** @var list<User> $users */
             $users = $em->getRepository(User::class)->findBy([]);
             foreach ($users as $user) {
-                if (!$user instanceof User || !str_starts_with($user->getEmail(), 'tdir-')) {
+                if (!str_starts_with($user->getEmail(), 'tdir-')) {
                     continue;
                 }
                 if ('tdir-sa@example.com' === $user->getEmail() || 'tdir-admin@example.com' === $user->getEmail()) {
