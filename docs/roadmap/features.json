@@ -33,7 +33,8 @@
         "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü vermez. Onaylı başvurudan ayrı POST, UserGlobalRoleManager::addRole ile yalnız ROLE_TEACHER verir.",
         "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. Onaylı başvurudan ayrı POST, InstitutionCreator ile pending kurum ve owner üyeliği oluşturup başvuruya bağlar. Aktivasyon ve manager üyeliği bu dilimde yok.",
         "src/Controller/Admin/AdminTeacherApplicationController.php: /yonetim/ogretmen-basvurulari mevcut SuperAdmin kuyruğunu gerçek sayaç, arama, durum filtresi ve sayfalama ile gösterir. Onay markApproved ile başvuruyu approved yapar ve rol vermez. Ret markRejected ile decision_reason_code kaydeder. Öğretmen rolü yalnız ayrı POST ile bir kez verilir. Kurum üyeliği ve sınıf ataması verilmez. CI ekran görüntüsü canlı kabul değildir.",
-        "src/Presentation/TeacherApplicationRejectReason.php: ret formu doğrulanmış kodları Türkçe etiketle seçtirir. incomplete_documents etiketi Eksik belgelerdir. Boş veya katalog dışı değer markRejected çağrılmaz ve audit yazılmaz. Eski tanınmayan kod Diğer / eski kayıt olarak okunur. Onay ve ayrı öğretmen rolü verme aynı kalır."
+        "src/Presentation/TeacherApplicationRejectReason.php: ret formu doğrulanmış kodları Türkçe etiketle seçtirir. incomplete_documents etiketi Eksik belgelerdir. Boş veya katalog dışı değer markRejected çağrılmaz ve audit yazılmaz. Eski tanınmayan kod Diğer / eski kayıt olarak okunur. Onay ve ayrı öğretmen rolü verme aynı kalır.",
+        "src/Controller/Admin/AdminInstitutionApplicationController.php: /yonetim/kurum-basvurulari mevcut SuperAdmin kuyruğunu gerçek sayaç, kurum adı veya başvuran araması, durum filtresi ve sayfalama ile gösterir. Onay markApproved ile başvuruyu approved yapar; kurum, üyelik veya rol vermez. Ret seçimi InstitutionApplicationRejectReason ile doğrulanır; incomplete_documents etiketi Eksik belgelerdir. Boş veya katalog dışı değer markRejected çağırmaz. Kurum oluşturma ayrı POST ile InstitutionCreator üzerinden pending kurum ve owner üyeliği kurar. Aktivasyon ve manager üyeliği bu dilimde yok. CI ekran görüntüsü canlı kabul değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/116",
@@ -42,7 +43,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/119",
         "https://github.com/testligtr-collab/testlig-net/pull/163"
       ],
-      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Öğretmen kuyruğu mevcut adreste gerçek kayıtlarla incelenebilir. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır. CI ekran görüntüsü canlı kabul değildir.",
+      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Öğretmen ve kurum kuyrukları mevcut adreslerde gerçek kayıtlarla incelenebilir. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır. CI ekran görüntüsü canlı kabul değildir.",
       "scope_decision": null
     },
     {
@@ -1165,7 +1166,8 @@
         "Kullanıcılar listesinin görsel düzeni yönetim kabuğunun içinde yenilendi. Sol menü, Genel Bakış, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcı detayı aynı yönetim kabuğunda profil özeti ve ayrı rol/durum kartlarıyla düzenlendi. Sol menü, logo, kullanıcı listesi ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Öğretmen başvuruları listesi ve detayı mevcut yönetim kabuğunda, Genel Bakış ve Kullanıcılar düzeniyle yenilendi. Adres /yonetim/ogretmen-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Öğretmen başvuruları listesi ve detayı mevcut yönetim kabuğunda, Genel Bakış ve Kullanıcılar düzeniyle yenilendi. Adres /yonetim/ogretmen-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

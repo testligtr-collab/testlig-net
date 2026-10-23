@@ -226,6 +226,7 @@ final class AdminInstitutionFromApplicationHttpTest extends WebTestCase
         $page = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Bu başvurudan kurum oluşturuldu.', $page);
         self::assertStringContainsString('Beklemede', $page);
+        self::assertStringContainsString('/yonetim/kurumlar/'.$created['id'], $page);
         self::assertStringNotContainsString('>Kurum oluştur<', $page);
 
         $linked = $this->linkedInstitutionId($this->pendingA);

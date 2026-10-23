@@ -1,0 +1,18 @@
+{% set labels = {
+    'pending': 'Bekliyor',
+    'approved': 'Onaylandı',
+    'rejected': 'Reddedildi',
+    'withdrawn': 'Geri çekildi',
+    'superseded': 'Yerine yenisi geldi'
+} %}
+{% set variants = {
+    'pending': 'warning',
+    'approved': 'success',
+    'rejected': 'danger',
+    'withdrawn': 'limited',
+    'superseded': 'limited'
+} %}
+<span class="admin-status admin-status--{{ variants[code]|default('limited') }}">
+    <span class="admin-status__dot" aria-hidden="true"></span>
+    {{ labels[code]|default('Diğer / eski kayıt') }}
+</span>
