@@ -96,7 +96,8 @@ final class AdminTeacherApplicationPresentationTest extends WebTestCase
         $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingB);
         self::assertResponseIsSuccessful();
         $detail = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('incomplete_documents', $detail);
+        self::assertStringContainsString('Eksik belgeler', $detail);
+        self::assertStringNotContainsString('incomplete_documents', $detail);
         self::assertStringContainsString('Listeye dön', $detail);
         self::assertStringContainsString('İşlem geçmişi', $detail);
         self::assertStringContainsString('Başvuru onayı öğretmen rolü vermez.', $detail);
@@ -129,11 +130,71 @@ final class AdminTeacherApplicationPresentationTest extends WebTestCase
         self::assertResponseRedirects('/yonetim/ogretmen-basvurulari/'.$this->pendingA);
         $client->followRedirect();
         self::assertResponseIsSuccessful();
-        self::assertSame('1bad', $client->getCrawler()->filter('#teacher-application-reason')->attr('value'));
-        self::assertStringContainsString('Başvuru verisi geçersiz.', (string) $client->getResponse()->getContent());
+        self::assertSame('1bad', $client->getCrawler()->filter('#teacher-application-reason option[selected]')->attr('value'));
+        self::assertStringContainsString('Seçilen ret nedeni geçersiz.', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Diğer / eski kayıt', (string) $client->getResponse()->getContent());
         self::assertSame(OnboardingApplicationStatus::Pending->value, $this->applicationStatus($this->pendingA));
         self::assertSame('', $this->reasonCode($this->pendingA));
         self::assertSame($before, $this->auditCount('teacher_application_rejected'));
+    }
+
+    public function testEmptyRejectChoiceKeepsTheFormAndWritesNothing(): void
+    {
+        $before = $this->auditCount('teacher_application_rejected');
+        $client = $this->browser();
+        $this->login($client, 'tapv-sa@example.com');
+        $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingA);
+        $token = $this->csrf($client, 'teacher_application_reject');
+        $client->request('POST', '/yonetim/ogretmen-basvurulari/'.$this->pendingA.'/reddet', [
+            '_token' => $token,
+            'reason_code' => '',
+        ]);
+        self::assertResponseRedirects('/yonetim/ogretmen-basvurulari/'.$this->pendingA);
+        $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        self::assertSame('', $client->getCrawler()->filter('#teacher-application-reason option[selected]')->attr('value'));
+        self::assertStringContainsString('Ret nedeni seçin.', (string) $client->getResponse()->getContent());
+        self::assertSame(OnboardingApplicationStatus::Pending->value, $this->applicationStatus($this->pendingA));
+        self::assertSame('', $this->reasonCode($this->pendingA));
+        self::assertSame($before, $this->auditCount('teacher_application_rejected'));
+    }
+
+    public function testValidRejectChoiceStoresTheCodeAndShowsTheTurkishLabel(): void
+    {
+        $before = $this->auditCount('teacher_application_rejected');
+        $client = $this->browser();
+        $this->login($client, 'tapv-sa@example.com');
+        $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingA);
+        $client->submit($client->getCrawler()->selectButton('Reddet')->form([
+            'reason_code' => 'incomplete_documents',
+        ]));
+        self::assertResponseRedirects('/yonetim/ogretmen-basvurulari/'.$this->pendingA);
+        $client->followRedirect();
+        $detail = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Eksik belgeler', $detail);
+        self::assertStringNotContainsString('incomplete_documents', $detail);
+        self::assertStringNotContainsString('küçük harfle', $detail);
+        self::assertSame('incomplete_documents', $this->reasonCode($this->pendingA));
+        self::assertSame(OnboardingApplicationStatus::Rejected->value, $this->applicationStatus($this->pendingA));
+        self::assertSame($before + 1, $this->auditCount('teacher_application_rejected'));
+    }
+
+    public function testUnknownStoredReasonRemainsReadable(): void
+    {
+        $this->withKernel(function (): void {
+            $manager = static::getContainer()->get(TeacherApplicationManager::class);
+            self::assertInstanceOf(TeacherApplicationManager::class, $manager);
+            $manager->markRejected($this->user('tapv-sa@example.com'), Uuid::fromString($this->pendingB), 'legacy_note');
+        });
+
+        $client = $this->browser();
+        $this->login($client, 'tapv-sa@example.com');
+        $client->request('GET', '/yonetim/ogretmen-basvurulari/'.$this->pendingB);
+        self::assertResponseIsSuccessful();
+        $detail = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Diğer / eski kayıt', $detail);
+        self::assertStringNotContainsString('legacy_note', $detail);
+        self::assertSame('legacy_note', $this->reasonCode($this->pendingB));
     }
 
     public function testEmptyQueueShowsTheEmptyCopy(): void

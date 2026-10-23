@@ -10,6 +10,7 @@ use App\Entity\User;
 use App\Enum\UserManagementFailureReason;
 use App\Exception\InvalidUserTransitionException;
 use App\Exception\OnboardingApplicationException;
+use App\Presentation\TeacherApplicationRejectReason;
 use App\Repository\TeacherApplicationRepository;
 use App\Security\AdminPermission;
 use App\Service\ActiveVerifiedUserPolicy;
@@ -68,10 +69,18 @@ final class AdminTeacherApplicationController extends AdminBaseController
         }
         $reasonFlashes = $session->getFlashBag()->get('teacher_application_reason');
         $reasonErrors = $session->getFlashBag()->get('teacher_application_reason_error');
+        $reasonMessages = $session->getFlashBag()->get('teacher_application_reason_message');
         $postedReason = '';
         foreach ($reasonFlashes as $reasonFlash) {
             if (\is_string($reasonFlash)) {
                 $postedReason = $reasonFlash;
+                break;
+            }
+        }
+        $reasonError = '';
+        foreach ($reasonMessages as $reasonMessage) {
+            if (\is_string($reasonMessage)) {
+                $reasonError = $reasonMessage;
                 break;
             }
         }
@@ -81,6 +90,9 @@ final class AdminTeacherApplicationController extends AdminBaseController
             'row' => AdminTeacherApplicationRow::fromApplication($application),
             'posted_reason' => $postedReason,
             'reason_invalid' => [] !== $reasonErrors,
+            'reason_error' => $reasonError,
+            'reject_reasons' => TeacherApplicationRejectReason::choices(),
+            'legacy_reason_label' => TeacherApplicationRejectReason::LEGACY_LABEL,
             'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
                 ? $this->generateUrl('app_admin_audit')
                 : null,
@@ -116,19 +128,17 @@ final class AdminTeacherApplicationController extends AdminBaseController
             throw new AccessDeniedHttpException('Geçersiz istek.');
         }
         $this->application($id);
+        $posted = trim($request->request->getString('reason_code'));
+        if (mb_strlen($posted) > 64) {
+            $posted = mb_substr($posted, 0, 64);
+        }
+        if (!TeacherApplicationRejectReason::isAllowed($posted)) {
+            return $this->rejectChoiceFailure($id, $posted);
+        }
 
         try {
-            $this->applicationManager->markRejected($actor, $id, $request->request->getString('reason_code'));
+            $this->applicationManager->markRejected($actor, $id, $posted);
         } catch (OnboardingApplicationException $exception) {
-            if ('Başvuru verisi geçersiz.' === $exception->getMessage()) {
-                $posted = trim($request->request->getString('reason_code'));
-                if (mb_strlen($posted) > 64) {
-                    $posted = mb_substr($posted, 0, 64);
-                }
-                $this->addFlash('teacher_application_reason', $posted);
-                $this->addFlash('teacher_application_reason_error', '1');
-            }
-
             return $this->decisionFailure($id, $exception);
         }
         $this->addFlash('success', 'Başvuru reddedildi.');
@@ -181,6 +191,17 @@ final class AdminTeacherApplicationController extends AdminBaseController
         }
 
         return $application;
+    }
+
+    private function rejectChoiceFailure(Uuid $id, string $posted): Response
+    {
+        $message = TeacherApplicationRejectReason::invalidMessage($posted);
+        $this->addFlash('teacher_application_reason', $posted);
+        $this->addFlash('teacher_application_reason_error', '1');
+        $this->addFlash('teacher_application_reason_message', $message);
+        $this->addFlash('error', $message);
+
+        return $this->redirectToRoute('app_admin_teacher_application', ['id' => $id]);
     }
 
     private function decisionFailure(Uuid $id, OnboardingApplicationException $exception): Response

@@ -2503,7 +2503,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-teacher-app-page .admin-status {
     white-space: nowrap;
 }
-.is-admin-panel .admin-teacher-app-page input[name="reason_code"] {
+.is-admin-panel .admin-teacher-app-page select[name="reason_code"] {
     width: 100%;
     min-width: 0;
     max-width: 100%;

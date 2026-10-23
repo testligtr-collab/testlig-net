@@ -299,6 +299,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await expect(saPage.getByRole('heading', { level: 1, name: 'Öğretmen başvurusu' })).toBeVisible();
     await expect(saPage.getByRole('button', { name: 'Onayla' })).toBeVisible();
     await expect(saPage.getByRole('button', { name: 'Reddet' })).toBeVisible();
+    const reasonLabels = await saPage.locator('#teacher-application-reason option').allTextContents();
+    expect(reasonLabels).toContain('Eksik belgeler');
+    expect(reasonLabels.join(' ')).not.toContain('incomplete_documents');
+    await expect(saPage.getByText('küçük harfle')).toHaveCount(0);
     await expect(saPage.getByRole('link', { name: 'Listeye dön' })).toBeVisible();
     await expect(saPage.locator('.admin-teacher-app-name')).toContainText('Uzunad');
     const detailOverflow = await saPage.evaluate(() => {

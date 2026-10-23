@@ -120,7 +120,13 @@
                 </div>
                 <div>
                     <dt>Karar gerekçesi</dt>
-                    <dd>{{ row.decisionReasonCode ?: 'Kayıtlı gerekçe yok' }}</dd>
+                    <dd>
+                        {% if row.decisionReasonCode %}
+                            {{ reject_reasons[row.decisionReasonCode]|default(legacy_reason_label) }}
+                        {% else %}
+                            Kayıtlı gerekçe yok
+                        {% endif %}
+                    </dd>
                 </div>
             </dl>
         </section>
@@ -145,17 +151,24 @@
                         {% include 'components/admin_icon.html.twig' with { icon: 'ban' } only %}
                         Başvuruyu reddet
                     </h2>
-                    <p>Ret gerekçesi küçük harfle başlayan bir koddur.</p>
+                    <p>Ret nedenini listeden seçin.</p>
                     <form class="admin-user-detail-form" method="post" action="{{ path('app_admin_teacher_application_reject', { id: application.id }) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_reject') }}">
                         {% if reason_invalid %}
-                            <p class="admin-user-detail-errors" role="alert">Başvuru verisi geçersiz.</p>
+                            <p class="admin-user-detail-errors" role="alert">{{ reason_error }}</p>
                         {% endif %}
                         <label class="admin-user-detail-field" for="teacher-application-reason">
                             <span>Ret nedeni</span>
-                            <input id="teacher-application-reason" name="reason_code" value="{{ posted_reason|default('') }}" maxlength="64" autocomplete="off" {% if reason_invalid %}aria-invalid="true"{% endif %}>
+                            <select id="teacher-application-reason" name="reason_code" {% if reason_invalid %}aria-invalid="true"{% endif %}>
+                                <option value="" {% if posted_reason == '' %}selected{% endif %}>Ret nedeni seçin</option>
+                                {% for code, label in reject_reasons %}
+                                    <option value="{{ code }}" {% if posted_reason == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                                {% if posted_reason != '' and posted_reason not in reject_reasons|keys %}
+                                    <option value="{{ posted_reason }}" selected>{{ legacy_reason_label }}</option>
+                                {% endif %}
+                            </select>
                         </label>
-                        <p class="admin-teacher-app-hint">Örnek biçim: incomplete_documents</p>
                         <div class="admin-user-detail-actions">
                             <button class="admin-user-detail-submit admin-teacher-app-reject" type="submit">Reddet</button>
                         </div>
