@@ -135,7 +135,7 @@
             {% if result.items is empty %}
                 {% include 'components/empty_state.html.twig' with {
                     title: 'Kayıt yok',
-                    body: admin_filters_active(filters|default({})) or result.totalCount > 0 ? 'Filtrelere uygun öğretmen bulunamadı.' : 'Henüz öğretmen hesabı yok.'
+                    body: (admin_filters_active(filters|default({})) or result.totalCount > 0) ? 'Filtrelere uygun öğretmen bulunamadı.' : 'Henüz öğretmen hesabı yok.'
                 } %}
             {% else %}
                 <div class="admin-table-wrap">
