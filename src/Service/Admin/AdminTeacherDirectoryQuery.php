@@ -273,22 +273,23 @@ final class AdminTeacherDirectoryQuery
             return [];
         }
 
-        /** @var list<Uuid> $ids */
-        $ids = [];
-        foreach ($users as $user) {
-            $ids[] = $user->getId();
-        }
-
-        /** @var list<TeacherProfessionalProfile> $profiles */
-        $profiles = $this->em->createQueryBuilder()
+        $profilesQuery = $this->em->createQueryBuilder()
             ->select('profile', 'subject', 'school', 'district', 'province')
             ->from(TeacherProfessionalProfile::class, 'profile')
             ->innerJoin('profile.subject', 'subject')
             ->leftJoin('profile.schoolLocation', 'school')
             ->leftJoin('school.parent', 'district')
-            ->leftJoin('district.parent', 'province')
-            ->where('IDENTITY(profile.user) IN (:ids)')
-            ->setParameter('ids', $ids)
+            ->leftJoin('district.parent', 'province');
+        $match = $profilesQuery->expr()->orX();
+        foreach ($users as $index => $user) {
+            $parameter = 'teacherUser'.$index;
+            $match->add('profile.user = :'.$parameter);
+            $profilesQuery->setParameter($parameter, $user->getId(), 'uuid');
+        }
+
+        /** @var list<TeacherProfessionalProfile> $profiles */
+        $profiles = $profilesQuery
+            ->where($match)
             ->getQuery()
             ->getResult();
 

@@ -2520,11 +2520,11 @@ body.is-admin-panel {
 .is-admin-panel .admin-teacher-dir-note {
     margin: 0;
     color: #66758c;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 .is-admin-panel .admin-teacher-dir-meta {
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 .is-admin-panel .admin-teacher-dir-meta span { display: block; }
 .is-admin-panel .admin-teacher-dir-page .admin-status { white-space: nowrap; }
