@@ -41,7 +41,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/117",
         "https://github.com/testligtr-collab/testlig-net/pull/118",
         "https://github.com/testligtr-collab/testlig-net/pull/119",
-        "https://github.com/testligtr-collab/testlig-net/pull/163"
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/164"
       ],
       "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Öğretmen ve kurum kuyrukları mevcut adreslerde gerçek kayıtlarla incelenebilir. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır. CI ekran görüntüsü canlı kabul değildir.",
       "scope_decision": null
@@ -1177,7 +1178,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/155",
         "https://github.com/testligtr-collab/testlig-net/pull/158",
         "https://github.com/testligtr-collab/testlig-net/pull/162",
-        "https://github.com/testligtr-collab/testlig-net/pull/163"
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/164"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
