@@ -2497,3 +2497,51 @@ body.is-admin-panel {
         justify-content: stretch;
     }
 }
+
+.is-admin-panel .admin-user-stat--withdrawn .admin-user-stat__icon { background: #eef2f6; color: #526173; }
+.is-admin-panel .admin-user-stat--superseded .admin-user-stat__icon { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-teacher-app-page .admin-status {
+    white-space: nowrap;
+}
+.is-admin-panel .admin-teacher-app-page select[name="reason_code"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-teacher-app-hint {
+    margin: 0;
+    color: #66758c;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-teacher-app-reject {
+    background: #fff;
+    color: #9f1239;
+    border: 1px solid #f3c3cb;
+}
+.is-admin-panel .admin-teacher-app-facts {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0.9rem 0 0;
+}
+.is-admin-panel .admin-teacher-app-facts div { min-width: 0; }
+.is-admin-panel .admin-teacher-app-facts dt {
+    color: #66758c;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-teacher-app-facts dd {
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-teacher-app-page .admin-user-filters__fields {
+        grid-template-columns: minmax(12rem, 1.7fr) minmax(0, 1fr) auto;
+    }
+}

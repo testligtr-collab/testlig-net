@@ -260,6 +260,70 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await saPage.goto('/yonetim');
   await expect(saPage.locator('.panel-role')).toHaveText('Süper Yönetici');
   await expandAdminGroups(saPage);
+  await saPage.setViewportSize({ width: 1440, height: 900 });
+  await saPage.goto(data.paths.teacherApplications);
+  await saPage.locator('#teacher-app-filter-q').fill('teacher-app-missing-zzzz');
+  await saPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(saPage.getByText('Filtrelere uygun başvuru bulunamadı.')).toBeVisible();
+  await saPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(saPage.getByRole('link', { name: 'İncele' }).first()).toBeVisible();
+  for (const viewport of [
+    { name: '1440', width: 1440, height: 900 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '390', width: 390, height: 844 },
+  ]) {
+    await saPage.setViewportSize({ width: viewport.width, height: viewport.height });
+    const listResponse = await saPage.goto(data.paths.teacherApplications);
+    expect(listResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Öğretmen başvuruları' })).toBeVisible();
+    await expect(saPage.getByText('Başvuru onayı öğretmen rolü vermez.')).toBeVisible();
+    await expect(saPage.locator('[data-teacher-app-summary="total"]')).not.toHaveText('0');
+    const listOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-teacher-app-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(listOverflow.page, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    expect(listOverflow.doc, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    const listHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(listHeight, 2400)),
+    });
+    const listFile = path.join('artifacts', 'screenshots', `admin-ogretmen-basvurulari-${viewport.name}.png`);
+    await saPage.screenshot({ path: listFile, fullPage: false });
+    await info.attach(`admin-ogretmen-basvurulari-${viewport.name}.png`, { path: listFile, contentType: 'image/png' });
+
+    const detailResponse = await saPage.goto(data.paths.teacherApplication);
+    expect(detailResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Öğretmen başvurusu' })).toBeVisible();
+    await expect(saPage.getByRole('button', { name: 'Onayla' })).toBeVisible();
+    await expect(saPage.getByRole('button', { name: 'Reddet' })).toBeVisible();
+    const reasonLabels = await saPage.locator('#teacher-application-reason option').allTextContents();
+    expect(reasonLabels).toContain('Eksik belgeler');
+    expect(reasonLabels.join(' ')).not.toContain('incomplete_documents');
+    await expect(saPage.getByText('küçük harfle')).toHaveCount(0);
+    await expect(saPage.getByRole('link', { name: 'Listeye dön' })).toBeVisible();
+    await expect(saPage.locator('.admin-teacher-app-name')).toContainText('Uzunad');
+    const detailOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-teacher-app-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(detailOverflow.page, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    expect(detailOverflow.doc, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    const detailHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(detailHeight, 2400)),
+    });
+    const detailFile = path.join('artifacts', 'screenshots', `admin-ogretmen-basvuru-${viewport.name}.png`);
+    await saPage.screenshot({ path: detailFile, fullPage: false });
+    await info.attach(`admin-ogretmen-basvuru-${viewport.name}.png`, { path: detailFile, contentType: 'image/png' });
+  }
+  await saPage.setViewportSize({ width: 1280, height: 900 });
+  await saPage.goto('/yonetim');
+  await expandAdminGroups(saPage);
   for (const label of ['Genel Bakış', 'Kullanıcılar ve Yetkiler', 'Kurum ve Sınıf', 'Eğitim', 'Medya', 'Etkileşimli Eğitim', 'İletişim', 'Site Yönetimi', 'Ticaret', 'Entegrasyonlar', 'Sistem', 'Ödemeler', 'Webhook', 'Uzlaştırma', 'Denetim', 'Şube ve kampüsler']) {
     const node = saPage.getByText(label, { exact: true }).first();
     await node.scrollIntoViewIfNeeded();

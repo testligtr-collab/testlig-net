@@ -50,6 +50,7 @@ use App\Service\ParentStudentLinkCodeManager;
 use App\Service\QuestionManager;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
+use App\Service\TeacherApplicationManager;
 use App\Service\UserFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -97,6 +98,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly ClassroomStudentEnrollmentManager $enrollments,
         private readonly StudentProfileManager $profiles,
         private readonly ParentStudentLinkCodeManager $parentLinks,
+        private readonly TeacherApplicationManager $teacherApplications,
     ) {
         parent::__construct();
     }
@@ -373,6 +375,13 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $detailUser->addGlobalRole(UserRole::Parent);
         $detailUser->addGlobalRole(UserRole::HeadTeacher);
         $this->users->save($detailUser);
+        $applicant = $this->account(
+            'browser-teacher-app-'.str_repeat('a', 20).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Student,
+        );
+        $teacherApplication = $this->teacherApplications->submit($applicant);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -410,6 +419,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
                 'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
+                'teacherApplications' => '/yonetim/ogretmen-basvurulari',
+                'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
