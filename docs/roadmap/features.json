@@ -307,7 +307,8 @@
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/120",
         "https://github.com/testligtr-collab/testlig-net/pull/121",
-        "https://github.com/testligtr-collab/testlig-net/pull/163"
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/165"
       ],
       "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını kaydeder. Aynı ekranda, katalogda geçerli bir aktif okul zinciri varsa il, ilçe ve okul seçer; yalnız okul kimliği saklanır. Branş ve sınıf kaydı boş okul kataloğunda çalışmaya devam eder. Katalog yüklemesi ayrı bir veri bağımlılığıdır ve bu dilime girmez. Yükleme koşulu: belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz. Okul/il/ilçe modeli banka, belge, diploma, public profil, yeni onay, V1 branş kilidi ve profil tamamlama yönlendirmesini kapsamaz. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
@@ -1181,7 +1182,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/158",
         "https://github.com/testligtr-collab/testlig-net/pull/162",
         "https://github.com/testligtr-collab/testlig-net/pull/163",
-        "https://github.com/testligtr-collab/testlig-net/pull/164"
+        "https://github.com/testligtr-collab/testlig-net/pull/164",
+        "https://github.com/testligtr-collab/testlig-net/pull/165"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
