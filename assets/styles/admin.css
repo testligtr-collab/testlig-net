@@ -2500,6 +2500,9 @@ body.is-admin-panel {
 
 .is-admin-panel .admin-user-stat--withdrawn .admin-user-stat__icon { background: #eef2f6; color: #526173; }
 .is-admin-panel .admin-user-stat--superseded .admin-user-stat__icon { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-teacher-app-page .admin-status {
+    white-space: nowrap;
+}
 .is-admin-panel .admin-teacher-app-page input[name="reason_code"] {
     width: 100%;
     min-width: 0;

@@ -104,7 +104,7 @@ final class AdminTeacherApplicationQuery
         $status = '';
         if (isset($raw['status']) && \is_string($raw['status'])) {
             $parsed = OnboardingApplicationStatus::tryFrom($raw['status']);
-            $status = $parsed?->value ?? '';
+            $status = $parsed instanceof OnboardingApplicationStatus ? $parsed->value : '';
         }
 
         return ['q' => $q, 'status' => $status];

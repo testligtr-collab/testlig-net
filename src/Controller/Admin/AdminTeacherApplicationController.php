@@ -19,6 +19,7 @@ use App\Service\TeacherApplicationManager;
 use App\Service\TeacherApplicationRoleGrant;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -61,8 +62,12 @@ final class AdminTeacherApplicationController extends AdminBaseController
     {
         $this->requireSuperAdmin();
         $application = $this->application($id);
-        $reasonFlashes = $request->getSession()->getFlashBag()->get('teacher_application_reason');
-        $reasonErrors = $request->getSession()->getFlashBag()->get('teacher_application_reason_error');
+        $session = $request->getSession();
+        if (!$session instanceof FlashBagAwareSessionInterface) {
+            throw new \LogicException('Oturum flaş bilgisi taşımıyor.');
+        }
+        $reasonFlashes = $session->getFlashBag()->get('teacher_application_reason');
+        $reasonErrors = $session->getFlashBag()->get('teacher_application_reason_error');
         $postedReason = '';
         foreach ($reasonFlashes as $reasonFlash) {
             if (\is_string($reasonFlash)) {
@@ -74,7 +79,7 @@ final class AdminTeacherApplicationController extends AdminBaseController
         return $this->renderAdmin('admin/teacher_applications/detail.html.twig', [
             'application' => $application,
             'row' => AdminTeacherApplicationRow::fromApplication($application),
-            'posted_reason' => \is_string($postedReason) ? $postedReason : '',
+            'posted_reason' => $postedReason,
             'reason_invalid' => [] !== $reasonErrors,
             'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
                 ? $this->generateUrl('app_admin_audit')
