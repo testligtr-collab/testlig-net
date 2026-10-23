@@ -33,6 +33,8 @@ type Manifest = {
     foreignTitle: string;
     endedClassroom: string;
     userDetail: string;
+    teachers: string;
+    teacher: string;
     teacherApplications: string;
     teacherApplication: string;
     institutionApplications: string;

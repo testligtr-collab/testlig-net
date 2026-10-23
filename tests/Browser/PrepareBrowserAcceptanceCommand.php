@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Tests\Browser;
 
 use App\Dto\StudentProfileRequest;
+use App\Dto\TeacherProfessionalProfileRequest;
 use App\Entity\LearningDocumentAsset;
+use App\Entity\Location;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
@@ -14,6 +16,7 @@ use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionType;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentType;
+use App\Enum\LocationLevel;
 use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
@@ -52,7 +55,9 @@ use App\Service\QuestionManager;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
 use App\Service\TeacherApplicationManager;
+use App\Service\TeacherProfessionalProfileManager;
 use App\Service\UserFactory;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -101,6 +106,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly ParentStudentLinkCodeManager $parentLinks,
         private readonly TeacherApplicationManager $teacherApplications,
         private readonly InstitutionApplicationManager $institutionApplications,
+        private readonly TeacherProfessionalProfileManager $professionalProfiles,
+        private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
     }
@@ -375,8 +382,26 @@ final class PrepareBrowserAcceptanceCommand extends Command
             UserRole::Teacher,
         );
         $detailUser->addGlobalRole(UserRole::Parent);
+        $detailUser->addGlobalRole(UserRole::ExpertTeacher);
         $detailUser->addGlobalRole(UserRole::HeadTeacher);
         $this->users->save($detailUser);
+        $detailMembership = $this->memberships->addMember($institution, $owner, $detailUser, InstitutionMembershipRole::Teacher, 'browser_detail_teacher');
+        $this->teacherAssignments->assign($classroom, $owner, $detailMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_detail_assign');
+        $profileNow = new \DateTimeImmutable('2026-10-23T12:00:00+00:00');
+        $province = Location::create(LocationLevel::Province, 'Tarayici Ili', null, $profileNow);
+        $district = Location::create(LocationLevel::District, 'Tarayici Ilcesi', $province, $profileNow);
+        $school = Location::create(LocationLevel::School, 'Tarayici Okulu', $district, $profileNow);
+        $this->entityManager->persist($province);
+        $this->entityManager->persist($district);
+        $this->entityManager->persist($school);
+        $this->entityManager->flush();
+        $profileRequest = new TeacherProfessionalProfileRequest();
+        $profileRequest->subject = $subject;
+        $profileRequest->gradeLevels = [GradeLevel::Grade5, GradeLevel::Grade6];
+        $profileRequest->provinceId = $province->getId()->toRfc4122();
+        $profileRequest->districtId = $district->getId()->toRfc4122();
+        $profileRequest->schoolId = $school->getId()->toRfc4122();
+        $this->professionalProfiles->save($teacher, $profileRequest);
         $applicant = $this->account(
             'browser-teacher-app-'.str_repeat('a', 20).'@example.test',
             str_repeat('Uzunad', 8),
@@ -432,6 +457,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
                 'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
+                'teachers' => '/yonetim/ogretmenler',
+                'teacher' => '/yonetim/ogretmenler/'.$detailUser->getId()->toRfc4122(),
                 'teacherApplications' => '/yonetim/ogretmen-basvurulari',
                 'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
                 'institutionApplications' => '/yonetim/kurum-basvurulari',

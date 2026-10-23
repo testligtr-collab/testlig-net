@@ -68,6 +68,7 @@ final class AdminNavBuilder
 
         if ($canUsers) {
             $items[] = $this->item('users', 'Kullanıcılar', 'app_admin_users', $currentPath, '/yonetim/kullanicilar');
+            $items[] = $this->item('teachers', 'Öğretmenler', 'app_admin_teachers', $currentPath, '/yonetim/ogretmenler', false, 'users');
         }
         if ($this->adminAuthorization->canManageMemberships($actor)) {
             $items[] = $this->item('teacher_applications', 'Öğretmen başvuruları', 'app_admin_teacher_applications', $currentPath, '/yonetim/ogretmen-basvurulari');
@@ -209,7 +210,7 @@ final class AdminNavBuilder
     /**
      * @return array{id: string, label: string, href: string, current: bool, icon: string, stage: string}
      */
-    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false): array
+    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false, ?string $icon = null): array
     {
         $href = $this->urlGenerator->generate($route);
         $prefix = rtrim($pathPrefix ?? $href, '/');
@@ -222,7 +223,7 @@ final class AdminNavBuilder
             'label' => $label,
             'href' => $href,
             'current' => $current,
-            'icon' => $this->icons->resolve($id),
+            'icon' => $this->icons->resolve($icon ?? $id),
             'stage' => 'ready',
         ];
     }

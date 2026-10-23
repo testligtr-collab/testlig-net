@@ -380,6 +380,70 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await saPage.screenshot({ path: detailFile, fullPage: false });
     await info.attach(`admin-kurum-basvuru-${viewport.name}.png`, { path: detailFile, contentType: 'image/png' });
   }
+  await saPage.setViewportSize({ width: 1440, height: 900 });
+  await saPage.goto(data.paths.teachers);
+  await saPage.locator('#teacher-filter-q').fill('teacher-missing-zzzz');
+  await saPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(saPage.getByText('Filtrelere uygun öğretmen bulunamadı.')).toBeVisible();
+  await saPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(saPage.getByRole('link', { name: 'Detay' }).first()).toBeVisible();
+  for (const viewport of [
+    { name: '1440', width: 1440, height: 900 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '390', width: 390, height: 844 },
+  ]) {
+    await saPage.setViewportSize({ width: viewport.width, height: viewport.height });
+    const listResponse = await saPage.goto(data.paths.teachers);
+    expect(listResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Öğretmenler' })).toBeVisible();
+    await expect(saPage.locator('[data-teacher-summary="total"]')).not.toHaveText('0');
+    await expect(saPage.locator('.admin-user-person__name').filter({ hasText: 'Uzunad' })).toBeVisible();
+    await expect(saPage.getByText('Belirtilmemiş').first()).toBeVisible();
+    await expect(saPage.getByText('Onaysız')).toHaveCount(0);
+    const listOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-teacher-dir-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(listOverflow.page, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    expect(listOverflow.doc, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    const listHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(listHeight, 2400)),
+    });
+    const listFile = path.join('artifacts', 'screenshots', `admin-ogretmenler-${viewport.name}.png`);
+    await saPage.screenshot({ path: listFile, fullPage: false });
+    await info.attach(`admin-ogretmenler-${viewport.name}.png`, { path: listFile, contentType: 'image/png' });
+
+    const detailResponse = await saPage.goto(data.paths.teacher);
+    expect(detailResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Öğretmen detayı' })).toBeVisible();
+    await expect(saPage.locator('.admin-user-detail-name')).toContainText('Uzunad');
+    await expect(saPage.locator('.admin-user-detail-email')).toContainText('browser-detail-');
+    await expect(saPage.getByText('Uzman öğretmen')).toBeVisible();
+    await expect(saPage.getByText('Zümre başkanı')).toBeVisible();
+    await expect(saPage.getByText('Belirtilmemiş').first()).toBeVisible();
+    await expect(saPage.getByRole('link', { name: 'Kullanıcı detayı' })).toBeVisible();
+    await expect(saPage.getByRole('link', { name: 'İşlem geçmişi' })).toBeVisible();
+    await expect(saPage.getByText('Sinif A')).toBeVisible();
+    await expect(saPage.getByText('browser-student@example.test')).toHaveCount(0);
+    const detailOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-teacher-dir-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(detailOverflow.page, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    expect(detailOverflow.doc, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    const detailHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(detailHeight, 2400)),
+    });
+    const teacherFile = path.join('artifacts', 'screenshots', `admin-ogretmen-${viewport.name}.png`);
+    await saPage.screenshot({ path: teacherFile, fullPage: false });
+    await info.attach(`admin-ogretmen-${viewport.name}.png`, { path: teacherFile, contentType: 'image/png' });
+  }
   await saPage.setViewportSize({ width: 1280, height: 900 });
   await saPage.goto('/yonetim');
   await expandAdminGroups(saPage);
