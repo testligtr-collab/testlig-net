@@ -139,7 +139,9 @@
         "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Satır ayırıcısı satırın kendi çizgisidir. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz.",
         "Kullanıcı detayı profil özeti, rol kartları ve durum kartıyla yeniden düzenlendi. Rol ve durum formlarının adları, CSRF niyeti, izinli seçenekler ve başarılı kayıt yönlendirmesi aynı kaldı. Bu görsel dilim kullanıcı yönetiminin bütün kapsamını tamamlamaz."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/162"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -1165,7 +1167,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/153",
         "https://github.com/testligtr-collab/testlig-net/pull/154",
         "https://github.com/testligtr-collab/testlig-net/pull/155",
-        "https://github.com/testligtr-collab/testlig-net/pull/158"
+        "https://github.com/testligtr-collab/testlig-net/pull/158",
+        "https://github.com/testligtr-collab/testlig-net/pull/162"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
