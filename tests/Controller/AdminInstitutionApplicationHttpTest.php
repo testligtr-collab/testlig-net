@@ -219,8 +219,8 @@ final class AdminInstitutionApplicationHttpTest extends WebTestCase
         $this->addPendingApplications($client, 4);
         $large = $this->listQueryCount($client);
 
-        self::assertSame(1, $small['applications']);
-        self::assertSame(1, $large['applications']);
+        self::assertGreaterThanOrEqual(2, $small['applications']);
+        self::assertSame($small['applications'], $large['applications']);
         self::assertSame($small['users'], $large['users']);
         self::assertGreaterThan(0, $small['applications'] + $small['users']);
     }

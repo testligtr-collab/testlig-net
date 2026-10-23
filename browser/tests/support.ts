@@ -35,6 +35,8 @@ type Manifest = {
     userDetail: string;
     teacherApplications: string;
     teacherApplication: string;
+    institutionApplications: string;
+    institutionApplication: string;
   };
 };
 

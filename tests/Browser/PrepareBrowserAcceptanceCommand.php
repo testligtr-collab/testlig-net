@@ -41,6 +41,7 @@ use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
+use App\Service\InstitutionApplicationManager;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
@@ -99,6 +100,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly StudentProfileManager $profiles,
         private readonly ParentStudentLinkCodeManager $parentLinks,
         private readonly TeacherApplicationManager $teacherApplications,
+        private readonly InstitutionApplicationManager $institutionApplications,
     ) {
         parent::__construct();
     }
@@ -382,6 +384,17 @@ final class PrepareBrowserAcceptanceCommand extends Command
             UserRole::Student,
         );
         $teacherApplication = $this->teacherApplications->submit($applicant);
+        $institutionApplicant = $this->account(
+            'browser-institution-app-'.str_repeat('a', 16).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Student,
+        );
+        $institutionApplication = $this->institutionApplications->submit(
+            $institutionApplicant,
+            str_repeat('UzunKurum', 8),
+            InstitutionType::School,
+        );
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -421,6 +434,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
                 'teacherApplications' => '/yonetim/ogretmen-basvurulari',
                 'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
+                'institutionApplications' => '/yonetim/kurum-basvurulari',
+                'institutionApplication' => '/yonetim/kurum-basvurulari/'.$institutionApplication->getId()->toRfc4122(),
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

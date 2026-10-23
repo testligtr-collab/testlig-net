@@ -321,6 +321,65 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await saPage.screenshot({ path: detailFile, fullPage: false });
     await info.attach(`admin-ogretmen-basvuru-${viewport.name}.png`, { path: detailFile, contentType: 'image/png' });
   }
+  await saPage.goto(data.paths.institutionApplications);
+  await saPage.locator('#institution-app-filter-q').fill('institution-app-missing-zzzz');
+  await saPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(saPage.getByText('Filtrelere uygun başvuru bulunamadı.')).toBeVisible();
+  await saPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(saPage.getByRole('link', { name: 'İncele' }).first()).toBeVisible();
+  for (const viewport of [
+    { name: '1440', width: 1440, height: 900 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '390', width: 390, height: 844 },
+  ]) {
+    await saPage.setViewportSize({ width: viewport.width, height: viewport.height });
+    const listResponse = await saPage.goto(data.paths.institutionApplications);
+    expect(listResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Kurum başvuruları' })).toBeVisible();
+    await expect(saPage.getByText('Başvuru onayı kurum, üyelik veya rol vermez.')).toBeVisible();
+    await expect(saPage.locator('[data-institution-app-summary="total"]')).not.toHaveText('0');
+    await expect(saPage.getByText('UzunKurum', { exact: false }).first()).toBeVisible();
+    const listOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-institution-app-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(listOverflow.page, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    expect(listOverflow.doc, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    const listHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(listHeight, 2400)),
+    });
+    const listFile = path.join('artifacts', 'screenshots', `admin-kurum-basvurulari-${viewport.name}.png`);
+    await saPage.screenshot({ path: listFile, fullPage: false });
+    await info.attach(`admin-kurum-basvurulari-${viewport.name}.png`, { path: listFile, contentType: 'image/png' });
+
+    const detailResponse = await saPage.goto(data.paths.institutionApplication);
+    expect(detailResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Kurum başvurusu' })).toBeVisible();
+    await expect(saPage.getByRole('button', { name: 'Onayla' })).toBeVisible();
+    await expect(saPage.getByRole('button', { name: 'Reddet' })).toBeVisible();
+    const reasonLabels = await saPage.locator('#institution-application-reason option').allTextContents();
+    expect(reasonLabels).toContain('Eksik belgeler');
+    expect(reasonLabels.join(' ')).not.toContain('incomplete_documents');
+    await expect(saPage.locator('.admin-institution-app-name')).toContainText('UzunKurum');
+    const detailOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-institution-app-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(detailOverflow.page, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    expect(detailOverflow.doc, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    const detailHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(detailHeight, 2400)),
+    });
+    const detailFile = path.join('artifacts', 'screenshots', `admin-kurum-basvuru-${viewport.name}.png`);
+    await saPage.screenshot({ path: detailFile, fullPage: false });
+    await info.attach(`admin-kurum-basvuru-${viewport.name}.png`, { path: detailFile, contentType: 'image/png' });
+  }
   await saPage.setViewportSize({ width: 1280, height: 900 });
   await saPage.goto('/yonetim');
   await expandAdminGroups(saPage);
