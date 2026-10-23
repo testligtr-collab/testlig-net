@@ -2,49 +2,189 @@
 
 {% block title %}Öğretmen başvurusu — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
         <a href="{{ path('app_admin_teacher_applications') }}">Öğretmen başvuruları</a>
         <span aria-hidden="true">/</span>
-        <span>Başvuru</span>
+        <span>{{ row.shortRef }}</span>
     </nav>
-    <h1 class="panel-greeting">Öğretmen başvurusu</h1>
-    <p>Başvuru onayı öğretmen rolü vermez.</p>
-    <dl>
-        <dt>Başvuran</dt>
-        <dd>{{ application.user.firstName }} {{ application.user.lastName }}</dd>
-        <dt>E-posta</dt>
-        <dd>{{ application.user.email }}</dd>
-        <dt>Durum</dt>
-        <dd>{{ application.status.value }}</dd>
-    </dl>
-    {% if application.status.value == 'pending' %}
-        <form method="post" action="{{ path('app_admin_teacher_application_approve', {id: application.id}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_approve') }}">
-            <button type="submit">Onayla</button>
-        </form>
-        <form method="post" action="{{ path('app_admin_teacher_application_reject', {id: application.id}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_reject') }}">
-            <p>
-                <label for="teacher-application-reason">Ret nedeni</label>
-                <input id="teacher-application-reason" name="reason_code" maxlength="64" autocomplete="off">
-            </p>
-            <button type="submit">Reddet</button>
-        </form>
-    {% endif %}
-    {% if application.status.value == 'approved' %}
-        <form method="post" action="{{ path('app_admin_teacher_application_grant_role', {id: application.id}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_grant_role') }}">
-            <p>Bu işlem yalnız öğretmen rolü verir.</p>
-            <p>
-                <label>
-                    <input type="checkbox" name="confirm" value="1">
-                    Öğretmen rolünü vermeyi onaylıyorum
-                </label>
-            </p>
-            <button type="submit">Öğretmen rolü ver</button>
-        </form>
-    {% endif %}
+{% endblock %}
+
+{% block panel_content %}
+    {% set role_labels = {
+        'ROLE_USER': 'Kullanıcı',
+        'ROLE_STUDENT': 'Öğrenci',
+        'ROLE_PARENT': 'Veli',
+        'ROLE_TEACHER': 'Öğretmen',
+        'ROLE_EXPERT_TEACHER': 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER': 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER': 'Kurum yöneticisi',
+        'ROLE_MODERATOR': 'Moderatör',
+        'ROLE_ADMIN': 'Yönetici',
+        'ROLE_SUPER_ADMIN': 'Süper Yönetici'
+    } %}
+    {% set role_tones = {
+        'ROLE_STUDENT': 'student',
+        'ROLE_PARENT': 'parent',
+        'ROLE_TEACHER': 'teacher',
+        'ROLE_EXPERT_TEACHER': 'teacher',
+        'ROLE_HEAD_TEACHER': 'teacher',
+        'ROLE_INSTITUTION_MANAGER': 'admin',
+        'ROLE_MODERATOR': 'moderator',
+        'ROLE_ADMIN': 'admin',
+        'ROLE_SUPER_ADMIN': 'admin'
+    } %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
+    {% set submitted_month = row.submittedAt|utc_present('n') %}
+    {% set decided_month = row.decidedAt ? row.decidedAt|utc_present('n') : null %}
+    <div class="admin-user-detail-page admin-teacher-app-page">
+        <header class="admin-user-detail-head">
+            <div>
+                <h1 class="panel-greeting">Öğretmen başvurusu</h1>
+                <p>Başvuru onayı öğretmen rolü vermez.</p>
+            </div>
+            <div class="admin-user-detail-head__actions">
+                <a class="admin-user-detail-link" href="{{ path('app_admin_teacher_applications') }}">
+                    <span aria-hidden="true">←</span>
+                    Listeye dön
+                </a>
+                {% if audit_href %}
+                    <a class="admin-user-detail-link" href="{{ audit_href }}">
+                        {% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}
+                        İşlem geçmişi
+                    </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="admin-user-detail-profile" aria-label="Başvuran">
+            <div class="admin-user-detail-identity">
+                <span class="admin-user-avatar admin-user-avatar--{{ row.avatarTone() }}" aria-hidden="true">{{ row.initials() }}</span>
+                <div class="admin-user-detail-identity__copy">
+                    <h2 class="admin-user-detail-name admin-teacher-app-name">{{ row.displayName() }}</h2>
+                    <p class="admin-user-detail-email">{{ row.email }}</p>
+                    <p class="admin-user-detail-ref">Ref {{ row.shortRef }}</p>
+                    <div class="admin-user-detail-pills">
+                        {% include 'admin/teacher_applications/_status.html.twig' with { code: row.status.value } only %}
+                        {% if row.accountStatus.value == 'suspended' %}
+                            {% include 'admin/_status.html.twig' with { code: row.accountStatus.value, variant: 'danger' } only %}
+                        {% else %}
+                            {% include 'admin/_status.html.twig' with { code: row.accountStatus.value } only %}
+                        {% endif %}
+                        {% for role in row.globalRoles %}
+                            <span class="admin-user-role admin-user-role--{{ role_tones[role]|default('user') }}">{{ role_labels[role]|default(role) }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <dl class="admin-user-detail-meta">
+                <div>
+                    <dt>E-posta doğrulaması</dt>
+                    <dd class="admin-user-verify admin-user-verify--{{ row.emailVerified ? 'yes' : 'no' }}">
+                        {% include 'components/admin_icon.html.twig' with { icon: row.emailVerified ? 'tests' : 'clock' } only %}
+                        <span>{{ row.emailVerified ? 'Doğrulanmış' : 'Doğrulanmamış' }}</span>
+                    </dd>
+                </div>
+                <div>
+                    <dt>Başvuru tarihi</dt>
+                    <dd class="admin-user-detail-date">{{ row.submittedAt|utc_present('j') }} {{ month_labels[submitted_month]|default(submitted_month) }} {{ row.submittedAt|utc_present('Y') }} · {{ row.submittedAt|utc_present('H:i') }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="admin-user-detail-card" aria-labelledby="teacher-app-facts-heading">
+            <h2 id="teacher-app-facts-heading">
+                {% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}
+                Başvuru kaydı
+            </h2>
+            <p>Bu kayıt branş, okul veya belge alanı tutmaz.</p>
+            <dl class="admin-teacher-app-facts">
+                <div>
+                    <dt>Durum</dt>
+                    <dd>{% include 'admin/teacher_applications/_status.html.twig' with { code: row.status.value } only %}</dd>
+                </div>
+                <div>
+                    <dt>Karar tarihi</dt>
+                    <dd>
+                        {% if row.decidedAt %}
+                            {{ row.decidedAt|utc_present('j') }} {{ month_labels[decided_month]|default(decided_month) }} {{ row.decidedAt|utc_present('Y') }} · {{ row.decidedAt|utc_present('H:i') }}
+                        {% else %}
+                            Kayıtlı karar tarihi yok
+                        {% endif %}
+                    </dd>
+                </div>
+                <div>
+                    <dt>Karar gerekçesi</dt>
+                    <dd>{{ row.decisionReasonCode ?: 'Kayıtlı gerekçe yok' }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        {% if application.status.value == 'pending' %}
+            <div class="admin-user-detail-forms">
+                <section class="admin-user-detail-card" aria-labelledby="teacher-app-approve-heading">
+                    <h2 id="teacher-app-approve-heading">
+                        {% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}
+                        Başvuruyu onayla
+                    </h2>
+                    <p>Onay yalnız bu başvurunun durumunu değiştirir.</p>
+                    <form class="admin-user-detail-form" method="post" action="{{ path('app_admin_teacher_application_approve', { id: application.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_approve') }}">
+                        <div class="admin-user-detail-actions">
+                            <button class="admin-user-detail-submit" type="submit">Onayla</button>
+                        </div>
+                    </form>
+                </section>
+                <section class="admin-user-detail-card" aria-labelledby="teacher-app-reject-heading">
+                    <h2 id="teacher-app-reject-heading">
+                        {% include 'components/admin_icon.html.twig' with { icon: 'ban' } only %}
+                        Başvuruyu reddet
+                    </h2>
+                    <p>Ret gerekçesi küçük harfle başlayan bir koddur.</p>
+                    <form class="admin-user-detail-form" method="post" action="{{ path('app_admin_teacher_application_reject', { id: application.id }) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_reject') }}">
+                        {% if reason_invalid %}
+                            <p class="admin-user-detail-errors" role="alert">Başvuru verisi geçersiz.</p>
+                        {% endif %}
+                        <label class="admin-user-detail-field" for="teacher-application-reason">
+                            <span>Ret nedeni</span>
+                            <input id="teacher-application-reason" name="reason_code" value="{{ posted_reason|default('') }}" maxlength="64" autocomplete="off" {% if reason_invalid %}aria-invalid="true"{% endif %}>
+                        </label>
+                        <p class="admin-teacher-app-hint">Örnek biçim: incomplete_documents</p>
+                        <div class="admin-user-detail-actions">
+                            <button class="admin-user-detail-submit admin-teacher-app-reject" type="submit">Reddet</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+        {% endif %}
+
+        {% if application.status.value == 'approved' %}
+            <section class="admin-user-detail-card" aria-labelledby="teacher-app-grant-heading">
+                <h2 id="teacher-app-grant-heading">
+                    {% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}
+                    Öğretmen rolü
+                </h2>
+                <p>Bu işlem yalnız öğretmen rolü verir.</p>
+                {% if row.holdsTeacherRole() %}
+                    <p class="admin-user-detail-current admin-user-detail-current--success">Bu hesapta öğretmen rolü zaten var.</p>
+                {% endif %}
+                <form class="admin-user-detail-form" method="post" action="{{ path('app_admin_teacher_application_grant_role', { id: application.id }) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('teacher_application_grant_role') }}">
+                    <label class="admin-user-detail-confirm">
+                        <input type="checkbox" name="confirm" value="1">
+                        <span>Öğretmen rolünü vermeyi onaylıyorum</span>
+                    </label>
+                    <div class="admin-user-detail-actions">
+                        <button class="admin-user-detail-submit" type="submit">Öğretmen rolü ver</button>
+                    </div>
+                </form>
+            </section>
+        {% endif %}
+    </div>
 {% endblock %}

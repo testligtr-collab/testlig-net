@@ -2,36 +2,174 @@
 
 {% block title %}Öğretmen başvuruları — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
         <span>Öğretmen başvuruları</span>
     </nav>
-    <h1 class="panel-greeting">Öğretmen başvuruları</h1>
-    <p>Başvuru onayı öğretmen rolü vermez.</p>
-    {% if applications is empty %}
-        <p>Bekleyen öğretmen başvurusu yok.</p>
-    {% else %}
-        <div class="table-scroll">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Başvuran</th>
-                        <th>Durum</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for application in applications %}
-                        <tr>
-                            <td>{{ application.user.firstName }} {{ application.user.lastName }}</td>
-                            <td>Bekliyor</td>
-                            <td><a href="{{ path('app_admin_teacher_application', {id: application.id}) }}">İncele</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
+{% endblock %}
+
+{% block panel_content %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
+    {% set status_labels = {
+        'pending': 'Bekliyor',
+        'approved': 'Onaylandı',
+        'rejected': 'Reddedildi',
+        'withdrawn': 'Geri çekildi',
+        'superseded': 'Yerine yenisi geldi'
+    } %}
+    <div class="admin-user-page admin-teacher-app-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Öğretmen başvuruları</h1>
+                <p>Gönderilmiş öğretmen başvurularını inceleyin ve sonuçlandırın.</p>
+                <p>Başvuru onayı öğretmen rolü vermez.</p>
+            </div>
+            {% if admin_filters_active(filters|default({})) %}
+                <a class="admin-user-clear" href="{{ path('app_admin_teacher_applications') }}">Filtreleri temizle</a>
+            {% endif %}
+        </header>
+
+        <section class="admin-user-stats" aria-label="Başvuru özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="total">{{ summary.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Bekliyor</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="pending">{{ summary.pending }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Onaylandı</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="approved">{{ summary.approved }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--suspended">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'ban' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Reddedildi</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="rejected">{{ summary.rejected }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--withdrawn">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Geri çekildi</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="withdrawn">{{ summary.withdrawn }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--superseded">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'default' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Yerine yenisi geldi</span>
+                    <strong class="admin-user-stat__value" data-teacher-app-summary="superseded">{{ summary.superseded }}</strong>
+                </span>
+            </article>
+        </section>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_teacher_applications') }}">
+            <h2>Başvuruları filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <label class="admin-user-search" for="teacher-app-filter-q">
+                    <span class="sr-only">Ara</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="teacher-app-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Ad veya e-posta ile ara...">
+                </label>
+                <label for="teacher-app-filter-status">
+                    <span class="sr-only">Durum</span>
+                    <select id="teacher-app-filter-status" name="status">
+                        <option value="">Durum</option>
+                        {% for code, label in status_labels %}
+                            <option value="{{ code }}" {% if filters.status|default('') == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="teacher-app-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="teacher-app-list-heading">Başvuru listesi</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} başvuru</span>
+            </header>
+            {% if result.items is empty %}
+                {% if admin_filters_active(filters|default({})) %}
+                    {% include 'components/empty_state.html.twig' with {
+                        title: 'Sonuç yok',
+                        body: 'Filtrelere uygun başvuru bulunamadı.'
+                    } %}
+                {% else %}
+                    {% include 'components/empty_state.html.twig' with {
+                        title: 'Kayıt yok',
+                        body: 'Henüz öğretmen başvurusu yok.'
+                    } %}
+                {% endif %}
+            {% else %}
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Başvuran</th>
+                                <th>Başvuru</th>
+                                <th>Durum</th>
+                                <th><span class="sr-only">İşlem</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                {% set submitted_month = row.submittedAt|utc_present('n') %}
+                                <tr>
+                                    <td class="admin-user-person" data-label="Başvuran">
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar admin-user-avatar--{{ row.avatarTone() }}" aria-hidden="true">{{ row.initials() }}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.displayName() }}</span>
+                                                <span class="admin-user-person__email">{{ row.email }}</span>
+                                                <span class="admin-user-person__ref">Ref {{ row.shortRef }}</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td class="admin-user-date" data-label="Başvuru">
+                                        <span class="admin-user-date__stack">
+                                            <span>{{ row.submittedAt|utc_present('j') }} {{ month_labels[submitted_month]|default(submitted_month) }} {{ row.submittedAt|utc_present('Y') }}</span>
+                                            <span>{{ row.submittedAt|utc_present('H:i') }}</span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Durum">
+                                        {% include 'admin/teacher_applications/_status.html.twig' with { code: row.status.value } only %}
+                                    </td>
+                                    <td class="admin-user-action" data-label="İşlem">
+                                        <a class="admin-user-detail" href="{{ path('app_admin_teacher_application', { id: row.id }) }}">İncele <span aria-hidden="true">›</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% include 'components/admin_pagination.html.twig' with {
+                result: result,
+                route: 'app_admin_teacher_applications',
+                query: {
+                    q: filters.q|default(''),
+                    status: filters.status|default('')
+                }
+            } %}
+        </section>
+    </div>
 {% endblock %}
