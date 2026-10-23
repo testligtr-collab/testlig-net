@@ -100,7 +100,8 @@ final class AdminTeacherApplicationPresentationTest extends WebTestCase
         self::assertStringContainsString('Listeye dön', $detail);
         self::assertStringContainsString('İşlem geçmişi', $detail);
         self::assertStringContainsString('Başvuru onayı öğretmen rolü vermez.', $detail);
-        self::assertStringNotContainsString('>Onayla<', $detail);
+        self::assertCount(0, $client->getCrawler()->filter('form[action*="/onayla"]'));
+        self::assertCount(0, $client->getCrawler()->filter('#teacher-application-reason'));
     }
 
     public function testPageSizeLimitsTheVisibleRows(): void
