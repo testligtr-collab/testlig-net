@@ -364,6 +364,16 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $issued = $this->parentLinks->issue($student);
         $this->parentLinks->redeem($parent, $issued->displayCode, '127.0.0.1');
 
+        $detailUser = $this->account(
+            'browser-detail-'.str_repeat('a', 40).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Teacher,
+        );
+        $detailUser->addGlobalRole(UserRole::Parent);
+        $detailUser->addGlobalRole(UserRole::HeadTeacher);
+        $this->users->save($detailUser);
+
         $manifest = [
             'password' => self::PASSWORD,
             'users' => [
@@ -399,6 +409,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'testTitle' => 'Toplama testi',
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
+                'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

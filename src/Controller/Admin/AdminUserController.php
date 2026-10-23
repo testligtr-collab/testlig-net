@@ -22,6 +22,7 @@ use App\Service\Admin\AdminUserQuery;
 use App\Service\UserGlobalRoleManager;
 use App\Service\UserStatusManager;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormView;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
@@ -80,44 +81,7 @@ final class AdminUserController extends AdminBaseController
     #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
     public function detail(Uuid $id): Response
     {
-        try {
-            $user = $this->userQuery->getDetail($this->requireActorId(), $id);
-        } catch (CommerceException $e) {
-            $this->mapCommerceException($e);
-        }
-
-        $rolesForm = null;
-        $statusForm = null;
-        if ($user->canManageRoles) {
-            $dto = new AdminUserRolesRequest();
-            $dto->roles = array_values(array_filter(
-                $user->globalRoles,
-                static fn (string $r): bool => UserRole::User->value !== $r,
-            ));
-            $rolesForm = $this->createForm(AdminUserRolesFormType::class, $dto, [
-                'user_id' => $id,
-                'assignable_roles' => $user->assignableRoleValues,
-                'action' => $this->generateUrl('app_admin_user_roles', ['id' => $id]),
-                'method' => 'POST',
-            ])->createView();
-        }
-        if ($user->canManageStatus && [] !== $user->allowedStatusTargets) {
-            $statusForm = $this->createForm(AdminUserStatusFormType::class, new AdminUserStatusRequest(), [
-                'user_id' => $id,
-                'allowed_targets' => $user->allowedStatusTargets,
-                'action' => $this->generateUrl('app_admin_user_status', ['id' => $id]),
-                'method' => 'POST',
-            ])->createView();
-        }
-
-        return $this->renderAdmin('admin/users/detail.html.twig', [
-            'user' => $user,
-            'roles_form' => $rolesForm,
-            'status_form' => $statusForm,
-            'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
-                ? $this->generateUrl('app_admin_audit')
-                : null,
-        ]);
+        return $this->renderDetail($id);
     }
 
     #[Route('/yonetim/kullanicilar/{id}/roller', name: 'app_admin_user_roles', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -144,6 +108,8 @@ final class AdminUserController extends AdminBaseController
         $form = $this->createForm(AdminUserRolesFormType::class, $dto, [
             'user_id' => $id,
             'assignable_roles' => $detail->assignableRoleValues,
+            'action' => $this->generateUrl('app_admin_user_roles', ['id' => $id]),
+            'method' => 'POST',
         ]);
         $form->handleRequest($request);
 
@@ -151,9 +117,8 @@ final class AdminUserController extends AdminBaseController
             if ($this->formHasCsrfFailure($form)) {
                 throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
             }
-            $this->addFlash('error', 'Rol formu geçersiz. Onay ve geçerli gerekçe gereklidir.');
 
-            return $this->redirectToRoute('app_admin_user_detail', ['id' => $id]);
+            return $this->renderDetail($id, $form->createView(), null, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->consumeLimiter($this->rolesLimiter, $actorId, $id, 'roles');
@@ -210,6 +175,8 @@ final class AdminUserController extends AdminBaseController
         $form = $this->createForm(AdminUserStatusFormType::class, $dto, [
             'user_id' => $id,
             'allowed_targets' => $detail->allowedStatusTargets,
+            'action' => $this->generateUrl('app_admin_user_status', ['id' => $id]),
+            'method' => 'POST',
         ]);
         $form->handleRequest($request);
 
@@ -217,9 +184,8 @@ final class AdminUserController extends AdminBaseController
             if ($this->formHasCsrfFailure($form)) {
                 throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
             }
-            $this->addFlash('error', 'Durum formu geçersiz. Onay ve geçerli gerekçe gereklidir.');
 
-            return $this->redirectToRoute('app_admin_user_detail', ['id' => $id]);
+            return $this->renderDetail($id, null, $form->createView(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $this->consumeLimiter($this->statusLimiter, $actorId, $id, 'status');
@@ -239,6 +205,49 @@ final class AdminUserController extends AdminBaseController
 
         $response = $this->redirectToRoute('app_admin_user_detail', ['id' => $id]);
         $this->applyNoStore($response);
+
+        return $response;
+    }
+
+    private function renderDetail(Uuid $id, ?FormView $rolesForm = null, ?FormView $statusForm = null, int $statusCode = Response::HTTP_OK): Response
+    {
+        try {
+            $user = $this->userQuery->getDetail($this->requireActorId(), $id);
+        } catch (CommerceException $e) {
+            $this->mapCommerceException($e);
+        }
+
+        if (null === $rolesForm && $user->canManageRoles) {
+            $dto = new AdminUserRolesRequest();
+            $dto->roles = array_values(array_filter(
+                $user->globalRoles,
+                static fn (string $r): bool => UserRole::User->value !== $r,
+            ));
+            $rolesForm = $this->createForm(AdminUserRolesFormType::class, $dto, [
+                'user_id' => $id,
+                'assignable_roles' => $user->assignableRoleValues,
+                'action' => $this->generateUrl('app_admin_user_roles', ['id' => $id]),
+                'method' => 'POST',
+            ])->createView();
+        }
+        if (null === $statusForm && $user->canManageStatus && [] !== $user->allowedStatusTargets) {
+            $statusForm = $this->createForm(AdminUserStatusFormType::class, new AdminUserStatusRequest(), [
+                'user_id' => $id,
+                'allowed_targets' => $user->allowedStatusTargets,
+                'action' => $this->generateUrl('app_admin_user_status', ['id' => $id]),
+                'method' => 'POST',
+            ])->createView();
+        }
+
+        $response = $this->renderAdmin('admin/users/detail.html.twig', [
+            'user' => $user,
+            'roles_form' => $rolesForm,
+            'status_form' => $statusForm,
+            'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
+                ? $this->generateUrl('app_admin_audit')
+                : null,
+        ]);
+        $response->setStatusCode($statusCode);
 
         return $response;
     }

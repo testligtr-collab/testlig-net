@@ -183,6 +183,67 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await adminPage.mouse.move(0, 0);
     await shot(adminPage, info, 'admin', 'kullanicilar', viewport.name);
   }
+  for (const viewport of [
+    { name: '1440', width: 1440, height: 900 },
+    { name: '1920', width: 1920, height: 1080 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '390', width: 390, height: 844 },
+  ]) {
+    await adminPage.setViewportSize({ width: viewport.width, height: viewport.height });
+    const detail = await adminPage.goto(data.paths.userDetail);
+    expect(detail?.status()).toBe(200);
+    await expect(adminPage.getByRole('heading', { level: 1, name: 'Kullanıcı detayı' })).toBeVisible();
+    await expect(adminPage.getByRole('heading', { name: 'Rolleri güncelle' })).toBeVisible();
+    await expect(adminPage.getByRole('heading', { name: 'Durumu güncelle' })).toBeVisible();
+    await expect(adminPage.locator('form[name="admin_user_roles"]')).toHaveCount(1);
+    await expect(adminPage.locator('form[name="admin_user_status"]')).toHaveCount(1);
+    await expect(adminPage.locator('.admin-user-detail-name')).toContainText('Uzunad');
+    await expect(adminPage.locator('.admin-user-detail-email')).toContainText('browser-detail-');
+    await expect(adminPage.locator('.admin-user-detail-pills')).toContainText('Öğretmen');
+    await expect(adminPage.locator('.admin-user-detail-pills')).toContainText('Veli');
+    await expect(adminPage.locator('.admin-user-detail-pills')).toContainText('Zümre başkanı');
+    const layout = await adminPage.evaluate(() => {
+      const page = document.querySelector('.admin-user-detail-page');
+      const forms = document.querySelector('.admin-user-detail-forms');
+      const roles = document.querySelector('.admin-user-role-options');
+      const cards = Array.from(document.querySelectorAll('.admin-user-detail-card')).map((node) => node.getBoundingClientRect().width);
+      const view = document.documentElement.clientWidth;
+      return {
+        page: page?.scrollWidth ?? 0,
+        doc: document.documentElement.scrollWidth,
+        view,
+        formColumns: forms ? getComputedStyle(forms).gridTemplateColumns.split(' ').filter(Boolean).length : 0,
+        roleColumns: roles ? getComputedStyle(roles).gridTemplateColumns.split(' ').filter(Boolean).length : 0,
+        cards,
+      };
+    });
+    expect(layout.page, viewport.name).toBeLessThanOrEqual(layout.view + 1);
+    expect(layout.doc, viewport.name).toBeLessThanOrEqual(layout.view + 1);
+    expect(layout.formColumns, viewport.name).toBe(viewport.width >= 1024 ? 2 : 1);
+    expect(layout.roleColumns, viewport.name).toBe(viewport.width >= 768 ? 2 : 1);
+    if (viewport.width >= 1024) {
+      expect(layout.cards[0], viewport.name).toBeGreaterThan(layout.cards[1]);
+      const ratio = layout.cards[0] / (layout.cards[0] + layout.cards[1]);
+      expect(ratio, viewport.name).toBeGreaterThan(0.55);
+      expect(ratio, viewport.name).toBeLessThan(0.68);
+    }
+    const checkbox = adminPage.locator('form[name="admin_user_roles"] .admin-user-role-option input[type="checkbox"]').first();
+    await checkbox.focus();
+    await adminPage.keyboard.press('Tab');
+    const nextCheckbox = adminPage.locator('form[name="admin_user_roles"] .admin-user-role-option input[type="checkbox"]').nth(1);
+    await expect(nextCheckbox).toBeFocused();
+    const outline = await nextCheckbox.evaluate((node) => getComputedStyle(node).outlineStyle);
+    expect(outline, viewport.name).toBe('solid');
+    const shotHeight = await adminPage.evaluate(() => document.documentElement.scrollHeight);
+    await adminPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(shotHeight, 2400)),
+    });
+    const file = path.join('artifacts', 'screenshots', `admin-kullanici-detay-${viewport.name}.png`);
+    await adminPage.screenshot({ path: file, fullPage: false });
+    await info.attach(`admin-kullanici-detay-${viewport.name}.png`, { path: file, contentType: 'image/png' });
+  }
+  await adminPage.setViewportSize({ width: 1280, height: 900 });
   await adminPage.goto(data.paths.reviewDetail);
   await expect(adminPage.getByRole('button', { name: 'Yayımla' })).toBeVisible();
   const logout = adminPage.locator('form.admin-logout-form');

@@ -136,9 +136,12 @@
       "evidence": [
         "src/Controller/Admin/AdminUserController.php",
         "Kullanıcı listesi özet sayaçları filtrelerden bağımsız ve mevcut görüntüleme yetkisiyle gerçek kayıtlardan gelir. Arama, durum, rol ve doğrulama filtreleri aynı GET parametrelerinde kalır. Rol ve durum değiştirme bu görsel dilimde değişmedi. Kullanıcı yönetiminin bütün kapsamı tamamlanmış değildir. Ekran görüntüsü canlı görsel kabul değildir.",
-        "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Satır ayırıcısı satırın kendi çizgisidir. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz."
+        "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Satır ayırıcısı satırın kendi çizgisidir. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz.",
+        "Kullanıcı detayı profil özeti, rol kartları ve durum kartıyla yeniden düzenlendi. Rol ve durum formlarının adları, CSRF niyeti, izinli seçenekler ve başarılı kayıt yönlendirmesi aynı kaldı. Bu görsel dilim kullanıcı yönetiminin bütün kapsamını tamamlamaz."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/162"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -1155,7 +1158,8 @@
         "Açık Medya kartı Dokümanlar, Videolar ve Medya ve depolama mini kartlarını mevcut bölüm adresleriyle ve Geliştirme aşamasında etiketiyle gösterir. İzni olmayan bağlantı basılmaz. Diğer kartlar, sol menü ve sayaçlar aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Medya dışındaki Genel Bakış kartları ve Tüm bölümleri göster grupları ortak mini kart düzenini kullanır. Her grubun açık renk ailesi ayrıdır. Çalışan ekranlar kendi adresinde, geliştirme aşamasındaki bölümler mevcut bölüm girişinde kalır. Durum etiketi gerçek aşamayı gösterir. Medya kartının kabul edilmiş renkleri aynıdır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcılar listesinin görsel düzeni yönetim kabuğunun içinde yenilendi. Sol menü, Genel Bakış, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kullanıcı detayı aynı yönetim kabuğunda profil özeti ve ayrı rol/durum kartlarıyla düzenlendi. Sol menü, logo, kullanıcı listesi ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1163,7 +1167,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/153",
         "https://github.com/testligtr-collab/testlig-net/pull/154",
         "https://github.com/testligtr-collab/testlig-net/pull/155",
-        "https://github.com/testligtr-collab/testlig-net/pull/158"
+        "https://github.com/testligtr-collab/testlig-net/pull/158",
+        "https://github.com/testligtr-collab/testlig-net/pull/162"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null

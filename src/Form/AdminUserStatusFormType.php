@@ -36,9 +36,14 @@ final class AdminUserStatusFormType extends AbstractType
                 UserStatus::Active => AdminUserStatusRequest::ACTION_REACTIVATE,
                 default => null,
             };
-            if (null !== $action) {
-                $actions[$status->value] = $action;
+            if (null === $action) {
+                continue;
             }
+            $actions[match ($status) {
+                UserStatus::Suspended => 'Askıda',
+                UserStatus::Archived => 'Arşivlenmiş',
+                UserStatus::Active => 'Aktif',
+            }] = $action;
         }
 
         $builder
@@ -46,15 +51,21 @@ final class AdminUserStatusFormType extends AbstractType
                 'label' => 'Yeni durum',
                 'choices' => $actions,
                 'placeholder' => 'İşlem seçin',
+                'setter' => static function (AdminUserStatusRequest $request, mixed $value): void {
+                    $request->action = \is_string($value) ? $value : '';
+                },
             ])
             ->add('reasonCode', ChoiceType::class, [
-                'label' => 'Gerekçe',
+                'label' => 'Değişiklik gerekçesi',
                 'choices' => [
                     'Politika ihlali' => AdminUserStatusRequest::REASON_POLICY_VIOLATION,
                     'Hesap incelemesi' => AdminUserStatusRequest::REASON_ACCOUNT_REVIEW,
                     'Operatör düzeltmesi' => AdminUserStatusRequest::REASON_OPERATOR_CORRECTION,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'setter' => static function (AdminUserStatusRequest $request, mixed $value): void {
+                    $request->reasonCode = \is_string($value) ? $value : '';
+                },
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Durum değişikliğini onaylıyorum',
