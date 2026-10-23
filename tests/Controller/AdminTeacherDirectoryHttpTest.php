@@ -73,8 +73,9 @@ final class AdminTeacherDirectoryHttpTest extends WebTestCase
             self::assertResponseStatusCodeSame(403);
         }
 
-        $this->login($client, 'tdir-admin@example.com');
-        $client->request('GET', '/yonetim');
+        $admin = $this->browser();
+        $this->login($admin, 'tdir-admin@example.com');
+        $admin->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/yonetim/ogretmenler"]');
         self::assertSelectorNotExists('a[href="/yonetim/bolum/ogretmenler"]');

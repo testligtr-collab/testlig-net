@@ -273,6 +273,12 @@ final class AdminTeacherDirectoryQuery
             return [];
         }
 
+        /** @var list<Uuid> $ids */
+        $ids = [];
+        foreach ($users as $user) {
+            $ids[] = $user->getId();
+        }
+
         /** @var list<TeacherProfessionalProfile> $profiles */
         $profiles = $this->em->createQueryBuilder()
             ->select('profile', 'subject', 'school', 'district', 'province')
@@ -281,8 +287,8 @@ final class AdminTeacherDirectoryQuery
             ->leftJoin('profile.schoolLocation', 'school')
             ->leftJoin('school.parent', 'district')
             ->leftJoin('district.parent', 'province')
-            ->where('profile.user IN (:users)')
-            ->setParameter('users', $users)
+            ->where('IDENTITY(profile.user) IN (:ids)')
+            ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
 
@@ -422,7 +428,7 @@ final class AdminTeacherDirectoryQuery
             ->from(InstitutionMembership::class, 'membership')
             ->innerJoin('membership.institution', 'institution')
             ->where('membership.user = :user')
-            ->setParameter('user', $user)
+            ->setParameter('user', $user->getId(), 'uuid')
             ->orderBy('institution.name', 'ASC')
             ->addOrderBy('membership.id', 'ASC')
             ->getQuery()
@@ -454,7 +460,7 @@ final class AdminTeacherDirectoryQuery
             ->innerJoin('assignment.teacherMembership', 'membership')
             ->where('membership.user = :user')
             ->andWhere('assignment.status = :activeAssignment')
-            ->setParameter('user', $user)
+            ->setParameter('user', $user->getId(), 'uuid')
             ->setParameter('activeAssignment', TeacherAssignmentStatus::Active)
             ->orderBy('classroom.name', 'ASC')
             ->addOrderBy('assignment.id', 'ASC')
