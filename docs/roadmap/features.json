@@ -189,7 +189,8 @@
         "Liste, rol kartları, moderatör hesap paneli, arama ve boş durum düzenini kullanır. Hesap varsa gerçek satırlar görünür. Adres, katalog ve kayıt kuralları aynıdır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/166"
+        "https://github.com/testligtr-collab/testlig-net/pull/166",
+        "https://github.com/testligtr-collab/testlig-net/pull/167"
       ],
       "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Diğer moderatör izinleri ve canlı kabul açıktır.",
       "scope_decision": null
@@ -1188,7 +1189,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/163",
         "https://github.com/testligtr-collab/testlig-net/pull/164",
         "https://github.com/testligtr-collab/testlig-net/pull/165",
-        "https://github.com/testligtr-collab/testlig-net/pull/166"
+        "https://github.com/testligtr-collab/testlig-net/pull/166",
+        "https://github.com/testligtr-collab/testlig-net/pull/167"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
