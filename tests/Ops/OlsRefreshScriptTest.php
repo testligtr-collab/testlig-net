@@ -241,7 +241,6 @@ BASH);
         $bash = $this->bashBinary();
         $script = $this->bashPath(\dirname(__DIR__, 2).'/deploy/vds/gha-ols-refresh-remote.sh');
         $env = getenv();
-        self::assertIsArray($env);
         $bin = $this->bashPath($root.'/bin');
         $path = $bin.':/usr/bin:/bin';
         $env['TESTLIG_OLS_REFRESH_ROOT'] = $this->bashPath($root);
@@ -298,7 +297,6 @@ BASH);
     {
         $pipes = [];
         $env = getenv();
-        self::assertIsArray($env);
         $env['MSYS'] = 'winsymlinks:lnk';
         $process = proc_open([$this->bashBinary(), '-c', $command], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, null, $env);
         self::assertIsResource($process);
