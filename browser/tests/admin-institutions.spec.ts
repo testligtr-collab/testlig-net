@@ -20,7 +20,7 @@ test('superadmin institution list, create and detail follow the reference', asyn
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(data.paths.institutions);
     await expect(page.getByRole('heading', { level: 1, name: 'Kurumlar' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Yeni kurum', exact: true })).toBeVisible();
+    await expect(page.locator('a.admin-institution-primary')).toHaveText('+ Yeni kurum');
     await expect(page.locator('[data-institution-summary]')).toHaveCount(4);
     await expect(page.getByPlaceholder('Kurum adı veya slug')).toBeVisible();
     await expect(page.getByText('Uzun Adli Bekleyen Kurs Merkezi')).toBeVisible();

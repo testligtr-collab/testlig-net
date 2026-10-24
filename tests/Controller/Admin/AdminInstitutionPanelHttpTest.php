@@ -75,7 +75,8 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
         $client->request('GET', '/yonetim/kurumlar/sahip-adaylari', ['q' => 'a']);
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
-        self::assertSame(['results' => []], $this->json($client));
+        $empty = $this->json($client);
+        self::assertSame(['results' => []], $empty);
 
         $client->request('GET', '/yonetim/kurumlar/sahip-adaylari', ['q' => 'Paneladay']);
         $payload = $this->json($client);
@@ -286,8 +287,6 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
             }
         }
         self::fail('Missing option '.$label);
-
-        return '';
     }
 
     /**
@@ -351,10 +350,14 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
     /**
      * @return array<string, mixed>
      */
+    /**
+     * @return array<string, mixed>
+     */
     private function json(KernelBrowser $client): array
     {
         $decoded = json_decode((string) $client->getResponse()->getContent(), true);
         self::assertIsArray($decoded);
+        /* @var array<string, mixed> $decoded */
 
         return $decoded;
     }
