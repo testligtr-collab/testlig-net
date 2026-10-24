@@ -216,22 +216,35 @@ final class AdminInstitutionQuery
             return [];
         }
 
-        /** @var list<array{institutionId: Uuid, cnt: string|int}> $rows */
-        $rows = $this->em->createQueryBuilder()
+        $qb = $this->em->createQueryBuilder()
             ->select('IDENTITY(m.institution) AS institutionId, COUNT(m.id) AS cnt')
             ->from(InstitutionMembership::class, 'm')
-            ->andWhere('m.institution IN (:ids)')
             ->andWhere('m.status = :active')
-            ->setParameter('ids', $ids)
             ->setParameter('active', InstitutionMembershipStatus::Active)
-            ->groupBy('m.institution')
+            ->groupBy('m.institution');
+        $match = $qb->expr()->orX();
+        foreach (array_values($ids) as $index => $id) {
+            $parameter = 'institution'.$index;
+            $match->add('IDENTITY(m.institution) = :'.$parameter);
+            $qb->setParameter($parameter, $id, 'uuid');
+        }
+        /** @var list<array{institutionId: Uuid|string, cnt: string|int}> $rows */
+        $rows = $qb
+            ->andWhere($match)
             ->getQuery()
             ->getArrayResult();
 
         $map = [];
         foreach ($rows as $row) {
             $id = $row['institutionId'];
-            $map[$id->toRfc4122()] = (int) $row['cnt'];
+            if ($id instanceof Uuid) {
+                $key = $id->toRfc4122();
+            } elseif (Uuid::isValid($id)) {
+                $key = $id;
+            } else {
+                $key = Uuid::fromBinary($id)->toRfc4122();
+            }
+            $map[$key] = (int) $row['cnt'];
         }
 
         return $map;

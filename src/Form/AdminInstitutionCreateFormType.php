@@ -54,6 +54,7 @@ final class AdminInstitutionCreateFormType extends AbstractType
                     'autocomplete' => 'off',
                     'class' => 'admin-owner-picker__value',
                     'data-owner-value' => '1',
+                    'data-institution-owner-picker-target' => 'value',
                     'aria-hidden' => 'true',
                     'tabindex' => '-1',
                 ],
