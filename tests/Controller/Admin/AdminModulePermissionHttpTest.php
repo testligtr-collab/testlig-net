@@ -81,9 +81,15 @@ final class AdminModulePermissionHttpTest extends WebTestCase
         $this->assertHtmlContains($super, 'Global roller kullanıcı detayından yönetilir.');
         $this->assertHtmlHas($super, 'a[href="/yonetim/rol-yetkileri"]');
         $this->assertHtmlContains($super, 'Hedef Moderator');
+        self::assertSame(1, $super->getCrawler()->filter('form[aria-label="Moderatör hesaplarında ara"]')->count());
+        self::assertStringNotContainsString('Henüz moderatör hesabı yok', (string) $super->getResponse()->getContent());
         $super->request('GET', '/yonetim/rol-yetkileri?q=module-perm-yok-zzzz');
         $this->assertHttpOk($super);
         $this->assertHtmlContains($super, 'Filtrelere uygun hesap bulunamadı.');
+        self::assertSame(1, $super->getCrawler()->filter('form[aria-label="Moderatör hesaplarında ara"] button[type="submit"]')->count());
+        self::assertStringNotContainsString('Hedef Moderator', (string) $super->getResponse()->getContent());
+        self::assertStringNotContainsString('Henüz moderatör hesabı yok', (string) $super->getResponse()->getContent());
+        self::assertStringNotContainsString('Kullanıcılara git', (string) $super->getResponse()->getContent());
 
         $detail = '/yonetim/rol-yetkileri/'.$moderator->getId()->toRfc4122();
         $super->request('GET', $detail);
