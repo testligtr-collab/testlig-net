@@ -181,14 +181,14 @@
       "id": "M03-module-permissions",
       "module": "M03",
       "title": "Moderatör modül izin yönetimi",
-      "status": "planned",
+      "status": "partial",
       "source": "V1: AdminModulePermission",
       "depends_on": [],
       "evidence": [
-        "V1: AdminModulePermission"
+        "Süper yönetici /yonetim/rol-yetkileri adresinde moderatör hesaplarına learning_content.manage, question.manage ve assessment.author izinlerini verir veya kaldırır. İzin menü, route ve platform işlem servisinde aynı UserModulePermissionPolicy ile uygulanır. Yayın, arşiv, ödeme, denetim, kurum üyeliği ve global rol bu ekrandan verilmez. Canlı görsel kabul yapılmadı."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Diğer moderatör izinleri ve canlı kabul açıktır.",
       "scope_decision": null
     },
     {
@@ -1170,7 +1170,8 @@
         "Kullanıcı detayı aynı yönetim kabuğunda profil özeti ve ayrı rol/durum kartlarıyla düzenlendi. Sol menü, logo, kullanıcı listesi ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğretmen başvuruları listesi ve detayı mevcut yönetim kabuğunda, Genel Bakış ve Kullanıcılar düzeniyle yenilendi. Adres /yonetim/ogretmen-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Rol ve modül izinleri menüsü yer tutucu bölüm girişinden /yonetim/rol-yetkileri adresine alındı. Ekran yalnız süper yöneticiye açıktır ve moderatörün üç platform yazma iznini yönetir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

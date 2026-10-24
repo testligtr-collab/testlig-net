@@ -124,6 +124,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $admin = $this->account('browser-admin@example.test', 'Deneme', 'Yonetici', UserRole::Admin);
         $teacher = $this->account('browser-teacher@example.test', 'Deneme', 'Ogretmen', UserRole::Teacher);
         $this->account('browser-moderator@example.test', 'Deneme', 'Moderator', UserRole::Moderator);
+        $permissionModerator = $this->account(
+            'browser-moderator-'.str_repeat('a', 24).'@example.test',
+            str_repeat('Uzunad', 6),
+            str_repeat('Soyad', 6),
+            UserRole::Moderator,
+        );
         $this->account('browser-expert@example.test', 'Deneme', 'Uzman', UserRole::ExpertTeacher);
         $this->account('browser-teacher-empty@example.test', 'Deneme', 'Bosogretmen', UserRole::Teacher);
         $student = $this->account('browser-student@example.test', 'Deneme', 'Ogrenci', UserRole::Student);
@@ -463,6 +469,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
                 'institutionApplications' => '/yonetim/kurum-basvurulari',
                 'institutionApplication' => '/yonetim/kurum-basvurulari/'.$institutionApplication->getId()->toRfc4122(),
+                'modulePermissions' => '/yonetim/rol-yetkileri',
+                'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

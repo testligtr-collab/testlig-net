@@ -94,7 +94,7 @@ M18'deki V1 kanıtı ADMIN'in platform medya depolama yönetimidir. “Her kulla
 | Kurum/sınıf katılım kodu | ClassStudentAuth / TeacherClassJoin | Güvenli e-posta davetleri mevcut; kodla girişten farklı |
 | Başvuru onayı | V1 TeacherApproval / InstitutionRegistration approval | V2 başvuru göndermesi ve decision service var; TeacherApplicationManager::markApproved rol vermez; tam yönetim/onay zinciri eksik |
 | Baş/uzman öğretmen özel paneli | /panel/head ve /panel/expert | V2 rol yetkileri ve ortak içerik çalışma alanı mevcut; özel ekip/kuyruk/talep dashboard'ları ayrıca |
-| Moderatöre modül bazlı izin verme | AdminModulePermission | V2 voter/rol matrisi mevcut; admin tarafından düzenlenen aynı modül izin ürünü yok |
+| Moderatöre modül bazlı izin verme | AdminModulePermission | Süper yönetici `/yonetim/rol-yetkileri` adresinden moderatöre üç platform yazma izni verir. Yayın, ödeme, denetim ve kurum üyeliği devredilmez. Diğer modül izinleri açıktır. |
 | Kurum toplu öğrenci/üye aktarımı | BulkUserImporter / branch import | Soru CSV importundan farklı; kurum kullanıcı aktarımı eksik |
 | Öğretmen notları ve geri bildirim | StudentTeacherNote | Sınıf sonuç tablosu not/geri bildirim sistemi değildir |
 | Deneme üyeliği | StudentRegistrationTrialApplicator / TrialAccess | V2 free policy lisanssız kaynak erişimidir; süreli trial ürünü değildir |

@@ -57,6 +57,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(adminPage.locator('a[href^="/yonetim/bolum/"]')).toHaveCount(0);
   await expect(adminPage.locator('a[href="/yonetim/odemeler"]')).toHaveCount(0);
   await expect(adminPage.locator('a[href="/yonetim/denetim"]')).toHaveCount(0);
+  await expect(adminPage.locator('a[href="/yonetim/rol-yetkileri"]')).toHaveCount(0);
   await expect(adminPage.locator('a.admin-mini-link[href="/yonetim/kullanicilar"]')).toContainText('Çalışıyor');
   await adminPage.setViewportSize({ width: 640, height: 800 });
   await adminPage.goto('/yonetim');
@@ -444,6 +445,65 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await saPage.screenshot({ path: teacherFile, fullPage: false });
     await info.attach(`admin-ogretmen-${viewport.name}.png`, { path: teacherFile, contentType: 'image/png' });
   }
+  await saPage.setViewportSize({ width: 1440, height: 900 });
+  await saPage.goto(data.paths.modulePermissions);
+  await saPage.locator('#module-permission-filter-q').fill('module-permission-yok-zzzz');
+  await saPage.getByRole('button', { name: 'Filtrele' }).click();
+  await expect(saPage.getByText('Filtrelere uygun hesap bulunamadı.')).toBeVisible();
+  await saPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await expect(saPage.getByRole('link', { name: 'İzinler' }).first()).toBeVisible();
+  for (const viewport of [
+    { name: '1440', width: 1440, height: 900 },
+    { name: '768', width: 768, height: 1024 },
+    { name: '390', width: 390, height: 844 },
+  ]) {
+    await saPage.setViewportSize({ width: viewport.width, height: viewport.height });
+    const listResponse = await saPage.goto(data.paths.modulePermissions);
+    expect(listResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Rol ve modül izinleri' })).toBeVisible();
+    await expect(saPage.getByText('Moderatör').first()).toBeVisible();
+    await expect(saPage.locator('.admin-user-person__name').filter({ hasText: 'Uzunad' })).toBeVisible();
+    const listOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-module-permission-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(listOverflow.page, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    expect(listOverflow.doc, viewport.name).toBeLessThanOrEqual(listOverflow.view + 1);
+    const listHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(listHeight, 2400)),
+    });
+    const listFile = path.join('artifacts', 'screenshots', `admin-rol-yetkileri-${viewport.name}.png`);
+    await saPage.screenshot({ path: listFile, fullPage: false });
+    await info.attach(`admin-rol-yetkileri-${viewport.name}.png`, { path: listFile, contentType: 'image/png' });
+
+    const detailResponse = await saPage.goto(data.paths.modulePermission);
+    expect(detailResponse?.status()).toBe(200);
+    await expect(saPage.getByRole('heading', { level: 1, name: 'Modül izinleri' })).toBeVisible();
+    await expect(saPage.locator('.admin-user-detail-name')).toContainText('Uzunad');
+    await expect(saPage.locator('input[value="question.manage"]')).toHaveCount(1);
+    await expect(saPage.locator('input[value="ROLE_ADMIN"]')).toHaveCount(0);
+    await expect(saPage.getByText('Yayın ve arşiv bu ekrandan verilmez.').first()).toBeVisible();
+    await expect(saPage.getByRole('button', { name: 'Kaydet' })).toBeVisible();
+    await expect(saPage.getByRole('link', { name: 'Vazgeç' })).toBeVisible();
+    const detailOverflow = await saPage.evaluate(() => {
+      const page = document.querySelector('.admin-module-permission-page');
+      const view = document.documentElement.clientWidth;
+      return { page: page?.scrollWidth ?? 0, doc: document.documentElement.scrollWidth, view };
+    });
+    expect(detailOverflow.page, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    expect(detailOverflow.doc, viewport.name).toBeLessThanOrEqual(detailOverflow.view + 1);
+    const detailHeight = await saPage.evaluate(() => document.documentElement.scrollHeight);
+    await saPage.setViewportSize({
+      width: viewport.width,
+      height: Math.max(viewport.height, Math.min(detailHeight, 2400)),
+    });
+    const detailFile = path.join('artifacts', 'screenshots', `admin-rol-yetki-${viewport.name}.png`);
+    await saPage.screenshot({ path: detailFile, fullPage: false });
+    await info.attach(`admin-rol-yetki-${viewport.name}.png`, { path: detailFile, contentType: 'image/png' });
+  }
   await saPage.setViewportSize({ width: 1280, height: 900 });
   await saPage.goto('/yonetim');
   await expandAdminGroups(saPage);
@@ -558,10 +618,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
       expect(hrefs).toEqual(expect.arrayContaining([
         '/yonetim/sorular',
         '/yonetim/kullanicilar',
+        '/yonetim/rol-yetkileri',
         '/yonetim/bolum/dokumanlar',
         '/yonetim/bolum/videolar',
         '/yonetim/bolum/medya',
-        '/yonetim/bolum/rol-izinleri',
         '/yonetim/bolum/operasyon',
         '/yonetim/denetim',
         '/yonetim/odemeler',

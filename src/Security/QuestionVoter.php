@@ -7,11 +7,13 @@ namespace App\Security;
 use App\Entity\Question;
 use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use App\Enum\UserRole;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
 use App\Security\Authorization\QuestionAuthorizationSnapshot;
+use App\Security\Authorization\UserAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
@@ -29,6 +31,7 @@ final class QuestionVoter extends Voter
 {
     public function __construct(
         private readonly RequestScopedInstitutionAuthLookup $authLookup,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -59,7 +62,7 @@ final class QuestionVoter extends Voter
         }
 
         if (QuestionScope::Platform === $question->scope) {
-            return $this->platformAllows($attribute, $user->roles, $user->id->equals($question->createdById), $question);
+            return $this->platformAllows($attribute, $user, $user->id->equals($question->createdById), $question);
         }
 
         if (null === $question->institutionId) {
@@ -82,15 +85,13 @@ final class QuestionVoter extends Voter
         );
     }
 
-    /**
-     * @param list<string> $roles
-     */
     private function platformAllows(
         string $attribute,
-        array $roles,
+        UserAuthorizationSnapshot $user,
         bool $isAuthor,
         QuestionAuthorizationSnapshot $question,
     ): bool {
+        $roles = $user->roles;
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
         $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
@@ -99,12 +100,13 @@ final class QuestionVoter extends Voter
         $publisher = $isAdmin || $isHeadOrExpert;
         $reviewer = $publisher || $isModerator;
         $teacherOwnDraft = $isTeacher && $isAuthor && QuestionStatus::Draft === $question->status;
+        $granted = $this->modulePermissions->snapshotAllows($user, ModeratorModuleGrant::QuestionManage);
 
         return match ($attribute) {
             QuestionPermission::VIEW => $question->isPublished()
                 || $reviewer
                 || ($isTeacher && $isAuthor),
-            QuestionPermission::MANAGE => $publisher || $teacherOwnDraft,
+            QuestionPermission::MANAGE => $publisher || $teacherOwnDraft || $granted,
             QuestionPermission::REVIEW => $reviewer,
             QuestionPermission::PUBLISH => $publisher,
             QuestionPermission::ANSWER_KEY_VIEW => $reviewer || ($isTeacher && $isAuthor),

@@ -12,17 +12,20 @@ use Symfony\Component\Uid\Uuid;
  * Read-only authorization projection for a user. Independent of Doctrine identity map.
  *
  * @phpstan-type RoleList list<string>
+ * @phpstan-type GrantList list<string>
  */
 final readonly class UserAuthorizationSnapshot
 {
     /**
-     * @param RoleList $roles
+     * @param RoleList  $roles
+     * @param GrantList $moduleGrants
      */
     public function __construct(
         public Uuid $id,
         public UserStatus $status,
         public bool $emailVerified,
         public array $roles,
+        public array $moduleGrants = [],
     ) {
     }
 
