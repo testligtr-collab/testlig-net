@@ -2,7 +2,7 @@
 
 {% block title %}Yeni kurum — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,15 +10,104 @@
         <span aria-hidden="true">/</span>
         <span>Yeni</span>
     </nav>
-    <h1 class="panel-greeting">Yeni kurum</h1>
+{% endblock %}
 
-    {{ form_start(form, { attr: { class: 'admin-mutation-form' } }) }}
-        {{ form_row(form.name) }}
-        {{ form_row(form.type) }}
-        {{ form_row(form.ownerUserId) }}
-        {{ form_row(form.reasonCode) }}
-        {{ form_row(form.confirm) }}
-        <button type="submit" class="btn btn--primary">Kurumu oluştur</button>
-        <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">İptal</a>
-    {{ form_end(form) }}
+{% block panel_content %}
+    <div class="admin-user-page admin-institution-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni kurum</h1>
+                <p>Kurum bilgilerini ve ilk sahip hesabını belirleyin.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_institutions') }}">← Listeye dön</a>
+        </header>
+
+        {{ form_start(form, { attr: { class: 'admin-institution-create', id: 'institution-create-form', novalidate: 'novalidate' } }) }}
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="institution-create-identity">
+                    <h2 id="institution-create-identity">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %} Kurum bilgileri</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.name) }}
+                        {{ form_widget(form.name, { attr: { placeholder: 'Kurumun tam adını yazın' } }) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.type) }}
+                        {{ form_widget(form.type) }}
+                        {{ form_errors(form.type) }}
+                    </div>
+                </section>
+
+                <section class="admin-institution-card" aria-labelledby="institution-create-owner">
+                    <h2 id="institution-create-owner">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %} İlk kurum sahibi</h2>
+                    <div
+                        class="admin-owner-picker"
+                        data-controller="institution-owner-picker"
+                        data-institution-owner-picker-url-value="{{ path('app_admin_institution_owner_search') }}"
+                    >
+                        <label for="institution-owner-search">İlk sahip hesabı</label>
+                        <span class="admin-user-search">
+                            <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                            <input
+                                id="institution-owner-search"
+                                type="search"
+                                placeholder="Ad veya e-posta ile kullanıcı ara"
+                                autocomplete="off"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded="false"
+                                aria-controls="institution-owner-results"
+                                data-institution-owner-picker-target="search"
+                            >
+                        </span>
+                        {{ form_widget(form.ownerUserId) }}
+                        <p class="admin-owner-picker__hint">Seçilen hesap kurumun ilk sahibi olarak atanır.</p>
+                        <ul id="institution-owner-results" class="admin-owner-picker__results" role="listbox" hidden data-institution-owner-picker-target="results"></ul>
+                        <p class="admin-owner-picker__empty" role="status" hidden data-institution-owner-picker-target="empty">Sonuç bulunamadı.</p>
+                        <div class="admin-owner-picker__selected" {% if owner_preview is null %}hidden{% endif %} data-institution-owner-picker-target="selected">
+                            <span data-owner-label data-institution-owner-picker-target="label">{% if owner_preview %}{{ owner_preview.name }} · {{ owner_preview.email }}{% endif %}</span>
+                            <button type="button" data-owner-clear data-institution-owner-picker-target="clear">Seçimi temizle</button>
+                        </div>
+                        {{ form_errors(form.ownerUserId) }}
+                    </div>
+                </section>
+
+                <section class="admin-institution-card" aria-labelledby="institution-create-reason">
+                    <h2 id="institution-create-reason">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %} İşlem gerekçesi</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.reasonCode, 'Gerekçe') }}
+                        {{ form_widget(form.reasonCode) }}
+                        {{ form_errors(form.reasonCode) }}
+                    </div>
+                    <div class="admin-institution-confirm">
+                        {{ form_widget(form.confirm) }}
+                        {{ form_label(form.confirm) }}
+                    </div>
+                    {{ form_errors(form.confirm) }}
+                    <div class="admin-institution-actions">
+                        <button type="submit" class="btn admin-institution-primary">Kurumu oluştur</button>
+                        <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">İptal</a>
+                    </div>
+                </section>
+            </div>
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="institution-create-summary">
+                <h2 id="institution-create-summary">İşlem özeti</h2>
+                <ol>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                        <span><strong>Kurum kaydı</strong> Belirttiğiniz ad ve türle yeni kurum kaydı oluşturulur.</span>
+                    </li>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                        <span><strong>İlk sahip üyeliği</strong> Seçilen kullanıcı kurumun ilk sahibi olarak atanır.</span>
+                    </li>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                        <span><strong>Gerekçeli işlem</strong> İşlem, seçtiğiniz gerekçe ile kayıt altına alınır.</span>
+                    </li>
+                </ol>
+                <p class="admin-institution-note">Yeni kurum beklemede oluşur. Bu form kurumu aktif yapmaz.</p>
+            </aside>
+        {{ form_end(form) }}
+    </div>
 {% endblock %}

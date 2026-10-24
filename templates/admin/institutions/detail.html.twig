@@ -1,8 +1,8 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Kurum {{ institution.shortRef }} — Testlig{% endblock %}
+{% block title %}Kurum detayı — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,38 +10,125 @@
         <span aria-hidden="true">/</span>
         <span>{{ institution.shortRef }}</span>
     </nav>
-    <h1 class="panel-greeting">{{ institution.name }}</h1>
-    <p class="muted">Ref <code>{{ institution.shortRef }}</code>
-        {% if institution.canViewMemberships %}
-            · <a href="{{ path('app_admin_institution_members', { id: institution.id }) }}">Üyeler</a>
-        {% endif %}
-        {% if audit_href %}
-            · <a href="{{ audit_href }}">İşlem geçmişi</a>
-        {% endif %}
-    </p>
+{% endblock %}
 
-    <dl class="admin-detail-grid">
-        <div><dt>Slug</dt><dd><code>{{ institution.slug }}</code></dd></div>
-        <div><dt>Tür</dt><dd>{{ institution.type.value }}</dd></div>
-        <div><dt>Durum</dt><dd>{% include 'components/status_chip.html.twig' with { label: institution.status.value, variant: 'accent' } %}</dd></div>
-        <div><dt>Locale / TZ</dt><dd>{{ institution.locale }} / {{ institution.timezone }}</dd></div>
-        <div><dt>Aktif üye</dt><dd>{{ institution.activeMemberCount }}</dd></div>
-        <div><dt>Aktif sahip</dt><dd>{{ institution.activeOwnerCount }}</dd></div>
-        <div><dt>Oluşturulma</dt><dd>{{ institution.createdAt|utc_present }}</dd></div>
-        <div><dt>Güncelleme</dt><dd>{{ institution.updatedAt|utc_present }}</dd></div>
-    </dl>
+{% block panel_content %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
+    {% set type_labels = {
+        'school': 'Okul',
+        'course_center': 'Kurs',
+        'tutoring_center': 'Etüt merkezi',
+        'other': 'Diğer'
+    } %}
+    {% set status_labels = {
+        'pending': 'Beklemede',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
+    {% set locale_labels = {
+        'tr_TR': 'Türkçe',
+        'tr': 'Türkçe',
+        'en': 'İngilizce',
+        'en_US': 'İngilizce'
+    } %}
+    <div class="admin-user-detail-page admin-institution-page">
+        <header class="admin-user-detail-head">
+            <div>
+                <h1 class="panel-greeting">Kurum detayı</h1>
+                <p>Kurum bilgilerini ve mevcut durumunu inceleyin.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_institutions') }}">← Listeye dön</a>
+        </header>
 
-    {% if status_form %}
-        <section class="admin-mutation-block" aria-labelledby="inst-status-heading">
-            <h2 id="inst-status-heading">Durumu güncelle</h2>
-            {{ form_start(status_form, { attr: { class: 'admin-mutation-form' } }) }}
-                {{ form_row(status_form.action) }}
-                {{ form_row(status_form.reasonCode) }}
-                {{ form_row(status_form.confirm) }}
-                <button type="submit" class="btn btn--primary">Durumu kaydet</button>
-            {{ form_end(status_form) }}
+        <section class="admin-user-detail-profile">
+            <div class="admin-institution-profile-row">
+                <div class="admin-institution-profile">
+                    <span class="admin-user-avatar admin-user-avatar--blue admin-institution-profile__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                    <div class="admin-institution-profile__copy">
+                        <h2 class="admin-institution-name">{{ institution.name }}</h2>
+                        <p>Ref {{ institution.shortRef }} · {{ institution.slug }}</p>
+                        <p class="admin-institution-profile__chips">
+                            <span class="admin-institution-type">{{ type_labels[institution.type.value]|default(institution.type.value) }}</span>
+                            <span class="admin-institution-status admin-institution-status--{{ institution.status.value }}">{{ status_labels[institution.status.value]|default(institution.status.value) }}</span>
+                        </p>
+                    </div>
+                </div>
+                <div class="admin-institution-profile__actions">
+                {% if institution.canViewMemberships %}
+                    <a class="btn btn--ghost" href="{{ path('app_admin_institution_members', { id: institution.id }) }}">Üyeler</a>
+                {% endif %}
+                {% if audit_href %}
+                    <a class="btn btn--ghost" href="{{ audit_href }}">İşlem geçmişi</a>
+                {% endif %}
+                </div>
+            </div>
+            <dl class="admin-institution-metrics">
+                <div>
+                    <dt>Aktif üye</dt>
+                    <dd data-institution-members>{{ institution.activeMemberCount }}</dd>
+                </div>
+                <div>
+                    <dt>Aktif sahip</dt>
+                    <dd data-institution-owners>{{ institution.activeOwnerCount }}</dd>
+                </div>
+                <div>
+                    <dt>Dil</dt>
+                    <dd>{{ locale_labels[institution.locale]|default(institution.locale) }}</dd>
+                </div>
+                <div>
+                    <dt>Saat dilimi</dt>
+                    <dd>{{ institution.timezone }}</dd>
+                </div>
+            </dl>
         </section>
-    {% elseif institution.status.value == 'archived' %}
-        <p class="admin-flash admin-flash--warning" role="status">Arşivlenmiş kurum yeniden açılamaz.</p>
-    {% endif %}
+
+        <div class="admin-institution-detail-grid">
+            <section class="admin-institution-card" aria-labelledby="institution-facts-heading">
+                <h2 id="institution-facts-heading">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %} Kurum bilgileri</h2>
+                <dl class="admin-institution-facts">
+                    <div><dt>Kurum adı</dt><dd>{{ institution.name }}</dd></div>
+                    <div><dt>Tür</dt><dd>{{ type_labels[institution.type.value]|default(institution.type.value) }}</dd></div>
+                    <div><dt>Slug</dt><dd>{{ institution.slug }}</dd></div>
+                    <div><dt>Kısa referans</dt><dd>{{ institution.shortRef }}</dd></div>
+                    <div><dt>Oluşturulma</dt><dd>{{ institution.createdAt|utc_present('j') }} {{ month_labels[institution.createdAt|utc_present('n')]|default('') }} {{ institution.createdAt|utc_present('Y') }} · {{ institution.createdAt|utc_present('H:i') }}</dd></div>
+                    <div><dt>Son güncelleme</dt><dd>{{ institution.updatedAt|utc_present('j') }} {{ month_labels[institution.updatedAt|utc_present('n')]|default('') }} {{ institution.updatedAt|utc_present('Y') }} · {{ institution.updatedAt|utc_present('H:i') }}</dd></div>
+                </dl>
+            </section>
+
+            {% if status_form %}
+                <section class="admin-institution-card" aria-labelledby="institution-status-heading">
+                    <h2 id="institution-status-heading">Durumu güncelle</h2>
+                    <p class="admin-institution-current">Mevcut durum: <span class="admin-institution-status admin-institution-status--{{ institution.status.value }}">{{ status_labels[institution.status.value]|default(institution.status.value) }}</span></p>
+                    {{ form_start(status_form, { attr: { class: 'admin-institution-status-form' } }) }}
+                        <div class="admin-institution-field">
+                            {{ form_label(status_form.action) }}
+                            {{ form_widget(status_form.action) }}
+                            {{ form_errors(status_form.action) }}
+                        </div>
+                        <div class="admin-institution-field">
+                            {{ form_label(status_form.reasonCode, 'İşlem gerekçesi') }}
+                            {{ form_widget(status_form.reasonCode) }}
+                            {{ form_errors(status_form.reasonCode) }}
+                        </div>
+                        <div class="admin-institution-confirm">
+                            {{ form_widget(status_form.confirm) }}
+                            {{ form_label(status_form.confirm) }}
+                        </div>
+                        {{ form_errors(status_form.confirm) }}
+                        <button type="submit" class="btn admin-institution-primary">Durumu kaydet</button>
+                    {{ form_end(status_form) }}
+                    <p class="admin-institution-footnote">Yalnızca izin verilen durum geçişleri uygulanır.</p>
+                </section>
+            {% elseif institution.status.value == 'archived' %}
+                <section class="admin-institution-card" aria-labelledby="institution-status-heading">
+                    <h2 id="institution-status-heading">Durumu güncelle</h2>
+                    <p class="admin-flash admin-flash--warning" role="status">Arşivlenmiş kurum yeniden açılamaz.</p>
+                </section>
+            {% endif %}
+        </div>
+    </div>
 {% endblock %}

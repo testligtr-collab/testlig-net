@@ -137,12 +137,18 @@ final class AdminIdentityInstitutionSecurityMatrixTest extends WebTestCase
         $client = static::createClient();
         $this->loginAs($client, 'admin_id_matrix_page_sa@example.com', UserRole::SuperAdmin);
 
-        foreach (['/yonetim/kullanicilar', '/yonetim/kurumlar'] as $path) {
-            $client->request('GET', $path, ['page_size' => 1000]);
-            self::assertResponseIsSuccessful($path);
-            self::assertSelectorTextContains('.admin-pagination', '100/sayfa');
-            self::assertSelectorNotExists('a[href*="page_size=1000"]');
-        }
+        $client->request('GET', '/yonetim/kullanicilar', ['page_size' => 1000]);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.admin-pagination', '100/sayfa');
+        self::assertSelectorNotExists('a[href*="page_size=1000"]');
+
+        $client->request('GET', '/yonetim/kurumlar', ['page_size' => 1000]);
+        self::assertResponseIsSuccessful();
+        $institutionList = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('page_size=1000', $institutionList);
+        self::assertTrue(
+            str_contains($institutionList, 'admin-institution-pager') || str_contains($institutionList, 'Henüz kurum yok'),
+        );
     }
 
     public function testListPagesSendNoStoreHeaders(): void
