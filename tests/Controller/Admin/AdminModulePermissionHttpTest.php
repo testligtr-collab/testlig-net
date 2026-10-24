@@ -203,10 +203,12 @@ final class AdminModulePermissionHttpTest extends WebTestCase
 
         $this->setStatus('module_perm_target2@example.com', UserStatus::Suspended);
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        $this->assertHttpStatus($moderatorClient, 403);
+        $this->assertSignedOutOrForbidden($moderatorClient);
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
 
         $this->setStatus('module_perm_target2@example.com', UserStatus::Active);
+        $moderatorClient = $this->browser();
+        $this->login($moderatorClient, 'module_perm_target2@example.com', UserRole::Moderator);
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
         $this->assertHttpOk($moderatorClient);
 
@@ -218,11 +220,7 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => '1',
             'permissions' => [],
         ]);
-        $status = $super->getResponse()->getStatusCode();
-        self::assertContains($status, [302, 403]);
-        if (302 === $status) {
-            self::assertStringContainsString('/giris', (string) $super->getResponse()->headers->get('Location'));
-        }
+        $this->assertSignedOutOrForbidden($super);
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
     }
 
@@ -278,6 +276,15 @@ final class AdminModulePermissionHttpTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return static::createClient();
+    }
+
+    private function assertSignedOutOrForbidden(KernelBrowser $client): void
+    {
+        $status = $client->getResponse()->getStatusCode();
+        self::assertContains($status, [302, 403]);
+        if (302 === $status) {
+            self::assertStringContainsString('/giris', (string) $client->getResponse()->headers->get('Location'));
+        }
     }
 
     private function assertHttpStatus(KernelBrowser $client, int $status): void
