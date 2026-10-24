@@ -77,6 +77,8 @@ final class AdminModulePermissionHttpTest extends WebTestCase
         $super->request('GET', '/yonetim/rol-yetkileri');
         $this->assertHttpOk($super);
         $this->assertHtmlContains($super, 'Rol ve modül izinleri');
+        $this->assertHtmlContains($super, 'Moderatör hesapları');
+        $this->assertHtmlContains($super, 'Global roller kullanıcı detayından yönetilir.');
         $this->assertHtmlHas($super, 'a[href="/yonetim/rol-yetkileri"]');
         $this->assertHtmlContains($super, 'Hedef Moderator');
         $super->request('GET', '/yonetim/rol-yetkileri?q=module-perm-yok-zzzz');

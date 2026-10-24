@@ -124,26 +124,34 @@ final class AdminModulePermissionController extends AdminBaseController
     }
 
     /**
-     * @return list<array{label: string, scope: string}>
+     * @return list<array{key: string, label: string, lead: string, detail: string}>
      */
     private function roleScopes(): array
     {
         return [
             [
+                'key' => 'moderator',
                 'label' => 'Moderatör',
-                'scope' => 'Platform içerik, soru ve testi görür, inceler ve taslağa döndürür. Yayınlamaz. Yazma izni yalnız bu ekrandan eklenir.',
+                'lead' => 'Modül bazlı yazma izinleri.',
+                'detail' => 'İçerik, soru ve testleri görür, inceler.',
             ],
             [
+                'key' => 'admin',
                 'label' => 'Yönetici',
-                'scope' => 'İçerik, soru, test, kullanıcı ve kurum ekranlarını kullanır. Modül izni dağıtamaz.',
+                'lead' => 'Mevcut yönetim yetkileri.',
+                'detail' => 'İçerik, soru, test ve kullanıcı ekranlarını kullanır.',
             ],
             [
+                'key' => 'super',
                 'label' => 'Süper Yönetici',
-                'scope' => 'Bu ekranı kullanır. Ödeme, webhook, uzlaştırma, denetim ve operasyon devredilmez.',
+                'lead' => 'İzin yönetimi ve korunan işlemler.',
+                'detail' => 'Ödeme, denetim ve operasyon devredilmez.',
             ],
             [
-                'label' => 'Öğretmen, uzman öğretmen ve zümre başkanı',
-                'scope' => 'Kendi içerik kuralları durur. Bu ekrandan modül izni almazlar.',
+                'key' => 'teacher',
+                'label' => 'Öğretmen rolleri',
+                'lead' => 'Kendi çalışma alanları.',
+                'detail' => 'Kendi içerik kurallarını kullanır, modül izni almazlar.',
             ],
         ];
     }

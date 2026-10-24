@@ -21,45 +21,71 @@
         <header class="admin-user-head">
             <div>
                 <h1 class="panel-greeting">Rol ve modül izinleri</h1>
-                <p>Rol, hesabın mevcut kapsamıdır. Modül izni, moderatöre ayrıca verilen platform yazma yetkisidir.</p>
+                <p>Moderatörlerin içerik, soru ve test yetkilerini yönetin.</p>
             </div>
-            {% if filters.q|default('') %}
-                <a class="admin-user-clear" href="{{ path('app_admin_module_permissions') }}">Filtreleri temizle</a>
-            {% endif %}
         </header>
-        <p class="admin-module-permission-note">Global rol ataması kullanıcı detayında kalır. Bu ekran yönetici veya süper yönetici rolü vermez. Kurum içeriğinde üyelik ve sahiplik şartı durur.</p>
 
         <section class="admin-role-legend" aria-label="Mevcut roller">
             {% for role in role_scopes %}
-                <article class="admin-module-card">
-                    <h2>{{ role.label }}</h2>
-                    <p>{{ role.scope }}</p>
+                <article class="admin-role-chip admin-role-chip--{{ role.key }}">
+                    <span class="admin-role-chip__icon" aria-hidden="true">
+                        {% if role.key == 'moderator' %}
+                            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6.2 18.2c.8-2.6 2.9-4 5.8-4s5 1.4 5.8 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        {% elseif role.key == 'admin' %}
+                            <svg viewBox="0 0 24 24"><path d="M12 3.5 5.5 6.2v5.2c0 3.7 2.6 6.4 6.5 7.6 3.9-1.2 6.5-3.9 6.5-7.6V6.2L12 3.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+                        {% elseif role.key == 'super' %}
+                            <svg viewBox="0 0 24 24"><path d="M5 16.5 7.2 8.2 12 12.2 16.8 8.2 19 16.5H5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 16.5h8v1.6H8Z" fill="currentColor"/></svg>
+                        {% else %}
+                            <svg viewBox="0 0 24 24"><path d="M3.8 10.2 12 6.2l8.2 4-8.2 4-8.2-4Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.2 12.2v3.2c1.5 1.3 3.1 1.9 4.8 1.9s3.3-.6 4.8-1.9v-3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        {% endif %}
+                    </span>
+                    <div>
+                        <h2>{{ role.label }}</h2>
+                        <p><strong>{{ role.lead }}</strong> {{ role.detail }}</p>
+                    </div>
                 </article>
             {% endfor %}
         </section>
 
-        <form class="admin-user-filters" method="get" action="{{ path('app_admin_module_permissions') }}">
-            <div class="admin-user-filters__fields">
+        <section class="admin-permission-panel" aria-labelledby="module-permission-list-heading">
+            <header class="admin-permission-panel__head">
+                <h2 id="module-permission-list-heading">Moderatör hesapları</h2>
+                <span class="admin-permission-count">{{ result.totalCount }} hesap</span>
+            </header>
+            <p class="admin-permission-panel__hint">İzinlerini düzenlemek istediğiniz hesabı bulun.</p>
+
+            <form class="admin-permission-search" method="get" action="{{ path('app_admin_module_permissions') }}">
                 <label for="module-permission-filter-q">
                     <span class="sr-only">Hesap ara</span>
-                    <input id="module-permission-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Ad, soyad veya e-posta">
+                    <span class="admin-permission-search__field">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M16 16.2 20 20.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <input id="module-permission-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Ad, soyad veya e-posta ile ara">
+                    </span>
                 </label>
-                <div class="admin-user-filters__actions">
-                    <button class="admin-user-filters__submit" type="submit">Filtrele</button>
-                </div>
-            </div>
-        </form>
+                <button class="admin-permission-search__submit" type="submit">Ara</button>
+                <a class="admin-permission-search__clear" href="{{ path('app_admin_module_permissions') }}">Temizle</a>
+            </form>
 
-        <section class="admin-user-list" aria-labelledby="module-permission-list-heading">
-            <header class="admin-user-list__head">
-                <h2 id="module-permission-list-heading">İzni yönetilebilen hesaplar</h2>
-                <span class="admin-user-list__count">{{ result.totalCount }} hesap</span>
-            </header>
             {% if result.items is empty %}
-                {% include 'components/empty_state.html.twig' with {
-                    title: 'Kayıt yok',
-                    body: filters.q|default('') ? 'Filtrelere uygun hesap bulunamadı.' : 'Henüz moderatör hesabı yok.'
-                } %}
+                <div class="admin-permission-empty">
+                    {% if filters.q|default('') %}
+                        <h3>Kayıt yok</h3>
+                        <p>Filtrelere uygun hesap bulunamadı.</p>
+                    {% else %}
+                        <div class="admin-permission-empty__art" aria-hidden="true">
+                            <svg viewBox="0 0 160 120">
+                                <path d="M80 18 46 32v28c0 22 14 38 34 46 20-8 34-24 34-46V32L80 18Z" fill="#e7f4fb" stroke="#7eb6d6" stroke-width="2"/>
+                                <circle cx="80" cy="58" r="12" fill="#d7ebf6" stroke="#6aa4c6" stroke-width="2"/>
+                                <path d="M62 86c4-10 10-14 18-14s14 4 18 14" fill="none" stroke="#6aa4c6" stroke-width="2" stroke-linecap="round"/>
+                                <circle cx="108" cy="46" r="12" fill="#e8f8f2" stroke="#6fbf9a" stroke-width="2"/>
+                                <path d="M103 46.2 106.4 49.6 113.2 42.6" fill="none" stroke="#3f9a72" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3>Henüz moderatör hesabı yok</h3>
+                        <p>Mevcut bir kullanıcıya moderatör rolü verildiğinde burada görünür.</p>
+                        <a class="admin-permission-empty__link" href="{{ path('app_admin_users') }}">Kullanıcılara git <span aria-hidden="true">→</span></a>
+                    {% endif %}
+                </div>
             {% else %}
                 <div class="admin-user-table-wrap">
                     <table class="admin-user-table">
@@ -97,5 +123,10 @@
                 query: { q: filters.q|default('') }
             } %}
         </section>
+
+        <aside class="admin-permission-footnote">
+            <span aria-hidden="true">i</span>
+            <p><strong>Global roller kullanıcı detayından yönetilir.</strong> Ödeme, denetim ve operasyon izinleri bu ekrandan devredilmez.</p>
+        </aside>
     </div>
 {% endblock %}

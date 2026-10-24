@@ -448,9 +448,9 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await saPage.setViewportSize({ width: 1440, height: 900 });
   await saPage.goto(data.paths.modulePermissions);
   await saPage.locator('#module-permission-filter-q').fill('module-permission-yok-zzzz');
-  await saPage.getByRole('button', { name: 'Filtrele' }).click();
+  await saPage.getByRole('button', { name: 'Ara' }).click();
   await expect(saPage.getByText('Filtrelere uygun hesap bulunamadı.')).toBeVisible();
-  await saPage.getByRole('link', { name: 'Filtreleri temizle' }).click();
+  await saPage.getByRole('link', { name: 'Temizle' }).click();
   await expect(saPage.getByRole('link', { name: 'İzinler' }).first()).toBeVisible();
   for (const viewport of [
     { name: '1440', width: 1440, height: 900 },
