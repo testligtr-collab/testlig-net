@@ -38,7 +38,6 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             [UserRole::Admin, 'module_perm_admin@example.com'],
         ] as [$role, $email]) {
             self::assertInstanceOf(UserRole::class, $role);
-            self::assertIsString($email);
             $client = $this->browser();
             $this->login($client, $email, $role);
             $client->request('GET', '/yonetim/rol-yetkileri');
