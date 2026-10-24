@@ -2,7 +2,7 @@
 
 {% block title %}Yeni kurum — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,15 +10,232 @@
         <span aria-hidden="true">/</span>
         <span>Yeni</span>
     </nav>
-    <h1 class="panel-greeting">Yeni kurum</h1>
+{% endblock %}
 
-    {{ form_start(form, { attr: { class: 'admin-mutation-form' } }) }}
-        {{ form_row(form.name) }}
-        {{ form_row(form.type) }}
-        {{ form_row(form.ownerUserId) }}
-        {{ form_row(form.reasonCode) }}
-        {{ form_row(form.confirm) }}
-        <button type="submit" class="btn btn--primary">Kurumu oluştur</button>
-        <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">İptal</a>
-    {{ form_end(form) }}
+{% block panel_content %}
+    <div class="admin-user-page admin-institution-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni kurum</h1>
+                <p>Kurum bilgilerini ve ilk sahip hesabını belirleyin.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_institutions') }}">← Listeye dön</a>
+        </header>
+
+        {{ form_start(form, { attr: { class: 'admin-institution-create', id: 'institution-create-form', novalidate: 'novalidate' } }) }}
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="institution-create-identity">
+                    <h2 id="institution-create-identity">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %} Kurum bilgileri</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.name) }}
+                        {{ form_widget(form.name, { attr: { placeholder: 'Kurumun tam adını yazın' } }) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.type) }}
+                        {{ form_widget(form.type) }}
+                        {{ form_errors(form.type) }}
+                    </div>
+                </section>
+
+                <section class="admin-institution-card" aria-labelledby="institution-create-owner">
+                    <h2 id="institution-create-owner">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %} İlk kurum sahibi</h2>
+                    <div
+                        class="admin-owner-picker"
+                        data-owner-picker
+                        data-search-url="{{ path('app_admin_institution_owner_search') }}"
+                    >
+                        <label for="institution-owner-search">İlk sahip hesabı</label>
+                        <span class="admin-user-search">
+                            <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                            <input
+                                id="institution-owner-search"
+                                type="search"
+                                placeholder="Ad veya e-posta ile kullanıcı ara"
+                                autocomplete="off"
+                                role="combobox"
+                                aria-autocomplete="list"
+                                aria-expanded="false"
+                                aria-controls="institution-owner-results"
+                            >
+                        </span>
+                        {{ form_widget(form.ownerUserId) }}
+                        <p class="admin-owner-picker__hint">Seçilen hesap kurumun ilk sahibi olarak atanır.</p>
+                        <ul id="institution-owner-results" class="admin-owner-picker__results" role="listbox" hidden></ul>
+                        <p class="admin-owner-picker__empty" role="status" hidden>Sonuç bulunamadı.</p>
+                        <div class="admin-owner-picker__selected" {% if owner_preview is null %}hidden{% endif %}>
+                            <span data-owner-label>{% if owner_preview %}{{ owner_preview.name }} · {{ owner_preview.email }}{% endif %}</span>
+                            <button type="button" data-owner-clear>Seçimi temizle</button>
+                        </div>
+                        {{ form_errors(form.ownerUserId) }}
+                    </div>
+                </section>
+
+                <section class="admin-institution-card" aria-labelledby="institution-create-reason">
+                    <h2 id="institution-create-reason">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %} İşlem gerekçesi</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.reasonCode, 'Gerekçe') }}
+                        {{ form_widget(form.reasonCode) }}
+                        {{ form_errors(form.reasonCode) }}
+                    </div>
+                    <div class="admin-institution-confirm">
+                        {{ form_widget(form.confirm) }}
+                        {{ form_label(form.confirm) }}
+                    </div>
+                    {{ form_errors(form.confirm) }}
+                    <div class="admin-institution-actions">
+                        <button type="submit" class="btn admin-institution-primary">Kurumu oluştur</button>
+                        <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">İptal</a>
+                    </div>
+                </section>
+            </div>
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="institution-create-summary">
+                <h2 id="institution-create-summary">İşlem özeti</h2>
+                <ol>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                        <span><strong>Kurum kaydı</strong> Belirttiğiniz ad ve türle yeni kurum kaydı oluşturulur.</span>
+                    </li>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                        <span><strong>İlk sahip üyeliği</strong> Seçilen kullanıcı kurumun ilk sahibi olarak atanır.</span>
+                    </li>
+                    <li>
+                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                        <span><strong>Gerekçeli işlem</strong> İşlem, seçtiğiniz gerekçe ile kayıt altına alınır.</span>
+                    </li>
+                </ol>
+                <p class="admin-institution-note">Yeni kurum beklemede oluşur. Bu form kurumu aktif yapmaz.</p>
+            </aside>
+        {{ form_end(form) }}
+    </div>
+    <script nonce="{{ csp_nonce() }}">
+        (() => {
+            const root = document.querySelector('[data-owner-picker]');
+            if (!(root instanceof HTMLElement)) {
+                return;
+            }
+            const search = root.querySelector('#institution-owner-search');
+            const value = root.querySelector('[data-owner-value]');
+            const list = root.querySelector('#institution-owner-results');
+            const empty = root.querySelector('.admin-owner-picker__empty');
+            const selected = root.querySelector('.admin-owner-picker__selected');
+            const label = root.querySelector('[data-owner-label]');
+            const clear = root.querySelector('[data-owner-clear]');
+            if (!(search instanceof HTMLInputElement) || !(value instanceof HTMLInputElement) || !(list instanceof HTMLElement) || !(empty instanceof HTMLElement) || !(selected instanceof HTMLElement) || !(label instanceof HTMLElement) || !(clear instanceof HTMLButtonElement)) {
+                return;
+            }
+            const url = root.dataset.searchUrl || '';
+            let timer = 0;
+            let active = -1;
+            let controller = null;
+            const options = () => [...list.querySelectorAll('[role="option"]')];
+            const close = () => {
+                list.hidden = true;
+                empty.hidden = true;
+                search.setAttribute('aria-expanded', 'false');
+                active = -1;
+            };
+            const choose = (option) => {
+                value.value = option.dataset.id || '';
+                label.textContent = option.dataset.label || '';
+                selected.hidden = false;
+                search.value = '';
+                close();
+            };
+            const mark = (index) => {
+                const items = options();
+                active = index;
+                items.forEach((item, itemIndex) => {
+                    if (itemIndex === index) {
+                        item.classList.add('is-active');
+                        item.setAttribute('aria-selected', 'true');
+                        search.setAttribute('aria-activedescendant', item.id);
+                    } else {
+                        item.classList.remove('is-active');
+                        item.setAttribute('aria-selected', 'false');
+                    }
+                });
+            };
+            search.addEventListener('input', () => {
+                window.clearTimeout(timer);
+                const query = search.value.trim();
+                if (query.length < 2) {
+                    close();
+                    return;
+                }
+                timer = window.setTimeout(async () => {
+                    if (controller) {
+                        controller.abort();
+                    }
+                    controller = new AbortController();
+                    try {
+                        const response = await fetch(url + '?q=' + encodeURIComponent(query), {
+                            headers: { Accept: 'application/json' },
+                            signal: controller.signal,
+                        });
+                        if (!response.ok) {
+                            throw new Error('search failed');
+                        }
+                        const payload = await response.json();
+                        const results = Array.isArray(payload.results) ? payload.results.slice(0, 8) : [];
+                        list.replaceChildren();
+                        if (results.length === 0) {
+                            list.hidden = true;
+                            empty.hidden = false;
+                            empty.textContent = 'Sonuç bulunamadı.';
+                            search.setAttribute('aria-expanded', 'false');
+                            return;
+                        }
+                        results.forEach((result, index) => {
+                            if (!result || typeof result.id !== 'string' || typeof result.name !== 'string' || typeof result.email !== 'string') {
+                                return;
+                            }
+                            const option = document.createElement('li');
+                            option.id = 'institution-owner-option-' + index;
+                            option.role = 'option';
+                            option.tabIndex = -1;
+                            option.dataset.id = result.id;
+                            option.dataset.label = result.name + ' · ' + result.email;
+                            option.textContent = option.dataset.label;
+                            option.addEventListener('click', () => choose(option));
+                            list.append(option);
+                        });
+                        empty.hidden = true;
+                        list.hidden = false;
+                        search.setAttribute('aria-expanded', 'true');
+                        mark(0);
+                    } catch (error) {
+                        if (error instanceof DOMException && error.name === 'AbortError') {
+                            return;
+                        }
+                        list.hidden = true;
+                        empty.hidden = false;
+                        empty.textContent = 'Arama tamamlanamadı.';
+                    }
+                }, 250);
+            });
+            search.addEventListener('keydown', (event) => {
+                const items = options();
+                if (event.key === 'ArrowDown' && items.length > 0) {
+                    event.preventDefault();
+                    mark(Math.min(active + 1, items.length - 1));
+                } else if (event.key === 'ArrowUp' && items.length > 0) {
+                    event.preventDefault();
+                    mark(Math.max(active - 1, 0));
+                } else if (event.key === 'Enter' && items[active] instanceof HTMLElement) {
+                    event.preventDefault();
+                    choose(items[active]);
+                } else if (event.key === 'Escape') {
+                    close();
+                }
+            });
+            clear.addEventListener('click', () => {
+                value.value = '';
+                label.textContent = '';
+                selected.hidden = true;
+                search.focus();
+            });
+        })();
+    </script>
 {% endblock %}

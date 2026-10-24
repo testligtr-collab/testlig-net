@@ -6,6 +6,7 @@ namespace App\Service\Admin;
 
 use App\Dto\AdminInstitutionDetailView;
 use App\Dto\AdminInstitutionListItemView;
+use App\Dto\AdminInstitutionListSummary;
 use App\Dto\AdminPagedResult;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
@@ -126,6 +127,44 @@ final class AdminInstitutionQuery
         }
 
         return new AdminPagedResult($items, $page, $pageSize, $total);
+    }
+
+    public function summarize(Uuid $actorId): AdminInstitutionListSummary
+    {
+        $this->actorGuard->requireInstitutionsView($actorId);
+
+        /** @var list<array{status: InstitutionStatus|string, cnt: string|int}> $rows */
+        $rows = $this->em->createQueryBuilder()
+            ->select('i.status AS status, COUNT(i.id) AS cnt')
+            ->from(Institution::class, 'i')
+            ->groupBy('i.status')
+            ->getQuery()
+            ->getArrayResult();
+
+        $total = 0;
+        $active = 0;
+        $pending = 0;
+        foreach ($rows as $row) {
+            $count = (int) $row['cnt'];
+            $total += $count;
+            $status = $row['status'] instanceof InstitutionStatus ? $row['status']->value : (string) $row['status'];
+            if (InstitutionStatus::Active->value === $status) {
+                $active = $count;
+            }
+            if (InstitutionStatus::Pending->value === $status) {
+                $pending = $count;
+            }
+        }
+
+        $memberships = (int) $this->em->createQueryBuilder()
+            ->select('COUNT(m.id)')
+            ->from(InstitutionMembership::class, 'm')
+            ->andWhere('m.status = :active')
+            ->setParameter('active', InstitutionMembershipStatus::Active)
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return new AdminInstitutionListSummary($total, $active, $pending, $memberships);
     }
 
     public function getDetail(Uuid $actorId, Uuid $institutionId): AdminInstitutionDetailView

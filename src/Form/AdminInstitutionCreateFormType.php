@@ -35,13 +35,25 @@ final class AdminInstitutionCreateFormType extends AbstractType
                 'label' => 'Kurum adı',
             ])
             ->add('type', ChoiceType::class, [
-                'label' => 'Tür',
+                'label' => 'Kurum türü',
                 'choices' => $typeChoices,
+                'choice_label' => static fn (InstitutionType $type): string => match ($type) {
+                    InstitutionType::School => 'Okul',
+                    InstitutionType::CourseCenter => 'Kurs',
+                    InstitutionType::TutoringCenter => 'Etüt merkezi',
+                    InstitutionType::Other => 'Diğer',
+                },
                 'placeholder' => 'Tür seçin',
             ])
             ->add('ownerUserId', TextType::class, [
-                'label' => 'İlk sahip kullanıcı UUID',
-                'attr' => ['autocomplete' => 'off'],
+                'label' => 'İlk sahip hesabı',
+                'attr' => [
+                    'autocomplete' => 'off',
+                    'class' => 'admin-owner-picker__value',
+                    'data-owner-value' => '1',
+                    'aria-hidden' => 'true',
+                    'tabindex' => '-1',
+                ],
             ])
             ->add('reasonCode', ChoiceType::class, [
                 'label' => 'Gerekçe',

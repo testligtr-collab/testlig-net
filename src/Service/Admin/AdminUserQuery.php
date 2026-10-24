@@ -231,6 +231,53 @@ final class AdminUserQuery
     }
 
     /**
+     * Active, verified accounts that can be chosen as an institution's first owner.
+     * The caller must already hold institution-create permission; this method checks it again.
+     *
+     * @return list<array{id: string, name: string, email: string}>
+     */
+    public function searchInstitutionOwnerCandidates(Uuid $actorId, string $rawQuery): array
+    {
+        $this->actorGuard->requireInstitutionsCreate($actorId);
+        try {
+            $term = AdminLikeEscape::normalizeSearch($rawQuery);
+        } catch (\InvalidArgumentException) {
+            throw CommerceException::invalidInput('Search query is too long.');
+        }
+        if (null === $term || mb_strlen($term) < 2) {
+            return [];
+        }
+
+        /** @var list<array{id: Uuid|string, firstName: string, lastName: string, email: string}> $rows */
+        $rows = $this->em->createQueryBuilder()
+            ->select('u.id AS id, u.firstName AS firstName, u.lastName AS lastName, u.email AS email')
+            ->from(User::class, 'u')
+            ->andWhere('u.status = :status')
+            ->andWhere('u.emailVerifiedAt IS NOT NULL')
+            ->andWhere("(u.firstName LIKE :q ESCAPE '!' OR u.lastName LIKE :q ESCAPE '!' OR u.email LIKE :q ESCAPE '!' OR u.normalizedEmail LIKE :q ESCAPE '!')")
+            ->setParameter('status', UserStatus::Active)
+            ->setParameter('q', AdminLikeEscape::containsPattern($term))
+            ->orderBy('u.lastName', 'ASC')
+            ->addOrderBy('u.firstName', 'ASC')
+            ->addOrderBy('u.id', 'ASC')
+            ->setMaxResults(8)
+            ->getQuery()
+            ->getArrayResult();
+
+        $results = [];
+        foreach ($rows as $row) {
+            $id = $row['id'];
+            $results[] = [
+                'id' => $id instanceof Uuid ? $id->toRfc4122() : (string) $id,
+                'name' => trim($row['firstName'].' '.$row['lastName']),
+                'email' => $row['email'],
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * @param array<string, mixed> $raw
      *
      * @return array<string, mixed>

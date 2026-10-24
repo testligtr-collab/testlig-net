@@ -203,7 +203,8 @@
       "source": "src/Controller/InstitutionWorkspaceController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php"
+        "src/Controller/InstitutionWorkspaceController.php",
+        "Süper yönetici /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} ekranlarında mevcut kurum listesini, InstitutionCreator ile beklemede kurum ve ilk sahip üyeliğini, InstitutionStatusManager ile izinli durum geçişini kullanır. Hesap seçimi AdminUserQuery::searchInstitutionOwnerCandidates sonucunu UUID ile yeniden çözer. Şube, sınıf ve kurum çalışma alanı bu ekranlarda tamamlanmaz. Canlı görsel kabul yapılmadı."
       ],
       "pr_links": [],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
@@ -1176,7 +1177,8 @@
         "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Rol ve modül izinleri menüsü yer tutucu bölüm girişinden /yonetim/rol-yetkileri adresine alındı. Ekran yalnız süper yöneticiye açıktır ve moderatörün üç platform yazma iznini yönetir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kurumlar listesi, yeni kurum ve kurum detayı mevcut yönetim kabuğunda yenilendi. Adresler /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

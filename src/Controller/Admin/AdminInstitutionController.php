@@ -26,14 +26,18 @@ use App\Repository\InstitutionMembershipRepository;
 use App\Repository\InstitutionRepository;
 use App\Repository\UserRepository;
 use App\Security\AdminPermission;
+use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Admin\AdminInstitutionQuery;
 use App\Service\Admin\AdminMembershipQuery;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\Admin\AdminPagination;
+use App\Service\Admin\AdminUserQuery;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormError;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
@@ -53,6 +57,8 @@ final class AdminInstitutionController extends AdminBaseController
         private readonly UserRepository $users,
         private readonly InstitutionCreator $institutionCreator,
         private readonly InstitutionStatusManager $institutionStatusManager,
+        private readonly AdminUserQuery $userQuery,
+        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly InstitutionMembershipManager $membershipManager,
         #[Autowire(service: 'limiter.admin_institution_create')]
         private readonly RateLimiterFactory $createLimiter,
@@ -87,6 +93,7 @@ final class AdminInstitutionController extends AdminBaseController
 
         return $this->renderAdmin('admin/institutions/list.html.twig', [
             'result' => $result,
+            'summary' => $this->institutionQuery->summarize($this->requireActorId()),
             'filters' => $filters,
             'can_create' => $this->isGranted(AdminPermission::ADMIN_INSTITUTIONS_CREATE),
         ]);
@@ -101,9 +108,23 @@ final class AdminInstitutionController extends AdminBaseController
             'method' => 'POST',
         ]);
 
-        return $this->renderAdmin('admin/institutions/new.html.twig', [
-            'form' => $form->createView(),
-        ]);
+        return $this->renderNew($form);
+    }
+
+    #[Route('/yonetim/kurumlar/sahip-adaylari', name: 'app_admin_institution_owner_search', methods: ['GET'])]
+    #[IsGranted(AdminPermission::ADMIN_INSTITUTIONS_CREATE)]
+    public function ownerCandidates(Request $request): Response
+    {
+        try {
+            $results = $this->userQuery->searchInstitutionOwnerCandidates($this->requireActorId(), $request->query->getString('q'));
+        } catch (CommerceException $e) {
+            $this->mapCommerceException($e);
+        }
+
+        $response = $this->json(['results' => $results]);
+        $this->applyNoStore($response);
+
+        return $response;
     }
 
     #[Route('/yonetim/kurumlar', name: 'app_admin_institution_create', methods: ['POST'])]
@@ -124,9 +145,7 @@ final class AdminInstitutionController extends AdminBaseController
                 throw $this->createAccessDeniedException('CSRF doğrulaması başarısız.');
             }
 
-            return $this->renderAdmin('admin/institutions/new.html.twig', [
-                'form' => $form->createView(),
-            ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $limiter = $this->createLimiter->create($actorId->toRfc4122().':create');
@@ -136,18 +155,17 @@ final class AdminInstitutionController extends AdminBaseController
             throw new TooManyRequestsHttpException($seconds, 'Çok fazla istek. Lütfen daha sonra tekrar deneyin.');
         }
 
-        if (!Uuid::isValid($dto->ownerUserId)) {
-            $this->addFlash('error', 'Geçerli bir sahip kullanıcı UUID’si girin.');
-
-            return $this->redirectToRoute('app_admin_institution_new');
-        }
-
         $ownerId = Uuid::fromString($dto->ownerUserId);
         $owner = $this->users->findOneById($ownerId);
         if (!$owner instanceof User) {
-            $this->addFlash('error', 'Sahip kullanıcı bulunamadı.');
+            $form->get('ownerUserId')->addError(new FormError('Sahip hesap bulunamadı.'));
 
-            return $this->redirectToRoute('app_admin_institution_new');
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($owner)) {
+            $form->get('ownerUserId')->addError(new FormError('Seçilen hesap aktif ve doğrulanmış bir kullanıcı değil.'));
+
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -164,9 +182,7 @@ final class AdminInstitutionController extends AdminBaseController
 
             return $response;
         } catch (InstitutionOperationException $e) {
-            $this->handleInstitutionException($e);
-
-            return $this->redirectToRoute('app_admin_institution_new');
+            return $this->renderInstitutionCreateFailure($form, $e);
         }
     }
 
@@ -418,6 +434,72 @@ final class AdminInstitutionController extends AdminBaseController
         $this->applyNoStore($response);
 
         return $response;
+    }
+
+    /**
+     * @return array{id: string, name: string, email: string}|null
+     */
+    private function ownerPreview(string $ownerUserId): ?array
+    {
+        if (!Uuid::isValid($ownerUserId)) {
+            return null;
+        }
+        $owner = $this->users->findOneById(Uuid::fromString($ownerUserId));
+        if (!$owner instanceof User) {
+            return null;
+        }
+
+        return [
+            'id' => $owner->getId()->toRfc4122(),
+            'name' => trim($owner->getFirstName().' '.$owner->getLastName()),
+            'email' => $owner->getEmail(),
+        ];
+    }
+
+    /**
+     * @param FormInterface<AdminInstitutionCreateRequest> $form
+     */
+    private function renderNew(FormInterface $form, int $status = Response::HTTP_OK): Response
+    {
+        $ownerUserId = $form->get('ownerUserId')->getData();
+
+        return $this->renderAdmin('admin/institutions/new.html.twig', [
+            'form' => $form->createView(),
+            'owner_preview' => \is_string($ownerUserId) ? $this->ownerPreview($ownerUserId) : null,
+        ], new Response(null, $status));
+    }
+
+    /**
+     * @param FormInterface<AdminInstitutionCreateRequest> $form
+     */
+    private function renderInstitutionCreateFailure(FormInterface $form, InstitutionOperationException $e): Response
+    {
+        if (InstitutionFailureReason::Unauthorized === $e->getReason()) {
+            throw $this->createAccessDeniedException('Bu işlem için yetkiniz yok.');
+        }
+        if (InstitutionFailureReason::NotFound === $e->getReason()) {
+            $form->get('ownerUserId')->addError(new FormError('Sahip hesap bulunamadı.'));
+
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (InstitutionFailureReason::Conflict === $e->getReason()) {
+            $form->get('name')->addError(new FormError('Bu ad veya slug zaten kullanılıyor.'));
+
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        if (InstitutionFailureReason::InvalidInput === $e->getReason()) {
+            $message = $e->getMessage();
+            if (str_contains($message, 'name') || str_contains($message, 'slug')) {
+                $form->get('name')->addError(new FormError('Kurum adından geçerli bir kayıt adı üretilemedi.'));
+            } else {
+                $form->get('ownerUserId')->addError(new FormError('Seçilen hesap aktif ve doğrulanmış bir kullanıcı değil.'));
+            }
+
+            return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        $this->handleInstitutionException($e);
+
+        return $this->renderNew($form, Response::HTTP_UNPROCESSABLE_ENTITY);
     }
 
     private function requireMembershipInInstitution(Uuid $institutionId, Uuid $membershipId): InstitutionMembership

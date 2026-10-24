@@ -45,6 +45,12 @@ final class AdminInstitutionStatusFormType extends AbstractType
             ->add('action', ChoiceType::class, [
                 'label' => 'Yeni durum',
                 'choices' => $actions,
+                'choice_label' => static fn (string $action): string => match ($action) {
+                    AdminInstitutionStatusRequest::ACTION_ACTIVATE => 'Aktif',
+                    AdminInstitutionStatusRequest::ACTION_SUSPEND => 'Askıda',
+                    AdminInstitutionStatusRequest::ACTION_ARCHIVE => 'Arşiv',
+                    default => $action,
+                },
                 'placeholder' => 'İşlem seçin',
             ])
             ->add('reasonCode', ChoiceType::class, [

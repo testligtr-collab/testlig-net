@@ -2,7 +2,19 @@
 
 {% block title %}Kurumlar — Testlig{% endblock %}
 
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Kurumlar</span>
+    </nav>
+{% endblock %}
+
 {% block panel_content %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
     {% set type_labels = {
         'school': 'Okul',
         'course_center': 'Kurs',
@@ -15,86 +27,156 @@
         'suspended': 'Askıda',
         'archived': 'Arşiv'
     } %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        {% include 'admin/_crumb_root.html.twig' %}
-        <span aria-hidden="true">/</span>
-        <span>Kurumlar</span>
-    </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Kurumlar</h1>
-        {% if can_create %}
-            <a class="btn btn--primary" href="{{ path('app_admin_institution_new') }}">Yeni kurum</a>
-        {% endif %}
+    {% set filters_active = filters.q|default('') != '' or filters.type|default('') != '' or filters.status|default('') != '' %}
+    <div class="admin-user-page admin-institution-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Kurumlar</h1>
+                <p>Kurum kayıtlarını ve durumlarını tek yerden yönetin.</p>
+            </div>
+            {% if can_create %}
+                <a class="btn admin-institution-primary" href="{{ path('app_admin_institution_new') }}">+ Yeni kurum</a>
+            {% endif %}
+        </header>
+
+        <section class="admin-user-stats" aria-label="Kurum özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam kurum</span>
+                    <strong class="admin-user-stat__value" data-institution-summary="total">{{ summary.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif kurum</span>
+                    <strong class="admin-user-stat__value" data-institution-summary="active">{{ summary.active }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Bekleyen kurum</span>
+                    <strong class="admin-user-stat__value" data-institution-summary="pending">{{ summary.pending }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--members">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif üyelik</span>
+                    <strong class="admin-user-stat__value" data-institution-summary="memberships">{{ summary.activeMemberships }}</strong>
+                </span>
+            </article>
+        </section>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_institutions') }}" aria-label="Kurumları filtrele">
+            <h2>Kurumları filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <label class="admin-user-search" for="institution-filter-q">
+                    <span class="sr-only">Kurum adı veya slug</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="institution-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Kurum adı veya slug">
+                </label>
+                <label for="institution-filter-type">
+                    <span class="sr-only">Tür</span>
+                    <select id="institution-filter-type" name="type">
+                        <option value="">Tüm türler</option>
+                        {% for code, label in type_labels %}
+                            <option value="{{ code }}" {% if filters.type|default('') == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="institution-filter-status">
+                    <span class="sr-only">Durum</span>
+                    <select id="institution-filter-status" name="status">
+                        <option value="">Tüm durumlar</option>
+                        {% for code, label in status_labels %}
+                            <option value="{{ code }}" {% if filters.status|default('') == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                    <a class="btn btn--ghost" href="{{ path('app_admin_institutions') }}">Temizle</a>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="institution-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="institution-list-heading">Kurum listesi</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} kayıt</span>
+            </header>
+            {% if result.items is empty %}
+                {% if filters_active %}
+                    {% include 'components/empty_state.html.twig' with {
+                        title: 'Sonuç yok',
+                        body: 'Filtrelere uygun kurum bulunamadı.'
+                    } %}
+                {% else %}
+                    {% include 'components/empty_state.html.twig' with {
+                        title: 'Kayıt yok',
+                        body: 'Henüz kurum yok.'
+                    } %}
+                {% endif %}
+            {% else %}
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Kurum</th>
+                                <th>Tür</th>
+                                <th>Durum</th>
+                                <th>Aktif üye</th>
+                                <th>Oluşturulma</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td class="admin-user-person">
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar admin-user-avatar--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.name }}</span>
+                                                <span class="admin-user-person__ref">Ref {{ row.shortRef }} · {{ row.slug }}</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Tür">{{ type_labels[row.type.value]|default(row.type.value) }}</td>
+                                    <td data-label="Durum"><span class="admin-institution-status admin-institution-status--{{ row.status.value }}">{{ status_labels[row.status.value]|default(row.status.value) }}</span></td>
+                                    <td data-label="Aktif üye">{{ row.activeMemberCount }}</td>
+                                    <td class="admin-institution-date" data-label="Oluşturulma">
+                                        <span class="admin-institution-date__stack">
+                                            <span>{{ row.createdAt|utc_present('j') }} {{ month_labels[row.createdAt|utc_present('n')]|default('') }} {{ row.createdAt|utc_present('Y') }}</span>
+                                            <span>{{ row.createdAt|utc_present('H:i') }}</span>
+                                        </span>
+                                    </td>
+                                    <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay</a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <nav class="admin-institution-pager" aria-label="Sayfalama">
+                    <p>Sayfa {{ result.page }} / {{ result.totalPages() }}</p>
+                    <div>
+                        {% if result.page > 1 %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_institutions', { q: filters.q|default(''), type: filters.type|default(''), status: filters.status|default(''), page: result.page - 1 }) }}">Önceki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Önceki</span>
+                        {% endif %}
+                        <span class="admin-institution-pager__current" aria-current="page">{{ result.page }}</span>
+                        {% if result.page < result.totalPages() %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_institutions', { q: filters.q|default(''), type: filters.type|default(''), status: filters.status|default(''), page: result.page + 1 }) }}">Sonraki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Sonraki</span>
+                        {% endif %}
+                    </div>
+                </nav>
+            {% endif %}
+        </section>
     </div>
-
-    <form method="get" class="admin-filters" action="{{ path('app_admin_institutions') }}">
-        <label>Ara
-            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
-        </label>
-        <label>Tür
-            <select name="type">
-                <option value="">—</option>
-                {% for t in ['school','course_center','tutoring_center','other'] %}
-                    <option value="{{ t }}" {% if filters.type|default('') == t %}selected{% endif %}>{{ type_labels[t] }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Durum
-            <select name="status">
-                <option value="">—</option>
-                {% for s in ['pending','active','suspended','archived'] %}
-                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status_labels[s] }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_institutions'), filters: filters } only %}
-    </form>
-
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Kayıt yok',
-            body: 'Filtrelere uygun kurum bulunamadı.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Ref</th>
-                        <th>Ad</th>
-                        <th>Slug</th>
-                        <th>Tür</th>
-                        <th>Durum</th>
-                        <th>Aktif üye</th>
-                        <th>Oluşturulma</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td><code>{{ row.shortRef }}</code></td>
-                            <td>{{ row.name }}</td>
-                            <td><code>{{ row.slug }}</code></td>
-                            <td data-label="Tür">{{ type_labels[row.type.value]|default(row.type.value) }}</td>
-                            <td data-label="Durum">{% include 'components/status_chip.html.twig' with { label: status_labels[row.status.value]|default(row.status.value), variant: 'accent' } %}</td>
-                            <td>{{ row.activeMemberCount }}</td>
-                            <td>{{ row.createdAt|utc_present }}</td>
-                            <td><a href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-
-    {% include 'components/admin_pagination.html.twig' with {
-        result: result,
-        route: 'app_admin_institutions',
-        query: {
-            q: filters.q|default(''),
-            type: filters.type|default(''),
-            status: filters.status|default('')
-        }
-    } %}
 {% endblock %}
