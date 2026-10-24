@@ -3,8 +3,7 @@
   "updated_at": "2026-10-21",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
-    "X10-admin-navigation",
-    "M27-news"
+    "X10-admin-navigation"
   ],
   "features": [
     {
@@ -301,12 +300,14 @@
         "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez. PR #120 merge SHA 291ce515d796a1df3da0ac37d87e67bbfbe262aa, main CI https://github.com/testligtr-collab/testlig-net/actions/runs/38157258280, Roadmap coverage https://github.com/testligtr-collab/testlig-net/actions/runs/38157258285, deploy https://github.com/testligtr-collab/testlig-net/actions/runs/38158546449.",
         "src/Controller/TeacherProfessionalProfileController.php: aynı ekran il, ilçe ve okul seçer. Saklanan değer yalnız aktif okul zincirinin okul kimliğidir. Geçerli zincir yoksa branş ve sınıf kaydı sürer. PR #121 merge SHA 55c10a47257710d1fcf311e27a1319635fc51f6e. Main CI https://github.com/testligtr-collab/testlig-net/actions/runs/38224745240, Roadmap coverage https://github.com/testligtr-collab/testlig-net/actions/runs/38224745191, deploy https://github.com/testligtr-collab/testlig-net/actions/runs/38226837702, release 20261012T085248Z-55c10a472577, migration DoctrineMigrations\\Version20261011200000. Bu teslim ulusal okul kataloğu verisinin hazır olduğu anlamına gelmez.",
         "Okul verisi bağımlılığı açık. Eski il, ilçe ve okul CSV kayıtlarında kaynak kimliği yok. Tek doğrulanan mesleki okulda MEB Kurum Kodu 751308, MEB Okullar dizini YOL son parçası 112770; iki sayı aynı kayıtta eşit değil. YOL için kalıcı kimlik sözleşmesi ve TurkiyeAPI districtId ile MEB ilçe bilgisi eşlemesi belgelenmedi. Aktiflik, veri tarihi ve kullanım koşulları netleşmedi. Yükleme ancak belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak birlikte varsa başlar. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz.",
-        "Öğretmen başvurusu yönetim ekranı okul, branş veya mesleki profil üretmez. Eksik okul kaydı doldurulmaz. Okul kataloğu bağımlılığı açık kalır. CI görüntüsü canlı kabul değildir."
+        "Öğretmen başvurusu yönetim ekranı okul, branş veya mesleki profil üretmez. Eksik okul kaydı doldurulmaz. Okul kataloğu bağımlılığı açık kalır. CI görüntüsü canlı kabul değildir.",
+        "Yönetim öğretmen dizini /yonetim/ogretmenler kayıtlı mesleki profili okur. Branş, sınıf veya okul kaydı yoksa Belirtilmemiş yazar; kayıt yokluğunu onaysız saymaz ve okul uydurmaz. Profil onayı ve öğretmenin kendi /ogretmen/profil akışı bu dizine taşınmaz. M07 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/120",
         "https://github.com/testligtr-collab/testlig-net/pull/121",
-        "https://github.com/testligtr-collab/testlig-net/pull/163"
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/165"
       ],
       "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını kaydeder. Aynı ekranda, katalogda geçerli bir aktif okul zinciri varsa il, ilçe ve okul seçer; yalnız okul kimliği saklanır. Branş ve sınıf kaydı boş okul kataloğunda çalışmaya devam eder. Katalog yüklemesi ayrı bir veri bağımlılığıdır ve bu dilime girmez. Yükleme koşulu: belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz. Okul/il/ilçe modeli banka, belge, diploma, public profil, yeni onay, V1 branş kilidi ve profil tamamlama yönlendirmesini kapsamaz. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
@@ -1168,7 +1169,8 @@
         "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcı detayı aynı yönetim kabuğunda profil özeti ve ayrı rol/durum kartlarıyla düzenlendi. Sol menü, logo, kullanıcı listesi ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğretmen başvuruları listesi ve detayı mevcut yönetim kabuğunda, Genel Bakış ve Kullanıcılar düzeniyle yenilendi. Adres /yonetim/ogretmen-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1179,7 +1181,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/158",
         "https://github.com/testligtr-collab/testlig-net/pull/162",
         "https://github.com/testligtr-collab/testlig-net/pull/163",
-        "https://github.com/testligtr-collab/testlig-net/pull/164"
+        "https://github.com/testligtr-collab/testlig-net/pull/164",
+        "https://github.com/testligtr-collab/testlig-net/pull/165"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null

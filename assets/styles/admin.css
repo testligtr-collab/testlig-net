@@ -2516,6 +2516,42 @@ body.is-admin-panel {
     background: #fff;
     color: #16324f;
 }
+.is-admin-panel .admin-teacher-dir-page .admin-user-table { min-width: 0; }
+.is-admin-panel .admin-teacher-dir-note {
+    margin: 0;
+    color: #66758c;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-teacher-dir-meta {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-teacher-dir-meta span { display: block; }
+.is-admin-panel .admin-teacher-dir-page .admin-status { white-space: nowrap; }
+.is-admin-panel .admin-teacher-dir-page .admin-user-detail-card .admin-user-detail-meta {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+.is-admin-panel .admin-teacher-dir-relations {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-teacher-dir-relations li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    min-width: 0;
+    padding-top: 0.65rem;
+    border-top: 1px solid #e2eaf4;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-teacher-dir-relations strong { color: #16324f; }
+
 .is-admin-panel .admin-teacher-app-hint {
     margin: 0;
     color: #66758c;
