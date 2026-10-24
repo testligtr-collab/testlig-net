@@ -1097,7 +1097,8 @@
       "evidence": [
         "V2 CI/deploy temeli; tam kabul değil",
         "composer.lock: symfony/http-foundation v7.4.18 yerine v7.4.21. CVE-2026-108082 için belgelenmiş 7.4 düzeltme sınırı 7.4.19. 7.4.19 ve 7.4.20 boşluk ayırıcısında HeaderUtils::split gerilemesi taşır; resmi takip düzeltmesi 7.4.21 içindedir. Başka paket değişmedi. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/131",
-        "2026-10-15 ClamAV izole kabulü M18 kaydındadır ve X06 backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. PR https://github.com/testligtr-collab/testlig-net/pull/132"
+        "2026-10-15 ClamAV izole kabulü M18 kaydındadır ve X06 backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. PR https://github.com/testligtr-collab/testlig-net/pull/132",
+        "2026-10-24 OpenLiteSpeed yenileme aracı hazırlandı. Onay refresh-current-ols olmadan SSH açmaz. Çalışan release kimliği workflow SHA ile eşleşmezse stop ve start yapılmaz. Araç canlıda çalıştırılmadı. Backup, restore, gözlemleme, erişilebilirlik ve kapasite kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/131",
@@ -1176,7 +1177,8 @@
         "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Rol ve modül izinleri menüsü yer tutucu bölüm girişinden /yonetim/rol-yetkileri adresine alındı. Ekran yalnız süper yöneticiye açıktır ve moderatörün üç platform yazma iznini yönetir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "2026-10-24 canlı /yonetim/rol-yetkileri önbelleksiz istekte eski HTML üretti. Cache-Control no-store, private. Güncel manifest styles/admin.css için /assets/styles/admin-5QB0xaX.css 200 döndü ve yeni stilleri içeriyor. HTML eski /assets/styles/admin-wkvJft5.css adresini bağladı ve bu dosya 404 oldu. Bu gözlem PHP işçisi veya OPcache kök nedenini kanıtlamaz. Yenileme aracı hazırdır ve canlıda çalıştırılmadı. Ekran görüntüsü canlı görsel kabul değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
