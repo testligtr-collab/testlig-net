@@ -21,6 +21,7 @@ use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionImageStem;
+use App\Question\Image\QuestionRevisionImageStatus;
 use App\Question\Image\QuestionRevisionPendingImage;
 use App\Question\Image\Scan\QuestionImageScanAction;
 use App\Repository\CurriculumLearningOutcomeRepository;
@@ -62,6 +63,7 @@ final class InstitutionQuestionAuthoringController extends AbstractController
         private readonly InvitationCodeDigestHasher $hasher,
         private readonly QuestionImageRegistrar $images,
         private readonly QuestionRevisionPendingImage $pendingImages,
+        private readonly QuestionRevisionImageStatus $imageStatus,
         private readonly QuestionImageScanAction $imageScans,
         private readonly ActiveVerifiedUserPolicy $actors,
     ) {
@@ -266,6 +268,7 @@ final class InstitutionQuestionAuthoringController extends AbstractController
             ],
             'can_scan_image' => $this->actors->isActiveVerifiedSuperAdmin($this->account())
                 && null !== $this->pendingImages->sole($question, $revision),
+            'image_status' => $this->imageStatus->label($question, $revision),
             'can_submit' => QuestionStatus::Draft === $question->getStatus(),
             'can_publish' => QuestionStatus::InReview === $question->getStatus() && !$authorId->equals($this->account()->getId()),
             'show_answer' => $showKey,

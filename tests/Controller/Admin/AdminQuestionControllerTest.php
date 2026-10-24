@@ -21,6 +21,7 @@ use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Tests\Question\Image\ConnectionFailedClamdTransport;
 use App\Tests\Question\Image\FixedSignatureObservation;
 use App\Tests\Question\Image\RecordingClamdTransport;
 use App\Tests\Support\QuestionBankDbCleanup;
@@ -296,6 +297,8 @@ final class AdminQuestionControllerTest extends WebTestCase
         $super->request('GET', $path);
         $html = (string) $super->getResponse()->getContent();
         self::assertStringContainsString('>Görseli tara<', $html);
+        self::assertStringContainsString('Tarama bekliyor', $html);
+        self::assertStringNotContainsString('ClamAV bağlantısını kontrol et', $html);
         self::assertStringNotContainsString($before['id'], $html);
         self::assertStringNotContainsString($before['key'], $html);
         $super->request('POST', $path.'/gorsel-tara', [
@@ -306,6 +309,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         $super->followRedirect();
         $result = (string) $super->getResponse()->getContent();
         self::assertStringContainsString('İmza güncelliği doğrulanamadı. Görsel beklemeye devam ediyor.', $result);
+        self::assertStringContainsString('Tarama bekliyor', $result);
         self::assertStringNotContainsString('stream:', $result);
         self::assertStringNotContainsString($before['key'], $result);
         $after = $this->imageState();
@@ -323,6 +327,7 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertResponseRedirects();
         $ready->followRedirect();
         self::assertStringContainsString('Görsel tarandı ve kullanıma hazır.', (string) $ready->getResponse()->getContent());
+        self::assertStringContainsString('Kullanıma hazır', (string) $ready->getResponse()->getContent());
         $sent = $transport->sent;
         $ready->request('GET', $path);
         self::assertSame($sent, $transport->sent);
@@ -330,6 +335,82 @@ final class AdminQuestionControllerTest extends WebTestCase
         $scanned = $this->imageState();
         self::assertSame('ready', $scanned['status']);
         self::assertSame('clean', $scanned['scan']);
+    }
+
+    public function testSuperAdminSeesDistinctDurableScanResults(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbdurable');
+        $this->createPrivileged('qb-super-durable@example.com', UserRole::SuperAdmin);
+        $client = $this->scanClient('qb-super-durable@example.com', new RecordingClamdTransport("stream: Eicar FOUND\n"));
+        $infected = $this->uploadQuestionImage($client, $ids, 'Zararli kok');
+        $client->request('POST', $infected.'/gorsel-tara', ['_token' => $this->csrf($client, 'question_image_scan')]);
+        $client->followRedirect();
+        $infectedPage = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Görsel zararlı bulundu ve karantinaya alındı.', $infectedPage);
+        self::assertStringContainsString('Karantinada', $infectedPage);
+        $client->request('GET', $infected);
+        self::assertStringContainsString('Karantinada', (string) $client->getResponse()->getContent());
+
+        $failedClient = $this->scanClient('qb-super-durable@example.com', new RecordingClamdTransport("stream: ERROR\n"));
+        $failed = $this->uploadQuestionImage($failedClient, $ids, 'Hatali kok');
+        $failedClient->request('POST', $failed.'/gorsel-tara', ['_token' => $this->csrf($failedClient, 'question_image_scan')]);
+        $failedClient->followRedirect();
+        $failedPage = (string) $failedClient->getResponse()->getContent();
+        self::assertStringContainsString('Tarama başarısız.', $failedPage);
+        self::assertStringNotContainsString('ClamAV bağlantısı kurulamadı.', $failedPage);
+        $failedClient->request('GET', $failed);
+        self::assertStringContainsString('Tarama başarısız', (string) $failedClient->getResponse()->getContent());
+
+        $offlineClient = $this->scanClient('qb-super-durable@example.com', new ConnectionFailedClamdTransport());
+        $offline = $this->uploadQuestionImage($offlineClient, $ids, 'Baglanti kok');
+        $offlineClient->request('GET', $offline);
+        self::assertStringContainsString('Tarama bekliyor', (string) $offlineClient->getResponse()->getContent());
+        $offlineClient->request('POST', $offline.'/gorsel-tara', ['_token' => $this->csrf($offlineClient, 'question_image_scan')]);
+        $offlineClient->followRedirect();
+        $offlinePage = (string) $offlineClient->getResponse()->getContent();
+        self::assertStringContainsString('ClamAV bağlantısı kurulamadı.', $offlinePage);
+        self::assertStringContainsString('Tarama bekliyor', $offlinePage);
+        self::assertStringNotContainsString('Tarama başarısız', $offlinePage);
+        self::assertStringNotContainsString('Kullanıma hazır', $offlinePage);
+        $offlineClient->request('GET', $offline);
+        self::assertStringContainsString('Tarama bekliyor', (string) $offlineClient->getResponse()->getContent());
+        $offlineClient->request('GET', $offline.'/clamav-baglanti');
+        self::assertResponseStatusCodeSame(405);
+    }
+
+    private function scanClient(string $email, ClamdInstreamTransport $transport): KernelBrowser
+    {
+        $client = $this->newClient();
+        $this->login($client, $email);
+        $client->disableReboot();
+        $client->getContainer()->set(ClamavSignatureObservation::class, new FixedSignatureObservation(new ClamavSignatureSnapshot(59, 26104, 333, 26104)));
+        $client->getContainer()->set(ClamdInstreamTransport::class, $transport);
+
+        return $client;
+    }
+
+    /**
+     * @param array{subject: string, outcome: string} $ids
+     */
+    private function uploadQuestionImage(KernelBrowser $client, array $ids, string $stem): string
+    {
+        $this->postNew($client, $ids, ['stem' => $stem]);
+        $path = $this->openCreated($client);
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'stem' => $stem,
+        ]), [
+            'question_image' => new UploadedFile($this->pngFile(), 'soru.png', 'image/png', null, true),
+        ]);
+        $client->followRedirect();
+
+        return $path;
     }
 
     public function testModeratorCsrfCannotUploadAQuestionImage(): void
