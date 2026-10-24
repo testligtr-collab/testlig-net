@@ -7,6 +7,7 @@ namespace App\Form;
 use App\Dto\AdminInstitutionCreateRequest;
 use App\Enum\InstitutionType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -33,6 +34,7 @@ final class AdminInstitutionCreateFormType extends AbstractType
         $builder
             ->add('name', TextType::class, [
                 'label' => 'Kurum adı',
+                'empty_data' => '',
             ])
             ->add('type', ChoiceType::class, [
                 'label' => 'Kurum türü',
@@ -47,6 +49,7 @@ final class AdminInstitutionCreateFormType extends AbstractType
             ])
             ->add('ownerUserId', TextType::class, [
                 'label' => 'İlk sahip hesabı',
+                'empty_data' => '',
                 'attr' => [
                     'autocomplete' => 'off',
                     'class' => 'admin-owner-picker__value',
@@ -63,11 +66,21 @@ final class AdminInstitutionCreateFormType extends AbstractType
                     'Migrasyon' => AdminInstitutionCreateRequest::REASON_MIGRATION_IMPORT,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'empty_data' => '',
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Kurum oluşturmayı onaylıyorum',
                 'required' => true,
             ]);
+        $builder->get('reasonCode')->addModelTransformer(self::blankString());
+    }
+
+    private static function blankString(): CallbackTransformer
+    {
+        return new CallbackTransformer(
+            static fn (mixed $value): mixed => $value,
+            static fn (mixed $value): string => \is_string($value) ? $value : '',
+        );
     }
 
     public function configureOptions(OptionsResolver $resolver): void

@@ -118,6 +118,15 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Kurum oluşturmayı onaylamanız gerekir.');
         self::assertSame(0, $this->countNamed('Admin Inst Panel Onaysiz'));
 
+        $emptyPage = $client->request('GET', '/yonetim/kurumlar/yeni');
+        $client->submit($emptyPage->selectButton('Kurumu oluştur')->form());
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'Kurum adı gerekli.');
+        self::assertSelectorTextContains('body', 'Kurum türü gerekli.');
+        self::assertSelectorTextContains('body', 'İlk sahip hesabı gerekli.');
+        self::assertSelectorTextContains('body', 'İşlem gerekçesi gerekli.');
+        self::assertSelectorTextContains('body', 'Kurum oluşturmayı onaylamanız gerekir.');
+
         $this->submitCreate($client, 'Admin Inst Panel Uygunsuz', $ineligible->getId()->toRfc4122());
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'Seçilen hesap aktif ve doğrulanmış bir kullanıcı değil.');
@@ -182,6 +191,19 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
         self::assertContains(AdminInstitutionStatusRequest::ACTION_ACTIVATE, $actions);
         self::assertNotContains(AdminInstitutionStatusRequest::ACTION_SUSPEND, $actions);
         $token = $this->statusToken($crawler);
+
+        $client->request('POST', '/yonetim/kurumlar/'.$id.'/durum', [
+            'admin_institution_status' => [
+                'action' => '',
+                'reasonCode' => '',
+                '_token' => $token,
+            ],
+        ]);
+        self::assertResponseRedirects('/yonetim/kurumlar/'.$id);
+        $client->followRedirect();
+        self::assertSelectorTextContains('body', 'Durum formu geçersiz');
+        self::assertSame(InstitutionStatus::Pending->value, $this->institutionStatus($id));
+        self::assertSame(0, $this->auditCount('institution_status_changed', $id));
 
         $client->request('POST', '/yonetim/kurumlar/'.$id.'/durum', [
             'admin_institution_status' => [
