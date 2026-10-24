@@ -29,7 +29,7 @@ final class AdminModulePermissionHttpTest extends WebTestCase
     {
         $anon = $this->browser();
         $anon->request('GET', '/yonetim/rol-yetkileri');
-        self::assertResponseRedirects('/giris');
+        $this->assertHttpRedirect($anon, '/giris');
 
         foreach ([
             [UserRole::Student, 'module_perm_student@example.com'],
@@ -41,9 +41,9 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             $client = $this->browser();
             $this->login($client, $email, $role);
             $client->request('GET', '/yonetim/rol-yetkileri');
-            self::assertResponseStatusCodeSame(403);
+            $this->assertHttpStatus($client, 403);
             $client->request('GET', '/yonetim');
-            self::assertSelectorNotExists('a[href="/yonetim/rol-yetkileri"]');
+            $this->assertHtmlLacks($client, 'a[href="/yonetim/rol-yetkileri"]');
         }
     }
 
@@ -57,44 +57,44 @@ final class AdminModulePermissionHttpTest extends WebTestCase
         $expertClient = $this->browser();
         $this->login($expertClient, 'module_perm_expert@example.com', UserRole::ExpertTeacher);
         $expertClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($expertClient);
 
         $moderatorClient = $this->browser();
         $this->login($moderatorClient, 'module_perm_target@example.com', UserRole::Moderator);
         $moderatorClient->request('GET', '/yonetim/sorular');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($moderatorClient);
         self::assertStringNotContainsString('/yonetim/sorular/yeni', (string) $moderatorClient->getResponse()->getContent());
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('POST', '/yonetim/sorular/yeni', ['subject_id' => 'x']);
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/icerikler/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/testler/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
 
         $super->request('GET', '/yonetim/rol-yetkileri');
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h1', 'Rol ve modül izinleri');
-        self::assertSelectorExists('a[href="/yonetim/rol-yetkileri"]');
-        self::assertSelectorTextContains('body', 'Hedef Moderator');
+        $this->assertHttpOk($super);
+        $this->assertHtmlContains($super, 'Rol ve modül izinleri');
+        $this->assertHtmlHas($super, 'a[href="/yonetim/rol-yetkileri"]');
+        $this->assertHtmlContains($super, 'Hedef Moderator');
         $super->request('GET', '/yonetim/rol-yetkileri?q=module-perm-yok-zzzz');
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Filtrelere uygun hesap bulunamadı.');
+        $this->assertHttpOk($super);
+        $this->assertHtmlContains($super, 'Filtrelere uygun hesap bulunamadı.');
 
         $detail = '/yonetim/rol-yetkileri/'.$moderator->getId()->toRfc4122();
         $super->request('GET', $detail);
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('input[value="question.manage"]');
-        self::assertSelectorNotExists('input[value="ROLE_ADMIN"]');
-        self::assertSelectorTextContains('body', 'Rolden gelen erişim');
-        self::assertSelectorTextContains('body', 'Yayın ve arşiv bu ekrandan verilmez.');
+        $this->assertHttpOk($super);
+        $this->assertHtmlHas($super, 'input[value="question.manage"]');
+        $this->assertHtmlLacks($super, 'input[value="ROLE_ADMIN"]');
+        $this->assertHtmlContains($super, 'Rolden gelen erişim');
+        $this->assertHtmlContains($super, 'Yayın ve arşiv bu ekrandan verilmez.');
         $token = (string) $super->getCrawler()->filter('input[name="_token"]')->attr('value');
         $version = (string) $super->getCrawler()->filter('input[name="version"]')->attr('value');
         self::assertSame('0', $version);
 
         $super->request('POST', $detail, ['version' => $version, 'permissions' => ['question.manage']]);
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($super, 403);
         self::assertSame(0, $this->grantCount($moderator));
 
         $super->request('POST', $detail, [
@@ -102,9 +102,9 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => $version,
             'permissions' => ['not_a_real_permission'],
         ]);
-        self::assertResponseRedirects($detail);
+        $this->assertHttpRedirect($super, $detail);
         $super->followRedirect();
-        self::assertSelectorTextContains('body', 'Seçilen izin kullanılamaz.');
+        $this->assertHtmlContains($super, 'Seçilen izin kullanılamaz.');
         self::assertSame(0, $this->grantCount($moderator));
         self::assertSame(0, $this->auditCount($moderator));
 
@@ -113,30 +113,30 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => $version,
             'permissions' => [ModeratorModuleGrant::QuestionManage->value],
         ]);
-        self::assertResponseRedirects($detail);
+        $this->assertHttpRedirect($super, $detail);
         $super->followRedirect();
-        self::assertSelectorTextContains('body', 'Modül izinleri güncellendi.');
+        $this->assertHtmlContains($super, 'Modül izinleri güncellendi.');
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
         self::assertSame(1, $this->auditCount($moderator));
 
         $moderatorClient->request('GET', '/yonetim/sorular');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($moderatorClient);
         self::assertStringContainsString('/yonetim/sorular/yeni', (string) $moderatorClient->getResponse()->getContent());
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($moderatorClient);
         $editorToken = (string) $moderatorClient->getCrawler()->filter('input[name="_token"]')->attr('value');
         $moderatorClient->request('POST', '/yonetim/sorular/yeni', ['_token' => $editorToken]);
         self::assertNotSame(403, $moderatorClient->getResponse()->getStatusCode());
         $moderatorClient->request('GET', '/yonetim/icerikler/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/testler/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/kurumlar');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/odemeler');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $moderatorClient->request('GET', '/yonetim/denetim');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
 
         $super->request('GET', $detail);
         $freshToken = (string) $super->getCrawler()->filter('input[name="_token"]')->attr('value');
@@ -145,9 +145,9 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => '0',
             'permissions' => [ModeratorModuleGrant::LearningContentManage->value],
         ]);
-        self::assertResponseRedirects($detail);
+        $this->assertHttpRedirect($super, $detail);
         $super->followRedirect();
-        self::assertSelectorTextContains('body', 'Bu hesap başka bir işlemde güncellendi.');
+        $this->assertHtmlContains($super, 'Bu hesap başka bir işlemde güncellendi.');
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
         self::assertSame(1, $this->auditCount($moderator));
 
@@ -157,15 +157,15 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             '_token' => $removeToken,
             'version' => '1',
         ]);
-        self::assertResponseRedirects($detail);
+        $this->assertHttpRedirect($super, $detail);
         $super->followRedirect();
-        self::assertSelectorTextContains('body', 'Modül izinleri güncellendi.');
+        $this->assertHtmlContains($super, 'Modül izinleri güncellendi.');
         self::assertSame([], $this->grantCodes($moderator));
 
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         $expertClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($expertClient);
 
         $super->disableReboot();
         $superUser = $this->findUser('module_perm_sa@example.com');
@@ -177,9 +177,9 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'permissions' => [ModeratorModuleGrant::QuestionManage->value],
         ]);
         $super->enableReboot();
-        self::assertResponseRedirects('/yonetim/rol-yetkileri');
+        $this->assertHttpRedirect($super, '/yonetim/rol-yetkileri');
         $super->followRedirect();
-        self::assertSelectorTextContains('body', 'Bu hesabın modül izni yönetilemez.');
+        $this->assertHtmlContains($super, 'Bu hesabın modül izni yönetilemez.');
         self::assertSame(0, $this->grantCount($superUser));
         self::assertNotContains(UserRole::Admin->value, $superUser->getRoles());
     }
@@ -199,16 +199,16 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => '0',
             'permissions' => [ModeratorModuleGrant::QuestionManage->value],
         ]);
-        self::assertResponseRedirects($detail);
+        $this->assertHttpRedirect($super, $detail);
 
         $this->setStatus('module_perm_target2@example.com', UserStatus::Suspended);
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($moderatorClient, 403);
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
 
         $this->setStatus('module_perm_target2@example.com', UserStatus::Active);
         $moderatorClient->request('GET', '/yonetim/sorular/yeni');
-        self::assertResponseIsSuccessful();
+        $this->assertHttpOk($moderatorClient);
 
         $super->request('GET', $detail);
         $staleToken = (string) $super->getCrawler()->filter('input[name="_token"]')->attr('value');
@@ -218,7 +218,7 @@ final class AdminModulePermissionHttpTest extends WebTestCase
             'version' => '1',
             'permissions' => [],
         ]);
-        self::assertResponseStatusCodeSame(403);
+        $this->assertHttpStatus($super, 403);
         self::assertSame([ModeratorModuleGrant::QuestionManage->value], $this->grantCodes($moderator));
     }
 
@@ -274,6 +274,37 @@ final class AdminModulePermissionHttpTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return static::createClient();
+    }
+
+    private function assertHttpStatus(KernelBrowser $client, int $status): void
+    {
+        self::assertSame($status, $client->getResponse()->getStatusCode());
+    }
+
+    private function assertHttpOk(KernelBrowser $client): void
+    {
+        self::assertTrue($client->getResponse()->isSuccessful(), (string) $client->getResponse()->getStatusCode());
+    }
+
+    private function assertHttpRedirect(KernelBrowser $client, string $path): void
+    {
+        self::assertTrue($client->getResponse()->isRedirect(), (string) $client->getResponse()->getStatusCode());
+        self::assertStringContainsString($path, (string) $client->getResponse()->headers->get('Location'));
+    }
+
+    private function assertHtmlContains(KernelBrowser $client, string $text): void
+    {
+        self::assertStringContainsString($text, (string) $client->getResponse()->getContent());
+    }
+
+    private function assertHtmlHas(KernelBrowser $client, string $selector): void
+    {
+        self::assertGreaterThan(0, $client->getCrawler()->filter($selector)->count(), $selector);
+    }
+
+    private function assertHtmlLacks(KernelBrowser $client, string $selector): void
+    {
+        self::assertSame(0, $client->getCrawler()->filter($selector)->count(), $selector);
     }
 
     private function login(KernelBrowser $client, string $email, UserRole $role): void
