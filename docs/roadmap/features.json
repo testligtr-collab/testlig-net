@@ -206,7 +206,9 @@
         "src/Controller/InstitutionWorkspaceController.php",
         "Süper yönetici /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} ekranlarında mevcut kurum listesini, InstitutionCreator ile beklemede kurum ve ilk sahip üyeliğini, InstitutionStatusManager ile izinli durum geçişini kullanır. Hesap seçimi AdminUserQuery::searchInstitutionOwnerCandidates sonucunu UUID ile yeniden çözer. Şube, sınıf ve kurum çalışma alanı bu ekranlarda tamamlanmaz. Canlı görsel kabul yapılmadı."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/169"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -1192,7 +1194,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/164",
         "https://github.com/testligtr-collab/testlig-net/pull/165",
         "https://github.com/testligtr-collab/testlig-net/pull/166",
-        "https://github.com/testligtr-collab/testlig-net/pull/167"
+        "https://github.com/testligtr-collab/testlig-net/pull/167",
+        "https://github.com/testligtr-collab/testlig-net/pull/169"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
