@@ -1,0 +1,101 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Rol ve modül izinleri — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Rol ve modül izinleri</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = {
+        'pending_verification': 'Doğrulama bekliyor',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
+    <div class="admin-user-page admin-module-permission-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Rol ve modül izinleri</h1>
+                <p>Rol, hesabın mevcut kapsamıdır. Modül izni, moderatöre ayrıca verilen platform yazma yetkisidir.</p>
+            </div>
+            {% if filters.q|default('') %}
+                <a class="admin-user-clear" href="{{ path('app_admin_module_permissions') }}">Filtreleri temizle</a>
+            {% endif %}
+        </header>
+        <p class="admin-module-permission-note">Global rol ataması kullanıcı detayında kalır. Bu ekran yönetici veya süper yönetici rolü vermez. Kurum içeriğinde üyelik ve sahiplik şartı durur.</p>
+
+        <section class="admin-role-legend" aria-label="Mevcut roller">
+            {% for role in role_scopes %}
+                <article class="admin-module-card">
+                    <h2>{{ role.label }}</h2>
+                    <p>{{ role.scope }}</p>
+                </article>
+            {% endfor %}
+        </section>
+
+        <form class="admin-user-filters" method="get" action="{{ path('app_admin_module_permissions') }}">
+            <div class="admin-user-filters__fields">
+                <label for="module-permission-filter-q">
+                    <span class="sr-only">Hesap ara</span>
+                    <input id="module-permission-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Ad, soyad veya e-posta">
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button class="admin-user-filters__submit" type="submit">Filtrele</button>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="module-permission-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="module-permission-list-heading">İzni yönetilebilen hesaplar</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} hesap</span>
+            </header>
+            {% if result.items is empty %}
+                {% include 'components/empty_state.html.twig' with {
+                    title: 'Kayıt yok',
+                    body: filters.q|default('') ? 'Filtrelere uygun hesap bulunamadı.' : 'Henüz moderatör hesabı yok.'
+                } %}
+            {% else %}
+                <div class="admin-user-table-wrap">
+                    <table class="admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Hesap</th>
+                                <th>Rol</th>
+                                <th>Durum</th>
+                                <th>Doğrudan izin</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td class="admin-user-person" data-label="Hesap">
+                                        <span class="admin-user-person__name">{{ row.fullName }}</span>
+                                        <span class="admin-user-person__email">{{ row.email }}</span>
+                                    </td>
+                                    <td data-label="Rol">{{ row.roleLabel }}</td>
+                                    <td data-label="Durum">{{ status_labels[row.status]|default('Belirtilmemiş') }}</td>
+                                    <td data-label="Doğrudan izin">{{ row.directGrantCount }}</td>
+                                    <td class="admin-user-action" data-label="İşlem">
+                                        <a class="admin-user-detail" href="{{ path('app_admin_module_permission', { id: row.id }) }}">İzinler <span aria-hidden="true">›</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% include 'components/admin_pagination.html.twig' with {
+                result: result,
+                route: 'app_admin_module_permissions',
+                query: { q: filters.q|default('') }
+            } %}
+        </section>
+    </div>
+{% endblock %}

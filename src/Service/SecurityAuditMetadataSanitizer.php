@@ -226,6 +226,8 @@ final class SecurityAuditMetadataSanitizer
         'invitation_id',
         'enrollment_id',
         'grants_child_data_access',
+        'added_permissions',
+        'removed_permissions',
     ];
 
     /**

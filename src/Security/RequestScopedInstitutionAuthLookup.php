@@ -17,6 +17,7 @@ use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentStatus;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use App\Enum\StudentEnrollmentStatus;
@@ -37,6 +38,7 @@ use App\Security\Authorization\StudentEnrollmentAuthorizationSnapshot;
 use App\Security\Authorization\TeacherAssignmentAuthorizationSnapshot;
 use App\Security\Authorization\UserAuthorizationSnapshot;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\ParameterType;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Contracts\Service\ResetInterface;
 
@@ -486,7 +488,28 @@ final class RequestScopedInstitutionAuthLookup implements InstitutionAuthorizati
             status: UserStatus::from((string) $row['status']),
             emailVerified: null !== $row['email_verified_at'],
             roles: $roles,
+            moduleGrants: $this->fetchModuleGrants($userId),
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function fetchModuleGrants(Uuid $userId): array
+    {
+        $rows = $this->connection->fetchFirstColumn(
+            'SELECT permission_code FROM user_module_permissions WHERE user_id = :id ORDER BY permission_code ASC',
+            ['id' => $userId->toBinary()],
+            ['id' => ParameterType::BINARY],
+        );
+        $grants = [];
+        foreach ($rows as $code) {
+            if (\is_string($code) && null !== ModeratorModuleGrant::tryFrom($code)) {
+                $grants[] = $code;
+            }
+        }
+
+        return $grants;
     }
 
     private function fetchInstitutionSnapshot(Uuid $institutionId): ?InstitutionAuthorizationSnapshot

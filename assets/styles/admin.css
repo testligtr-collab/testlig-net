@@ -2590,3 +2590,52 @@ body.is-admin-panel {
         grid-template-columns: minmax(12rem, 1.7fr) minmax(0, 1fr) auto;
     }
 }
+.is-admin-panel .admin-module-permission-page { min-width: 0; }
+.is-admin-panel .admin-module-permission-page .admin-user-table { min-width: 0; }
+.is-admin-panel .admin-module-permission-note {
+    margin: 0 0 1rem;
+    color: #526173;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-role-legend,
+.is-admin-panel .admin-module-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+}
+.is-admin-panel .admin-module-card {
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-module-card h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-module-card p,
+.is-admin-panel .admin-module-card label {
+    margin: 0.35rem 0 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-module-card label {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+.is-admin-panel .admin-module-lock,
+.is-admin-panel .admin-module-protected { color: #526173; }
+@media (min-width: 768px) {
+    .is-admin-panel .admin-role-legend,
+    .is-admin-panel .admin-module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1200px) {
+    .is-admin-panel .admin-module-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}

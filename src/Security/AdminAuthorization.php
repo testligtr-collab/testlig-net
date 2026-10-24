@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Security;
 
 use App\Entity\User;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Exception\CommerceException;
 use App\Service\ActiveVerifiedUserPolicy;
@@ -20,6 +21,7 @@ final class AdminAuthorization
     public function __construct(
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly CommerceAuthorization $commerceAuthorization,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -217,6 +219,11 @@ final class AdminAuthorization
         return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
     }
 
+    public function canManageModulePermissions(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
     public function canRequeueDeadLetter(User $actor): bool
     {
         return $this->canOperatePayments($actor);
@@ -293,14 +300,15 @@ final class AdminAuthorization
 
     public function canManageLearningContentWorkspace(User $actor): bool
     {
-        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+        return ($this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
             && $this->hasAnyRole($actor, [
                 UserRole::SuperAdmin,
                 UserRole::Admin,
                 UserRole::HeadTeacher,
                 UserRole::ExpertTeacher,
                 UserRole::Teacher,
-            ]);
+            ]))
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::LearningContentManage);
     }
 
     /**
@@ -330,10 +338,17 @@ final class AdminAuthorization
 
     public function canAuthorTests(User $actor): bool
     {
-        return $this->canAuthorQuestions($actor);
+        return $this->canAuthorByExistingRole($actor)
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::AssessmentAuthor);
     }
 
     public function canAuthorQuestions(User $actor): bool
+    {
+        return $this->canAuthorByExistingRole($actor)
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::QuestionManage);
+    }
+
+    private function canAuthorByExistingRole(User $actor): bool
     {
         return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
             && $this->hasAnyRole($actor, [

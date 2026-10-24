@@ -24,6 +24,7 @@ use App\Enum\GradeLevel;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionSourceType;
@@ -53,6 +54,7 @@ use App\Repository\QuestionRevisionOptionRepository;
 use App\Repository\QuestionRevisionPrimaryAlignmentGuardRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
+use App\Security\UserModulePermissionPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -100,6 +102,7 @@ final class QuestionManager
         private readonly ClockInterface $clock,
         private readonly QuestionImageReferenceGuard $imageReferences,
         private readonly QuestionImageMetadataPort $imageMetadata,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -1315,6 +1318,9 @@ final class QuestionManager
             if ($this->hasAnyRole($actor, [UserRole::Admin, UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher])) {
                 return;
             }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::QuestionManage)) {
+                return;
+            }
             throw QuestionException::unauthorized();
         }
 
@@ -1352,6 +1358,9 @@ final class QuestionManager
             if ($this->hasAnyRole($actor, [UserRole::Teacher])
                 && $question->getCreatedBy()->getId()->equals($actor->getId())
                 && QuestionStatus::Draft === $question->getStatus()) {
+                return;
+            }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::QuestionManage)) {
                 return;
             }
             throw QuestionException::unauthorized();

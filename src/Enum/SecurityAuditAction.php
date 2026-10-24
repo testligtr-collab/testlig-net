@@ -218,4 +218,5 @@ enum SecurityAuditAction: string
     case LinkCodeRevoked = 'link_code_revoked';
     case ParentLinkActivated = 'parent_link_activated';
     case ParentLinkRevoked = 'parent_link_revoked';
+    case ModulePermissionChanged = 'module_permission_changed';
 }

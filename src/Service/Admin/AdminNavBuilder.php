@@ -70,6 +70,9 @@ final class AdminNavBuilder
             $items[] = $this->item('users', 'Kullanıcılar', 'app_admin_users', $currentPath, '/yonetim/kullanicilar');
             $items[] = $this->item('teachers', 'Öğretmenler', 'app_admin_teachers', $currentPath, '/yonetim/ogretmenler', false, 'users');
         }
+        if ($this->adminAuthorization->canManageModulePermissions($actor)) {
+            $items[] = $this->item('role_permissions', 'Rol ve modül izinleri', 'app_admin_module_permissions', $currentPath, '/yonetim/rol-yetkileri', false, 'users');
+        }
         if ($this->adminAuthorization->canManageMemberships($actor)) {
             $items[] = $this->item('teacher_applications', 'Öğretmen başvuruları', 'app_admin_teacher_applications', $currentPath, '/yonetim/ogretmen-basvurulari');
             $items[] = $this->item('institution_applications', 'Kurum başvuruları', 'app_admin_institution_applications', $currentPath, '/yonetim/kurum-basvurulari');

@@ -28,6 +28,7 @@ use App\Enum\LearningContentScope;
 use App\Enum\LearningContentSourceType;
 use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
@@ -47,6 +48,7 @@ use App\Repository\LearningContentRevisionAssetRepository;
 use App\Repository\LearningContentRevisionPrimaryAlignmentGuardRepository;
 use App\Repository\LearningContentRevisionRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
+use App\Security\UserModulePermissionPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -88,6 +90,7 @@ final class LearningContentManager
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
         private readonly LearningDocumentManager $learningDocuments,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -1540,6 +1543,9 @@ final class LearningContentManager
             ])) {
                 return;
             }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::LearningContentManage)) {
+                return;
+            }
             throw LearningContentException::unauthorized();
         }
         if (!$institution instanceof Institution || InstitutionStatus::Active !== $institution->getStatus()) {
@@ -1576,6 +1582,9 @@ final class LearningContentManager
                 && $actor->getId()->equals($content->getCreatedBy()->getId())
                 && \in_array($content->getStatus(), [LearningContentStatus::Draft, LearningContentStatus::InReview], true)
             ) {
+                return;
+            }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::LearningContentManage)) {
                 return;
             }
             throw LearningContentException::unauthorized();

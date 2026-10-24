@@ -106,6 +106,17 @@ final class QuestionVoterTest extends KernelTestCase
         self::assertFalse($this->decide($teacher, QuestionPermission::PUBLISH, $question));
         self::assertFalse($this->decide($student, QuestionPermission::MANAGE, $question));
         self::assertTrue($this->decide($sa, QuestionPermission::ANSWER_KEY_VIEW, $question));
+
+        $moderator = $this->activeUser('qv-mod@example.com', UserRole::Moderator);
+        self::assertFalse($this->decide($moderator, QuestionPermission::MANAGE, $question));
+        self::assertFalse($this->decide($moderator, QuestionPermission::PUBLISH, $question));
+        self::assertTrue($this->decide($moderator, QuestionPermission::REVIEW, $question));
+        $grants = static::getContainer()->get(\App\Service\UserModulePermissionManager::class);
+        self::assertInstanceOf(\App\Service\UserModulePermissionManager::class, $grants);
+        $grants->replace($sa->getId(), $moderator->getId(), 0, [\App\Enum\ModeratorModuleGrant::QuestionManage->value]);
+        self::assertTrue($this->decide($moderator, QuestionPermission::MANAGE, $question));
+        self::assertFalse($this->decide($moderator, QuestionPermission::PUBLISH, $question));
+        self::assertTrue($this->decide($moderator, QuestionPermission::REVIEW, $question));
     }
 
     private function decide(User $user, string $attribute, Question $question): bool

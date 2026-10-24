@@ -30,6 +30,7 @@ final class AdminPermission
     public const ADMIN_TEST_VIEW = 'ADMIN_TEST_VIEW';
     public const ADMIN_NEWS_MANAGE = 'ADMIN_NEWS_MANAGE';
     public const ADMIN_SECTION_ENTRY = 'ADMIN_SECTION_ENTRY';
+    public const ADMIN_MODULE_PERMISSIONS_MANAGE = 'ADMIN_MODULE_PERMISSIONS_MANAGE';
 
     /**
      * @return list<string>
@@ -58,6 +59,7 @@ final class AdminPermission
             self::ADMIN_TEST_VIEW,
             self::ADMIN_NEWS_MANAGE,
             self::ADMIN_SECTION_ENTRY,
+            self::ADMIN_MODULE_PERMISSIONS_MANAGE,
         ];
     }
 }

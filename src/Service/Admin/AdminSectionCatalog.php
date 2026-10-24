@@ -28,7 +28,6 @@ final class AdminSectionCatalog
     public static function all(): array
     {
         return [
-            self::entry('rol-izinleri', 'role_permissions', 'Rol ve modül izinleri', 'people', 'Hangi rolün hangi yönetim bölümünü kullanacağını görmek.', ['İzinler kodda tanımlıdır ve her yönetim adresinde yeniden kontrol edilir.'], ['Rol ve modül izinlerini yöneten bir ekran yoktur.'], 'İzin matrisi, mevcut kapıları gevşetmeden okunur hale getirilecek.'),
             self::entry('subeler', 'branches', 'Şube ve kampüsler', 'campus', 'Bir kurumun şube ve kampüslerini yönetmek.', ['Kurum kaydı ve kurum üyeliği mevcuttur.'], ['Şube oluşturma, bağlama ve şube yetkisi yoktur.'], 'Şube ve kampüs işlemleri kurum kaydına bağlanacak.'),
             self::entry('akademik-yillar', 'academic_years', 'Akademik yıllar', 'campus', 'Akademik yılı kurumdan bağımsız bir listede yönetmek.', ['Akademik yıl, kurum ekranının içindeki mevcut akışta açılır.'], ['Platform geneli yıl listesi ve yıl kapatma bu adreste yoktur.'], 'Yıl işlemleri kurum ekranındaki mevcut akış korunarak genişletilecek.', 'app_admin_institutions', 'Kurumlar'),
             self::entry('siniflar', 'classes', 'Sınıflar', 'campus', 'Platformdaki sınıfları yönetmek.', ['Ataması olan kullanıcı Sınıflarım bağlantısından kendi sınıflarını görür.'], ['Platform geneli sınıf listesi, sınıf oluşturma ve öğrenci atama bu adreste yoktur.'], 'Sınıf yönetimi kurum ve öğretmen atamasındaki mevcut kurallarla eklenecek.'),

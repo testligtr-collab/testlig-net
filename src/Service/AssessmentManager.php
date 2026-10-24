@@ -31,6 +31,7 @@ use App\Enum\GradeLevel;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionOrderMode;
@@ -50,6 +51,7 @@ use App\Repository\AssessmentRevisionRepository;
 use App\Repository\AssessmentSectionRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
+use App\Security\UserModulePermissionPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -102,6 +104,7 @@ final class AssessmentManager
         private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -1681,6 +1684,9 @@ final class AssessmentManager
             if ($this->hasAnyRole($actor, [UserRole::HeadTeacher, UserRole::ExpertTeacher, UserRole::Teacher, UserRole::Admin])) {
                 return;
             }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::AssessmentAuthor)) {
+                return;
+            }
             throw AssessmentException::unauthorized();
         }
 
@@ -1720,6 +1726,10 @@ final class AssessmentManager
                 return;
             }
             if ($this->hasAnyRole($actor, [UserRole::Admin]) && AssessmentStatus::Draft === $assessment->getStatus()) {
+                return;
+            }
+            if ($this->modulePermissions->allows($actor, ModeratorModuleGrant::AssessmentAuthor)
+                && AssessmentStatus::Draft === $assessment->getStatus()) {
                 return;
             }
             throw AssessmentException::unauthorized();

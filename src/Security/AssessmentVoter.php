@@ -9,9 +9,11 @@ use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\InstitutionMembershipRole;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Security\Authorization\AssessmentAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
+use App\Security\Authorization\UserAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
@@ -29,6 +31,7 @@ final class AssessmentVoter extends Voter
 {
     public function __construct(
         private readonly RequestScopedInstitutionAuthLookup $authLookup,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -62,7 +65,7 @@ final class AssessmentVoter extends Voter
         }
 
         if (AssessmentPermission::CREATE === $attribute && null === $subject) {
-            return $this->mayCreateWithoutSubject($user->roles);
+            return $this->mayCreateWithoutSubject($user);
         }
 
         if (!$subject instanceof Assessment) {
@@ -75,7 +78,7 @@ final class AssessmentVoter extends Voter
         }
 
         if (AssessmentScope::Platform === $assessment->scope) {
-            return $this->platformAllows($attribute, $user->roles, $user->id->equals($assessment->createdById), $assessment);
+            return $this->platformAllows($attribute, $user, $user->id->equals($assessment->createdById), $assessment);
         }
 
         if (null === $assessment->institutionId) {
@@ -98,32 +101,30 @@ final class AssessmentVoter extends Voter
         );
     }
 
-    /**
-     * @param list<string> $roles
-     */
-    private function mayCreateWithoutSubject(array $roles): bool
+    private function mayCreateWithoutSubject(UserAuthorizationSnapshot $user): bool
     {
-        return \in_array(UserRole::HeadTeacher->value, $roles, true)
-            || \in_array(UserRole::ExpertTeacher->value, $roles, true)
-            || \in_array(UserRole::Teacher->value, $roles, true)
-            || \in_array(UserRole::Admin->value, $roles, true);
+        return \in_array(UserRole::HeadTeacher->value, $user->roles, true)
+            || \in_array(UserRole::ExpertTeacher->value, $user->roles, true)
+            || \in_array(UserRole::Teacher->value, $user->roles, true)
+            || \in_array(UserRole::Admin->value, $user->roles, true)
+            || $this->modulePermissions->snapshotAllows($user, ModeratorModuleGrant::AssessmentAuthor);
     }
 
-    /**
-     * @param list<string> $roles
-     */
     private function platformAllows(
         string $attribute,
-        array $roles,
+        UserAuthorizationSnapshot $user,
         bool $isAuthor,
         AssessmentAuthorizationSnapshot $assessment,
     ): bool {
+        $roles = $user->roles;
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
         $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
         $isModerator = \in_array(UserRole::Moderator->value, $roles, true);
         $isTeacher = \in_array(UserRole::Teacher->value, $roles, true);
         $ownDraft = $isTeacher && $isAuthor && AssessmentStatus::Draft === $assessment->status;
+        $granted = $this->modulePermissions->snapshotAllows($user, ModeratorModuleGrant::AssessmentAuthor);
+        $grantedDraft = $granted && AssessmentStatus::Draft === $assessment->status;
 
         return match ($attribute) {
             AssessmentPermission::VIEW => $assessment->isPublished()
@@ -131,9 +132,9 @@ final class AssessmentVoter extends Voter
                 || $isAdmin
                 || $isModerator
                 || ($isTeacher && $isAuthor),
-            AssessmentPermission::CREATE => $isHeadOrExpert || $isAdmin || $isTeacher,
+            AssessmentPermission::CREATE => $isHeadOrExpert || $isAdmin || $isTeacher || $granted,
             AssessmentPermission::REVISE,
-            AssessmentPermission::SUBMIT => $isHeadOrExpert || ($isAdmin && AssessmentStatus::Draft === $assessment->status) || $ownDraft,
+            AssessmentPermission::SUBMIT => $isHeadOrExpert || ($isAdmin && AssessmentStatus::Draft === $assessment->status) || $ownDraft || $grantedDraft,
             AssessmentPermission::REVIEW => $isHeadOrExpert || $isAdmin || $isModerator,
             AssessmentPermission::PUBLISH,
             AssessmentPermission::ARCHIVE => $isHeadOrExpert || $isAdmin,
