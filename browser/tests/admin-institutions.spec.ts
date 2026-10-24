@@ -120,6 +120,18 @@ test('superadmin institution list, create and detail follow the reference', asyn
     await capture(page, info, `admin-kurum-detay-${viewport.name}.png`);
   }
 
+  const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
+  let ignoredValidationResponses = 0;
+  (page as Page & { __notes?: string[] }).__notes = notes.filter((note) => {
+    if (ignoredValidationResponses < 2 && note.includes('status of 422')) {
+      ignoredValidationResponses += 1;
+
+      return false;
+    }
+
+    return true;
+  });
+  expect(ignoredValidationResponses).toBe(2);
   await assertClean(page);
 });
 

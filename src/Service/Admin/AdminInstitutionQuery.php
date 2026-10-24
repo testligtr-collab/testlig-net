@@ -223,7 +223,7 @@ final class AdminInstitutionQuery
             ->setParameter('active', InstitutionMembershipStatus::Active)
             ->groupBy('m.institution');
         $match = $qb->expr()->orX();
-        foreach (array_values($ids) as $index => $id) {
+        foreach ($ids as $index => $id) {
             $parameter = 'institution'.$index;
             $match->add('IDENTITY(m.institution) = :'.$parameter);
             $qb->setParameter($parameter, $id, 'uuid');

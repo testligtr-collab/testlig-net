@@ -2931,7 +2931,8 @@ body.is-admin-panel {
 .is-admin-panel .admin-institution-page .admin-user-filters__actions .btn,
 .is-admin-panel .admin-institution-page .admin-institution-pager .btn,
 .is-admin-panel .admin-institution-page .admin-institution-profile__actions .btn,
-.is-admin-panel .admin-institution-page .admin-user-head .btn {
+.is-admin-panel .admin-institution-page .admin-user-head .btn,
+.is-admin-panel .admin-institution-page .admin-user-detail-head .btn {
     width: auto;
 }
 .is-admin-panel .admin-institution-page .form-error,
@@ -3022,6 +3023,11 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-owner-picker__results [role="option"].is-active,
 .is-admin-panel .admin-owner-picker__results [role="option"]:hover { background: #e8f6fb; }
+.is-admin-panel .admin-owner-picker__selected[hidden],
+.is-admin-panel .admin-owner-picker__results[hidden],
+.is-admin-panel .admin-owner-picker__empty[hidden] {
+    display: none;
+}
 .is-admin-panel .admin-owner-picker__selected {
     display: flex;
     flex-wrap: wrap;
