@@ -10,7 +10,7 @@ Ops workflows (catalog import, catalog publish-tree, curriculum pilot import, of
 
 ## PHP security inventory
 
-`ops-php-security-inventory.yml` is a separate manual read-only dispatch. It records installed lsphp packages, the configured OpenLiteSpeed handler, CLI `session.upload_progress.enabled`, and whether the cached package metadata contains an lsphp83 security update. It does not change PHP settings, packages, or services. CLI output and an ini file are not web-runtime acceptance, and a configured handler is not recorded as internet-facing. This document does not record a production run.
+`ops-php-security-inventory.yml` is a separate manual read-only dispatch. It records installed lsphp packages, the configured OpenLiteSpeed handler, CLI `session.upload_progress.enabled`, and whether the cached package metadata contains an lsphp83 security update. It does not change PHP settings, packages, or services. CLI output and an ini file are not web-runtime acceptance, and a configured handler is not recorded as internet-facing. This document does not record a production run. `ops-lsphp83-security-apply.yml` is a separate manual dispatch and opens SSH only when its confirmation input is `apply-lsphp83-php2shell-mitigation`. It updates the lsphp83 family when the refreshed LiteSpeed metadata contains the patched package, sets `session.upload_progress.enabled=0` in that branch's main php.ini, and recycles only matching LSAPI workers. It does not update other PHP branches or start an application deploy. A run of this workflow is the record of the change; this document is not that record.
 
 ## Shared queue
 
