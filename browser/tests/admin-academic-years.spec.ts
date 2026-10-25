@@ -26,7 +26,7 @@ test('superadmin academic year list, create, detail and error follow the referen
     await expect(page.getByRole('link', { name: 'Yeni akademik yıl', exact: true })).toBeVisible();
     await expect(page.locator('[data-year-summary]')).toHaveCount(4);
     await expect(page.getByText('Aktif yılı olmayan kurum', { exact: true })).toBeVisible();
-    await expect(page.getByText('Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar.')).toBeVisible();
+    await expect(page.locator('.admin-institution-note')).toHaveText('Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar. Beklemede, askıda ve arşivdeki kurumlar bu sayıya girmez. Sayaçlar seçili filtreden bağımsızdır.');
     await expect(page.getByPlaceholder('Yıl adı ile ara')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Kurum' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Durum' })).toBeVisible();

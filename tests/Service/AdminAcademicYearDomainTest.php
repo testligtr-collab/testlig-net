@@ -112,9 +112,9 @@ final class AdminAcademicYearDomainTest extends KernelTestCase
         self::assertTrue($classroom->getAcademicYear()->getId()->equals($first->getId()));
         self::assertTrue($enrollment->getAcademicYear()->getId()->equals($first->getId()));
 
-        $home = $this->reloadInstitution($home->getId());
-        $this->institutionStatus()->suspend($home, $this->reloadUser($actor->getId()), 'operator_correction');
         $blocked = $manager->createPlanned($this->reloadInstitution($home->getId()), $this->reloadUser($actor->getId()), 'Ucuncu Donem', new \DateTimeImmutable('2026-09-01'), new \DateTimeImmutable('2027-06-30'), 'operator_setup');
+        self::assertSame(AcademicYearStatus::Planned, $blocked->getStatus());
+        $this->institutionStatus()->suspend($this->reloadInstitution($home->getId()), $this->reloadUser($actor->getId()), 'operator_correction');
         $audits = $this->auditCount(SecurityAuditAction::AcademicYearActivated->value, $blocked->getId()->toRfc4122());
         try {
             $manager->activate($this->reloadYear($blocked->getId()), $this->reloadUser($actor->getId()), 'lifecycle_change');
