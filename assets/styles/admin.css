@@ -2982,7 +2982,7 @@ body.is-admin-panel {
     border-color: #079dbf;
 }
 .is-admin-panel .admin-institution-page .admin-institution-field:has(li) :is(input:not([type="checkbox"]), select),
-.is-admin-panel .admin-institution-page .admin-owner-picker:has(li) #institution-owner-search {
+.is-admin-panel .admin-institution-page .admin-owner-picker:has(> ul:not([role="listbox"]) li) #institution-owner-search {
     border-color: #c43b3b;
     background-color: #fff8f8;
 }

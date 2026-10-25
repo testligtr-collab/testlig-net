@@ -85,6 +85,7 @@ test('superadmin institution list, create and detail follow the reference', asyn
     await page.locator('#admin_institution_create_name').focus();
     const outline = await page.locator('#admin_institution_create_name').evaluate((node) => getComputedStyle(node).outlineStyle);
     expect(outline).not.toBe('none');
+    await page.locator('#admin_institution_create_name').blur();
     const searchBox = await page.locator('#institution-owner-search').boundingBox();
     expect(searchBox).not.toBeNull();
     expect(searchBox!.height).toBeGreaterThanOrEqual(44);
