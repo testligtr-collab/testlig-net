@@ -73,15 +73,12 @@ final class AdminInstitutionCreateFormType extends AbstractType
                 'label' => 'Kurum oluşturmayı onaylıyorum',
                 'required' => true,
             ]);
-        $builder->get('reasonCode')->addModelTransformer(self::blankString());
-    }
-
-    private static function blankString(): CallbackTransformer
-    {
-        return new CallbackTransformer(
-            static fn (mixed $value): mixed => $value,
+        $reason = $builder->get('reasonCode');
+        $reason->resetViewTransformers();
+        $reason->addViewTransformer(new CallbackTransformer(
             static fn (mixed $value): string => \is_string($value) ? $value : '',
-        );
+            static fn (mixed $value): string => \is_string($value) ? $value : '',
+        ));
     }
 
     public function configureOptions(OptionsResolver $resolver): void

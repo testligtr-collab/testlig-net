@@ -126,6 +126,57 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'İlk sahip hesabı gerekli.');
         self::assertSelectorTextContains('body', 'İşlem gerekçesi gerekli.');
         self::assertSelectorTextContains('body', 'Kurum oluşturmayı onaylamanız gerekir.');
+        self::assertSame(1, substr_count((string) $client->getResponse()->getContent(), 'İşlem gerekçesi gerekli.'));
+        self::assertStringNotContainsString('İşlem gerekçesi geçersiz.', (string) $client->getResponse()->getContent());
+
+        $reasonPage = $client->request('GET', '/yonetim/kurumlar/yeni');
+        $type = $this->optionValue($reasonPage, 'admin_institution_create_type', 'Okul');
+        $token = $reasonPage->filter('input[name="admin_institution_create[_token]"]')->attr('value');
+        self::assertIsString($token);
+        $auditsBefore = $this->auditTotal();
+        $client->request('POST', '/yonetim/kurumlar', [
+            'admin_institution_create' => [
+                'name' => 'Admin Inst Panel Bos Gerekce',
+                'type' => $type,
+                'ownerUserId' => $owner->getId()->toRfc4122(),
+                'reasonCode' => '',
+                'confirm' => '1',
+                '_token' => $token,
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(422);
+        $emptyReason = (string) $client->getResponse()->getContent();
+        self::assertSame(1, substr_count($emptyReason, 'İşlem gerekçesi gerekli.'));
+        self::assertStringNotContainsString('İşlem gerekçesi geçersiz.', $emptyReason);
+        self::assertInputValueSame('admin_institution_create[name]', 'Admin Inst Panel Bos Gerekce');
+        self::assertInputValueSame('admin_institution_create[ownerUserId]', $owner->getId()->toRfc4122());
+        self::assertSame(0, $this->countNamed('Admin Inst Panel Bos Gerekce'));
+        self::assertSame(0, $this->membershipsNamed('Admin Inst Panel Bos Gerekce'));
+        self::assertSame($auditsBefore, $this->auditTotal());
+
+        $invalidPage = $client->request('GET', '/yonetim/kurumlar/yeni');
+        $invalidToken = $invalidPage->filter('input[name="admin_institution_create[_token]"]')->attr('value');
+        self::assertIsString($invalidToken);
+        $auditsBefore = $this->auditTotal();
+        $client->request('POST', '/yonetim/kurumlar', [
+            'admin_institution_create' => [
+                'name' => 'Admin Inst Panel Gecersiz Gerekce',
+                'type' => $type,
+                'ownerUserId' => $owner->getId()->toRfc4122(),
+                'reasonCode' => 'not_a_reason',
+                'confirm' => '1',
+                '_token' => $invalidToken,
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(422);
+        $invalidReason = (string) $client->getResponse()->getContent();
+        self::assertSame(1, substr_count($invalidReason, 'İşlem gerekçesi geçersiz.'));
+        self::assertStringNotContainsString('İşlem gerekçesi gerekli.', $invalidReason);
+        self::assertInputValueSame('admin_institution_create[name]', 'Admin Inst Panel Gecersiz Gerekce');
+        self::assertInputValueSame('admin_institution_create[ownerUserId]', $owner->getId()->toRfc4122());
+        self::assertSame(0, $this->countNamed('Admin Inst Panel Gecersiz Gerekce'));
+        self::assertSame(0, $this->membershipsNamed('Admin Inst Panel Gecersiz Gerekce'));
+        self::assertSame($auditsBefore, $this->auditTotal());
 
         $this->submitCreate($client, 'Admin Inst Panel Uygunsuz', $ineligible->getId()->toRfc4122());
         self::assertResponseStatusCodeSame(422);
@@ -464,6 +515,19 @@ final class AdminInstitutionPanelHttpTest extends WebTestCase
             ->setParameter('institution', Uuid::fromString($institutionId), 'uuid')
             ->setParameter('status', InstitutionMembershipStatus::Active)
             ->getSingleScalarResult();
+    }
+
+    private function membershipsNamed(string $name): int
+    {
+        return (int) $this->entityManager()->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM institution_memberships im INNER JOIN institutions i ON i.id = im.institution_id WHERE i.name = ?',
+            [$name],
+        );
+    }
+
+    private function auditTotal(): int
+    {
+        return (int) $this->entityManager()->getConnection()->fetchOne('SELECT COUNT(*) FROM security_audit_events');
     }
 
     private function auditCount(string $action, string $institutionId): int

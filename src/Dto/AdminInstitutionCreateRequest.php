@@ -24,12 +24,14 @@ final class AdminInstitutionCreateRequest
     #[Assert\Uuid(message: 'Seçilen hesap geçersiz.')]
     public string $ownerUserId = '';
 
-    #[Assert\NotBlank(message: 'İşlem gerekçesi gerekli.')]
-    #[Assert\Choice(choices: [
-        self::REASON_ONBOARDING,
-        self::REASON_OPERATOR_SETUP,
-        self::REASON_MIGRATION_IMPORT,
-    ], message: 'İşlem gerekçesi geçersiz.')]
+    #[Assert\Sequentially([
+        new Assert\NotBlank(message: 'İşlem gerekçesi gerekli.'),
+        new Assert\Choice(choices: [
+            self::REASON_ONBOARDING,
+            self::REASON_OPERATOR_SETUP,
+            self::REASON_MIGRATION_IMPORT,
+        ], message: 'İşlem gerekçesi geçersiz.'),
+    ])]
     public string $reasonCode = '';
 
     #[Assert\IsTrue(message: 'Kurum oluşturmayı onaylamanız gerekir.')]

@@ -87,13 +87,20 @@ test('superadmin institution list, create and detail follow the reference', asyn
   await expect(page.getByText('Kurum adı gerekli.')).toBeVisible();
   await expect(page.getByText('Kurum türü gerekli.')).toBeVisible();
   await expect(page.getByText('İlk sahip hesabı gerekli.')).toBeVisible();
-  await expect(page.getByText('İşlem gerekçesi gerekli.')).toBeVisible();
+  await expect(page.getByText('İşlem gerekçesi gerekli.', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('İşlem gerekçesi geçersiz.')).toHaveCount(0);
   await expect(page.getByText('Kurum oluşturmayı onaylamanız gerekir.')).toBeVisible();
   await page.locator('#admin_institution_create_name').fill('Tarayici Gecici Kurum');
   await page.getByRole('button', { name: 'Kurumu oluştur', exact: true }).click();
   await expect(page.locator('#admin_institution_create_name')).toHaveValue('Tarayici Gecici Kurum');
-  await assertLayout(page);
-  await capture(page, info, 'admin-kurum-yeni-hata-1440.png');
+  await expect(page.getByText('İşlem gerekçesi gerekli.', { exact: true })).toHaveCount(1);
+  await expect(page.getByText('İşlem gerekçesi geçersiz.')).toHaveCount(0);
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await expect(page.locator('#admin_institution_create_name')).toHaveValue('Tarayici Gecici Kurum');
+    await assertLayout(page);
+    await capture(page, info, `admin-kurum-yeni-hata-${viewport.name}.png`);
+  }
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
