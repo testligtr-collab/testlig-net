@@ -30,14 +30,14 @@ final class AdminBranchPanelHttpTest extends WebTestCase
 
     public function testClosedRolesCannotOpenTheBranchScreens(): void
     {
-        $client = static::createClient();
-        $client->request('GET', '/yonetim/subeler');
-        self::assertResponseRedirects('/giris');
-
         $student = $this->user('branch_http_student@example.com', UserRole::Student);
         $teacher = $this->user('branch_http_teacher@example.com', UserRole::Teacher);
         $manager = $this->user('branch_http_manager@example.com', UserRole::InstitutionManager);
         $admin = $this->user('branch_http_admin@example.com', UserRole::Admin);
+        $client = static::createClient();
+        $client->request('GET', '/yonetim/subeler');
+        self::assertResponseRedirects('/giris');
+
         foreach ([$student, $teacher, $manager, $admin] as $user) {
             $this->authenticate($client, $user->getEmail());
             foreach (['/yonetim/subeler', '/yonetim/subeler/yeni'] as $path) {

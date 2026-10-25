@@ -10,6 +10,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\Options;
@@ -28,11 +29,6 @@ final class AdminBranchUpdateFormType extends AbstractType
 
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $kindChoices = [];
-        foreach (InstitutionBranchKind::cases() as $kind) {
-            $kindChoices[$kind->value] = $kind;
-        }
-
         $builder
             ->add('name', TextType::class, [
                 'label' => 'Ad',
@@ -42,9 +38,9 @@ final class AdminBranchUpdateFormType extends AbstractType
                 'label' => 'Kurum içi kod',
                 'empty_data' => '',
             ])
-            ->add('kind', ChoiceType::class, [
+            ->add('kind', EnumType::class, [
+                'class' => InstitutionBranchKind::class,
                 'label' => 'Tür',
-                'choices' => $kindChoices,
                 'choice_label' => static fn (InstitutionBranchKind $kind): string => match ($kind) {
                     InstitutionBranchKind::Branch => 'Şube',
                     InstitutionBranchKind::Campus => 'Kampüs',

@@ -116,7 +116,7 @@ test('superadmin branch list, create, detail and error follow the reference', as
     await expect(page.getByRole('heading', { level: 1, name: 'Şube detayı' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Merkez Sube' })).toBeVisible();
     await expect(page.getByText('MRK-01').first()).toBeVisible();
-    await expect(page.locator('#branch-facts')).toContainText('Tarayici Okulu');
+    await expect(page.locator('section[aria-labelledby="branch-facts"]')).toContainText('Tarayici Okulu');
     await expect(page.locator('[data-branch-access]')).toHaveText('Erişim açık');
     await expect(page.locator('form[name="admin_branch_update"]')).toBeVisible();
     await expect(page.locator('form[name="admin_branch_status"]')).toBeVisible();
