@@ -270,7 +270,9 @@
         "src/Controller/InstitutionWorkspaceController.php (#111)",
         "Süper yönetici akademik yıl listesi, oluşturma, detay ve onaylı aktifleştirme /yonetim/akademik-yillar adresindedir. Oluşturma planlandı yıl bırakır. Aktifleştirme mevcut AcademicYearManager kilidiyle aynı kurumdaki önceki aktif yılı kapatır ve sınıf veya öğrenci kaydını taşımaz. Kurum paneli aynı adreste kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/172"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -1206,7 +1208,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/167",
         "https://github.com/testligtr-collab/testlig-net/pull/169",
         "https://github.com/testligtr-collab/testlig-net/pull/170",
-        "https://github.com/testligtr-collab/testlig-net/pull/171"
+        "https://github.com/testligtr-collab/testlig-net/pull/171",
+        "https://github.com/testligtr-collab/testlig-net/pull/172"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
