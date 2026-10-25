@@ -65,12 +65,12 @@
                     </div>
                 </section>
             </div>
-            <aside class="admin-institution-card admin-institution-summary" aria-labelledby="branch-create-summary">
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="branch-create-summary">
                 <h2 id="branch-create-summary">İşlem özeti</h2>
-                <ul>
+                <ol>
                     <li><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span><span><strong>Kuruma bağlı kayıt</strong> Seçilen kurumun şubesi veya kampüsü olarak beklemeye alınır.</span></li>
                     <li><span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span><span><strong>Üyelik yok</strong> Bu form üyelik, rol veya sınıf erişimi vermez.</span></li>
-                </ul>
+                </ol>
                 <p class="admin-institution-note">Yeni kayıt beklemede oluşur. Bu form kaydı aktif yapmaz.</p>
             </aside>
         {{ form_end(form) }}

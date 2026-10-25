@@ -31,7 +31,7 @@
                     <h2 id="branch-profile-name" class="admin-institution-name">{{ branch.name }}</h2>
                     <p>Kod {{ branch.code }} · {{ branch.institutionName }}</p>
                     <p>
-                        <span class="admin-institution-status">{{ kind_labels[branch.kind.value]|default(branch.kind.value) }}</span>
+                        <span class="admin-institution-type{{ branch.kind.value == 'campus' ? ' admin-institution-type--campus' : '' }}">{{ kind_labels[branch.kind.value]|default(branch.kind.value) }}</span>
                         <span class="admin-institution-status admin-institution-status--{{ branch.status.value }}">{{ status_labels[branch.status.value]|default(branch.status.value) }}</span>
                     </p>
                     <p data-branch-access>{{ branch.accessNote }}</p>

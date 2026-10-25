@@ -94,7 +94,7 @@
                 </label>
                 <div class="admin-user-filters__actions">
                     <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
-                    <a class="btn btn--ghost" href="{{ path('app_admin_branches') }}">Temizle</a>
+                    <a class="admin-user-clear" href="{{ path('app_admin_branches') }}">Temizle</a>
                 </div>
             </div>
         </form>
@@ -135,7 +135,7 @@
                                         </span>
                                     </td>
                                     <td data-label="Bağlı kurum">{{ row.institutionName }}</td>
-                                    <td data-label="Tür"><span class="admin-institution-status">{{ kind_labels[row.kind.value]|default(row.kind.value) }}</span></td>
+                                    <td data-label="Tür"><span class="admin-institution-type{{ row.kind.value == 'campus' ? ' admin-institution-type--campus' : '' }}">{{ kind_labels[row.kind.value]|default(row.kind.value) }}</span></td>
                                     <td data-label="Durum">
                                         <span class="admin-institution-status admin-institution-status--{{ row.status.value }}">{{ status_labels[row.status.value]|default(row.status.value) }}</span>
                                         {% if not row.accessOpen %}
