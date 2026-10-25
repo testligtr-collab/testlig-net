@@ -292,16 +292,6 @@ final class AdminAcademicYearPanelHttpTest extends WebTestCase
         return $service;
     }
 
-    private function institutionStatus(): InstitutionStatusManager
-    {
-        self::ensureKernelShutdown();
-        self::bootKernel();
-        $service = static::getContainer()->get(InstitutionStatusManager::class);
-        self::assertInstanceOf(InstitutionStatusManager::class, $service);
-
-        return $service;
-    }
-
     private function findByName(Institution $institution, string $name): AcademicYear
     {
         $year = $this->em()->createQuery(

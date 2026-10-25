@@ -385,7 +385,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
             new \DateTimeImmutable('2028-06-15'),
             'browser_create',
         );
-        $quietInstitution = $this->institutions->create($superAdmin, $owner, 'Tarayici Akademisi', InstitutionType::School, 'browser_create');
+        $quietOwner = $this->account('browser-year-owner@example.test', 'Yil', 'Sahibi', UserRole::Teacher);
+        $quietInstitution = $this->institutions->create($superAdmin, $quietOwner, 'Tarayici Akademisi', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($quietInstitution, $superAdmin, 'browser_activate');
         $classroom = $this->classrooms->create($year, $owner, 'Sinif A', GradeLevel::Grade1, 'browser_create', 'A', 24);
         $teacherMembership = $this->memberships->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'browser_create');
