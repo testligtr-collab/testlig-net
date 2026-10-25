@@ -26,12 +26,12 @@ test('superadmin academic year list, create, detail and error follow the referen
     await expect(page.getByRole('link', { name: 'Yeni akademik yıl', exact: true })).toBeVisible();
     await expect(page.locator('[data-year-summary]')).toHaveCount(4);
     await expect(page.getByText('Aktif yılı olmayan kurum', { exact: true })).toBeVisible();
-    await expect(page.locator('.admin-institution-note')).toHaveText('Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar. Beklemede, askıda ve arşivdeki kurumlar bu sayıya girmez. Sayaçlar seçili filtreden bağımsızdır.');
+    await expect(page.locator('.admin-institution-note').filter({ hasText: 'Aktif yılı olmayan kurum sayacı' })).toHaveText('Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar. Beklemede, askıda ve arşivdeki kurumlar bu sayıya girmez. Sayaçlar seçili filtreden bağımsızdır.');
     await expect(page.getByPlaceholder('Yıl adı ile ara')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Kurum' })).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Durum' })).toBeVisible();
-    await expect(page.getByText('2026-2027')).toBeVisible();
-    await expect(page.getByText('2027-2028')).toBeVisible();
+    await expect(page.locator('.admin-user-person__name', { hasText: '2026-2027' })).toBeVisible();
+    await expect(page.locator('.admin-user-person__name', { hasText: '2027-2028' })).toBeVisible();
     await expect(page.locator('tr', { hasText: '2027-2028' })).toContainText('Tarayici Okulu');
     await expect(page.locator('tr', { hasText: '2027-2028' })).toContainText('Planlandı');
     await expect(page.getByText('Örnek Eğitim Kurumu')).toHaveCount(0);
