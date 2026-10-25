@@ -225,7 +225,9 @@
         "V1: InstitutionBranch / Hierarchy",
         "Süper yönetici /yonetim/subeler, /yonetim/subeler/yeni, /yonetim/subeler/{id} ve /yonetim/subeler/{id}/durum ekranlarında tek InstitutionBranch kaydını kullanır. Kayıt zorunlu institution_id ile bir kuruma bağlıdır; kod aynı kurumda benzersizdir. Yeni kayıt beklemede oluşur ve üyelik, rol veya sınıf erişimi vermez. Aktifleştirme bağlı kurum aktif değilse reddedilir. Sınıf taşıma, öğrenci atama, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü açıktır."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/171"
+      ],
       "acceptance": "İlk süper yönetici dilimi liste, oluşturma, düzenleme ve durum geçişini kapsar. Sınıf taşıma, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü ayrı kanıt ister.",
       "scope_decision": null
     },
@@ -1201,7 +1203,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/166",
         "https://github.com/testligtr-collab/testlig-net/pull/167",
         "https://github.com/testligtr-collab/testlig-net/pull/169",
-        "https://github.com/testligtr-collab/testlig-net/pull/170"
+        "https://github.com/testligtr-collab/testlig-net/pull/170",
+        "https://github.com/testligtr-collab/testlig-net/pull/171"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
