@@ -25,7 +25,7 @@
         {{ form_start(form, { attr: { class: 'admin-institution-create', id: 'institution-create-form', novalidate: 'novalidate' } }) }}
             <div class="admin-institution-create__main">
                 <section class="admin-institution-card" aria-labelledby="institution-create-identity">
-                    <h2 id="institution-create-identity">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %} Kurum bilgileri</h2>
+                    <h2 id="institution-create-identity"><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span> Kurum bilgileri</h2>
                     <div class="admin-institution-field">
                         {{ form_label(form.name) }}
                         {{ form_widget(form.name, { attr: { placeholder: 'Kurumun tam adını yazın' } }) }}
@@ -39,7 +39,7 @@
                 </section>
 
                 <section class="admin-institution-card" aria-labelledby="institution-create-owner">
-                    <h2 id="institution-create-owner">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %} İlk kurum sahibi</h2>
+                    <h2 id="institution-create-owner"><span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span> İlk kurum sahibi</h2>
                     <div
                         class="admin-owner-picker"
                         data-controller="institution-owner-picker"
@@ -73,7 +73,7 @@
                 </section>
 
                 <section class="admin-institution-card" aria-labelledby="institution-create-reason">
-                    <h2 id="institution-create-reason">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %} İşlem gerekçesi</h2>
+                    <h2 id="institution-create-reason"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span> İşlem gerekçesi</h2>
                     <div class="admin-institution-field">
                         {{ form_label(form.reasonCode, 'Gerekçe') }}
                         {{ form_widget(form.reasonCode) }}
@@ -94,15 +94,15 @@
                 <h2 id="institution-create-summary">İşlem özeti</h2>
                 <ol>
                     <li>
-                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                        <span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
                         <span><strong>Kurum kaydı</strong> Belirttiğiniz ad ve türle yeni kurum kaydı oluşturulur.</span>
                     </li>
                     <li>
-                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                        <span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
                         <span><strong>İlk sahip üyeliği</strong> Seçilen kullanıcı kurumun ilk sahibi olarak atanır.</span>
                     </li>
                     <li>
-                        <span aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                        <span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
                         <span><strong>Gerekçeli işlem</strong> İşlem, seçtiğiniz gerekçe ile kayıt altına alınır.</span>
                     </li>
                 </ol>

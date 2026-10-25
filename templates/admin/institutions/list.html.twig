@@ -154,7 +154,7 @@
                                             <span>{{ row.createdAt|utc_present('H:i') }}</span>
                                         </span>
                                     </td>
-                                    <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay</a></td>
+                                    <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_institution_detail', { id: row.id }) }}">Detay <span aria-hidden="true">→</span></a></td>
                                 </tr>
                             {% endfor %}
                         </tbody>
