@@ -27,6 +27,7 @@ final class SecurityAuditMetadataSanitizer
         'institution_status',
         'branch_id',
         'branch_kind',
+        'previous_kind',
         'membership_role',
         'previous_membership_role',
         'new_membership_role',

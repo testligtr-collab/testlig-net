@@ -85,6 +85,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         } catch (InstitutionOperationException $e) {
             self::assertSame('institution_not_active', $e->getReason()->value);
         }
+        $this->reboot();
         self::assertSame(InstitutionBranchStatus::Pending, $this->reload($branch->getId())->getStatus());
         self::assertSame(0, $this->audit(SecurityAuditAction::InstitutionBranchStatusChanged, $branch->getId()->toRfc4122()));
 
@@ -99,6 +100,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         } catch (InstitutionOperationException $e) {
             self::assertSame('invalid_transition', $e->getReason()->value);
         }
+        $this->reboot();
         self::assertSame(InstitutionBranchStatus::Active, $this->reload($branch->getId())->getStatus());
         self::assertSame(1, $this->audit(SecurityAuditAction::InstitutionBranchStatusChanged, $branch->getId()->toRfc4122()));
     }
@@ -119,6 +121,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         } catch (InstitutionOperationException $e) {
             self::assertSame('unauthorized', $e->getReason()->value);
         }
+        $this->reboot();
         self::assertSame($before, $this->auditTotal());
         self::assertSame(0, $this->countCode($institution, 'SUB-02'));
 
@@ -175,7 +178,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         self::assertSame(1, \count($one->items));
         self::assertSame(1, \count($three->items));
         self::assertSame(3, $three->totalCount);
-        self::assertSame(2, $three->totalPages());
+        self::assertSame(3, $three->totalPages());
         self::assertSame(1, $one->totalCount);
         self::assertSame($baseline->total + 2, $summary->total);
         self::assertSame($baseline->active, $summary->active);
@@ -188,6 +191,15 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         $detail = $query->getDetail($actor->getId(), $first->getId());
         self::assertTrue($detail->accessOpen);
         self::assertSame($institution->getId()->toRfc4122(), $detail->institutionId);
+    }
+
+    private function reboot(): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $this->em = $em;
     }
 
     private function creator(): InstitutionBranchCreator
