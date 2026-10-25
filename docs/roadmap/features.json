@@ -208,7 +208,8 @@
         "Yeni kurum ve kurum detayının kart ikonları, form alanları ve profil özeti yönetim kabuğunun içinde referansa yaklaştırıldı. Arama adı veya slug olarak kalır. Yeni kurum beklemede oluşur. Bu düzen yeni ürün kabiliyeti veya canlı kabul değildir."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/169"
+        "https://github.com/testligtr-collab/testlig-net/pull/169",
+        "https://github.com/testligtr-collab/testlig-net/pull/170"
       ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
@@ -1197,7 +1198,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/165",
         "https://github.com/testligtr-collab/testlig-net/pull/166",
         "https://github.com/testligtr-collab/testlig-net/pull/167",
-        "https://github.com/testligtr-collab/testlig-net/pull/169"
+        "https://github.com/testligtr-collab/testlig-net/pull/169",
+        "https://github.com/testligtr-collab/testlig-net/pull/170"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
