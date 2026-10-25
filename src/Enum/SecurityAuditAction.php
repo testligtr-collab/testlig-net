@@ -18,6 +18,9 @@ enum SecurityAuditAction: string
     case StatusChanged = 'status_changed';
     case SuperAdminBootstrapped = 'super_admin_bootstrapped';
     case InstitutionCreated = 'institution_created';
+    case InstitutionBranchCreated = 'institution_branch_created';
+    case InstitutionBranchUpdated = 'institution_branch_updated';
+    case InstitutionBranchStatusChanged = 'institution_branch_status_changed';
     case InstitutionStatusChanged = 'institution_status_changed';
     case InstitutionMemberAdded = 'institution_member_added';
     case InstitutionMemberRoleChanged = 'institution_member_role_changed';

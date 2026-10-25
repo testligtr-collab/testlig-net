@@ -1,5 +1,5 @@
 {% set name = icon|default('default') %}
-{% set allowed = ['dashboard', 'system', 'users', 'institutions', 'catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'payments', 'webhooks', 'reconciliations', 'audit', 'account', 'media_page', 'media_pdf', 'media_play', 'media_cloud', 'search', 'filter', 'clock', 'ban', 'globe', 'refresh', 'default'] %}
+{% set allowed = ['dashboard', 'system', 'users', 'institutions', 'catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'payments', 'webhooks', 'reconciliations', 'audit', 'account', 'media_page', 'media_pdf', 'media_play', 'media_cloud', 'search', 'filter', 'clock', 'ban', 'globe', 'refresh', 'nodes', 'default'] %}
 {% if name not in allowed %}
     {% set name = 'default' %}
 {% endif %}
@@ -75,6 +75,11 @@
     {% elseif name == 'globe' %}
         <circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/>
         <path d="M12 5c2.1 2.2 2.1 11.8 0 14M12 5c-2.1 2.2-2.1 11.8 0 14M5.2 9.5h13.6M5.2 14.5h13.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    {% elseif name == 'nodes' %}
+        <circle cx="7" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="17" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <circle cx="17" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M9 11.2l6-3.2M9 12.8l6 3.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     {% elseif name == 'refresh' %}
         <path d="M19 12a7 7 0 1 1-2.05-4.95" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
         <path d="M19 4.5V8.5h-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>

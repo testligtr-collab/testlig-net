@@ -54,6 +54,9 @@ final class QuestionBankDbCleanup
                 || 'question_revision_primary_alignment_guards' === $table) {
                 continue;
             }
+            if ('institutions' === $table && $schema->tablesExist(['institution_branches'])) {
+                $connection->executeStatement('DELETE FROM institution_branches');
+            }
             if ($schema->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);
             }

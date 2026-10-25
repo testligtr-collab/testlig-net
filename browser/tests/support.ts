@@ -42,6 +42,10 @@ type Manifest = {
     institutions: string;
     institutionNew: string;
     institution: string;
+    branches: string;
+    branchNew: string;
+    branch: string;
+    branchPending: string;
     modulePermissions: string;
     modulePermission: string;
   };
