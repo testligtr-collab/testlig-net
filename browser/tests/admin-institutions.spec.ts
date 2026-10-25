@@ -4,6 +4,7 @@ import { assertClean, assertLayout, installVideoAbort, login, manifest, watch } 
 
 const VIEWPORTS = [
   { name: '1440', width: 1440, height: 900 },
+  { name: '1920', width: 1920, height: 1080 },
   { name: '768', width: 768, height: 1024 },
   { name: '390', width: 390, height: 844 },
 ] as const;
@@ -33,6 +34,8 @@ test('superadmin institution list, create and detail follow the reference', asyn
     expect(schoolMembers).toBe(listMembers);
     const cellDisplay = await page.locator('.admin-user-table tbody td').first().evaluate((node) => getComputedStyle(node).display);
     expect(cellDisplay).toBe(viewport.width >= 1024 ? 'table-cell' : 'block');
+    await expect(page.getByRole('link', { name: 'Detay', exact: true }).first()).toBeVisible();
+    await expect(page.locator('a.admin-institution-detail').first()).toContainText('→');
     const filterButton = page.locator('form[aria-label="Kurumları filtrele"]').getByRole('button', { name: 'Filtrele', exact: true });
     const filterBox = await filterButton.boundingBox();
     expect(filterBox).not.toBeNull();
@@ -63,6 +66,26 @@ test('superadmin institution list, create and detail follow the reference', asyn
     await expect(page.getByRole('link', { name: 'İptal', exact: true })).toBeVisible();
     const columns = await page.locator('.admin-institution-create').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
     expect(columns, viewport.name).toBe(viewport.width >= 1024 ? 2 : 1);
+    if (viewport.width >= 1024) {
+      const widths = await page.locator('.admin-institution-create').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').map((value) => Number.parseFloat(value)));
+      const share = widths[0] / (widths[0] + widths[1]);
+      expect(share, viewport.name).toBeGreaterThan(0.6);
+      expect(share, viewport.name).toBeLessThan(0.7);
+    }
+    const headingIcon = await page.locator('#institution-create-identity .admin-institution-heading-icon').boundingBox();
+    expect(headingIcon).not.toBeNull();
+    expect(headingIcon!.width).toBeGreaterThanOrEqual(40);
+    expect(headingIcon!.height).toBeGreaterThanOrEqual(40);
+    const fieldSkin = await page.locator('#admin_institution_create_name').evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { radius: style.borderRadius, border: style.borderTopWidth };
+    });
+    expect(fieldSkin.radius).toBe('10px');
+    expect(fieldSkin.border).toBe('1px');
+    await page.locator('#admin_institution_create_name').focus();
+    const outline = await page.locator('#admin_institution_create_name').evaluate((node) => getComputedStyle(node).outlineStyle);
+    expect(outline).not.toBe('none');
+    await page.locator('#admin_institution_create_name').blur();
     const searchBox = await page.locator('#institution-owner-search').boundingBox();
     expect(searchBox).not.toBeNull();
     expect(searchBox!.height).toBeGreaterThanOrEqual(44);
@@ -79,6 +102,9 @@ test('superadmin institution list, create and detail follow the reference', asyn
   await search.press('Enter');
   await expect(page.locator('[data-owner-label]')).toContainText('Deneme Sahip');
   await expect(page.locator('[data-owner-value]')).not.toHaveValue('');
+  await expect(page.locator('.admin-owner-picker__selected')).toBeVisible();
+  await assertLayout(page);
+  await capture(page, info, 'admin-kurum-yeni-sahip-1440.png');
   await page.getByRole('button', { name: 'Seçimi temizle' }).click();
   await expect(page.locator('[data-owner-value]')).toHaveValue('');
   await search.fill('zzzzzzyok');
@@ -120,6 +146,20 @@ test('superadmin institution list, create and detail follow the reference', asyn
     expect(actions).not.toContain('activate');
     const columns = await page.locator('.admin-institution-detail-grid').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
     expect(columns, viewport.name).toBe(viewport.width >= 1024 ? 2 : 1);
+    await expect(page.locator('.admin-institution-metrics .admin-institution-heading-icon')).toHaveCount(4);
+    const metricColumns = await page.locator('.admin-institution-metrics').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
+    expect(metricColumns, viewport.name).toBe(viewport.width >= 1024 ? 4 : viewport.width >= 768 ? 2 : 1);
+    if (viewport.width >= 1024) {
+      const profile = await page.locator('.admin-institution-profile').boundingBox();
+      const actions = await page.locator('.admin-institution-profile__actions').boundingBox();
+      expect(profile).not.toBeNull();
+      expect(actions).not.toBeNull();
+      expect(actions!.x).toBeGreaterThan(profile!.x + profile!.width - 8);
+      const divider = await page.locator('.admin-institution-metrics > div').nth(1).evaluate((node) => getComputedStyle(node).borderLeftWidth);
+      expect(Number.parseFloat(divider)).toBeGreaterThan(0);
+    }
+    const wrap = await page.locator('.admin-institution-name').evaluate((node) => getComputedStyle(node).overflowWrap);
+    expect(['anywhere', 'break-word']).toContain(wrap);
     const saveBox = await page.getByRole('button', { name: 'Durumu kaydet' }).boundingBox();
     expect(saveBox).not.toBeNull();
     expect(saveBox!.height).toBeGreaterThanOrEqual(44);

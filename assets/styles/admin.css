@@ -2895,13 +2895,13 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-institution-create {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 0.8fr);
-    gap: 1rem;
+    grid-template-columns: minmax(0, 13fr) minmax(16rem, 7fr);
+    gap: 1.25rem;
     align-items: start;
 }
 .is-admin-panel .admin-institution-create__main,
 .is-admin-panel .admin-institution-detail-grid { display: grid; gap: 1rem; }
-.is-admin-panel .admin-institution-detail-grid { grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.8fr); }
+.is-admin-panel .admin-institution-detail-grid { grid-template-columns: minmax(0, 13fr) minmax(18rem, 7fr); gap: 1.25rem; }
 .is-admin-panel .admin-institution-card {
     min-width: 0;
     padding: 1.1rem 1.15rem 1.15rem;
@@ -2913,13 +2913,79 @@ body.is-admin-panel {
 .is-admin-panel .admin-institution-card h2 {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
-    margin: 0 0 0.9rem;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
     color: #16324f;
-    font-size: 1rem;
+    font-size: 1.05rem;
+    font-weight: 750;
 }
-.is-admin-panel .admin-institution-card h2 .admin-icon { width: 1.1rem; height: 1.1rem; color: #079dbf; }
-.is-admin-panel .admin-institution-field { display: grid; gap: 0.35rem; margin-bottom: 0.85rem; }
+.is-admin-panel .admin-institution-heading-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-institution-heading-icon .admin-icon { width: 1.35rem; height: 1.35rem; }
+.is-admin-panel .admin-institution-heading-icon--blue { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-institution-heading-icon--violet { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-institution-heading-icon--teal { background: #e5f7fb; color: #079dbf; }
+.is-admin-panel .admin-institution-heading-icon--green { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-institution-heading-icon--amber { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-institution-field,
+.is-admin-panel .admin-owner-picker { display: grid; gap: 0.4rem; }
+.is-admin-panel .admin-institution-field { margin-bottom: 0.95rem; }
+.is-admin-panel .admin-institution-field label,
+.is-admin-panel .admin-owner-picker > label {
+    color: #3e5168;
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-institution-page .admin-institution-field input:not([type="checkbox"]),
+.is-admin-panel .admin-institution-page .admin-institution-field select,
+.is-admin-panel .admin-institution-page .admin-institution-status-form select,
+.is-admin-panel .admin-institution-page #institution-owner-search {
+    appearance: none;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 10px;
+    background-color: #fff;
+    color: #16324f;
+    box-shadow: none;
+    font: inherit;
+}
+.is-admin-panel .admin-institution-page #institution-owner-search { padding-left: 2.35rem; }
+.is-admin-panel .admin-institution-page .admin-institution-field select,
+.is-admin-panel .admin-institution-page .admin-institution-status-form select {
+    padding-right: 2.4rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 7.5l5 5 5-5' fill='none' stroke='%2353647d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1rem;
+}
+.is-admin-panel .admin-institution-page .admin-institution-field input::placeholder,
+.is-admin-panel .admin-institution-page #institution-owner-search::placeholder { color: #8aa0b5; }
+.is-admin-panel .admin-institution-page .admin-institution-field select:has(option[value=""]:checked),
+.is-admin-panel .admin-institution-page .admin-institution-status-form select:has(option[value=""]:checked) { color: #7b8da3; }
+.is-admin-panel .admin-institution-page .admin-institution-field :is(input:not([type="checkbox"]), select):hover,
+.is-admin-panel .admin-institution-page .admin-institution-status-form select:hover,
+.is-admin-panel .admin-institution-page #institution-owner-search:hover { border-color: #b7c9dc; }
+.is-admin-panel .admin-institution-page .admin-institution-field :is(input:not([type="checkbox"]), select):is(:focus, :focus-visible),
+.is-admin-panel .admin-institution-page .admin-institution-status-form select:is(:focus, :focus-visible),
+.is-admin-panel .admin-institution-page #institution-owner-search:is(:focus, :focus-visible) {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+    border-color: #079dbf;
+}
+.is-admin-panel .admin-institution-page .admin-institution-field:has(li) :is(input:not([type="checkbox"]), select),
+.is-admin-panel .admin-institution-page .admin-owner-picker:has(> ul:not([role="listbox"]) li) #institution-owner-search {
+    border-color: #c43b3b;
+    background-color: #fff8f8;
+}
 .is-admin-panel .admin-institution-page input:not([type="checkbox"]),
 .is-admin-panel .admin-institution-page select,
 .is-admin-panel .admin-institution-page .btn {
@@ -2931,6 +2997,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-institution-page .admin-user-filters__actions .btn,
 .is-admin-panel .admin-institution-page .admin-institution-pager .btn,
 .is-admin-panel .admin-institution-page .admin-institution-profile__actions .btn,
+.is-admin-panel .admin-institution-page .admin-institution-detail,
 .is-admin-panel .admin-institution-page .admin-user-head .btn,
 .is-admin-panel .admin-institution-page .admin-user-detail-head .btn {
     width: auto;
@@ -2947,12 +3014,35 @@ body.is-admin-panel {
     gap: 0.5rem;
     margin-bottom: 0.85rem;
 }
-.is-admin-panel .admin-institution-confirm input { width: 1.1rem; min-height: 1.1rem; }
-.is-admin-panel .admin-institution-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; }
-.is-admin-panel .admin-institution-aside ol { display: grid; gap: 0.85rem; margin: 0; padding: 0; list-style: none; }
-.is-admin-panel .admin-institution-aside li { display: flex; gap: 0.7rem; color: #3e5168; }
-.is-admin-panel .admin-institution-aside li strong { display: block; color: #16324f; }
-.is-admin-panel .admin-institution-aside li .admin-icon { width: 1.2rem; height: 1.2rem; color: #7136db; }
+.is-admin-panel .admin-institution-confirm input {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-height: 1.15rem;
+    accent-color: #079dbf;
+}
+.is-admin-panel .admin-institution-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.is-admin-panel .admin-institution-actions .btn,
+.is-admin-panel .admin-institution-detail,
+.is-admin-panel .admin-institution-tool,
+.is-admin-panel .admin-institution-status-form .admin-institution-primary {
+    border-radius: 10px;
+    font-weight: 700;
+}
+.is-admin-panel .admin-institution-actions .admin-institution-primary { min-width: 10.5rem; padding-inline: 1.25rem; }
+.is-admin-panel .admin-institution-actions .btn--ghost,
+.is-admin-panel .admin-institution-detail,
+.is-admin-panel .admin-institution-tool {
+    border: 1px solid #d5e2ee;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-institution-actions .btn--ghost:hover,
+.is-admin-panel .admin-institution-detail:hover,
+.is-admin-panel .admin-institution-tool:hover { background: #f4f8fc; color: #16324f; }
+.is-admin-panel .admin-institution-aside ol { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.is-admin-panel .admin-institution-aside li { display: flex; align-items: flex-start; gap: 0.8rem; color: #3e5168; }
+.is-admin-panel .admin-institution-aside li strong { display: block; margin-bottom: 0.15rem; color: #16324f; }
+.is-admin-panel .admin-institution-aside .admin-institution-heading-icon { width: 2.5rem; height: 2.5rem; }
 .is-admin-panel .admin-institution-note,
 .is-admin-panel .admin-institution-footnote {
     margin: 0.9rem 0 0;
@@ -2968,23 +3058,63 @@ body.is-admin-panel {
     justify-content: space-between;
     gap: 0.9rem 1rem;
 }
-.is-admin-panel .admin-institution-profile { display: flex; gap: 0.9rem; min-width: 0; }
-.is-admin-panel .admin-institution-profile__icon { width: 3.4rem; height: 3.4rem; }
-.is-admin-panel .admin-institution-profile__copy { min-width: 0; }
+.is-admin-panel .admin-institution-profile { display: flex; gap: 0.95rem; min-width: 0; flex: 1 1 auto; }
+.is-admin-panel .admin-institution-page .admin-institution-profile__icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    background: #e7f1ff;
+    color: #2f6fe4;
+}
+.is-admin-panel .admin-institution-page .admin-institution-profile__icon .admin-icon { width: 1.8rem; height: 1.8rem; }
+.is-admin-panel .admin-institution-profile__copy,
+.is-admin-panel .admin-institution-profile__copy p,
+.is-admin-panel .admin-institution-facts dd,
+.is-admin-panel .admin-institution-metrics dd { min-width: 0; overflow-wrap: anywhere; }
 .is-admin-panel .admin-institution-profile__copy p { margin: 0.15rem 0 0; color: #66758c; }
 .is-admin-panel .admin-institution-profile__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.is-admin-panel .admin-institution-name { margin: 0; color: #16324f; font-size: 1.35rem; overflow-wrap: anywhere; }
-.is-admin-panel .admin-institution-profile__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.is-admin-panel .admin-user-detail-profile:has(.admin-institution-metrics) { display: grid; gap: 1rem; }
+.is-admin-panel .admin-institution-name { margin: 0; color: #16324f; font-size: 1.45rem; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.is-admin-panel .admin-institution-profile__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-left: auto;
+}
+.is-admin-panel .admin-institution-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.45rem 0.9rem;
+}
+.is-admin-panel .admin-institution-tool .admin-icon { width: 1.05rem; height: 1.05rem; color: #2f6fe4; }
+.is-admin-panel .admin-institution-detail { display: inline-flex; align-items: center; gap: 0.35rem; padding-inline: 0.9rem; }
+.is-admin-panel .admin-user-detail-profile:has(.admin-institution-metrics) { display: grid; gap: 1.1rem; }
 .is-admin-panel .admin-institution-metrics {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: 0;
     margin: 0;
+    padding-top: 0.35rem;
+    border-top: 1px solid #e8eef5;
 }
-.is-admin-panel .admin-institution-metrics div { min-width: 0; }
-.is-admin-panel .admin-institution-metrics dt { color: #66758c; font-size: 0.78rem; }
-.is-admin-panel .admin-institution-metrics dd { margin: 0.15rem 0 0; color: #16324f; font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+.is-admin-panel .admin-institution-metrics > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    border-left: 1px solid #e8eef5;
+}
+.is-admin-panel .admin-institution-metrics > div:first-child { border-left: 0; padding-left: 0; }
+.is-admin-panel .admin-institution-metrics .admin-institution-heading-icon { grid-column: 1; grid-row: 1 / span 2; width: 2.5rem; height: 2.5rem; }
+.is-admin-panel .admin-institution-metrics dt { grid-column: 2; grid-row: 1; color: #66758c; font-size: 0.82rem; font-weight: 550; }
+.is-admin-panel .admin-institution-metrics dd { grid-column: 2; grid-row: 2; margin: 0.1rem 0 0; color: #16324f; font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
+.is-admin-panel .admin-institution-page :is(a, button):focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
 .is-admin-panel .admin-institution-facts { display: grid; gap: 0.65rem; margin: 0; }
 .is-admin-panel .admin-institution-facts div {
     display: grid;
@@ -2993,9 +3123,9 @@ body.is-admin-panel {
     padding-bottom: 0.55rem;
     border-bottom: 1px solid #e8eef5;
 }
-.is-admin-panel .admin-institution-facts dt { color: #66758c; }
+.is-admin-panel .admin-institution-facts dt { color: #66758c; font-weight: 550; }
 .is-admin-panel .admin-institution-facts dd { margin: 0; color: #16324f; font-weight: 700; }
-.is-admin-panel .admin-owner-picker { position: relative; display: grid; gap: 0.35rem; }
+.is-admin-panel .admin-owner-picker { position: relative; }
 .is-admin-panel .admin-institution-page .admin-owner-picker__value {
     position: absolute;
     width: 1px;
@@ -3035,7 +3165,8 @@ body.is-admin-panel {
     justify-content: space-between;
     gap: 0.5rem;
     padding: 0.55rem 0.7rem;
-    border-radius: 0.75rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 10px;
     background: #f4f8fc;
 }
 .is-admin-panel .admin-owner-picker__selected span { overflow-wrap: anywhere; }
@@ -3052,7 +3183,9 @@ body.is-admin-panel {
     .is-admin-panel .admin-institution-create,
     .is-admin-panel .admin-institution-detail-grid,
     .is-admin-panel .admin-institution-page .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
-    .is-admin-panel .admin-institution-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-institution-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .is-admin-panel .admin-institution-metrics > div { border-left: 0; padding: 0.35rem 0; }
+    .is-admin-panel .admin-institution-profile__actions { margin-left: 0; justify-content: flex-start; }
 }
 @media (max-width: 767px) {
     .is-admin-panel .admin-institution-metrics,
