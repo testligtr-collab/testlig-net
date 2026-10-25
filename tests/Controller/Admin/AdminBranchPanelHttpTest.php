@@ -40,7 +40,6 @@ final class AdminBranchPanelHttpTest extends WebTestCase
             ['branch_http_manager@example.com', UserRole::InstitutionManager],
             ['branch_http_admin@example.com', UserRole::Admin],
         ] as [$email, $role]) {
-            self::assertIsString($email);
             self::assertInstanceOf(UserRole::class, $role);
             self::ensureKernelShutdown();
             $client = static::createClient();
