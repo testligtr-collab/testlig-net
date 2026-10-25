@@ -1,0 +1,78 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni şube / kampüs — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_branches') }}">Şube ve kampüsler</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-user-page admin-branch-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni şube / kampüs</h1>
+                <p>Kaydı mevcut bir kuruma bağlayın. Bu form üyelik veya rol vermez.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_branches') }}">← Listeye dön</a>
+        </header>
+
+        {{ form_start(form, { attr: { class: 'admin-institution-create', novalidate: 'novalidate' } }) }}
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="branch-create-identity">
+                    <h2 id="branch-create-identity"><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span> Kayıt bilgileri</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.institutionId) }}
+                        {{ form_widget(form.institutionId) }}
+                        {{ form_errors(form.institutionId) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.name) }}
+                        {{ form_widget(form.name, { attr: { placeholder: 'Şube veya kampüs adı' } }) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.code) }}
+                        {{ form_widget(form.code, { attr: { placeholder: 'Kurum içinde benzersiz kod' } }) }}
+                        {{ form_errors(form.code) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.kind) }}
+                        {{ form_widget(form.kind) }}
+                        {{ form_errors(form.kind) }}
+                    </div>
+                </section>
+                <section class="admin-institution-card" aria-labelledby="branch-create-reason">
+                    <h2 id="branch-create-reason"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span> İşlem gerekçesi</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.reasonCode, 'Gerekçe') }}
+                        {{ form_widget(form.reasonCode) }}
+                        {{ form_errors(form.reasonCode) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_widget(form.confirm) }}
+                        {{ form_label(form.confirm) }}
+                        {{ form_errors(form.confirm) }}
+                    </div>
+                    <div class="admin-institution-actions">
+                        <button class="btn admin-institution-primary" type="submit">Kaydı oluştur</button>
+                        <a class="btn btn--ghost" href="{{ path('app_admin_branches') }}">İptal</a>
+                    </div>
+                </section>
+            </div>
+            <aside class="admin-institution-card admin-institution-summary" aria-labelledby="branch-create-summary">
+                <h2 id="branch-create-summary">İşlem özeti</h2>
+                <ul>
+                    <li><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span><span><strong>Kuruma bağlı kayıt</strong> Seçilen kurumun şubesi veya kampüsü olarak beklemeye alınır.</span></li>
+                    <li><span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span><span><strong>Üyelik yok</strong> Bu form üyelik, rol veya sınıf erişimi vermez.</span></li>
+                </ul>
+                <p class="admin-institution-note">Yeni kayıt beklemede oluşur. Bu form kaydı aktif yapmaz.</p>
+            </aside>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}

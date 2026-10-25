@@ -80,6 +80,9 @@ final class AdminNavBuilder
         if ($canInstitutions) {
             $items[] = $this->item('institutions', 'Kurumlar', 'app_admin_institutions', $currentPath, '/yonetim/kurumlar');
         }
+        if ($this->adminAuthorization->canViewBranches($actor)) {
+            $items[] = $this->item('branches', 'Şube ve kampüsler', 'app_admin_branches', $currentPath, '/yonetim/subeler', false, 'institutions');
+        }
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
             $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');

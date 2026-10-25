@@ -23,6 +23,7 @@ use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
 use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
+use App\Entity\InstitutionBranch;
 use App\Entity\InstitutionMembership;
 use App\Entity\LearningContent;
 use App\Entity\LearningContentRevision;
@@ -74,6 +75,13 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(Institution::class, $id, $lockMode);
 
         return $entity instanceof Institution ? $entity : null;
+    }
+
+    public function findFreshLockedInstitutionBranch(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?InstitutionBranch
+    {
+        $entity = $this->findFresh(InstitutionBranch::class, $id, $lockMode);
+
+        return $entity instanceof InstitutionBranch ? $entity : null;
     }
 
     public function findFreshLockedMembership(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?InstitutionMembership

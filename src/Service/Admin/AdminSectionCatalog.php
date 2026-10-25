@@ -28,7 +28,6 @@ final class AdminSectionCatalog
     public static function all(): array
     {
         return [
-            self::entry('subeler', 'branches', 'Şube ve kampüsler', 'campus', 'Bir kurumun şube ve kampüslerini yönetmek.', ['Kurum kaydı ve kurum üyeliği mevcuttur.'], ['Şube oluşturma, bağlama ve şube yetkisi yoktur.'], 'Şube ve kampüs işlemleri kurum kaydına bağlanacak.'),
             self::entry('akademik-yillar', 'academic_years', 'Akademik yıllar', 'campus', 'Akademik yılı kurumdan bağımsız bir listede yönetmek.', ['Akademik yıl, kurum ekranının içindeki mevcut akışta açılır.'], ['Platform geneli yıl listesi ve yıl kapatma bu adreste yoktur.'], 'Yıl işlemleri kurum ekranındaki mevcut akış korunarak genişletilecek.', 'app_admin_institutions', 'Kurumlar'),
             self::entry('siniflar', 'classes', 'Sınıflar', 'campus', 'Platformdaki sınıfları yönetmek.', ['Ataması olan kullanıcı Sınıflarım bağlantısından kendi sınıflarını görür.'], ['Platform geneli sınıf listesi, sınıf oluşturma ve öğrenci atama bu adreste yoktur.'], 'Sınıf yönetimi kurum ve öğretmen atamasındaki mevcut kurallarla eklenecek.'),
             self::entry('odevler', 'assignments', 'Ödev ve projeler', 'learning', 'Ödev ve proje vermek, teslim almak ve değerlendirmek.', ['Test ve öğrenme içeriği ayrı adreslerde yönetilir.'], ['Ödev, proje, teslim ve değerlendirme yoktur.'], 'Ödev akışı test ve içerik yayınından ayrı kurulacak.'),

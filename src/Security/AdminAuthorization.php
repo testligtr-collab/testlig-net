@@ -111,6 +111,14 @@ final class AdminAuthorization
         $this->assertCanCreateInstitutions($actor);
     }
 
+    public function assertCanViewBranches(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
     /**
      * Membership list/manage: SUPER_ADMIN only (domain allows SA or institution owner/manager;
      * admin panel does not expose institution-scoped owner tools here).
@@ -252,6 +260,21 @@ final class AdminAuthorization
     public function canManageInstitutions(User $actor): bool
     {
         return $this->canCreateInstitutions($actor);
+    }
+
+    public function canViewBranches(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canCreateBranches(User $actor): bool
+    {
+        return $this->canViewBranches($actor);
+    }
+
+    public function canManageBranches(User $actor): bool
+    {
+        return $this->canViewBranches($actor);
     }
 
     public function canViewMemberships(User $actor): bool

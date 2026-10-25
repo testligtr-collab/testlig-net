@@ -56,6 +56,21 @@ framework:
             limit: 10
             interval: '10 minutes'
 
+        admin_branch_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_branch_update:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_branch_status:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
         admin_membership_mutate:
             policy: 'sliding_window'
             limit: 10
@@ -164,6 +179,18 @@ when@test:
                 limit: 5
                 interval: '10 minutes'
             admin_institution_status:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_branch_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_branch_update:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_branch_status:
                 policy: 'fixed_window'
                 limit: 5
                 interval: '10 minutes'

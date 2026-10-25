@@ -218,14 +218,15 @@
       "id": "M05-branches",
       "module": "M05",
       "title": "Kurum şube/kampüs yönetimi",
-      "status": "planned",
-      "source": "V1: InstitutionBranch / Hierarchy",
+      "status": "partial",
+      "source": "src/Entity/InstitutionBranch.php",
       "depends_on": [],
       "evidence": [
-        "V1: InstitutionBranch / Hierarchy"
+        "V1: InstitutionBranch / Hierarchy",
+        "Süper yönetici /yonetim/subeler, /yonetim/subeler/yeni, /yonetim/subeler/{id} ve /yonetim/subeler/{id}/durum ekranlarında tek InstitutionBranch kaydını kullanır. Kayıt zorunlu institution_id ile bir kuruma bağlıdır; kod aynı kurumda benzersizdir. Yeni kayıt beklemede oluşur ve üyelik, rol veya sınıf erişimi vermez. Aktifleştirme bağlı kurum aktif değilse reddedilir. Sınıf taşıma, öğrenci atama, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü açıktır."
       ],
       "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "İlk süper yönetici dilimi liste, oluşturma, düzenleme ve durum geçişini kapsar. Sınıf taşıma, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü ayrı kanıt ister.",
       "scope_decision": null
     },
     {
@@ -1183,7 +1184,8 @@
         "Rol ve modül izinleri menüsü yer tutucu bölüm girişinden /yonetim/rol-yetkileri adresine alındı. Ekran yalnız süper yöneticiye açıktır ve moderatörün üç platform yazma iznini yönetir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kurumlar listesi, yeni kurum ve kurum detayı mevcut yönetim kabuğunda yenilendi. Adresler /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Yeni kurum ve kurum detayı aynı adreslerde daha yakın kart, ikon ve form düzenine alındı. Liste yeniden tasarlanmadı. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Yeni kurum ve kurum detayı aynı adreslerde daha yakın kart, ikon ve form düzenine alındı. Liste yeniden tasarlanmadı. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Şube ve kampüsler menüsü yer tutucu bölüm girişinden /yonetim/subeler listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

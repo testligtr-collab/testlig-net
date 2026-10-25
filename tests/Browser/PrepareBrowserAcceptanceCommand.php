@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
+use App\Enum\InstitutionBranchKind;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionType;
 use App\Enum\LearningContentScope;
@@ -45,6 +46,8 @@ use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\InstitutionApplicationManager;
+use App\Service\InstitutionBranchCreator;
+use App\Service\InstitutionBranchStatusManager;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
@@ -97,6 +100,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly QuestionRevisionRepository $questionRevisions,
         private readonly InstitutionCreator $institutions,
         private readonly InstitutionStatusManager $institutionStatus,
+        private readonly InstitutionBranchCreator $branches,
+        private readonly InstitutionBranchStatusManager $branchStatus,
         private readonly InstitutionMembershipManager $memberships,
         private readonly AcademicYearManager $years,
         private readonly ClassroomManager $classrooms,
@@ -360,6 +365,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
 
         $institution = $this->institutions->create($superAdmin, $owner, 'Tarayici Okulu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($institution, $superAdmin, 'browser_activate');
+        $activeBranch = $this->branches->create($superAdmin, $institution->getId(), 'Merkez Sube', 'MRK-01', InstitutionBranchKind::Branch, 'browser_create');
+        $this->branchStatus->activate($activeBranch->getId(), $superAdmin, 'browser_activate');
+        $pendingCampus = $this->branches->create($superAdmin, $institution->getId(), 'Uzun Adli Bekleyen Kampus', 'UZUN-01', InstitutionBranchKind::Campus, 'browser_create');
         $year = $this->years->createPlanned(
             $institution,
             $owner,
@@ -479,6 +487,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'institutions' => '/yonetim/kurumlar',
                 'institutionNew' => '/yonetim/kurumlar/yeni',
                 'institution' => '/yonetim/kurumlar/'.$institution->getId()->toRfc4122(),
+                'branches' => '/yonetim/subeler',
+                'branchNew' => '/yonetim/subeler/yeni?kurum='.$institution->getId()->toRfc4122(),
+                'branch' => '/yonetim/subeler/'.$activeBranch->getId()->toRfc4122(),
+                'branchPending' => '/yonetim/subeler/'.$pendingCampus->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],
