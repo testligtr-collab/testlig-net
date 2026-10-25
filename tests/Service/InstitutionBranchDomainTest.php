@@ -80,7 +80,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         $branch = $this->creator()->create($actor, $institution->getId(), 'Kampus', 'KMP-01', InstitutionBranchKind::Campus, 'institution_onboarding');
 
         try {
-            $this->status()->activate($branch->getId(), $actor, 'lifecycle_change');
+            $this->branchStatus()->activate($branch->getId(), $actor, 'lifecycle_change');
             self::fail('Pending institution allowed activation.');
         } catch (InstitutionOperationException $e) {
             self::assertSame('institution_not_active', $e->getReason()->value);
@@ -89,12 +89,12 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         self::assertSame(0, $this->audit(SecurityAuditAction::InstitutionBranchStatusChanged, $branch->getId()->toRfc4122()));
 
         $this->institutionStatus()->activate($institution, $actor, 'lifecycle_change');
-        $this->status()->activate($branch->getId(), $actor, 'lifecycle_change');
+        $this->branchStatus()->activate($branch->getId(), $actor, 'lifecycle_change');
         self::assertSame(InstitutionBranchStatus::Active, $this->reload($branch->getId())->getStatus());
         self::assertSame(1, $this->audit(SecurityAuditAction::InstitutionBranchStatusChanged, $branch->getId()->toRfc4122()));
 
         try {
-            $this->status()->activate($branch->getId(), $actor, 'lifecycle_change');
+            $this->branchStatus()->activate($branch->getId(), $actor, 'lifecycle_change');
             self::fail('Repeated activation was accepted.');
         } catch (InstitutionOperationException $e) {
             self::assertSame('invalid_transition', $e->getReason()->value);
@@ -140,7 +140,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         $this->institutionStatus()->activate($institution, $actor, 'lifecycle_change');
         $creator = $this->creator();
         $first = $creator->create($actor, $institution->getId(), 'Bir', 'QRY-01', InstitutionBranchKind::Branch, 'institution_onboarding');
-        $this->status()->activate($first->getId(), $actor, 'lifecycle_change');
+        $this->branchStatus()->activate($first->getId(), $actor, 'lifecycle_change');
 
         $counter = new class extends AbstractLogger {
             public int $count = 0;
@@ -206,7 +206,7 @@ final class InstitutionBranchDomainTest extends KernelTestCase
         return $service;
     }
 
-    private function status(): InstitutionBranchStatusManager
+    private function branchStatus(): InstitutionBranchStatusManager
     {
         $service = static::getContainer()->get(InstitutionBranchStatusManager::class);
         self::assertInstanceOf(InstitutionBranchStatusManager::class, $service);
