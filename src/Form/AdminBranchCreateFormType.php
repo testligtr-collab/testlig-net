@@ -80,6 +80,9 @@ final class AdminBranchCreateFormType extends AbstractType
         self::keepString($builder->get('reasonCode'));
     }
 
+    /**
+     * @param FormBuilderInterface<string> $field
+     */
     private static function keepString(FormBuilderInterface $field): void
     {
         $field->resetViewTransformers();

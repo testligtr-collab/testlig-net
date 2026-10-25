@@ -20,6 +20,8 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
+use Symfony\Component\DomCrawler\Field\FormField;
 use Symfony\Component\Uid\Uuid;
 
 final class AdminBranchPanelHttpTest extends WebTestCase
@@ -87,19 +89,23 @@ final class AdminBranchPanelHttpTest extends WebTestCase
 
         $crawler = $client->request('GET', '/yonetim/subeler/yeni?kurum='.$institution->getId()->toRfc4122());
         $form = $crawler->selectButton('Kaydı oluştur')->form();
-        $form['admin_branch_create[institutionId]']->select($institution->getId()->toRfc4122());
+        $form['admin_branch_create[institutionId]'] = $institution->getId()->toRfc4122();
         $form['admin_branch_create[name]'] = 'Http Sube';
         $form['admin_branch_create[code]'] = 'HTTP-01';
-        $form['admin_branch_create[kind]']->select(InstitutionBranchKind::Branch->value);
-        $form['admin_branch_create[reasonCode]']->select(AdminBranchCreateRequest::REASON_ONBOARDING);
-        $form['admin_branch_create[confirm]']->tick();
+        $form['admin_branch_create[kind]'] = InstitutionBranchKind::Branch->value;
+        $form['admin_branch_create[reasonCode]'] = AdminBranchCreateRequest::REASON_ONBOARDING;
+        $confirm = $form['admin_branch_create[confirm]'];
+        self::assertInstanceOf(ChoiceFormField::class, $confirm);
+        $confirm->tick();
         $client->submit($form);
         self::assertResponseRedirects();
         $branch = $this->findByCode($institution, 'HTTP-01');
         self::assertSame(InstitutionBranchStatus::Pending, $branch->getStatus());
 
+        $token = $form['admin_branch_create[_token]'];
+        self::assertInstanceOf(FormField::class, $token);
         $client->request('POST', '/yonetim/subeler', ['admin_branch_create' => [
-            '_token' => $form['admin_branch_create[_token]']->getValue(),
+            '_token' => $token->getValue(),
             'institutionId' => $institution->getId()->toRfc4122(),
             'name' => 'Kopya',
             'code' => 'http-01',
@@ -121,9 +127,11 @@ final class AdminBranchPanelHttpTest extends WebTestCase
         $edit = $detail->selectButton('Bilgileri kaydet')->form();
         $edit['admin_branch_update[name]'] = 'Http Sube Yeni';
         $edit['admin_branch_update[code]'] = 'HTTP-02';
-        $edit['admin_branch_update[kind]']->select(InstitutionBranchKind::Campus->value);
-        $edit['admin_branch_update[reasonCode]']->select('record_correction');
-        $edit['admin_branch_update[confirm]']->tick();
+        $edit['admin_branch_update[kind]'] = InstitutionBranchKind::Campus->value;
+        $edit['admin_branch_update[reasonCode]'] = 'record_correction';
+        $editConfirm = $edit['admin_branch_update[confirm]'];
+        self::assertInstanceOf(ChoiceFormField::class, $editConfirm);
+        $editConfirm->tick();
         $values = $edit->getPhpValues();
         $values['admin_branch_update']['institutionId'] = $other->getId()->toRfc4122();
         $client->request('POST', '/yonetim/subeler/'.$branch->getId()->toRfc4122(), $values);
@@ -153,8 +161,10 @@ final class AdminBranchPanelHttpTest extends WebTestCase
 
         $page = $client->request('GET', '/yonetim/subeler/'.$branch->getId()->toRfc4122());
         $status = $page->selectButton('Durumu kaydet')->form();
-        $status['admin_branch_status[reasonCode]']->select('lifecycle_change');
-        $status['admin_branch_status[confirm]']->tick();
+        $status['admin_branch_status[reasonCode]'] = 'lifecycle_change';
+        $statusConfirm = $status['admin_branch_status[confirm]'];
+        self::assertInstanceOf(ChoiceFormField::class, $statusConfirm);
+        $statusConfirm->tick();
         $values = $status->getPhpValues();
         $values['admin_branch_status']['action'] = 'activate';
         $client->request('POST', '/yonetim/subeler/'.$branch->getId()->toRfc4122().'/durum', $values);
