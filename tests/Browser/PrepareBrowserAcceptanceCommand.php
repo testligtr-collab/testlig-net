@@ -426,6 +426,13 @@ final class PrepareBrowserAcceptanceCommand extends Command
             str_repeat('UzunKurum', 8),
             InstitutionType::School,
         );
+        $this->institutions->create(
+            $superAdmin,
+            $owner,
+            'Uzun Adli Bekleyen Kurs Merkezi',
+            InstitutionType::CourseCenter,
+            'browser_create',
+        );
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -469,6 +476,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
                 'institutionApplications' => '/yonetim/kurum-basvurulari',
                 'institutionApplication' => '/yonetim/kurum-basvurulari/'.$institutionApplication->getId()->toRfc4122(),
+                'institutions' => '/yonetim/kurumlar',
+                'institutionNew' => '/yonetim/kurumlar/yeni',
+                'institution' => '/yonetim/kurumlar/'.$institution->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],

@@ -7,6 +7,7 @@ namespace App\Form;
 use App\Dto\AdminInstitutionCreateRequest;
 use App\Enum\InstitutionType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
@@ -33,15 +34,30 @@ final class AdminInstitutionCreateFormType extends AbstractType
         $builder
             ->add('name', TextType::class, [
                 'label' => 'Kurum adı',
+                'empty_data' => '',
             ])
             ->add('type', ChoiceType::class, [
-                'label' => 'Tür',
+                'label' => 'Kurum türü',
                 'choices' => $typeChoices,
+                'choice_label' => static fn (InstitutionType $type): string => match ($type) {
+                    InstitutionType::School => 'Okul',
+                    InstitutionType::CourseCenter => 'Kurs',
+                    InstitutionType::TutoringCenter => 'Etüt merkezi',
+                    InstitutionType::Other => 'Diğer',
+                },
                 'placeholder' => 'Tür seçin',
             ])
             ->add('ownerUserId', TextType::class, [
-                'label' => 'İlk sahip kullanıcı UUID',
-                'attr' => ['autocomplete' => 'off'],
+                'label' => 'İlk sahip hesabı',
+                'empty_data' => '',
+                'attr' => [
+                    'autocomplete' => 'off',
+                    'class' => 'admin-owner-picker__value',
+                    'data-owner-value' => '1',
+                    'data-institution-owner-picker-target' => 'value',
+                    'aria-hidden' => 'true',
+                    'tabindex' => '-1',
+                ],
             ])
             ->add('reasonCode', ChoiceType::class, [
                 'label' => 'Gerekçe',
@@ -51,11 +67,18 @@ final class AdminInstitutionCreateFormType extends AbstractType
                     'Migrasyon' => AdminInstitutionCreateRequest::REASON_MIGRATION_IMPORT,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'empty_data' => '',
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Kurum oluşturmayı onaylıyorum',
                 'required' => true,
             ]);
+        $reason = $builder->get('reasonCode');
+        $reason->resetViewTransformers();
+        $reason->addViewTransformer(new CallbackTransformer(
+            static fn (mixed $value): string => \is_string($value) ? $value : '',
+            static fn (mixed $value): string => \is_string($value) ? $value : '',
+        ));
     }
 
     public function configureOptions(OptionsResolver $resolver): void
