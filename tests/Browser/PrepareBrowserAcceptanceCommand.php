@@ -377,6 +377,16 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_create',
         );
         $this->years->activate($year, $owner, 'browser_activate');
+        $plannedYear = $this->years->createPlanned(
+            $institution,
+            $superAdmin,
+            '2027-2028',
+            new \DateTimeImmutable('2027-09-01'),
+            new \DateTimeImmutable('2028-06-15'),
+            'browser_create',
+        );
+        $quietInstitution = $this->institutions->create($superAdmin, $owner, 'Tarayici Akademisi', InstitutionType::School, 'browser_create');
+        $this->institutionStatus->activate($quietInstitution, $superAdmin, 'browser_activate');
         $classroom = $this->classrooms->create($year, $owner, 'Sinif A', GradeLevel::Grade1, 'browser_create', 'A', 24);
         $teacherMembership = $this->memberships->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'browser_create');
         $studentMembership = $this->memberships->addMember($institution, $owner, $student, InstitutionMembershipRole::Student, 'browser_create');
@@ -491,6 +501,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'branchNew' => '/yonetim/subeler/yeni?kurum='.$institution->getId()->toRfc4122(),
                 'branch' => '/yonetim/subeler/'.$activeBranch->getId()->toRfc4122(),
                 'branchPending' => '/yonetim/subeler/'.$pendingCampus->getId()->toRfc4122(),
+                'academicYears' => '/yonetim/akademik-yillar',
+                'academicYearNew' => '/yonetim/akademik-yillar/yeni?kurum='.$institution->getId()->toRfc4122(),
+                'academicYear' => '/yonetim/akademik-yillar/'.$plannedYear->getId()->toRfc4122(),
+                'academicYearActive' => '/yonetim/akademik-yillar/'.$year->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],

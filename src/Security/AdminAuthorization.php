@@ -119,6 +119,14 @@ final class AdminAuthorization
         }
     }
 
+    public function assertCanViewAcademicYears(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
     /**
      * Membership list/manage: SUPER_ADMIN only (domain allows SA or institution owner/manager;
      * admin panel does not expose institution-scoped owner tools here).
@@ -275,6 +283,21 @@ final class AdminAuthorization
     public function canManageBranches(User $actor): bool
     {
         return $this->canViewBranches($actor);
+    }
+
+    public function canViewAcademicYears(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canCreateAcademicYears(User $actor): bool
+    {
+        return $this->canViewAcademicYears($actor);
+    }
+
+    public function canManageAcademicYears(User $actor): bool
+    {
+        return $this->canViewAcademicYears($actor);
     }
 
     public function canViewMemberships(User $actor): bool

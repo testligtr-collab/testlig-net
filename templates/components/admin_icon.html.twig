@@ -1,5 +1,5 @@
 {% set name = icon|default('default') %}
-{% set allowed = ['dashboard', 'system', 'users', 'institutions', 'catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'payments', 'webhooks', 'reconciliations', 'audit', 'account', 'media_page', 'media_pdf', 'media_play', 'media_cloud', 'search', 'filter', 'clock', 'ban', 'globe', 'refresh', 'nodes', 'default'] %}
+{% set allowed = ['dashboard', 'system', 'users', 'institutions', 'calendar', 'catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'payments', 'webhooks', 'reconciliations', 'audit', 'account', 'media_page', 'media_pdf', 'media_play', 'media_cloud', 'search', 'filter', 'clock', 'ban', 'globe', 'refresh', 'nodes', 'default'] %}
 {% if name not in allowed %}
     {% set name = 'default' %}
 {% endif %}
@@ -19,6 +19,9 @@
     {% elseif name == 'institutions' %}
         <path d="M5 19V9l7-4 7 4v10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
         <path d="M9 19v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    {% elseif name == 'calendar' %}
+        <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4 10h16M8 3.5v3M16 3.5v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     {% elseif name == 'catalog' %}
         <path d="M5 6.5h5.5A2.5 2.5 0 0 1 13 9v9.5H7.5A2.5 2.5 0 0 0 5 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>
         <path d="M19 6.5h-5.5A2.5 2.5 0 0 0 11 9v9.5h5.5A2.5 2.5 0 0 0 19 21V6.5z" fill="none" stroke="currentColor" stroke-width="1.8"/>

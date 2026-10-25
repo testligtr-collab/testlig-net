@@ -1,0 +1,164 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Akademik yıllar — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Akademik yıllar</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = { 'planned': 'Planlandı', 'active': 'Aktif', 'closed': 'Kapandı' } %}
+    {% set filters_active = filters.q|default('') != '' or filters.institution|default('') != '' or filters.status|default('') != '' %}
+    <div class="admin-user-page admin-academic-year-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Akademik yıllar</h1>
+                <p>Kurumların eğitim dönemlerini ve aktif yılını yönetin.</p>
+            </div>
+            {% if can_create %}
+                <a class="btn admin-institution-primary" href="{{ path('app_admin_academic_year_new') }}"><span aria-hidden="true">+ </span>Yeni akademik yıl</a>
+            {% endif %}
+        </header>
+
+        <p class="sr-only">Sayaçlar seçili filtreden bağımsızdır. Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar. Beklemede, askıda ve arşivdeki kurumlar bu sayıya girmez.</p>
+        <section class="admin-user-stats" aria-label="Akademik yıl özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'calendar' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam yıl</span>
+                    <strong class="admin-user-stat__value" data-year-summary="total">{{ summary.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif yıl</span>
+                    <strong class="admin-user-stat__value" data-year-summary="active">{{ summary.active }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif yılı olmayan kurum</span>
+                    <strong class="admin-user-stat__value" data-year-summary="without">{{ summary.activeInstitutionsWithoutActiveYear }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--members">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Bağlı kurum</span>
+                    <strong class="admin-user-stat__value" data-year-summary="institutions">{{ summary.linkedInstitutions }}</strong>
+                </span>
+            </article>
+        </section>
+        <p class="admin-institution-note">Aktif yılı olmayan kurum sayacı yalnız aktif durumdaki kurumları kapsar. Beklemede, askıda ve arşivdeki kurumlar bu sayıya girmez. Sayaçlar seçili filtreden bağımsızdır.</p>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_academic_years') }}" aria-label="Akademik yılları filtrele">
+            <h2>Akademik yılları filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <label class="admin-user-search" for="year-filter-q">
+                    <span class="sr-only">Yıl adı</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="year-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Yıl adı ile ara">
+                </label>
+                <label for="year-filter-institution">
+                    <span class="sr-only">Kurum</span>
+                    <select id="year-filter-institution" name="institution">
+                        <option value="">Tüm kurumlar</option>
+                        {% for institution in institutions %}
+                            <option value="{{ institution.id }}" {% if filters.institution|default('') == institution.id %}selected{% endif %}>{{ institution.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="year-filter-status">
+                    <span class="sr-only">Durum</span>
+                    <select id="year-filter-status" name="status">
+                        <option value="">Tüm durumlar</option>
+                        {% for code, label in status_labels %}
+                            <option value="{{ code }}" {% if filters.status|default('') == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                    <a class="admin-user-clear" href="{{ path('app_admin_academic_years') }}">Temizle</a>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="year-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="year-list-heading">Akademik yıl kayıtları</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} kayıt</span>
+            </header>
+            {% if result.items is empty %}
+                {% if filters_active %}
+                    {% include 'components/empty_state.html.twig' with { title: 'Sonuç yok', body: 'Filtrelere uygun kayıt bulunamadı.' } %}
+                {% else %}
+                    {% include 'components/empty_state.html.twig' with { title: 'Kayıt yok', body: 'Henüz akademik yıl yok.' } %}
+                {% endif %}
+            {% else %}
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Akademik yıl</th>
+                                <th>Kurum</th>
+                                <th>Tarih aralığı</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td class="admin-user-person">
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar {{ row.status.value == 'active' ? 'admin-user-avatar--blue' : 'admin-user-avatar--violet' }}" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'calendar' } only %}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.name }}</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Kurum">{{ row.institutionName }}</td>
+                                    <td data-label="Tarih aralığı">{{ row.rangeLabel }}</td>
+                                    <td data-label="Durum"><span class="admin-institution-status admin-institution-status--{{ row.status.value }}">{{ status_labels[row.status.value]|default(row.status.value) }}</span></td>
+                                    <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_academic_year_detail', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <nav class="admin-institution-pager" aria-label="Sayfalama">
+                    <p>Sayfa {{ result.page }} / {{ result.totalPages() }}</p>
+                    <div>
+                        {% if result.page > 1 %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_academic_years', filters|merge({ page: result.page - 1 })) }}">Önceki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Önceki</span>
+                        {% endif %}
+                        {% set page_start = max(1, result.page - 2) %}
+                        {% set page_end = min(result.totalPages(), result.page + 2) %}
+                        {% for number in page_start..page_end %}
+                            {% if number == result.page %}
+                                <span class="admin-institution-pager__current" aria-current="page">{{ number }}</span>
+                            {% else %}
+                                <a class="btn btn--ghost" href="{{ path('app_admin_academic_years', filters|merge({ page: number })) }}">{{ number }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if result.page < result.totalPages() %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_academic_years', filters|merge({ page: result.page + 1 })) }}">Sonraki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Sonraki</span>
+                        {% endif %}
+                    </div>
+                </nav>
+            {% endif %}
+        </section>
+        <p class="admin-institution-note">Bir kurumda aynı anda yalnız bir akademik yıl aktif olabilir. Aktifleştirme mevcut sınıf ve öğrenci kayıtlarını başka yıla taşımaz.</p>
+    </div>
+{% endblock %}

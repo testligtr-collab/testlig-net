@@ -1,0 +1,78 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni akademik yıl — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_academic_years') }}">Akademik yıllar</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-user-page admin-academic-year-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni akademik yıl</h1>
+                <p>Yılı mevcut bir kuruma bağlayın. Oluşturma yılı aktif yapmaz.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_academic_years') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+        </header>
+
+        {{ form_start(form, { attr: { class: 'admin-institution-create', novalidate: 'novalidate' } }) }}
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="year-create-identity">
+                    <h2 id="year-create-identity"><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'calendar' } only %}</span> Yıl bilgileri</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.institutionId) }}
+                        {{ form_widget(form.institutionId) }}
+                        {{ form_errors(form.institutionId) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.name) }}
+                        {{ form_widget(form.name, { attr: { placeholder: 'Dönem adı' } }) }}
+                        {{ form_errors(form.name) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.startsOn) }}
+                        {{ form_widget(form.startsOn, { attr: { type: 'date' } }) }}
+                        {{ form_errors(form.startsOn) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.endsOn) }}
+                        {{ form_widget(form.endsOn, { attr: { type: 'date' } }) }}
+                        {{ form_errors(form.endsOn) }}
+                    </div>
+                </section>
+                <section class="admin-institution-card" aria-labelledby="year-create-reason">
+                    <h2 id="year-create-reason"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span> İşlem gerekçesi</h2>
+                    <div class="admin-institution-field">
+                        {{ form_label(form.reasonCode, 'Gerekçe') }}
+                        {{ form_widget(form.reasonCode) }}
+                        {{ form_errors(form.reasonCode) }}
+                    </div>
+                    <div class="admin-institution-field">
+                        {{ form_widget(form.confirm) }}
+                        {{ form_label(form.confirm) }}
+                        {{ form_errors(form.confirm) }}
+                    </div>
+                    <div class="admin-institution-actions">
+                        <button class="btn admin-institution-primary" type="submit">Yılı oluştur</button>
+                        <a class="btn btn--ghost" href="{{ path('app_admin_academic_years') }}">İptal</a>
+                    </div>
+                </section>
+            </div>
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="year-create-summary">
+                <h2 id="year-create-summary">İşlem özeti</h2>
+                <ol>
+                    <li><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'calendar' } only %}</span><span><strong>Planlandı olarak oluşur</strong> Yeni yıl aktif olmaz. Aktifleştirme ayrı onay ister.</span></li>
+                    <li><span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span><span><strong>Kuruma bağlı kalır</strong> Kayıtlı yılın kurumu sonradan değiştirilemez.</span></li>
+                </ol>
+                <p class="admin-institution-note">Yeni yıl planlandı durumunda oluşur. Bu form yılı aktif yapmaz.</p>
+            </aside>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}
