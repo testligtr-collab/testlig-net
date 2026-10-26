@@ -33,6 +33,8 @@ final class Version20261026190000 extends AbstractMigration
         $this->addSql('ALTER TABLE curriculum_learning_outcomes ADD CONSTRAINT FK_CLO_TOPIC_UNIT FOREIGN KEY (topic_id, unit_id) REFERENCES curriculum_topics (id, unit_id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE curriculum_learning_outcomes DROP FOREIGN KEY FK_CLO_UNIT_PROGRAM');
         $this->addSql('ALTER TABLE curriculum_learning_outcomes ADD CONSTRAINT FK_CLO_UNIT_PROGRAM FOREIGN KEY (unit_id, curriculum_program_id) REFERENCES curriculum_units (id, curriculum_program_id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE curriculum_learning_outcomes RENAME INDEX FK_CLO_TOPIC_UNIT TO IDX_F6E8959C1F55203DF8BD700D');
+        $this->addSql('ALTER TABLE curriculum_learning_outcomes RENAME INDEX FK_CLO_UNIT_PROGRAM TO IDX_F6E8959CF8BD700DCBC68800');
     }
 
     public function down(Schema $schema): void
@@ -51,5 +53,7 @@ final class Version20261026190000 extends AbstractMigration
         $this->addSql('ALTER TABLE curriculum_learning_outcomes ADD CONSTRAINT FK_CLO_TOPIC_UNIT FOREIGN KEY (topic_id, unit_id) REFERENCES curriculum_topics (id, unit_id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE curriculum_learning_outcomes DROP FOREIGN KEY FK_CLO_UNIT_PROGRAM');
         $this->addSql('ALTER TABLE curriculum_learning_outcomes ADD CONSTRAINT FK_CLO_UNIT_PROGRAM FOREIGN KEY (unit_id, curriculum_program_id) REFERENCES curriculum_units (id, curriculum_program_id) ON DELETE CASCADE');
+        $this->addSql('ALTER TABLE curriculum_learning_outcomes RENAME INDEX FK_CLO_TOPIC_UNIT TO IDX_F6E8959C1F55203DF8BD700D');
+        $this->addSql('ALTER TABLE curriculum_learning_outcomes RENAME INDEX FK_CLO_UNIT_PROGRAM TO IDX_F6E8959CF8BD700DCBC68800');
     }
 }
