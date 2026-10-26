@@ -81,6 +81,21 @@ framework:
             limit: 10
             interval: '10 minutes'
 
+        admin_classroom_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_classroom_revise:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_classroom_archive:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
         admin_membership_mutate:
             policy: 'sliding_window'
             limit: 10
@@ -209,6 +224,18 @@ when@test:
                 limit: 5
                 interval: '10 minutes'
             admin_academic_year_activate:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_revise:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_archive:
                 policy: 'fixed_window'
                 limit: 5
                 interval: '10 minutes'

@@ -56,11 +56,11 @@ PR #112 kurum test ekranını main’e aldı. PR #114 merge SHA ff4cd745b4e479ed
 | M03 | Kullanıcı yönetimi: toplu importer, grup/geçiş, moderator permissions | Rol/durum/üyelik yönetimi mevcut | Toplu kullanıcı aktarımı, grup geçiş yönetimi, ayrıntılı moderatör modül izinleri |
 | M04 | Kurum: başvuru, onay, kurum yönetimi ve panel | Kurum/üyelik/panel mevcut; başvuru kısmi | Başvuru karar ekranı ve onay sonrası provisioning; kurum alanlarını ihtiyaç bazlı tamamla |
 | M05 | Şube: InstitutionBranch, banka hesabı, hierarchy | Şube/kampüs ürün modeli bulunamadı | Kurum → şube/kampüs ilişkisi, izolasyon ve operasyon ekranları; banka verisi ayrı mahremiyet kapsamı |
-| M06 | Sınıf: TeacherClass + Classroom; öğretmene ait bağımsız sınıf | Kurum sınıfı mevcut | Bireysel öğretmenin kurumsuz sınıfı ve katılım kodu V2'de karşılanmıyor; çift eski modeli kopyalamadan karar ver |
+| M06 | Sınıf: TeacherClass + Classroom; öğretmene ait bağımsız sınıf | Kurum sınıfı ve süper yönetici sınıf listesi mevcut | Bireysel öğretmenin kurumsuz sınıfı ve katılım kodu V2'de karşılanmıyor; çift eski modeli kopyalamadan karar ver |
 | M07 | Öğretmen: profil, panel, not, mesaj, rapor, canlı ders talebi | İçerik çalışma alanı ve kurum sınıf raporu mevcut | Mesleki profil/onay zinciri, öğrenciye özel öğretmen notu, takvim, mesaj, canlı ders talepleri |
 | M08 | Öğrenci: öğrenme, sınav, oyun, simülasyon, Q&A, ödeme, canlı ders | Katalog/öğrenme/test/sonuç/continue mevcut | İçerik etkinlik/ilerleme takibi ve diğer ürün modülleri |
 | M09 | Veli: çocuk link, rapor, aktivite, mesaj, bildirim | Bağlantı/çocuk/test özeti mevcut | Çalışma etkinliği raporu, mesaj ve bildirim; ödeme/paket görünümü ayrıca |
-| M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si; tüm hedef seviyelerde içerik envanteri |
+| M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si açık kararla durur; tüm hedef seviyelerde içerik envanteri |
 | M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut; kurum soru ekranı main’de | AI destekli PDF/Word çıkarımı; production soru yazımı ve pilot ayrı |
 | M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı main’de | Gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
 | M13 | Raporlama: öğrenci/öğretmen/kurum/admin, achievement | Sonuç/geçmiş ve sınıf raporu mevcut; analytics domain hazır | Kazanım/madde/öğrenci gelişimi ekranları, güvenli filtreler ve dışa aktarma |

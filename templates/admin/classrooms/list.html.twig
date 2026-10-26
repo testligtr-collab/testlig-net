@@ -1,0 +1,178 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sınıflar — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Sınıflar</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = { 'active': 'Aktif', 'archived': 'Arşiv' } %}
+    {% set filters_active = filters.q|default('') != '' or filters.institution|default('') != '' or filters.year|default('') != '' or filters.status|default('') != '' %}
+    <div class="admin-user-page admin-classroom-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Sınıflar</h1>
+                <p>Kurum ve akademik yıl kapsamındaki sınıfları yönetin.</p>
+            </div>
+            {% if can_create %}
+                <a class="btn admin-institution-primary" href="{{ path('app_admin_classroom_new') }}"><span aria-hidden="true">+ </span>Yeni sınıf</a>
+            {% endif %}
+        </header>
+
+        <section class="admin-user-stats" aria-label="Sınıf özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'classrooms' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam sınıf</span>
+                    <strong class="admin-user-stat__value" data-classroom-summary="total">{{ summary.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif sınıf</span>
+                    <strong class="admin-user-stat__value" data-classroom-summary="active">{{ summary.active }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Öğretmen atanmamış</span>
+                    <strong class="admin-user-stat__value" data-classroom-summary="without">{{ summary.activeWithoutActiveTeacher }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--members">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Bağlı kurum</span>
+                    <strong class="admin-user-stat__value" data-classroom-summary="institutions">{{ summary.linkedInstitutions }}</strong>
+                </span>
+            </article>
+        </section>
+        <p class="admin-institution-note">Öğretmen atanmamış sayacı yalnız aktif sınıfları kapsar. Sonlanmış öğretmen ataması atanmış sayılmaz. Öğrenci sayısı aktif kayıtlardır. Sayaçlar seçili filtreden bağımsızdır.</p>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_classrooms') }}" aria-label="Sınıfları filtrele">
+            <h2>Sınıfları filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <label class="admin-user-search" for="classroom-filter-q">
+                    <span class="sr-only">Sınıf adı veya kod</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="classroom-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Sınıf adı veya kod">
+                </label>
+                <label for="classroom-filter-institution">
+                    <span class="sr-only">Kurum</span>
+                    <select id="classroom-filter-institution" name="institution">
+                        <option value="">Tüm kurumlar</option>
+                        {% for institution in institutions %}
+                            <option value="{{ institution.id }}" {% if filters.institution|default('') == institution.id %}selected{% endif %}>{{ institution.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="classroom-filter-year">
+                    <span class="sr-only">Akademik yıl</span>
+                    <select id="classroom-filter-year" name="year">
+                        <option value="">Akademik yıl</option>
+                        {% for year in years %}
+                            <option value="{{ year.id }}" {% if filters.year|default('') == year.id %}selected{% endif %}>{{ year.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="classroom-filter-status">
+                    <span class="sr-only">Durum</span>
+                    <select id="classroom-filter-status" name="status">
+                        <option value="">Tüm durumlar</option>
+                        {% for code, label in status_labels %}
+                            <option value="{{ code }}" {% if filters.status|default('') == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                    <a class="admin-user-clear" href="{{ path('app_admin_classrooms') }}">Temizle</a>
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="classroom-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="classroom-list-heading">Sınıf kayıtları</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} kayıt</span>
+            </header>
+            {% if result.items is empty %}
+                {% if filters_active %}
+                    {% include 'components/empty_state.html.twig' with { title: 'Sonuç yok', body: 'Filtrelere uygun kayıt bulunamadı.' } %}
+                {% else %}
+                    {% include 'components/empty_state.html.twig' with { title: 'Kayıt yok', body: 'Henüz sınıf yok.' } %}
+                {% endif %}
+            {% else %}
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Sınıf</th>
+                                <th>Kurum / Akademik yıl</th>
+                                <th>Öğretmen</th>
+                                <th>Öğrenci</th>
+                                <th>Durum</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td class="admin-user-person">
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar {{ row.status.value == 'active' ? 'admin-user-avatar--blue' : 'admin-user-avatar--violet' }}" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'classrooms' } only %}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.name }}</span>
+                                                <span class="admin-user-person__meta">{{ row.gradeLabel }}{% if row.sectionCode %} · Kod: {{ row.sectionCode }}{% endif %}</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Kurum / Akademik yıl">
+                                        <span class="admin-user-person__name">{{ row.institutionName }}</span>
+                                        <span class="admin-user-person__meta">{{ row.academicYearName }}</span>
+                                    </td>
+                                    <td data-label="Öğretmen">{{ row.teacherSummary }}</td>
+                                    <td data-label="Öğrenci">{{ row.activeStudentCount }}</td>
+                                    <td data-label="Durum"><span class="admin-institution-status admin-institution-status--{{ row.status.value }}">{{ status_labels[row.status.value]|default(row.status.value) }}</span></td>
+                                    <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_classroom_detail', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <nav class="admin-institution-pager" aria-label="Sayfalama">
+                    <p>Sayfa {{ result.page }} / {{ result.totalPages() }}</p>
+                    <div>
+                        {% if result.page > 1 %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_classrooms', filters|merge({ page: result.page - 1 })) }}">Önceki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Önceki</span>
+                        {% endif %}
+                        {% set page_start = max(1, result.page - 2) %}
+                        {% set page_end = min(result.totalPages(), result.page + 2) %}
+                        {% for number in page_start..page_end %}
+                            {% if number == result.page %}
+                                <span class="admin-institution-pager__current" aria-current="page">{{ number }}</span>
+                            {% else %}
+                                <a class="btn btn--ghost" href="{{ path('app_admin_classrooms', filters|merge({ page: number })) }}">{{ number }}</a>
+                            {% endif %}
+                        {% endfor %}
+                        {% if result.page < result.totalPages() %}
+                            <a class="btn btn--ghost" href="{{ path('app_admin_classrooms', filters|merge({ page: result.page + 1 })) }}">Sonraki</a>
+                        {% else %}
+                            <span class="btn btn--ghost" aria-disabled="true">Sonraki</span>
+                        {% endif %}
+                    </div>
+                </nav>
+            {% endif %}
+        </section>
+        <p class="admin-institution-note">Sınıf kayıtları bağlı kurum ve akademik yıl kapsamında yönetilir. Oluşturma üyelik, rol veya öğrenci kaydı vermez.</p>
+    </div>
+{% endblock %}

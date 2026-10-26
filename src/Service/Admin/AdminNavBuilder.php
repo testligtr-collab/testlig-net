@@ -86,6 +86,9 @@ final class AdminNavBuilder
         if ($this->adminAuthorization->canViewAcademicYears($actor)) {
             $items[] = $this->item('academic_years', 'Akademik yıllar', 'app_admin_academic_years', $currentPath, '/yonetim/akademik-yillar', false, 'calendar');
         }
+        if ($this->adminAuthorization->canViewClassrooms($actor)) {
+            $items[] = $this->item('classes', 'Sınıflar', 'app_admin_classrooms', $currentPath, '/yonetim/siniflar', false, 'classrooms');
+        }
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
             $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
