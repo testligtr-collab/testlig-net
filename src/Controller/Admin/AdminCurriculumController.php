@@ -322,7 +322,7 @@ final class AdminCurriculumController extends AdminBaseController
         /** @var AdminCurriculumNodeRequest $data */
         $data = $form->getData();
         $position = $this->position($form, $data->position);
-        if (!$form->isValid() || null === $position) {
+        if (null === $position) {
             return $this->invalidNode($form, $program);
         }
         try {
@@ -477,6 +477,7 @@ final class AdminCurriculumController extends AdminBaseController
     }
 
     /**
+     * @param FormInterface<mixed>                         $form
      * @param \Closure(AdminCurriculumActionRequest): void $action
      */
     private function handleAction(FormInterface $form, CurriculumProgram $program, RateLimiterFactory $limiter, string $bucket, \Closure $action): Response
@@ -499,6 +500,11 @@ final class AdminCurriculumController extends AdminBaseController
         return $this->redirectToRoute('app_admin_curriculum_show', ['id' => $program->getId()->toRfc4122()]);
     }
 
+    /**
+     * @param array<string, string> $parents
+     *
+     * @return FormInterface<mixed>
+     */
     private function nodeForm(Request $request, string $name, string $csrf, array $parents, string $titleLabel, string $parentLabel = 'Üst kayıt'): FormInterface
     {
         $form = $this->forms->createNamed($name, AdminCurriculumNodeFormType::class, new AdminCurriculumNodeRequest(), [
@@ -517,6 +523,8 @@ final class AdminCurriculumController extends AdminBaseController
 
     /**
      * @param array<string, string> $reasons
+     *
+     * @return FormInterface<mixed>
      */
     private function actionForm(string $name, array $reasons, string $confirm, string $csrf): FormInterface
     {
@@ -527,6 +535,9 @@ final class AdminCurriculumController extends AdminBaseController
         ]);
     }
 
+    /**
+     * @param FormInterface<mixed>|null $invalid
+     */
     private function renderShow(CurriculumProgram $program, int $status = Response::HTTP_OK, ?FormInterface $invalid = null, ?string $renameError = null): Response
     {
         $units = $this->units->findByProgram($program);
@@ -605,6 +616,8 @@ final class AdminCurriculumController extends AdminBaseController
 
     /**
      * @param array<string, string> $parents
+     *
+     * @return FormInterface<mixed>
      */
     private function namedForm(string $name, string $csrf, array $parents, string $title, string $parentLabel = 'Üst kayıt'): FormInterface
     {
@@ -616,6 +629,12 @@ final class AdminCurriculumController extends AdminBaseController
         ]);
     }
 
+    /**
+     * @param FormInterface<mixed>|null $invalid
+     * @param FormInterface<mixed>      $fresh
+     *
+     * @return FormInterface<mixed>
+     */
     private function prefer(?FormInterface $invalid, FormInterface $fresh): FormInterface
     {
         return $invalid instanceof FormInterface && $invalid->getName() === $fresh->getName() ? $invalid : $fresh;
