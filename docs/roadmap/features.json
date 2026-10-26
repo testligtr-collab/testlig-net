@@ -256,7 +256,9 @@
         "src/Controller/InstitutionWorkspaceController.php",
         "Süper yönetici sınıf listesi, oluşturma, detay, ad/kontenjan güncelleme ve arşiv /yonetim/siniflar adresindedir. Kayıt mevcut Classroom modelini kullanır ve aktif oluşur. Kurum ile akademik yıl sunucuda aynı kuruma ait olacak şekilde yeniden çözülür. Oluşturma üyelik, rol, öğretmen ataması veya öğrenci kaydı vermez. Kurum paneli ve öğretmen Sınıflarım aynı kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -437,7 +439,9 @@
         "src/Controller/Admin/AdminCatalogController.php",
         "2026-10-26 kullanıcı kararı açık iş olarak durur: kategori/kademeden sınıf düzeyi, ders, ünite/tema, konu ve kazanıma kadar oluşturma, düzenleme, aktif/pasif ve silme/arşiv. Moderatör yalnız ayrıca verilmiş müfredat izniyle işlem yapar. Bağımlılığı olmayan kullanılmamış taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış sayılmaz. Üst kayıt açılınca alt kayıtların durumu sessiz değişmez. Yeniden oluşturulan kayıt yeni kimlik alır. Toplu alt kayıt silme bağımlılık özeti, açık onay ve audit ister. Bu tur CRUD veya moderatör delegasyonu uygulanmadı. Ayrı 1-12 İngilizce entegre şema metni bu teslimata ekli değildi; uydurulmuş ağaç veya resmî kazanım kodu yazılmadı. docs/curriculum/m10-management-decision.md"
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
+      ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
       "scope_decision": {
         "date": "2026-10-26",
@@ -1216,7 +1220,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/169",
         "https://github.com/testligtr-collab/testlig-net/pull/170",
         "https://github.com/testligtr-collab/testlig-net/pull/171",
-        "https://github.com/testligtr-collab/testlig-net/pull/172"
+        "https://github.com/testligtr-collab/testlig-net/pull/172",
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
