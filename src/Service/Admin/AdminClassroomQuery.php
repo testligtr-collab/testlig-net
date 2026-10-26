@@ -359,9 +359,11 @@ final class AdminClassroomQuery
             ->addOrderBy('u.lastName', 'ASC')
             ->addOrderBy('u.firstName', 'ASC');
         $match = $qb->expr()->orX();
-        foreach (array_values($classrooms) as $index => $classroom) {
+        $index = 0;
+        foreach ($classrooms as $classroom) {
             $match->add('IDENTITY(a.classroom) = :classroom'.$index);
             $qb->setParameter('classroom'.$index, $classroom->getId(), 'uuid');
+            ++$index;
         }
         /** @var list<ClassroomTeacherAssignment> $assignments */
         $assignments = $qb
@@ -413,9 +415,9 @@ final class AdminClassroomQuery
         return (int) $this->em->createQueryBuilder()
             ->select('COUNT(a.id)')
             ->from(ClassroomTeacherAssignment::class, 'a')
-            ->andWhere('a.classroom = :classroom')
+            ->andWhere('IDENTITY(a.classroom) = :classroom')
             ->andWhere('a.status = :ended')
-            ->setParameter('classroom', $classroom)
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
             ->setParameter('ended', TeacherAssignmentStatus::Ended)
             ->getQuery()
             ->getSingleScalarResult();
@@ -430,8 +432,8 @@ final class AdminClassroomQuery
         $rows = $this->em->createQueryBuilder()
             ->select('e.status AS status, COUNT(e.id) AS cnt')
             ->from(ClassroomStudentEnrollment::class, 'e')
-            ->andWhere('e.classroom = :classroom')
-            ->setParameter('classroom', $classroom)
+            ->andWhere('IDENTITY(e.classroom) = :classroom')
+            ->setParameter('classroom', $classroom->getId(), 'uuid')
             ->groupBy('e.status')
             ->getQuery()
             ->getArrayResult();
