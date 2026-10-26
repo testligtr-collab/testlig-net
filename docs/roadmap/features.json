@@ -191,9 +191,10 @@
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/166",
-        "https://github.com/testligtr-collab/testlig-net/pull/167"
+        "https://github.com/testligtr-collab/testlig-net/pull/167",
+        "https://github.com/testligtr-collab/testlig-net/pull/174"
       ],
-      "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Diğer moderatör izinleri ve canlı kabul açıktır.",
+      "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini ve dört ayrı müfredat iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Ödeme, denetim ve canlı kabul açıktır.",
       "scope_decision": null
     },
     {
@@ -443,9 +444,10 @@
         "2026-10-26 program yönetimi mevcut Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic ve CurriculumLearningOutcome modeli üzerinde /yonetim/programlar adresinde çalışır. GradeLevel enum olarak kalır. Öğrenci kataloğu ayrıdır. Liste, arama, filtre, detay, oluşturma, taslak ad düzenleme, yayın, emekliye ayırma ve bağımlılığı olmayan taslak silme vardır. Moderatör curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinleriyle ayrılır. Resmî 1-12 metni gelmediği için kaynak dosyaları yazılmadı. Import, resmî doğrulama ve production kabulü açıktır."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/173"
+        "https://github.com/testligtr-collab/testlig-net/pull/173",
+        "https://github.com/testligtr-collab/testlig-net/pull/174"
       ],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, arşiv ve bağımlılığı olmayan taslak silme çalışır. Resmî 1-12 doğrulaması, import ve production kabulü ayrı kanıt ister.",
       "scope_decision": {
         "date": "2026-10-26",
         "source": "Kullanıcı kararı, Sınıflar admin teslimi ile birlikte kaydedildi.",
@@ -1225,7 +1227,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/170",
         "https://github.com/testligtr-collab/testlig-net/pull/171",
         "https://github.com/testligtr-collab/testlig-net/pull/172",
-        "https://github.com/testligtr-collab/testlig-net/pull/173"
+        "https://github.com/testligtr-collab/testlig-net/pull/173",
+        "https://github.com/testligtr-collab/testlig-net/pull/174"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
