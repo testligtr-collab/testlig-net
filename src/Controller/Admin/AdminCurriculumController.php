@@ -640,6 +640,9 @@ final class AdminCurriculumController extends AdminBaseController
         return $invalid instanceof FormInterface && $invalid->getName() === $fresh->getName() ? $invalid : $fresh;
     }
 
+    /**
+     * @param FormInterface<mixed> $form
+     */
     private function invalidNode(FormInterface $form, CurriculumProgram $program): Response
     {
         return $this->renderShow($program, Response::HTTP_UNPROCESSABLE_ENTITY, $form);
@@ -659,6 +662,7 @@ final class AdminCurriculumController extends AdminBaseController
     }
 
     /**
+     * @param FormInterface<mixed> $form
      * @param array<string, mixed> $context
      */
     private function failForm(FormInterface $form, string $reason, string $view, array $context): Response
@@ -673,7 +677,9 @@ final class AdminCurriculumController extends AdminBaseController
     }
 
     /**
-     * @param list<Subject> $subjects
+     * @param FormInterface<mixed> $subjectForm
+     * @param FormInterface<mixed> $programForm
+     * @param list<Subject>        $subjects
      *
      * @return array<string, mixed>
      */
@@ -688,7 +694,9 @@ final class AdminCurriculumController extends AdminBaseController
     }
 
     /**
-     * @param list<Subject> $subjects
+     * @param FormInterface<mixed> $subjectForm
+     * @param FormInterface<mixed> $programForm
+     * @param list<Subject>        $subjects
      */
     private function renderCreate(FormInterface $subjectForm, FormInterface $programForm, array $subjects, int $status = Response::HTTP_OK, ?string $renameError = null): Response
     {
@@ -703,14 +711,14 @@ final class AdminCurriculumController extends AdminBaseController
      */
     private function renamePayload(Request $request, string $name, string $tokenId): array|string
     {
-        $payload = $request->request->all($name);
-        $token = \is_array($payload) ? (string) ($payload['_token'] ?? '') : '';
+        $payload = $request->request->has($name) ? $request->request->all($name) : [];
+        $token = (string) ($payload['_token'] ?? '');
         if (!$this->isCsrfTokenValid($tokenId, $token)) {
             throw new AccessDeniedHttpException('CSRF doğrulaması başarısız.');
         }
-        $title = trim(\is_array($payload) ? (string) ($payload['title'] ?? '') : '');
-        $reason = trim(\is_array($payload) ? (string) ($payload['reasonCode'] ?? '') : '');
-        $confirm = \is_array($payload) ? (string) ($payload['confirm'] ?? '') : '';
+        $title = trim((string) ($payload['title'] ?? ''));
+        $reason = trim((string) ($payload['reasonCode'] ?? ''));
+        $confirm = (string) ($payload['confirm'] ?? '');
         if ('' === $title) {
             return 'Ad gerekli.';
         }
