@@ -101,11 +101,6 @@ final class CurriculumDraftDeletion
                 $kind,
                 &$rejected,
             ): void {
-                $rejected = null;
-                $target = null;
-                $freshActor = null;
-                $targetId = null;
-                $code = null;
                 try {
                     $subject = $this->freshEntities->findFreshLockedSubject($subjectId, LockMode::PESSIMISTIC_WRITE);
                     $program = $this->freshEntities->findFreshLockedCurriculumProgram($programId, LockMode::PESSIMISTIC_WRITE);
@@ -152,9 +147,6 @@ final class CurriculumDraftDeletion
                 } catch (CurriculumDeletionException $exception) {
                     $rejected = $exception->getMessage();
 
-                    return;
-                }
-                if (null !== $rejected || null === $target || null === $freshActor || null === $targetId || null === $code) {
                     return;
                 }
 
