@@ -150,9 +150,9 @@ final class CurriculumDraftDeletion
                     metadata: [
                         'source' => 'curriculum_draft_deletion',
                         'reason_code' => $reasonCode,
-                        'node_kind' => $kind,
-                        'node_id' => $targetId->toRfc4122(),
-                        'program_id' => $programId->toRfc4122(),
+                        'target_type' => $kind,
+                        'resource_id' => $targetId->toRfc4122(),
+                        'curriculum_program_id' => $programId->toRfc4122(),
                         'code' => $code,
                     ],
                     captureRequestHashes: false,

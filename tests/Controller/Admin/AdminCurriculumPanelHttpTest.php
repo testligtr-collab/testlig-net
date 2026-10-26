@@ -22,6 +22,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -205,10 +206,21 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
 
     private function csrf(KernelBrowser $client, string $id): string
     {
-        $manager = $client->getContainer()->get('security.csrf.token_manager');
-        self::assertInstanceOf(CsrfTokenManagerInterface::class, $manager);
+        $request = $client->getRequest();
+        $session = $request->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $stack->push($request);
+        try {
+            $manager = $client->getContainer()->get(CsrfTokenManagerInterface::class);
+            self::assertInstanceOf(CsrfTokenManagerInterface::class, $manager);
+            $token = $manager->getToken($id)->getValue();
+        } finally {
+            $stack->pop();
+        }
+        $session->save();
 
-        return $manager->getToken($id)->getValue();
+        return $token;
     }
 
     private function authenticate(KernelBrowser $client, string $email): void
