@@ -118,9 +118,23 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         $freshUnit = $this->em->find(CatalogUnit::class, $catalogUnit->getId());
         self::assertInstanceOf(CatalogUnit::class, $freshUnit);
         self::assertSame('published', $freshUnit->getStatus()->value);
-        $listed = $query->listPublishedUnitsForGradeSubject(GradeLevel::Grade6, 'erisim-katalog');
+    }
+
+    public function testPublishedCatalogSubjectOpensTheExistingPublishedUnit(): void
+    {
+        $catalog = $this->catalog();
+        $catalogSubject = $catalog->createSubject(GradeLevel::Grade6, 'Acik katalog', null, 1, 'acik-katalog');
+        $catalogUnit = $catalog->createUnit($catalogSubject->getId(), 'Acik unite', null, 1, 'acik-unite');
+        $catalog->publishUnit($catalogUnit->getId());
+        $catalog->publishSubject($catalogSubject->getId());
+        $query = static::getContainer()->get(StudentCatalogQuery::class);
+        self::assertInstanceOf(StudentCatalogQuery::class, $query);
+        $listed = $query->listPublishedUnitsForGradeSubject(GradeLevel::Grade6, 'acik-katalog');
         self::assertNotNull($listed);
         self::assertCount(1, $listed);
+        $freshUnit = $this->em->find(CatalogUnit::class, $catalogUnit->getId());
+        self::assertInstanceOf(CatalogUnit::class, $freshUnit);
+        self::assertSame('published', $freshUnit->getStatus()->value);
     }
 
     public function testModeratorPublishDoesNotFollowManageAndFailureWritesNoSuccessAudit(): void

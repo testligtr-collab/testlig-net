@@ -92,11 +92,7 @@ class CurriculumProgramRepository extends ServiceEntityRepository
             ->getArrayResult();
         $counts = ['draft' => 0, 'published' => 0, 'retired' => 0, 'total' => 0];
         foreach ($rows as $row) {
-            $status = $row['status'] instanceof CurriculumStatus ? $row['status']->value : (string) $row['status'];
-            if (!isset($counts[$status]) || 'total' === $status) {
-                continue;
-            }
-            $counts[$status] = (int) $row['total'];
+            $counts[$row['status']->value] = (int) $row['total'];
             $counts['total'] += (int) $row['total'];
         }
 
@@ -139,6 +135,11 @@ class CurriculumProgramRepository extends ServiceEntityRepository
         if ($subjectId instanceof Uuid) {
             $qb->andWhere('IDENTITY(p.subject) = :subjectId')->setParameter('subjectId', $subjectId, 'uuid');
         }
+    }
+
+    public function connection(): \Doctrine\DBAL\Connection
+    {
+        return $this->getEntityManager()->getConnection();
     }
 
     public function save(CurriculumProgram $program, bool $flush = true): void

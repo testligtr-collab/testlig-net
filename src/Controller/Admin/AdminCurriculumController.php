@@ -777,6 +777,9 @@ final class AdminCurriculumController extends AdminBaseController
         return $outcome instanceof CurriculumLearningOutcome && $outcome->getCurriculumProgram()->getId()->equals($program->getId()) ? $outcome : null;
     }
 
+    /**
+     * @param FormInterface<mixed> $form
+     */
     private function requireParent(FormInterface $form): bool
     {
         if (!$form->has('parentId')) {
@@ -791,6 +794,9 @@ final class AdminCurriculumController extends AdminBaseController
         return false;
     }
 
+    /**
+     * @param FormInterface<mixed> $form
+     */
     private function position(FormInterface $form, string $raw): ?int
     {
         if (1 !== preg_match('/^[1-9][0-9]{0,5}$/', $raw)) {
@@ -829,7 +835,7 @@ final class AdminCurriculumController extends AdminBaseController
      */
     private function linkedOutcomeIds(CurriculumProgram $program): array
     {
-        $connection = $this->programs->getEntityManager()->getConnection();
+        $connection = $this->programs->connection();
         $binary = $program->getId()->toBinary();
         $ids = [];
         foreach ([
@@ -858,7 +864,7 @@ final class AdminCurriculumController extends AdminBaseController
             return 0;
         }
 
-        return (int) $this->programs->getEntityManager()->getConnection()->fetchOne(
+        return (int) $this->programs->connection()->fetchOne(
             \sprintf('SELECT COUNT(*) FROM %s WHERE %s = :id', $table, $column),
             ['id' => $id->toBinary()],
             ['id' => \Doctrine\DBAL\ParameterType::BINARY],
