@@ -38,8 +38,6 @@ final class AdminClassroomPanelHttpTest extends WebTestCase
         $client = static::createClient();
         $client->request('GET', '/yonetim/siniflar');
         self::assertResponseRedirects('/giris');
-        $client->request('GET', '/yonetim/bolum/siniflar');
-        self::assertResponseStatusCodeSame(404);
 
         foreach ([
             ['cr_http_student@example.com', UserRole::Student],
@@ -59,6 +57,13 @@ final class AdminClassroomPanelHttpTest extends WebTestCase
             $client->request('POST', '/yonetim/siniflar', ['admin_classroom_create' => ['name' => 'Gizli', 'confirm' => '1']]);
             self::assertResponseStatusCodeSame(403);
         }
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $super = $this->user('cr_http_planned_sa@example.com', UserRole::SuperAdmin);
+        $this->authenticate($client, $super->getEmail());
+        $client->request('GET', '/yonetim/bolum/siniflar');
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testInactiveAndUnverifiedSuperAdminAreDenied(): void

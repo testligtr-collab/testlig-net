@@ -142,14 +142,7 @@ final class AdminClassroomDomainTest extends KernelTestCase
         $classroomId = $classroom->getId();
         $yearId = $first->getId()->toRfc4122();
 
-        $second = $this->years()->createPlanned($this->reloadInstitution($home->getId()), $this->reloadUser($actor->getId()), 'Cr Hist Iki', new \DateTimeImmutable('2027-09-01'), new \DateTimeImmutable('2028-06-15'), 'operator_setup');
-        $foreign = $this->years()->createPlanned($this->reloadInstitution($other->getId()), $this->reloadUser($actor->getId()), 'Cr Hist Diger', new \DateTimeImmutable('2026-09-01'), new \DateTimeImmutable('2027-06-15'), 'operator_setup');
-        $this->years()->activate($this->reloadYear($foreign->getId()), $this->reloadUser($actor->getId()), 'lifecycle_change');
-        $this->years()->activate($this->reloadYear($second->getId()), $this->reloadUser($actor->getId()), 'lifecycle_change');
-
         $classroom = $this->reloadClassroom($classroomId);
-        self::assertSame($yearId, $classroom->getAcademicYear()->getId()->toRfc4122());
-        self::assertSame($classroomId->toRfc4122(), $this->enrollmentClassroom($enrollment->getId()));
         $updatedAt = $classroom->getUpdatedAt()->getTimestamp();
         $this->classrooms()->revise($classroom, $this->reloadUser($actor->getId()), 'Tarih Sinif Yeni', 20, $updatedAt, 'operator_correction');
         $classroom = $this->reloadClassroom($classroomId);
@@ -159,6 +152,27 @@ final class AdminClassroomDomainTest extends KernelTestCase
         self::assertSame('A', $classroom->getSectionCode());
         self::assertSame(1, $this->auditCount(SecurityAuditAction::ClassroomUpdated->value, $classroomId->toRfc4122()));
 
+        $second = $this->years()->createPlanned($this->reloadInstitution($home->getId()), $this->reloadUser($actor->getId()), 'Cr Hist Iki', new \DateTimeImmutable('2027-09-01'), new \DateTimeImmutable('2028-06-15'), 'operator_setup');
+        $foreign = $this->years()->createPlanned($this->reloadInstitution($other->getId()), $this->reloadUser($actor->getId()), 'Cr Hist Diger', new \DateTimeImmutable('2026-09-01'), new \DateTimeImmutable('2027-06-15'), 'operator_setup');
+        $this->years()->activate($this->reloadYear($foreign->getId()), $this->reloadUser($actor->getId()), 'lifecycle_change');
+        $this->years()->activate($this->reloadYear($second->getId()), $this->reloadUser($actor->getId()), 'lifecycle_change');
+
+        $classroom = $this->reloadClassroom($classroomId);
+        self::assertSame($yearId, $classroom->getAcademicYear()->getId()->toRfc4122());
+        self::assertSame($classroomId->toRfc4122(), $this->enrollmentClassroom($enrollment->getId()));
+        self::assertSame(ClassroomStatus::Active, $classroom->getStatus());
+        $audits = $this->auditTotal();
+        try {
+            $this->classrooms()->revise($classroom, $this->reloadUser($actor->getId()), 'Tasinan Sinif', 20, $classroom->getUpdatedAt()->getTimestamp(), 'operator_correction');
+            self::fail('A closed academic year accepted a classroom revision.');
+        } catch (ClassroomException $e) {
+            self::assertSame('year_not_operable', $e->getReason()->value);
+        }
+        $this->reboot();
+        self::assertSame($audits, $this->auditTotal());
+        self::assertSame('Tarih Sinif Yeni', $this->reloadClassroom($classroomId)->getName());
+
+        $classroom = $this->reloadClassroom($classroomId);
         $this->classrooms()->archive($classroom, $this->reloadUser($actor->getId()), 'lifecycle_change');
         $classroom = $this->reloadClassroom($classroomId);
         self::assertSame(ClassroomStatus::Archived, $classroom->getStatus());
