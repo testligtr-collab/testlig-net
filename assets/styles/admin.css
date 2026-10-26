@@ -2801,35 +2801,35 @@ body.is-admin-panel {
     }
 }
 
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-stat--members .admin-user-stat__icon {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-stat--members .admin-user-stat__icon {
     background: #f3eaff;
     color: #7136db;
 }
 @media (min-width: 1024px) {
-    .is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-filters__fields {
+    .is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-filters__fields {
         grid-template-columns: minmax(14rem, 1.7fr) minmax(9rem, 1fr) minmax(9rem, 1fr) auto;
     }
     .is-admin-panel .admin-branch-page .admin-user-filters__fields {
         grid-template-columns: minmax(12rem, 1.5fr) minmax(8rem, 1fr) minmax(7rem, 0.85fr) minmax(7rem, 0.85fr) auto;
     }
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-primary {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-primary {
     border: 0;
     background: #079dbf;
     color: #fff;
     min-height: 2.75rem;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-primary:hover,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-primary:focus-visible {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-primary:hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-primary:focus-visible {
     background: #067f9b;
     color: #fff;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-back,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-detail,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-filters__actions .btn {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-back,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-detail,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-filters__actions .btn {
     min-height: 2.75rem;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -2839,18 +2839,28 @@ body.is-admin-panel {
     font-size: 0.78rem;
     font-weight: 700;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status--active { background: #e5f6ec; color: #0f8a4b; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status--active::before {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status--active { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status--active::before {
     content: "";
     width: 0.45rem;
     height: 0.45rem;
     border-radius: 999px;
     background: #16a34a;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status--pending { background: #fff0dc; color: #d2610d; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status--suspended { background: #fde8ea; color: #d12b3a; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status--archived { background: #eef2f6; color: #53647d; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-type {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status--pending { background: #fff0dc; color: #d2610d; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status--suspended { background: #fde8ea; color: #d12b3a; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status--archived { background: #eef2f6; color: #53647d; }
+.is-admin-panel .admin-academic-year-page .admin-institution-status--planned,
+.is-admin-panel .admin-academic-year-page .admin-institution-status--closed { background: #eef2f6; color: #53647d; }
+.is-admin-panel .admin-academic-year-page .admin-institution-status--planned::before,
+.is-admin-panel .admin-academic-year-page .admin-institution-status--closed::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #94a3b8;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-type {
     display: inline-flex;
     align-items: center;
     min-height: 1.6rem;
@@ -2861,24 +2871,24 @@ body.is-admin-panel {
     font-size: 0.78rem;
     font-weight: 700;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-type--campus {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-type--campus {
     background: #f3eaff;
     color: #7136db;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-date__stack {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-date__stack {
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
     color: #3e5168;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-date__stack span:last-child { color: #66758c; font-size: 0.78rem; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-person__name,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-person__ref,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-name,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-facts dd {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-date__stack span:last-child { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-person__name,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-person__ref,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-name,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-facts dd {
     overflow-wrap: anywhere;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -2886,10 +2896,10 @@ body.is-admin-panel {
     gap: 0.75rem;
     margin-top: 0.85rem;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager p { margin: 0; color: #66758c; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager div { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager [aria-disabled="true"] { opacity: 0.55; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager__current {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager p { margin: 0; color: #66758c; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager div { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager [aria-disabled="true"] { opacity: 0.55; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager__current {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2950,10 +2960,10 @@ body.is-admin-panel {
     font-size: 0.92rem;
     font-weight: 650;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field input:not([type="checkbox"]),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field select,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status-form select,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) #institution-owner-search {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field input:not([type="checkbox"]),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status-form select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) #institution-owner-search {
     appearance: none;
     width: 100%;
     min-height: 2.75rem;
@@ -2965,56 +2975,56 @@ body.is-admin-panel {
     box-shadow: none;
     font: inherit;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) #institution-owner-search { padding-left: 2.35rem; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field select,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status-form select {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) #institution-owner-search { padding-left: 2.35rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status-form select {
     padding-right: 2.4rem;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 7.5l5 5 5-5' fill='none' stroke='%2353647d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.85rem center;
     background-size: 1rem;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field input::placeholder,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) #institution-owner-search::placeholder { color: #8aa0b5; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field select:has(option[value=""]:checked),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status-form select:has(option[value=""]:checked) { color: #7b8da3; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field :is(input:not([type="checkbox"]), select):hover,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status-form select:hover,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) #institution-owner-search:hover { border-color: #b7c9dc; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field :is(input:not([type="checkbox"]), select):is(:focus, :focus-visible),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-status-form select:is(:focus, :focus-visible),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) #institution-owner-search:is(:focus, :focus-visible) {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field input::placeholder,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) #institution-owner-search::placeholder { color: #8aa0b5; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field select:has(option[value=""]:checked),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status-form select:has(option[value=""]:checked) { color: #7b8da3; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field :is(input:not([type="checkbox"]), select):hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status-form select:hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) #institution-owner-search:hover { border-color: #b7c9dc; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field :is(input:not([type="checkbox"]), select):is(:focus, :focus-visible),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-status-form select:is(:focus, :focus-visible),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) #institution-owner-search:is(:focus, :focus-visible) {
     outline: 2px solid #0b6e99;
     outline-offset: 2px;
     border-color: #079dbf;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field:has(li) :is(input:not([type="checkbox"]), select),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-owner-picker:has(> ul:not([role="listbox"]) li) #institution-owner-search {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field:has(li) :is(input:not([type="checkbox"]), select),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-owner-picker:has(> ul:not([role="listbox"]) li) #institution-owner-search {
     border-color: #c43b3b;
     background-color: #fff8f8;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) input:not([type="checkbox"]),
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) select,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .btn {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) input:not([type="checkbox"]),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .btn {
     width: 100%;
     min-height: 2.75rem;
     box-sizing: border-box;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-actions .btn,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-filters__actions .btn,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-pager .btn,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-profile__actions .btn,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-detail,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-head .btn,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-detail-head .btn {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-filters__actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-pager .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-profile__actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-detail,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-head .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-detail-head .btn {
     width: auto;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .form-error,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .form-error,
 .is-admin-panel .admin-institution-field li,
 .is-admin-panel .admin-owner-picker > ul:not([role="listbox"]) li,
 .is-admin-panel .admin-institution-card > ul li { color: #8a1f1f; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-card ul,
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-field ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-card ul,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-field ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
 .is-admin-panel .admin-institution-confirm {
     display: flex;
     align-items: center;
@@ -3066,13 +3076,13 @@ body.is-admin-panel {
     gap: 0.9rem 1rem;
 }
 .is-admin-panel .admin-institution-profile { display: flex; gap: 0.95rem; min-width: 0; flex: 1 1 auto; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-profile__icon {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-profile__icon {
     width: 4.5rem;
     height: 4.5rem;
     background: #e7f1ff;
     color: #2f6fe4;
 }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-institution-profile__icon .admin-icon { width: 1.8rem; height: 1.8rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-institution-profile__icon .admin-icon { width: 1.8rem; height: 1.8rem; }
 .is-admin-panel .admin-institution-profile__copy,
 .is-admin-panel .admin-institution-profile__copy p,
 .is-admin-panel .admin-institution-facts dd,
@@ -3118,7 +3128,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-institution-metrics .admin-institution-heading-icon { grid-column: 1; grid-row: 1 / span 2; width: 2.5rem; height: 2.5rem; }
 .is-admin-panel .admin-institution-metrics dt { grid-column: 2; grid-row: 1; color: #66758c; font-size: 0.82rem; font-weight: 550; }
 .is-admin-panel .admin-institution-metrics dd { grid-column: 2; grid-row: 2; margin: 0.1rem 0 0; color: #16324f; font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) :is(a, button):focus-visible {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) :is(a, button):focus-visible {
     outline: 2px solid #0b6e99;
     outline-offset: 2px;
 }
@@ -3133,7 +3143,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-institution-facts dt { color: #66758c; font-weight: 550; }
 .is-admin-panel .admin-institution-facts dd { margin: 0; color: #16324f; font-weight: 700; }
 .is-admin-panel .admin-owner-picker { position: relative; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-owner-picker__value {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-owner-picker__value {
     position: absolute;
     width: 1px;
     min-height: 0;
@@ -3142,7 +3152,7 @@ body.is-admin-panel {
     clip: rect(0 0 0 0);
 }
 .is-admin-panel .admin-owner-picker__hint { margin: 0; color: #66758c; font-size: 0.82rem; }
-.is-admin-panel :is(.admin-institution-page, .admin-branch-page) ul.admin-owner-picker__results {
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) ul.admin-owner-picker__results {
     margin: 0;
     padding: 0.3rem;
     border: 1px solid #d5e0ec;
@@ -3189,7 +3199,7 @@ body.is-admin-panel {
 @media (max-width: 1023px) {
     .is-admin-panel .admin-institution-create,
     .is-admin-panel .admin-institution-detail-grid,
-    .is-admin-panel :is(.admin-institution-page, .admin-branch-page) .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page) .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
     .is-admin-panel .admin-institution-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
     .is-admin-panel .admin-institution-metrics > div { border-left: 0; padding: 0.35rem 0; }
     .is-admin-panel .admin-institution-profile__actions { margin-left: 0; justify-content: flex-start; }

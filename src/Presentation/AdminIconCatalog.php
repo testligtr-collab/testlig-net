@@ -19,6 +19,7 @@ final class AdminIconCatalog
         'system',
         'users',
         'institutions',
+        'calendar',
         'catalog',
         'learning_contents',
         'questions',

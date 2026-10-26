@@ -267,9 +267,12 @@
       "source": "src/Controller/InstitutionWorkspaceController.php (#111)",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php (#111)"
+        "src/Controller/InstitutionWorkspaceController.php (#111)",
+        "Süper yönetici akademik yıl listesi, oluşturma, detay ve onaylı aktifleştirme /yonetim/akademik-yillar adresindedir. Oluşturma planlandı yıl bırakır. Aktifleştirme mevcut AcademicYearManager kilidiyle aynı kurumdaki önceki aktif yılı kapatır ve sınıf veya öğrenci kaydını taşımaz. Kurum paneli aynı adreste kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/172"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -1187,7 +1190,8 @@
         "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kurumlar listesi, yeni kurum ve kurum detayı mevcut yönetim kabuğunda yenilendi. Adresler /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Yeni kurum ve kurum detayı aynı adreslerde daha yakın kart, ikon ve form düzenine alındı. Liste yeniden tasarlanmadı. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Şube ve kampüsler menüsü yer tutucu bölüm girişinden /yonetim/subeler listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Şube ve kampüsler menüsü yer tutucu bölüm girişinden /yonetim/subeler listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Akademik yıllar menüsü yer tutucu bölüm girişinden /yonetim/akademik-yillar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1204,7 +1208,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/167",
         "https://github.com/testligtr-collab/testlig-net/pull/169",
         "https://github.com/testligtr-collab/testlig-net/pull/170",
-        "https://github.com/testligtr-collab/testlig-net/pull/171"
+        "https://github.com/testligtr-collab/testlig-net/pull/171",
+        "https://github.com/testligtr-collab/testlig-net/pull/172"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
