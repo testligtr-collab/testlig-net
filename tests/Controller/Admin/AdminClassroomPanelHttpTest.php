@@ -26,6 +26,7 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Field\ChoiceFormField;
 use Symfony\Component\Uid\Uuid;
 
 final class AdminClassroomPanelHttpTest extends WebTestCase
@@ -123,7 +124,9 @@ final class AdminClassroomPanelHttpTest extends WebTestCase
         $form['admin_classroom_create[name]'] = 'Yanlis Yil';
         $form['admin_classroom_create[gradeLevel]'] = '5';
         $form['admin_classroom_create[reasonCode]'] = 'operator_setup';
-        $form['admin_classroom_create[confirm]']->tick();
+        $confirm = $form['admin_classroom_create[confirm]'];
+        self::assertInstanceOf(ChoiceFormField::class, $confirm);
+        $confirm->tick();
         $client->submit($form);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'Akademik yıl seçilen kuruma ait değil.');
@@ -140,7 +143,9 @@ final class AdminClassroomPanelHttpTest extends WebTestCase
         $form['admin_classroom_create[gradeLevel]'] = '5';
         $form['admin_classroom_create[sectionCode]'] = 'H-1';
         $form['admin_classroom_create[reasonCode]'] = 'operator_setup';
-        $form['admin_classroom_create[confirm]']->tick();
+        $confirm = $form['admin_classroom_create[confirm]'];
+        self::assertInstanceOf(ChoiceFormField::class, $confirm);
+        $confirm->tick();
         $client->submit($form);
         self::assertResponseRedirects();
         $client->followRedirect();

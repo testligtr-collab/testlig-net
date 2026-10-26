@@ -349,18 +349,23 @@ final class AdminClassroomQuery
             return [];
         }
 
-        /** @var list<ClassroomTeacherAssignment> $assignments */
-        $assignments = $this->em->createQueryBuilder()
+        $qb = $this->em->createQueryBuilder()
             ->select('a', 'm', 'u')
             ->from(ClassroomTeacherAssignment::class, 'a')
             ->join('a.teacherMembership', 'm')
             ->join('m.user', 'u')
-            ->andWhere('a.classroom IN (:classrooms)')
             ->andWhere('a.status = :assigned')
-            ->setParameter('classrooms', $classrooms)
             ->setParameter('assigned', TeacherAssignmentStatus::Active)
             ->addOrderBy('u.lastName', 'ASC')
-            ->addOrderBy('u.firstName', 'ASC')
+            ->addOrderBy('u.firstName', 'ASC');
+        $match = $qb->expr()->orX();
+        foreach (array_values($classrooms) as $index => $classroom) {
+            $match->add('IDENTITY(a.classroom) = :classroom'.$index);
+            $qb->setParameter('classroom'.$index, $classroom->getId(), 'uuid');
+        }
+        /** @var list<ClassroomTeacherAssignment> $assignments */
+        $assignments = $qb
+            ->andWhere($match)
             ->getQuery()
             ->getResult();
 

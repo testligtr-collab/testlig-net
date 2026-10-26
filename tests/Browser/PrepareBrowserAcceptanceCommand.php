@@ -402,9 +402,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $longYear = $this->years->createPlanned(
             $longInstitution,
             $superAdmin,
-            '2026-2027',
-            new \DateTimeImmutable('2026-09-01'),
-            new \DateTimeImmutable('2027-06-15'),
+            '2025-2026',
+            new \DateTimeImmutable('2025-09-01'),
+            new \DateTimeImmutable('2026-06-15'),
             'browser_create',
         );
         $this->years->activate($longYear, $superAdmin, 'browser_activate');
