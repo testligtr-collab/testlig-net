@@ -396,6 +396,27 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $endedAssignment = $this->teacherAssignments->assign($endedClassroom, $owner, $teacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_create');
         $this->teacherAssignments->endAssignment($endedAssignment, $owner, 'browser_end');
         $this->enrollments->enroll($classroom, $owner, $studentMembership, 'browser_create');
+        $longOwner = $this->account('browser-class-owner@example.test', 'Sinif', 'Sahibi', UserRole::Teacher);
+        $longInstitution = $this->institutions->create($superAdmin, $longOwner, 'Uzun Adli Tarayici Egitim Kurumu', InstitutionType::School, 'browser_create');
+        $this->institutionStatus->activate($longInstitution, $superAdmin, 'browser_activate');
+        $longYear = $this->years->createPlanned(
+            $longInstitution,
+            $superAdmin,
+            '2025-2026',
+            new \DateTimeImmutable('2025-09-01'),
+            new \DateTimeImmutable('2026-06-15'),
+            'browser_create',
+        );
+        $this->years->activate($longYear, $superAdmin, 'browser_activate');
+        $longClassroom = $this->classrooms->create(
+            $longYear,
+            $superAdmin,
+            'Cok Uzun Adli Besinci Sinif Subesi',
+            GradeLevel::Grade5,
+            'browser_create',
+            'UZUN-5',
+            32,
+        );
 
         $issued = $this->parentLinks->issue($student);
         $this->parentLinks->redeem($parent, $issued->displayCode, '127.0.0.1');
@@ -506,6 +527,11 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'academicYearNew' => '/yonetim/akademik-yillar/yeni?kurum='.$institution->getId()->toRfc4122(),
                 'academicYear' => '/yonetim/akademik-yillar/'.$plannedYear->getId()->toRfc4122(),
                 'academicYearActive' => '/yonetim/akademik-yillar/'.$year->getId()->toRfc4122(),
+                'classrooms' => '/yonetim/siniflar',
+                'classroomNew' => '/yonetim/siniflar/yeni?kurum='.$institution->getId()->toRfc4122().'&yil='.$year->getId()->toRfc4122(),
+                'classroom' => '/yonetim/siniflar/'.$classroom->getId()->toRfc4122(),
+                'classroomEmpty' => '/yonetim/siniflar/'.$endedClassroom->getId()->toRfc4122(),
+                'classroomLong' => '/yonetim/siniflar/'.$longClassroom->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-21",
+  "updated_at": "2026-10-26",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
     "X10-admin-navigation"
@@ -253,9 +253,12 @@
       "source": "src/Controller/InstitutionWorkspaceController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php"
+        "src/Controller/InstitutionWorkspaceController.php",
+        "Süper yönetici sınıf listesi, oluşturma, detay, ad/kontenjan güncelleme ve arşiv /yonetim/siniflar adresindedir. Kayıt mevcut Classroom modelini kullanır ve aktif oluşur. Kurum ile akademik yıl sunucuda aynı kuruma ait olacak şekilde yeniden çözülür. Oluşturma üyelik, rol, öğretmen ataması veya öğrenci kaydı vermez. Kurum paneli ve öğretmen Sınıflarım aynı kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -433,11 +436,19 @@
       "source": "src/Controller/Admin/AdminCatalogController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/Admin/AdminCatalogController.php"
+        "src/Controller/Admin/AdminCatalogController.php",
+        "2026-10-26 kullanıcı kararı açık iş olarak durur: kategori/kademeden sınıf düzeyi, ders, ünite/tema, konu ve kazanıma kadar oluşturma, düzenleme, aktif/pasif ve silme/arşiv. Moderatör yalnız ayrıca verilmiş müfredat izniyle işlem yapar. Bağımlılığı olmayan kullanılmamış taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış sayılmaz. Üst kayıt açılınca alt kayıtların durumu sessiz değişmez. Yeniden oluşturulan kayıt yeni kimlik alır. Toplu alt kayıt silme bağımlılık özeti, açık onay ve audit ister. Bu tur CRUD veya moderatör delegasyonu uygulanmadı. Ayrı 1-12 İngilizce entegre şema metni bu teslimata ekli değildi; uydurulmuş ağaç veya resmî kazanım kodu yazılmadı. docs/curriculum/m10-management-decision.md",
+        "2026-10-26 takip: kaynak metin mesajda yine yoktu. docs/curriculum/sources/user-provided-grade-1-12-tree.md ve docs/curriculum/grade-1-12-tree-outline.md yazılmadı. Oluşturma, düzenleme, aktif/pasif, güvenli silme/arşiv ve açık izinli moderatör delegasyonu açık iş olarak durur."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
+      ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
-      "scope_decision": null
+      "scope_decision": {
+        "date": "2026-10-26",
+        "source": "Kullanıcı kararı, Sınıflar admin teslimi ile birlikte kaydedildi.",
+        "user_decision": "Müfredat yönetimi açık iştir. Kategori/kademe, sınıf düzeyi, ders, ünite/tema, konu ve kazanım için oluşturma, düzenleme, aktif/pasif ve silme/arşiv istenir. Admin işlemleri mevcut yetki kapsamında kalır. Moderatör yalnız açıkça verilmiş ayrı müfredat izinleriyle işlem yapar. Hiç kullanılmamış ve bağımlılığı olmayan taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir ve geçmiş referanslar korunur. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış veya erişilebilir sayılmaz. Üst kayıt yeniden açılınca alt kayıtların kendi durumları sessizce değiştirilmez. Yeniden oluşturulan kayıt yeni kimlik alır; geçmiş ilişkiler otomatik taşınmaz. Toplu alt kayıt silme sessiz gerçekleşmez; bağımlılık özeti, açık onay ve audit gerekir. Program yılı, ders metinleri ve resmî kazanım kodları doğrulanmadan import veya yayın yapılmaz."
+      }
     },
     {
       "id": "M11-platform-questions",
@@ -1191,7 +1202,8 @@
         "Kurumlar listesi, yeni kurum ve kurum detayı mevcut yönetim kabuğunda yenilendi. Adresler /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Yeni kurum ve kurum detayı aynı adreslerde daha yakın kart, ikon ve form düzenine alındı. Liste yeniden tasarlanmadı. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Şube ve kampüsler menüsü yer tutucu bölüm girişinden /yonetim/subeler listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Akademik yıllar menüsü yer tutucu bölüm girişinden /yonetim/akademik-yillar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Akademik yıllar menüsü yer tutucu bölüm girişinden /yonetim/akademik-yillar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Sınıflar menüsü yer tutucu bölüm girişinden /yonetim/siniflar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Kurum paneli ve öğretmen Sınıflarım aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1209,7 +1221,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/169",
         "https://github.com/testligtr-collab/testlig-net/pull/170",
         "https://github.com/testligtr-collab/testlig-net/pull/171",
-        "https://github.com/testligtr-collab/testlig-net/pull/172"
+        "https://github.com/testligtr-collab/testlig-net/pull/172",
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
