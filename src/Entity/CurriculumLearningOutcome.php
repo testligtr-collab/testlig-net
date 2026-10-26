@@ -38,15 +38,15 @@ class CurriculumLearningOutcome
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'topic_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'topic_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumTopic $topic;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumUnit $unit;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'curriculum_program_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'curriculum_program_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumProgram $curriculumProgram;
 
     #[ORM\Column(length: 64)]

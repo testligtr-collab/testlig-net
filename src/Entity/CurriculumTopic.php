@@ -38,7 +38,7 @@ class CurriculumTopic
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumUnit $unit;
 
     #[ORM\ManyToOne(targetEntity: self::class)]

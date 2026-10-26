@@ -79,6 +79,68 @@ class CurriculumProgramRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @return array{draft: int, published: int, retired: int, total: int}
+     */
+    public function countByStatus(): array
+    {
+        /** @var list<array{status: CurriculumStatus, total: int|string}> $rows */
+        $rows = $this->createQueryBuilder('p')
+            ->select('p.status AS status, COUNT(p.id) AS total')
+            ->groupBy('p.status')
+            ->getQuery()
+            ->getArrayResult();
+        $counts = ['draft' => 0, 'published' => 0, 'retired' => 0, 'total' => 0];
+        foreach ($rows as $row) {
+            $status = $row['status'] instanceof CurriculumStatus ? $row['status']->value : (string) $row['status'];
+            if (!isset($counts[$status]) || 'total' === $status) {
+                continue;
+            }
+            $counts[$status] = (int) $row['total'];
+            $counts['total'] += (int) $row['total'];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * @return array{rows: list<CurriculumProgram>, total: int}
+     */
+    public function searchAdmin(string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId, int $page, int $perPage): array
+    {
+        $qb = $this->createQueryBuilder('p')->join('p.subject', 's');
+        $this->applyAdminFilters($qb, $q, $grade, $status, $subjectId);
+        $countQb = $this->createQueryBuilder('p')->select('COUNT(p.id)')->join('p.subject', 's');
+        $this->applyAdminFilters($countQb, $q, $grade, $status, $subjectId);
+        $total = (int) $countQb->getQuery()->getSingleScalarResult();
+        /** @var list<CurriculumProgram> $rows */
+        $rows = $qb
+            ->orderBy('p.updatedAt', 'DESC')
+            ->setFirstResult(max(0, ($page - 1) * $perPage))
+            ->setMaxResults($perPage)
+            ->getQuery()
+            ->getResult();
+
+        return ['rows' => $rows, 'total' => $total];
+    }
+
+    private function applyAdminFilters(\Doctrine\ORM\QueryBuilder $qb, string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId): void
+    {
+        if ('' !== $q) {
+            $qb->andWhere('p.code LIKE :q OR p.normalizedName LIKE :q')
+                ->setParameter('q', '%'.addcslashes(mb_strtolower($q), '%_').'%');
+        }
+        if ($grade instanceof GradeLevel) {
+            $qb->andWhere('p.gradeLevel = :grade')->setParameter('grade', $grade);
+        }
+        if ($status instanceof CurriculumStatus) {
+            $qb->andWhere('p.status = :status')->setParameter('status', $status);
+        }
+        if ($subjectId instanceof Uuid) {
+            $qb->andWhere('IDENTITY(p.subject) = :subjectId')->setParameter('subjectId', $subjectId, 'uuid');
+        }
+    }
+
     public function save(CurriculumProgram $program, bool $flush = true): void
     {
         $this->getEntityManager()->persist($program);

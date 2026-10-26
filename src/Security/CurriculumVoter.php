@@ -6,13 +6,14 @@ namespace App\Security;
 
 use App\Entity\CurriculumProgram;
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
 use App\Security\Authorization\CurriculumProgramAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
 /**
  * Published curriculum is VIEW-able by any active+verified user.
- * Draft / manage / publish / retire: SUPER_ADMIN only.
+ * Draft view and writes follow CurriculumActorPolicy.
  * Status is read from a DBAL snapshot — never trust a managed entity.
  *
  * @extends Voter<string, CurriculumProgram>
@@ -21,6 +22,7 @@ final class CurriculumVoter extends Voter
 {
     public function __construct(
         private readonly RequestScopedInstitutionAuthLookup $authLookup,
+        private readonly CurriculumActorPolicy $actorPolicy,
     ) {
     }
 
@@ -41,7 +43,7 @@ final class CurriculumVoter extends Voter
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() || $this->actorPolicy->snapshotAllows($user, $this->operation($attribute))) {
             return true;
         }
 
@@ -52,5 +54,15 @@ final class CurriculumVoter extends Voter
         $program = $this->authLookup->getCurriculumProgramSnapshot($subject->getId());
 
         return $program instanceof CurriculumProgramAuthorizationSnapshot && $program->isPublished();
+    }
+
+    private function operation(string $attribute): CurriculumOperation
+    {
+        return match ($attribute) {
+            CurriculumPermission::MANAGE => CurriculumOperation::Manage,
+            CurriculumPermission::PUBLISH => CurriculumOperation::Publish,
+            CurriculumPermission::RETIRE => CurriculumOperation::Archive,
+            default => CurriculumOperation::View,
+        };
     }
 }

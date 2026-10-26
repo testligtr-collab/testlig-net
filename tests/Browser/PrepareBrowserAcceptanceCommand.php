@@ -18,6 +18,7 @@ use App\Enum\InstitutionType;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentType;
 use App\Enum\LocationLevel;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
@@ -60,6 +61,7 @@ use App\Service\SubjectManager;
 use App\Service\TeacherApplicationManager;
 use App\Service\TeacherProfessionalProfileManager;
 use App\Service\UserFactory;
+use App\Service\UserModulePermissionManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -112,6 +114,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly TeacherApplicationManager $teacherApplications,
         private readonly InstitutionApplicationManager $institutionApplications,
         private readonly TeacherProfessionalProfileManager $professionalProfiles,
+        private readonly UserModulePermissionManager $modulePermissions,
         private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
@@ -152,6 +155,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $curriculumTopic = $this->curriculumTopics->createRoot($curriculumUnit, $superAdmin, 'browser_t', 'Tarayici konu', 1, 'browser_create');
         $outcome = $this->outcomes->create($curriculumTopic, $superAdmin, 'browser_lo', 'Tarayici kazanimi', 1, 'browser_create');
         $this->programs->publish($program, $superAdmin, 'browser_publish');
+        $draftProgram = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade2, 'browser_draft', 'Tarayici taslak', '1.0', 'browser_create');
+        $curriculumModerator = $this->account('browser-curriculum-moderator@example.test', 'Deneme', 'Mufredat', UserRole::Moderator);
+        $this->modulePermissions->replace($superAdmin->getId(), $curriculumModerator->getId(), 0, [ModeratorModuleGrant::CurriculumView->value]);
 
         $catalogSubject = $this->catalog->createSubject(GradeLevel::Grade1, 'Matematik', null, 1, 'matematik');
         $this->catalog->assignCanonicalSubject($superAdmin, $catalogSubject->getId(), $subject->getId(), 'browser_map');
@@ -481,6 +487,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'admin' => 'browser-admin@example.test',
                 'teacher' => 'browser-teacher@example.test',
                 'moderator' => 'browser-moderator@example.test',
+                'curriculumModerator' => 'browser-curriculum-moderator@example.test',
                 'expert' => 'browser-expert@example.test',
                 'emptyTeacher' => 'browser-teacher-empty@example.test',
                 'student' => 'browser-student@example.test',
@@ -532,6 +539,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'classroom' => '/yonetim/siniflar/'.$classroom->getId()->toRfc4122(),
                 'classroomEmpty' => '/yonetim/siniflar/'.$endedClassroom->getId()->toRfc4122(),
                 'classroomLong' => '/yonetim/siniflar/'.$longClassroom->getId()->toRfc4122(),
+                'curriculum' => '/yonetim/programlar',
+                'curriculumNew' => '/yonetim/programlar/yeni',
+                'curriculumProgram' => '/yonetim/programlar/'.$program->getId()->toRfc4122(),
+                'curriculumDraft' => '/yonetim/programlar/'.$draftProgram->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],

@@ -7,6 +7,7 @@ namespace App\Service;
 use App\Dto\SecurityAuditContext;
 use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
@@ -14,6 +15,7 @@ use App\Enum\SubjectStatus;
 use App\Exception\InstitutionOperationException;
 use App\Exception\SubjectException;
 use App\Repository\SubjectRepository;
+use App\Security\CurriculumActorPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -23,7 +25,7 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Platform-global subject catalog. SUPER_ADMIN only.
+ * Platform-global subject catalog. Curriculum actor policy.
  *
  * Lock order: Subject → User (actor).
  */
@@ -33,7 +35,7 @@ final class SubjectManager
         private readonly SubjectRepository $subjects,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly CurriculumActorPolicy $actorPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
@@ -54,7 +56,7 @@ final class SubjectManager
                 $names,
                 $reasonCode,
             ): Subject {
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if ($this->subjects->existsWithCode($code) || $this->subjects->existsWithSlug($names['slug'])) {
                     throw SubjectException::conflict();
@@ -113,7 +115,7 @@ final class SubjectManager
                 $reasonCode,
             ): void {
                 $locked = $this->lockSubject($subjectId);
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if (SubjectStatus::Archived === $locked->getStatus()) {
                     throw SubjectException::subjectArchived();
@@ -162,7 +164,7 @@ final class SubjectManager
                 $reasonCode,
             ): void {
                 $locked = $this->lockSubject($subjectId);
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, CurriculumOperation::Archive);
 
                 $oldStatus = $locked->getStatus()->value;
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
@@ -202,14 +204,13 @@ final class SubjectManager
         return $locked;
     }
 
-    private function lockSuperAdminActor(Uuid $actorId): User
+    private function lockActor(Uuid $actorId, CurriculumOperation $operation = CurriculumOperation::Manage): User
     {
         $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$freshActor instanceof User) {
             throw SubjectException::userNotFound();
         }
-        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshActor)
-            || !$this->activeVerifiedUserPolicy->isSuperAdmin($freshActor)) {
+        if (!$this->actorPolicy->allowsFresh($freshActor, $operation)) {
             throw SubjectException::unauthorized();
         }
 

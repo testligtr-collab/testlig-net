@@ -12,6 +12,8 @@ use App\Entity\CurriculumUnit;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\CurriculumContentStatus;
+use App\Enum\CurriculumOperation;
+use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
@@ -23,6 +25,7 @@ use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\CurriculumTopicRepository;
 use App\Repository\CurriculumUnitRepository;
+use App\Security\CurriculumActorPolicy;
 use App\Security\InstitutionAuthorizationCacheInvalidator;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
@@ -33,7 +36,7 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Curriculum program lifecycle. SUPER_ADMIN only.
+ * Curriculum program lifecycle. Curriculum actor policy.
  *
  * Lock order: Subject → CurriculumProgram → (units/topics when cloning).
  */
@@ -46,7 +49,7 @@ final class CurriculumProgramManager
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly CurriculumActorPolicy $actorPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly InstitutionAuthorizationCacheInvalidator $authCache,
         private readonly EntityManagerInterface $entityManager,
@@ -90,7 +93,7 @@ final class CurriculumProgramManager
                 if (SubjectStatus::Archived === $lockedSubject->getStatus()) {
                     throw CurriculumException::subjectArchived();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if ($this->programs->existsWithIdentity($lockedSubject, $gradeLevel, $code, $version)) {
                     throw CurriculumException::conflict();
@@ -143,6 +146,58 @@ final class CurriculumProgramManager
         return $program;
     }
 
+    public function renameDraft(CurriculumProgram $program, User $actor, string $name, string $reasonCode): void
+    {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $names = $this->normalizeName($name);
+        $programId = $program->getId();
+        $subjectId = $program->getSubject()->getId();
+        $actorId = $actor->getId();
+
+        try {
+            $this->entityManager->wrapInTransaction(function () use (
+                $programId,
+                $subjectId,
+                $actorId,
+                $names,
+                $reasonCode,
+            ): void {
+                $lockedSubject = $this->lockSubject($subjectId);
+                $locked = $this->lockProgram($programId);
+                if (!$locked->getSubject()->getId()->equals($lockedSubject->getId())) {
+                    throw CurriculumException::conflict();
+                }
+                $freshActor = $this->lockActor($actorId);
+                if (CurriculumStatus::Draft !== $locked->getStatus()) {
+                    throw CurriculumException::programNotDraft();
+                }
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                $locked->renameDraft($names['name'], $names['normalizedName'], $now);
+                $this->programs->save($locked, false);
+                $this->auditRecorder->record(new SecurityAuditContext(
+                    action: SecurityAuditAction::CurriculumProgramUpdated,
+                    actorType: SecurityAuditActorType::User,
+                    outcome: SecurityAuditOutcome::Success,
+                    actorUser: $freshActor,
+                    metadata: [
+                        'source' => 'curriculum_program_manager',
+                        'reason_code' => $reasonCode,
+                        'subject_id' => $lockedSubject->getId()->toRfc4122(),
+                        'curriculum_id' => $locked->getId()->toRfc4122(),
+                        'code' => $locked->getCode(),
+                        'version' => $locked->getVersion(),
+                    ],
+                    captureRequestHashes: false,
+                ), false);
+                $this->entityManager->flush();
+            });
+        } catch (DeadlockException|LockWaitTimeoutException) {
+            throw CurriculumException::conflict();
+        }
+
+        $this->authCache->invalidateCurriculumProgram($programId);
+    }
+
     public function publish(CurriculumProgram $program, User $actor, string $reasonCode): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
@@ -162,7 +217,7 @@ final class CurriculumProgramManager
                 if (!$locked->getSubject()->getId()->equals($lockedSubject->getId())) {
                     throw CurriculumException::conflict();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, CurriculumOperation::Publish);
 
                 $this->assertValidDateRange($locked->getValidFrom(), $locked->getValidUntil());
                 $this->assertNoPublishedOverlap($lockedSubject, $locked);
@@ -217,7 +272,7 @@ final class CurriculumProgramManager
                 if (!$locked->getSubject()->getId()->equals($lockedSubject->getId())) {
                     throw CurriculumException::conflict();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, CurriculumOperation::Archive);
 
                 $oldStatus = $locked->getStatus()->value;
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
@@ -275,7 +330,7 @@ final class CurriculumProgramManager
                 if (!$lockedSource->getSubject()->getId()->equals($lockedSubject->getId())) {
                     throw CurriculumException::conflict();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if (SubjectStatus::Archived === $lockedSubject->getStatus()) {
                     throw CurriculumException::subjectArchived();
@@ -495,14 +550,13 @@ final class CurriculumProgramManager
         return $locked;
     }
 
-    private function lockSuperAdminActor(Uuid $actorId): User
+    private function lockActor(Uuid $actorId, CurriculumOperation $operation = CurriculumOperation::Manage): User
     {
         $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$freshActor instanceof User) {
             throw CurriculumException::userNotFound();
         }
-        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshActor)
-            || !$this->activeVerifiedUserPolicy->isSuperAdmin($freshActor)) {
+        if (!$this->actorPolicy->allowsFresh($freshActor, $operation)) {
             throw CurriculumException::unauthorized();
         }
 

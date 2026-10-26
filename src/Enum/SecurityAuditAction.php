@@ -51,8 +51,10 @@ enum SecurityAuditAction: string
     case SubjectUpdated = 'subject_updated';
     case SubjectArchived = 'subject_archived';
     case CurriculumCreated = 'curriculum_created';
+    case CurriculumProgramUpdated = 'curriculum_program_updated';
     case CurriculumPublished = 'curriculum_published';
     case CurriculumRetired = 'curriculum_retired';
+    case CurriculumDraftDeleted = 'curriculum_draft_deleted';
     case CurriculumCloned = 'curriculum_cloned';
     case CurriculumUnitCreated = 'curriculum_unit_created';
     case CurriculumUnitUpdated = 'curriculum_unit_updated';

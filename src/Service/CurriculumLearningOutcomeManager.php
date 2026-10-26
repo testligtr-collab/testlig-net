@@ -11,12 +11,14 @@ use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
 use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
 use App\Enum\CurriculumStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
 use App\Enum\SecurityAuditOutcome;
 use App\Exception\LearningOutcomeException;
 use App\Repository\CurriculumLearningOutcomeRepository;
+use App\Security\CurriculumActorPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -26,7 +28,7 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Learning outcome mutations. Draft programs only. SUPER_ADMIN only.
+ * Learning outcome mutations. Draft programs only. Curriculum actor policy.
  *
  * Lock order: Subject → Program → Unit → Topic → Outcome.
  */
@@ -35,7 +37,7 @@ final class CurriculumLearningOutcomeManager
     public function __construct(
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly CurriculumActorPolicy $actorPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
@@ -80,7 +82,7 @@ final class CurriculumLearningOutcomeManager
                     $topicId,
                 );
                 $this->assertDraft($lockedProgram);
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if ($this->outcomes->existsWithCode($lockedProgram, $code)) {
                     throw LearningOutcomeException::conflict();
@@ -220,13 +222,13 @@ final class CurriculumLearningOutcomeManager
                 $reasonCode,
                 ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
             );
-        });
+        }, CurriculumOperation::Archive);
     }
 
     /**
      * @param callable(Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic, CurriculumLearningOutcome, User, string): void $mutator
      */
-    private function mutate(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode, callable $mutator): void
+    private function mutate(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode, callable $mutator, CurriculumOperation $operation = CurriculumOperation::Manage): void
     {
         $outcomeId = $outcome->getId();
         $topicId = $outcome->getTopic()->getId();
@@ -245,6 +247,7 @@ final class CurriculumLearningOutcomeManager
                 $actorId,
                 $reasonCode,
                 $mutator,
+                $operation,
             ): void {
                 [$lockedSubject, $lockedProgram, $lockedUnit, $lockedTopic] = $this->lockHierarchy(
                     $subjectId,
@@ -260,7 +263,7 @@ final class CurriculumLearningOutcomeManager
                     || !$locked->getTopic()->getId()->equals($lockedTopic->getId())) {
                     throw LearningOutcomeException::notFound();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, $operation);
                 $mutator($lockedSubject, $lockedProgram, $lockedUnit, $lockedTopic, $locked, $freshActor, $reasonCode);
                 $this->entityManager->flush();
             });
@@ -338,14 +341,13 @@ final class CurriculumLearningOutcomeManager
         }
     }
 
-    private function lockSuperAdminActor(Uuid $actorId): User
+    private function lockActor(Uuid $actorId, CurriculumOperation $operation = CurriculumOperation::Manage): User
     {
         $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$freshActor instanceof User) {
             throw LearningOutcomeException::userNotFound();
         }
-        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshActor)
-            || !$this->activeVerifiedUserPolicy->isSuperAdmin($freshActor)) {
+        if (!$this->actorPolicy->allowsFresh($freshActor, $operation)) {
             throw LearningOutcomeException::unauthorized();
         }
 

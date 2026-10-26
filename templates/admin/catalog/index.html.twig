@@ -14,7 +14,7 @@
             <a class="btn btn--primary" href="{{ path('app_admin_catalog_subject_new') }}">Yeni ders</a>
         {% endif %}
     </div>
-    <p class="muted">Öğrenci paneli yalnız yayımlanmış ders → ünite → konu zincirini gösterir. Stage 2.7 kurum müfredatı ayrıdır.</p>
+    <p class="muted">Öğrenci paneli yalnız yayımlanmış ders, ünite ve konu zincirini gösterir. Program sürümü ve kazanımlar <a href="{{ path('app_admin_curriculum') }}">Programlar</a> ekranındadır. Operasyonel sınıf adı bu katalog değildir.</p>
 
     {% if subjects is empty %}
         {% include 'components/empty_state.html.twig' with {

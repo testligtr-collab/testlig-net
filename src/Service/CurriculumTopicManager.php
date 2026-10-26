@@ -11,6 +11,7 @@ use App\Entity\CurriculumUnit;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\CurriculumContentStatus;
+use App\Enum\CurriculumOperation;
 use App\Enum\CurriculumStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
@@ -18,6 +19,7 @@ use App\Enum\SecurityAuditOutcome;
 use App\Exception\CurriculumTopicException;
 use App\Exception\InstitutionOperationException;
 use App\Repository\CurriculumTopicRepository;
+use App\Security\CurriculumActorPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -27,7 +29,7 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Curriculum topic mutations. Draft programs only. Max depth 2. SUPER_ADMIN only.
+ * Curriculum topic mutations. Draft programs only. Max depth 2. Curriculum actor policy.
  *
  * Lock order: Subject → Program → Unit → Topic.
  */
@@ -37,7 +39,7 @@ final class CurriculumTopicManager
         private readonly CurriculumTopicRepository $topics,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly CurriculumActorPolicy $actorPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
@@ -203,7 +205,7 @@ final class CurriculumTopicManager
                 $reasonCode,
                 ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
             );
-        });
+        }, CurriculumOperation::Archive);
     }
 
     private function create(
@@ -243,7 +245,7 @@ final class CurriculumTopicManager
             ): CurriculumTopic {
                 [$lockedSubject, $lockedProgram, $lockedUnit] = $this->lockHierarchy($subjectId, $programId, $unitId);
                 $this->assertDraft($lockedProgram);
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 $lockedParent = null;
                 if (null !== $parentId) {
@@ -323,7 +325,7 @@ final class CurriculumTopicManager
     /**
      * @param callable(Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic, User, string): void $mutator
      */
-    private function mutate(CurriculumTopic $topic, User $actor, string $reasonCode, callable $mutator): void
+    private function mutate(CurriculumTopic $topic, User $actor, string $reasonCode, callable $mutator, CurriculumOperation $operation = CurriculumOperation::Manage): void
     {
         $topicId = $topic->getId();
         $unitId = $topic->getUnit()->getId();
@@ -340,6 +342,7 @@ final class CurriculumTopicManager
                 $actorId,
                 $reasonCode,
                 $mutator,
+                $operation,
             ): void {
                 [$lockedSubject, $lockedProgram, $lockedUnit] = $this->lockHierarchy($subjectId, $programId, $unitId);
                 $locked = $this->freshEntities->findFreshLockedCurriculumTopic($topicId, LockMode::PESSIMISTIC_WRITE);
@@ -347,7 +350,7 @@ final class CurriculumTopicManager
                     || !$locked->getUnit()->getId()->equals($lockedUnit->getId())) {
                     throw CurriculumTopicException::notFound();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, $operation);
                 $mutator($lockedSubject, $lockedProgram, $lockedUnit, $locked, $freshActor, $reasonCode);
                 $this->entityManager->flush();
             });
@@ -418,14 +421,13 @@ final class CurriculumTopicManager
         }
     }
 
-    private function lockSuperAdminActor(Uuid $actorId): User
+    private function lockActor(Uuid $actorId, CurriculumOperation $operation = CurriculumOperation::Manage): User
     {
         $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$freshActor instanceof User) {
             throw CurriculumTopicException::userNotFound();
         }
-        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshActor)
-            || !$this->activeVerifiedUserPolicy->isSuperAdmin($freshActor)) {
+        if (!$this->actorPolicy->allowsFresh($freshActor, $operation)) {
             throw CurriculumTopicException::unauthorized();
         }
 

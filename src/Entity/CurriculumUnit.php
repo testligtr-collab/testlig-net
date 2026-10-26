@@ -32,7 +32,7 @@ class CurriculumUnit
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'curriculum_program_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'curriculum_program_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumProgram $program;
 
     #[ORM\Column(length: 64)]
