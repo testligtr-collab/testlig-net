@@ -4,9 +4,11 @@ Bu kayıt 2026-10-26 tarihli kullanıcı kararıdır. Müfredat CRUD'u, moderat�
 
 ## Kaynak ağaç
 
-Teslim isteği, 1–12. sınıf İngilizce entegre şema ağacının değiştirilmeden saklanmasını ve 11–12. sınıf girinti sorunlarını açıklayan ayrı bir normalleştirilmiş özet yazılmasını istiyordu. Bu turda iletilen ek, Sınıflar yönetim ekranının görsel referansıdır. Ayrı şema metni ekte yoktur.
+Teslim isteği, “MEB 1–12 Müfredat Şema Ağacı — İngilizce entegre” metninin değiştirilmeden `docs/curriculum/sources/user-provided-grade-1-12-tree.md` dosyasına yazılmasını ve 11. sınıf İngilizce ile Tarih dallarını 11. sınıf altında, 12. sınıfı Lise kademesi altında yerleştiren özetin `docs/curriculum/grade-1-12-tree-outline.md` dosyasında tutulmasını istiyordu.
 
-Kaynak metin uydurulmadı. Resmî kazanım kodu üretilmedi. Yayımlı kataloğun üzerine yazılmadı. Program yılı, dersler, metinler ve resmî kazanım kodları doğrulanmadan bu metin import edilmez ve yayımlanmaz. Metin sonradan aynen gelirse kaynak taslak bu dosyanın yanına, normalleştirilmiş özet ise ayrı bir dosyaya yazılır.
+2026-10-26 takip mesajında da bu metin yoktu. İki dosya bu yüzden oluşturulmadı. Ağaç uydurulmadı. Resmî kazanım kodu üretilmedi. Yayımlı katalog değiştirilmedi. Program sürümü, dersler, öğrenme çıktıları ve resmî kodlar doğrulanmadan metin production’a aktarılmaz, import edilmez ve yayımlanmaz.
+
+Metin aynen gelirse kaynak dosyası açıklama paragrafından sonra eksiksiz saklanır. Özet yalnız hiyerarşiyi düzenler; içerik eklemez ve resmî doğruluk iddiası taşımaz.
 
 ## Mevcut model
 

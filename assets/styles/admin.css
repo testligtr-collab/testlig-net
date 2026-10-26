@@ -2870,6 +2870,15 @@ body.is-admin-panel {
     font-size: 0.82rem;
     font-weight: 550;
 }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-classroom-page .admin-classroom-students {
+        width: 1%;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
+        text-align: left;
+    }
+}
 .is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page) .admin-institution-type {
     display: inline-flex;
     align-items: center;

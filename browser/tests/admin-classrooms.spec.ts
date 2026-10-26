@@ -45,6 +45,21 @@ test('superadmin classroom list, create, detail and error follow the reference',
     await expect(page.getByText('browser-student@example.test')).toHaveCount(0);
     const cellDisplay = await page.locator('.admin-user-table tbody td').first().evaluate((node) => getComputedStyle(node).display);
     expect(cellDisplay).toBe(viewport.width >= 1024 ? 'table-cell' : 'block');
+    if (viewport.width >= 1024) {
+      const studentHeader = page.locator('th.admin-classroom-students');
+      await expect(studentHeader).toHaveText('Öğrenci');
+      const studentLines = await studentHeader.evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return range.getClientRects().length;
+      });
+      expect(studentLines).toBe(1);
+      const headerAlign = await studentHeader.evaluate((node) => getComputedStyle(node).textAlign);
+      const valueAlign = await page.locator('tbody td.admin-classroom-students').first().evaluate((node) => getComputedStyle(node).textAlign);
+      expect(valueAlign).toBe(headerAlign);
+      const teacherWrap = await page.locator('tr', { hasText: 'Sinif A' }).locator('td[data-label="Öğretmen"]').evaluate((node) => getComputedStyle(node).whiteSpace);
+      expect(teacherWrap).not.toBe('nowrap');
+    }
     await expect(page.getByRole('link', { name: 'İncele', exact: true }).first()).toBeVisible();
     await expect(page.locator('a.admin-institution-detail').first()).toContainText('→');
     await expect(page.locator('.admin-institution-pager__current')).toHaveText('1');

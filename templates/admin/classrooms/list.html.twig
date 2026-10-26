@@ -117,7 +117,7 @@
                                 <th>Sınıf</th>
                                 <th>Kurum / Akademik yıl</th>
                                 <th>Öğretmen</th>
-                                <th>Öğrenci</th>
+                                <th class="admin-classroom-students">Öğrenci</th>
                                 <th>Durum</th>
                                 <th>İşlem</th>
                             </tr>
@@ -139,7 +139,7 @@
                                         <span class="admin-user-person__meta">{{ row.academicYearName }}</span>
                                     </td>
                                     <td data-label="Öğretmen">{{ row.teacherSummary }}</td>
-                                    <td data-label="Öğrenci">{{ row.activeStudentCount }}</td>
+                                    <td class="admin-classroom-students" data-label="Öğrenci">{{ row.activeStudentCount }}</td>
                                     <td data-label="Durum"><span class="admin-institution-status admin-institution-status--{{ row.status.value }}">{{ status_labels[row.status.value]|default(row.status.value) }}</span></td>
                                     <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_classroom_detail', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a></td>
                                 </tr>
