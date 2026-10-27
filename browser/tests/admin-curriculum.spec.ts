@@ -137,7 +137,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(data.paths.curriculum);
-  await page.getByRole('link', { name: /1\. sınıf/ }).click();
+  await page.getByRole('link', { name: '1. sınıf Aktif', exact: true }).click();
   await expect(page.getByText('Tarayici programi')).toBeVisible();
   await expect(page.getByText('Tarayici taslak')).toHaveCount(0);
   const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
