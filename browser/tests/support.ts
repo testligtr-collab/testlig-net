@@ -48,6 +48,10 @@ type Manifest = {
     branchPending: string;
     modulePermissions: string;
     modulePermission: string;
+    curriculum: string;
+    curriculumNew: string;
+    curriculumProgram: string;
+    curriculumDraft: string;
   };
 };
 

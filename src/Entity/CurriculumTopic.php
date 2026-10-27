@@ -38,7 +38,7 @@ class CurriculumTopic
     private Uuid $id;
 
     #[ORM\ManyToOne]
-    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'unit_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private CurriculumUnit $unit;
 
     #[ORM\ManyToOne(targetEntity: self::class)]
@@ -252,10 +252,27 @@ class CurriculumTopic
     #[Ignore]
     public function archive(\DateTimeImmutable $now): void
     {
-        if (!$this->status->canTransitionTo(CurriculumContentStatus::Archived)) {
+        $this->transitionTo(CurriculumContentStatus::Archived, $now);
+    }
+
+    #[Ignore]
+    public function deactivate(\DateTimeImmutable $now): void
+    {
+        $this->transitionTo(CurriculumContentStatus::Inactive, $now);
+    }
+
+    #[Ignore]
+    public function reactivate(\DateTimeImmutable $now): void
+    {
+        $this->transitionTo(CurriculumContentStatus::Active, $now);
+    }
+
+    private function transitionTo(CurriculumContentStatus $target, \DateTimeImmutable $now): void
+    {
+        if (!$this->status->canTransitionTo($target)) {
             throw CurriculumTopicException::invalidTransition();
         }
-        $this->status = CurriculumContentStatus::Archived;
+        $this->status = $target;
         $this->updatedAt = $now;
     }
 

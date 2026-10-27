@@ -460,7 +460,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await accountSearch.getByRole('link', { name: 'Temizle', exact: true }).click();
   await expect(saPage).toHaveURL(/\/yonetim\/rol-yetkileri$/);
   const accounts = saPage.getByRole('region', { name: 'Moderatör hesapları' });
-  await expect(accounts.getByRole('link', { name: 'İzinler' })).toHaveCount(2);
+  await expect(accounts.getByRole('link', { name: 'İzinler' })).toHaveCount(3);
   await expect(accounts.getByText('Henüz moderatör hesabı yok')).toHaveCount(0);
   for (const viewport of [
     { name: '1440', width: 1440, height: 900 },

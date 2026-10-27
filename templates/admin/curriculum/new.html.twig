@@ -1,0 +1,116 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni program — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_curriculum') }}">Programlar</a>
+        <span aria-hidden="true">/</span>
+        <span>Yeni</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-user-page admin-curriculum-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni program</h1>
+                <p>Program taslak oluşur. Bu form programı yayınlamaz. Sınıf düzeyi 1–12 enum değeridir.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_curriculum') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+        </header>
+
+        <div class="admin-institution-create">
+            <div class="admin-institution-create__main">
+                {{ form_start(subject_form, { attr: { class: 'admin-institution-card', novalidate: 'novalidate' } }) }}
+                    <h2 id="curriculum-subject-create"><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span> Ders</h2>
+                    <p>Ders, programların bağlandığı genel kayıttır. Kodu sonradan değişmez.</p>
+                    {% for field in subject_form %}
+                        {% if field.vars.name != '_token' %}
+                            <div class="admin-institution-field">
+                                {{ form_label(field) }}
+                                {{ form_widget(field) }}
+                                {{ form_errors(field) }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {{ form_errors(subject_form) }}
+                    <button class="btn admin-institution-primary" type="submit">Dersi oluştur</button>
+                {{ form_end(subject_form) }}
+                {% if rename_error %}
+                    <p class="admin-institution-note">{{ rename_error }}</p>
+                {% endif %}
+                {% for subject in subject_cards %}
+                    <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_rename', { subject: subject.id }) }}">
+                        <h3>{{ subject.name }}</h3>
+                        <p>Teknik kod: {{ subject.code }}. Kod değişmez. Kendi durumu: {{ subject.status.value == 'active' ? 'Aktif' : 'Pasif' }}.</p>
+                        <div class="admin-institution-field">
+                            <label for="subject-name-{{ subject.id }}">Ders adı</label>
+                            <input id="subject-name-{{ subject.id }}" name="admin_curriculum_rename_subject[title]" value="{{ subject.name }}" maxlength="160">
+                        </div>
+                        <input type="hidden" name="admin_curriculum_rename_subject[reasonCode]" value="curriculum_correction">
+                        <label><input type="checkbox" name="admin_curriculum_rename_subject[confirm]" value="1"> Ad değişikliğini onaylıyorum</label>
+                        <input type="hidden" name="admin_curriculum_rename_subject[_token]" value="{{ csrf_token('admin_curriculum_rename_' ~ subject.id) }}">
+                        <button class="btn btn--ghost" type="submit">Ders adını kaydet</button>
+                    </form>
+                    {% if can_availability and subject.status.value == 'active' %}
+                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'pasif' }) }}">
+                            <p>Pasif ders öğrenciyi kapatır. Programa bağlı ünite, konu ve kazanımın kendi durumu değişmez.</p>
+                            <label><input type="checkbox" name="admin_curriculum_passive_subject[confirm]" value="1"> Dersi pasif yapmayı onaylıyorum</label>
+                            <input type="hidden" name="admin_curriculum_passive_subject[reasonCode]" value="curriculum_passive">
+                            <input type="hidden" name="admin_curriculum_passive_subject[_token]" value="{{ csrf_token('admin_curriculum_pasif_' ~ subject.id) }}">
+                            <button class="btn btn--ghost" type="submit">Dersi pasif yap</button>
+                        </form>
+                    {% elseif can_availability %}
+                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'aktif' }) }}">
+                            <label><input type="checkbox" name="admin_curriculum_active_subject[confirm]" value="1"> Dersi yeniden aktif etmeyi onaylıyorum</label>
+                            <input type="hidden" name="admin_curriculum_active_subject[reasonCode]" value="curriculum_activate">
+                            <input type="hidden" name="admin_curriculum_active_subject[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ subject.id) }}">
+                            <button class="btn btn--ghost" type="submit">Dersi yeniden aktif yap</button>
+                        </form>
+                    {% endif %}
+                    {% if can_archive and subject.status.value != 'archived' %}
+                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_archive', { subject: subject.id }) }}">
+                            <label><input type="checkbox" name="admin_curriculum_archive_subject[confirm]" value="1"> Dersi arşivlemeyi onaylıyorum. Arşiv geri açılmaz.</label>
+                            <input type="hidden" name="admin_curriculum_archive_subject[reasonCode]" value="curriculum_archive">
+                            <input type="hidden" name="admin_curriculum_archive_subject[_token]" value="{{ csrf_token('admin_curriculum_archive_subject_' ~ subject.id) }}">
+                            <button class="btn btn--ghost" type="submit">Dersi arşivle</button>
+                        </form>
+                    {% endif %}
+                    {% if can_archive and subject.status.value == 'active' %}
+                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_delete', { subject: subject.id }) }}">
+                            <p>Bağlı program, içerik, soru, test veya sınıf dersi silmeyi durdurur.</p>
+                            <label><input type="checkbox" name="admin_curriculum_delete_subject[confirm]" value="1"> Kalıcı silmeyi onaylıyorum</label>
+                            <input type="hidden" name="admin_curriculum_delete_subject[reasonCode]" value="curriculum_delete">
+                            <input type="hidden" name="admin_curriculum_delete_subject[_token]" value="{{ csrf_token('admin_curriculum_delete_subject_' ~ subject.id) }}">
+                            <button class="btn btn--ghost" type="submit">Dersi sil</button>
+                        </form>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            <div class="admin-institution-create__main">
+                {{ form_start(program_form, { attr: { class: 'admin-institution-card', novalidate: 'novalidate' } }) }}
+                    <h2 id="curriculum-program-create"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span> Program sürümü</h2>
+                    <p>Kod, program içindeki teknik koddur. Resmî kazanım kodu değildir.</p>
+                    {% if subjects is empty %}
+                        <p>Önce bir ders oluşturun. Boş listeden örnek ders seçilmez.</p>
+                    {% endif %}
+                    {% for field in program_form %}
+                        {% if field.vars.name != '_token' %}
+                            <div class="admin-institution-field">
+                                {{ form_label(field) }}
+                                {{ form_widget(field) }}
+                                {{ form_errors(field) }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    {{ form_errors(program_form) }}
+                    <button class="btn admin-institution-primary" type="submit">Taslak programı oluştur</button>
+                    <a class="btn btn--ghost" href="{{ path('app_admin_curriculum') }}">İptal</a>
+                {{ form_end(program_form) }}
+            </div>
+        </div>
+    </div>
+{% endblock %}

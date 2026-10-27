@@ -78,6 +78,23 @@ class SubjectRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @return list<Subject>
+     */
+    public function findNotArchivedOrdered(): array
+    {
+        /** @var list<Subject> $rows */
+        $rows = $this->createQueryBuilder('s')
+            ->andWhere('s.status != :archived')
+            ->setParameter('archived', SubjectStatus::Archived)
+            ->orderBy('s.name', 'ASC')
+            ->addOrderBy('s.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function save(Subject $subject, bool $flush = true): void
     {
         $this->getEntityManager()->persist($subject);

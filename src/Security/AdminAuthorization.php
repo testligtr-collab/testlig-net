@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Security;
 
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
 use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Exception\CommerceException;
@@ -22,6 +23,7 @@ final class AdminAuthorization
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly CommerceAuthorization $commerceAuthorization,
         private readonly UserModulePermissionPolicy $modulePermissions,
+        private readonly CurriculumActorPolicy $curriculumActors,
     ) {
     }
 
@@ -331,6 +333,31 @@ final class AdminAuthorization
     public function canManageMemberships(User $actor): bool
     {
         return $this->canCreateInstitutions($actor);
+    }
+
+    public function canViewCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::View);
+    }
+
+    public function canManageCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Manage);
+    }
+
+    public function canPublishCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Publish);
+    }
+
+    public function canArchiveCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Archive);
+    }
+
+    public function canChangeCurriculumAvailability(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Availability);
     }
 
     public function canViewCatalog(User $actor): bool

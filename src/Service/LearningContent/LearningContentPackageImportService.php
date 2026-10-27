@@ -11,7 +11,6 @@ use App\Entity\LearningContent;
 use App\Entity\LearningContentRevision;
 use App\Entity\Subject;
 use App\Entity\User;
-use App\Enum\CurriculumContentStatus;
 use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\LearningContentScope;
@@ -29,6 +28,7 @@ use App\Repository\LearningContentOutcomeAlignmentRepository;
 use App\Repository\LearningContentRepository;
 use App\Repository\SubjectRepository;
 use App\Service\ActiveVerifiedUserPolicy;
+use App\Service\CurriculumStudentAccess;
 use App\Service\LearningContentManager;
 use App\Service\SecurityAuditRecorder;
 use Doctrine\DBAL\Connection;
@@ -65,6 +65,7 @@ final class LearningContentPackageImportService
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly EntityManagerInterface $entityManager,
         private readonly LockFactory $locks,
+        private readonly CurriculumStudentAccess $studentAccess,
     ) {
     }
 
@@ -188,7 +189,7 @@ final class LearningContentPackageImportService
             }
         }
         $outcomeFound = $outcome instanceof CurriculumLearningOutcome
-            && CurriculumContentStatus::Active === $outcome->getStatus()
+            && $this->studentAccess->studentOpen($outcome)
             ? 1
             : 0;
 
@@ -368,7 +369,7 @@ final class LearningContentPackageImportService
             $program = $aligned->getCurriculumProgram();
             $alignmentOk = $aligned->getId()->toRfc4122() === $outcome->getId()->toRfc4122()
                 && $aligned->getCode() === $target->outcomeCode
-                && CurriculumContentStatus::Active === $aligned->getStatus()
+                && $this->studentAccess->studentOpen($aligned)
                 && $program->getCode() === $target->programCode
                 && $program->getVersion() === $target->programVersion
                 && CurriculumStatus::Published === $program->getStatus()

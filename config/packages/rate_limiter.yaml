@@ -96,6 +96,21 @@ framework:
             limit: 10
             interval: '10 minutes'
 
+        admin_curriculum_mutate:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '10 minutes'
+
+        admin_curriculum_publish:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_curriculum_archive:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
         admin_membership_mutate:
             policy: 'sliding_window'
             limit: 10
@@ -238,6 +253,18 @@ when@test:
             admin_classroom_archive:
                 policy: 'fixed_window'
                 limit: 5
+                interval: '10 minutes'
+            admin_curriculum_mutate:
+                policy: 'fixed_window'
+                limit: 30
+                interval: '10 minutes'
+            admin_curriculum_publish:
+                policy: 'fixed_window'
+                limit: 20
+                interval: '10 minutes'
+            admin_curriculum_archive:
+                policy: 'fixed_window'
+                limit: 20
                 interval: '10 minutes'
             admin_membership_mutate:
                 policy: 'fixed_window'

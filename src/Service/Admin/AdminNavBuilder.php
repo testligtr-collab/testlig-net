@@ -53,7 +53,8 @@ final class AdminNavBuilder
         $canShell = $this->adminAuthorization->canAccessAdminShell($actor);
         $canContent = $this->adminAuthorization->canViewLearningContentWorkspace($actor);
         $classroomCount = $this->workspaceSummary->activeClassroomCount($actor);
-        $workspaceShell = !$canShell && ($canContent || $classroomCount > 0);
+        $canCurriculum = $this->adminAuthorization->canViewCurriculum($actor);
+        $workspaceShell = !$canShell && ($canContent || $canCurriculum || $classroomCount > 0);
 
         $canUsers = $this->adminAuthorization->canViewUsers($actor);
         $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
@@ -92,6 +93,9 @@ final class AdminNavBuilder
 
         if ($this->adminAuthorization->canViewCatalog($actor)) {
             $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
+        }
+        if ($canCurriculum) {
+            $items[] = $this->item('curriculum', 'Programlar', 'app_admin_curriculum', $currentPath, '/yonetim/programlar', false, 'catalog');
         }
 
         if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
@@ -163,14 +167,14 @@ final class AdminNavBuilder
             ? [
                 ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
                 ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
-                ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
+                ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'curriculum', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
                 ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
             ]
             : [
                 ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
                 ['id' => 'people', 'label' => 'Kullanıcılar ve Yetkiler', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'teachers', 'role_permissions']],
                 ['id' => 'campus', 'label' => 'Kurum ve Sınıf', 'ids' => ['institutions', 'branches', 'academic_years', 'classes', 'classrooms']],
-                ['id' => 'learning', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'assignments', 'reports', 'teacher_profile']],
+                ['id' => 'learning', 'label' => 'Eğitim', 'ids' => ['catalog', 'curriculum', 'learning_contents', 'questions', 'tests', 'assignments', 'reports', 'teacher_profile']],
                 ['id' => 'media', 'label' => 'Medya', 'ids' => ['storage', 'documents', 'videos']],
                 ['id' => 'interactive', 'label' => 'Etkileşimli Eğitim', 'ids' => ['simulations', 'games', 'live_lessons', 'qna', 'guidance', 'gamification']],
                 ['id' => 'communication', 'label' => 'İletişim', 'ids' => ['messages', 'notifications', 'support']],

@@ -9,6 +9,7 @@ use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumUnit;
 use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
 use App\Enum\CurriculumStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
@@ -16,6 +17,7 @@ use App\Enum\SecurityAuditOutcome;
 use App\Exception\CurriculumUnitException;
 use App\Exception\InstitutionOperationException;
 use App\Repository\CurriculumUnitRepository;
+use App\Security\CurriculumActorPolicy;
 use Doctrine\DBAL\Exception\DeadlockException;
 use Doctrine\DBAL\Exception\LockWaitTimeoutException;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
@@ -25,7 +27,7 @@ use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Curriculum unit mutations. Draft programs only. SUPER_ADMIN only.
+ * Curriculum unit mutations. Draft programs only. Curriculum actor policy.
  *
  * Lock order: Subject → Program → Unit.
  */
@@ -35,7 +37,7 @@ final class CurriculumUnitManager
         private readonly CurriculumUnitRepository $units,
         private readonly InstitutionNameNormalizer $nameNormalizer,
         private readonly SecurityAuditRecorder $auditRecorder,
-        private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly CurriculumActorPolicy $actorPolicy,
         private readonly InstitutionalFreshEntityLoader $freshEntities,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
@@ -74,7 +76,7 @@ final class CurriculumUnitManager
             ): CurriculumUnit {
                 [$lockedSubject, $lockedProgram] = $this->lockSubjectProgram($subjectId, $programId);
                 $this->assertDraft($lockedProgram);
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId);
 
                 if ($this->units->existsWithCode($lockedProgram, $code)
                     || $this->units->existsWithPosition($lockedProgram, $position)) {
@@ -208,6 +210,16 @@ final class CurriculumUnitManager
         });
     }
 
+    public function deactivate(CurriculumUnit $unit, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($unit, $actor, $reasonCode, false);
+    }
+
+    public function reactivate(CurriculumUnit $unit, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($unit, $actor, $reasonCode, true);
+    }
+
     public function archive(CurriculumUnit $unit, User $actor, string $reasonCode): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
@@ -233,13 +245,54 @@ final class CurriculumUnitManager
                 SecurityAuditAction::CurriculumUnitArchived,
                 ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
             );
-        });
+        }, CurriculumOperation::Archive);
+    }
+
+    private function changeAvailability(CurriculumUnit $unit, User $actor, string $reasonCode, bool $active): void
+    {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $rejected = null;
+
+        $this->mutate($unit, $actor, $reasonCode, function (
+            Subject $lockedSubject,
+            CurriculumProgram $lockedProgram,
+            CurriculumUnit $locked,
+            User $freshActor,
+            string $reasonCode,
+        ) use ($active, &$rejected): void {
+            try {
+                $this->assertNotRetired($lockedProgram);
+                $oldStatus = $locked->getStatus()->value;
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                if ($active) {
+                    $locked->reactivate($now);
+                } else {
+                    $locked->deactivate($now);
+                }
+                $this->units->save($locked, false);
+                $this->recordUpdated(
+                    $lockedSubject,
+                    $lockedProgram,
+                    $locked,
+                    $freshActor,
+                    $reasonCode,
+                    SecurityAuditAction::CurriculumUnitUpdated,
+                    ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
+                );
+            } catch (CurriculumUnitException $exception) {
+                $rejected = $exception;
+            }
+        }, CurriculumOperation::Availability);
+
+        if ($rejected instanceof CurriculumUnitException) {
+            throw $rejected;
+        }
     }
 
     /**
      * @param callable(Subject, CurriculumProgram, CurriculumUnit, User, string): void $mutator
      */
-    private function mutate(CurriculumUnit $unit, User $actor, string $reasonCode, callable $mutator): void
+    private function mutate(CurriculumUnit $unit, User $actor, string $reasonCode, callable $mutator, CurriculumOperation $operation = CurriculumOperation::Manage): void
     {
         $unitId = $unit->getId();
         $programId = $unit->getProgram()->getId();
@@ -254,6 +307,7 @@ final class CurriculumUnitManager
                 $actorId,
                 $reasonCode,
                 $mutator,
+                $operation,
             ): void {
                 [$lockedSubject, $lockedProgram] = $this->lockSubjectProgram($subjectId, $programId);
                 $locked = $this->freshEntities->findFreshLockedCurriculumUnit($unitId, LockMode::PESSIMISTIC_WRITE);
@@ -261,7 +315,7 @@ final class CurriculumUnitManager
                     || !$locked->getProgram()->getId()->equals($lockedProgram->getId())) {
                     throw CurriculumUnitException::notFound();
                 }
-                $freshActor = $this->lockSuperAdminActor($actorId);
+                $freshActor = $this->lockActor($actorId, $operation);
                 $mutator($lockedSubject, $lockedProgram, $locked, $freshActor, $reasonCode);
                 $this->entityManager->flush();
             });
@@ -319,6 +373,13 @@ final class CurriculumUnitManager
         return [$lockedSubject, $lockedProgram];
     }
 
+    private function assertNotRetired(CurriculumProgram $program): void
+    {
+        if (CurriculumStatus::Retired === $program->getStatus()) {
+            throw CurriculumUnitException::invalidTransition();
+        }
+    }
+
     private function assertDraft(CurriculumProgram $program): void
     {
         if (CurriculumStatus::Draft !== $program->getStatus()) {
@@ -326,14 +387,13 @@ final class CurriculumUnitManager
         }
     }
 
-    private function lockSuperAdminActor(Uuid $actorId): User
+    private function lockActor(Uuid $actorId, CurriculumOperation $operation = CurriculumOperation::Manage): User
     {
         $freshActor = $this->freshEntities->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
         if (!$freshActor instanceof User) {
             throw CurriculumUnitException::userNotFound();
         }
-        if (!$this->activeVerifiedUserPolicy->isActiveAndVerified($freshActor)
-            || !$this->activeVerifiedUserPolicy->isSuperAdmin($freshActor)) {
+        if (!$this->actorPolicy->allowsFresh($freshActor, $operation)) {
             throw CurriculumUnitException::unauthorized();
         }
 
