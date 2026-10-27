@@ -17,6 +17,7 @@ use App\Entity\ClassroomTeacherActiveGuard;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\CourseTeacherActiveGuard;
 use App\Entity\CourseTeacherAssignment;
+use App\Entity\CurriculumAccessGate;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
@@ -110,6 +111,13 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(Subject::class, $id, $lockMode);
 
         return $entity instanceof Subject ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumAccessGate(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumAccessGate
+    {
+        $entity = $this->findFresh(CurriculumAccessGate::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumAccessGate ? $entity : null;
     }
 
     public function findFreshLockedCurriculumProgram(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumProgram

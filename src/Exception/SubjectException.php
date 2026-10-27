@@ -54,4 +54,9 @@ final class SubjectException extends \RuntimeException
     {
         return new self(SubjectFailureReason::SubjectArchived, 'Subject is archived and cannot be used.');
     }
+
+    public static function dependent(): self
+    {
+        return new self(SubjectFailureReason::Dependent, 'Subject has dependent records.');
+    }
 }

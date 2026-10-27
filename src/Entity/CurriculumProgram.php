@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\CurriculumAccessState;
 use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Exception\CurriculumException;
@@ -53,6 +54,9 @@ class CurriculumProgram
     #[ORM\Column(length: 32, enumType: CurriculumStatus::class)]
     private CurriculumStatus $status;
 
+    #[ORM\Column(name: 'student_access', length: 32, enumType: CurriculumAccessState::class, options: ['default' => 'active'])]
+    private CurriculumAccessState $studentAccess = CurriculumAccessState::Active;
+
     #[ORM\Column(name: 'valid_from', type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $validFrom;
 
@@ -91,6 +95,7 @@ class CurriculumProgram
         $this->normalizedName = $normalizedName;
         $this->version = $version;
         $this->status = CurriculumStatus::Draft;
+        $this->studentAccess = CurriculumAccessState::Active;
         $this->validFrom = $validFrom;
         $this->validUntil = $validUntil;
         $this->createdAt = $now;
@@ -167,6 +172,11 @@ class CurriculumProgram
         return $this->status;
     }
 
+    public function getStudentAccess(): CurriculumAccessState
+    {
+        return $this->studentAccess;
+    }
+
     public function getValidFrom(): ?\DateTimeImmutable
     {
         return $this->validFrom;
@@ -237,6 +247,27 @@ class CurriculumProgram
         }
         $this->status = CurriculumStatus::Retired;
         $this->retiredAt = $now;
+        $this->updatedAt = $now;
+    }
+
+    #[Ignore]
+    public function deactivateStudentAccess(\DateTimeImmutable $now): void
+    {
+        $this->changeStudentAccess(CurriculumAccessState::Inactive, $now);
+    }
+
+    #[Ignore]
+    public function reactivateStudentAccess(\DateTimeImmutable $now): void
+    {
+        $this->changeStudentAccess(CurriculumAccessState::Active, $now);
+    }
+
+    private function changeStudentAccess(CurriculumAccessState $target, \DateTimeImmutable $now): void
+    {
+        if (CurriculumStatus::Retired === $this->status || $this->studentAccess === $target) {
+            throw CurriculumException::invalidTransition();
+        }
+        $this->studentAccess = $target;
         $this->updatedAt = $now;
     }
 

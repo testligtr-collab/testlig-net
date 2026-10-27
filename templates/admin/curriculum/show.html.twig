@@ -36,6 +36,22 @@
             <p>Tür: program. Üst kayıt: {{ program.subject.name }}. Kendi durumu: {{ program_labels[program.status.value] }}.</p>
             <p>Teknik kod: {{ program.code }}. Bu kod resmî kazanım kodu değildir.</p>
             <p>{{ access_note }}</p>
+            <p>Öğrenci erişimi: {{ program.studentAccess.value == 'active' ? 'Aktif' : 'Pasif' }}. Pasif yapmak yayını ve alt kayıtların kendi durumunu değiştirmez. Emekliye ayırma ayrıdır ve geri açılmaz.</p>
+            {% if can_availability and program.studentAccess.value == 'active' %}
+                <form method="post" action="{{ path('app_admin_curriculum_program_access', { id: program.id, mode: 'pasif' }) }}">
+                    <label><input type="checkbox" name="admin_curriculum_passive_program[confirm]" value="1"> Programı pasif yapmayı onaylıyorum. Yayın ve alt kayıtların kendi durumu değişmez.</label>
+                    <input type="hidden" name="admin_curriculum_passive_program[reasonCode]" value="curriculum_passive">
+                    <input type="hidden" name="admin_curriculum_passive_program[_token]" value="{{ csrf_token('admin_curriculum_pasif_' ~ program.id) }}">
+                    <button class="btn btn--ghost" type="submit">Programı pasif yap</button>
+                </form>
+            {% elseif can_availability %}
+                <form method="post" action="{{ path('app_admin_curriculum_program_access', { id: program.id, mode: 'aktif' }) }}">
+                    <label><input type="checkbox" name="admin_curriculum_active_program[confirm]" value="1"> Programı yeniden aktif etmeyi onaylıyorum</label>
+                    <input type="hidden" name="admin_curriculum_active_program[reasonCode]" value="curriculum_activate">
+                    <input type="hidden" name="admin_curriculum_active_program[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ program.id) }}">
+                    <button class="btn btn--ghost" type="submit">Programı yeniden aktif yap</button>
+                </form>
+            {% endif %}
             {% if can_manage %}
                 <form method="post" action="{{ path('app_admin_curriculum_rename', { id: program.id }) }}">
                     <div class="admin-institution-field">

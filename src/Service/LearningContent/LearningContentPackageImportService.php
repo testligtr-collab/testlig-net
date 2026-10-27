@@ -65,6 +65,7 @@ final class LearningContentPackageImportService
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly EntityManagerInterface $entityManager,
         private readonly LockFactory $locks,
+        private readonly CurriculumStudentAccess $studentAccess,
     ) {
     }
 
@@ -188,7 +189,7 @@ final class LearningContentPackageImportService
             }
         }
         $outcomeFound = $outcome instanceof CurriculumLearningOutcome
-            && (new CurriculumStudentAccess())->studentOpen($outcome)
+            && $this->studentAccess->studentOpen($outcome)
             ? 1
             : 0;
 
@@ -368,7 +369,7 @@ final class LearningContentPackageImportService
             $program = $aligned->getCurriculumProgram();
             $alignmentOk = $aligned->getId()->toRfc4122() === $outcome->getId()->toRfc4122()
                 && $aligned->getCode() === $target->outcomeCode
-                && (new CurriculumStudentAccess())->studentOpen($aligned)
+                && $this->studentAccess->studentOpen($aligned)
                 && $program->getCode() === $target->programCode
                 && $program->getVersion() === $target->programVersion
                 && CurriculumStatus::Published === $program->getStatus()

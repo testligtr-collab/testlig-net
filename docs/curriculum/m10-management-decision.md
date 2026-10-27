@@ -10,6 +10,8 @@ Teslim isteği, “MEB 1–12 Müfredat Şema Ağacı — İngilizce entegre” 
 
 2026-10-27 devam turunda mesajın sonundaki ağaç yeri yalnızca “[1–12 MÜFREDAT AĞACI METNİNİ BURAYA YAPIŞTIR]” yer tutucusuydu. Bu yer tutucu müfredat metni değildir. İki kaynak dosyası yine yazılmadı. Resmî kazanım kodu üretilmedi. Veri tabanına import edilmedi.
 
+Aynı günün sonraki mesajı da ağacın eklendiğini söyledi, fakat metin mesajda yoktu. Kaynak dosyaları bu yüzden yine yazılmadı. Eksik aktarım, ders, program ve sabit kademe/sınıf erişimi işini durdurmadı.
+
 Metin aynen gelirse kaynak dosyası açıklama paragrafından sonra eksiksiz saklanır. Özet yalnız hiyerarşiyi düzenler; içerik eklemez ve resmî doğruluk iddiası taşımaz.
 
 ## Mevcut model
@@ -22,7 +24,7 @@ Müfredat hiyerarşisi bugün `Subject`, `CurriculumProgram` (ders + düzey + ko
 
 ## Uygulanan eşleme
 
-Kademe için ayrı tablo yoktur. `GradeLevel` 1–12 enum olarak kalır. 1–4, 5–8 ve 9–12 yalnız etiket olarak okunur. Operasyonel `Classroom` adı, örneğin 5-A, katalog düzeyi değildir.
+`GradeLevel` 1–12 enum olarak kalır. 1–4, 5–8 ve 9–12 sabit erişim kapısıdır; yeni kademe kaydı açılmaz. Operasyonel `Classroom` adı, örneğin 5-A, katalog düzeyi değildir.
 
 Ders `Subject` kaydıdır. Program ve sürüm `CurriculumProgram` kaydıdır. Ünite `CurriculumUnit`, konu `CurriculumTopic`, kazanım `CurriculumLearningOutcome` kaydıdır. Öğrenci keşfi `CatalogSubject`, `CatalogUnit` ve `CatalogTopic` yayın zincirini kullanır. Bu iki ağaç birleştirilmedi.
 
@@ -30,14 +32,20 @@ Ders `Subject` kaydıdır. Program ve sürüm `CurriculumProgram` kaydıdır. Ü
 
 Aktif doğrulanmış süper yönetici ve yönetici bu işlemleri kullanır. Moderatör yalnız `curriculum.view`, `curriculum.manage`, `curriculum.publish`, `curriculum.availability` ve `curriculum.archive` izinlerinden sahibine açık olanı kullanır. İçerik, soru ve test izinleri müfredat izni vermez. Yayın, pasiflik ve arşiv izinleri birbirinden çıkmaz.
 
-Ünite, konu ve kazanım `active`, `inactive` ve `archived` durumlarını taşır. Pasif kayıt yeniden aktif edilir. Arşiv son durumdur ve pasif gibi gösterilmez. Pasif yapmak alt kaydın kendi durumunu yazmaz. Üst kayıt pasif, arşiv veya program yayında değilse alt kayıt öğrenciye kapalı kalır. Üst kayıt yeniden açılınca alt kaydın kendi durumu değişmez. Ders ve program için ayrı bir geri alınabilir pasif durum yoktur. Program taslağı ve emekli program zaten öğrenciye kapalıdır. Emekli programda pasiflik değişmez.
+Ünite, konu ve kazanım `active`, `inactive` ve `archived` durumlarını taşır. Pasif kayıt yeniden aktif edilir. Arşiv son durumdur ve pasif gibi gösterilmez. Pasif yapmak alt kaydın kendi durumunu yazmaz. Üst kayıt pasif, arşiv veya program yayında değilse alt kayıt öğrenciye kapalı kalır. Üst kayıt yeniden açılınca alt kaydın kendi durumu değişmez.
+
+Ders `SubjectStatus` içinde `inactive` değerini de taşır. Aktif ve pasif birbirine döner. İkisi de arşive gider. Arşiv son durumdur. Kullanılmamış aktif ders, bağlı program, içerik, soru, test, sınıf dersi veya katalog eşlemesi yoksa silinir. Pasif veya arşiv ders silinmez. Bağlı ders silinmez.
+
+Programın yayın durumu `draft`, `published` ve `retired` olarak kalır. Öğrenci erişimi ayrı `student_access` alanıdır. Pasif yapmak yayını, kodu, dersi, sınıf düzeyini, sürümü ve alt kayıtların kendi durumunu değiştirmez. Emekli programın öğrenci erişimi değişmez. Emekliye ayırma geri açılmaz.
+
+Kademe ve sınıf düzeyi yeni kayıt değildir. `curriculum_access_gates` tablosunda sabit üç kademe ve 1–12 sınıf düzeyi vardır. Yeni kademe veya sınıf eklenmez, silinmez ve arşivlenmez. Pasif kapı öğrenciyi kapatır. Kapı açılınca alt kayıtların kendi durumu yazılmaz. Operasyonel 5-A bu kapı değildir. `GradeLevel` enum olarak kalır.
 
 Üst düğüm yayında veya aktif değilse alt düğüm öğrenciye kendi durumundan bağımsız kapalıdır. Üst kayıt açılınca alt kaydın kendi durumu yazılmaz. Bağımlı kayıt kalıcı silinmez. Pasif veya arşiv kayıt da silinmez. Silinen taslağın kodu yeniden kullanılınca yeni kimlik alır. Yayımlı programın kodu, dersi, sınıf düzeyi ve sürümü yerinde değişmez.
 
 ## Açık kalan karar
 
-- Kullanıcının 1–12 İngilizce entegre ağaç metni hâlâ gelmedi. 2026-10-27 mesajında yalnız yer tutucu vardı. Kaynak dosyaları yazılmadı.
+- Kullanıcının 1–12 İngilizce entegre ağaç metni hâlâ gelmedi. 2026-10-27 sonraki mesajı da metni içermiyordu. Kaynak dosyaları yazılmadı.
 - Resmî program yılı, sürüm ve kazanım kodu doğrulanmadı. Import ve yayın yok.
 - Production görsel kabulü yok. CI görüntüsü canlı kabul değildir.
-- Kademe kaydı, sınıf düzeyi kaydı, ders ve program için geri alınabilir pasif durum yoktur. Sınıf düzeyi `GradeLevel` enum olarak kalır.
+- Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Sabit kapılar yalnız pasif, yeniden aktif ve ad düzenleme taşır. Sınıf düzeyi `GradeLevel` enum olarak kalır.
 - Toplu işlem yok.

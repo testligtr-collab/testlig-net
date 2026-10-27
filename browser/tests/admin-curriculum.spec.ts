@@ -32,7 +32,10 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   await expect(viewer.getByRole('button', { name: 'Programı yayınla' })).toHaveCount(0);
   await expect(viewer.getByRole('button', { name: 'Programı sil' })).toHaveCount(0);
   await expect(viewer.getByRole('button', { name: 'Üniteyi pasif yap' })).toHaveCount(0);
+  await expect(viewer.getByRole('button', { name: 'Programı pasif yap' })).toHaveCount(0);
   await expect(viewer.getByText('Alt kayıt, sınıf dersi, içerik veya soru bağlantısı olduğu için program silinemez.')).toBeVisible();
+  await viewer.goto(data.paths.curriculum);
+  await expect(viewer.getByRole('button', { name: 'İlkokulu pasif yap' })).toHaveCount(0);
   await viewerContext.close();
 
   installVideoAbort(page);
@@ -45,6 +48,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.goto(data.paths.curriculum);
     await expect(page.getByRole('heading', { level: 1, name: 'Programlar' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Yeni program', exact: true })).toBeVisible();
+    await expect(page.getByText('Sınıf düzeyi silinmez')).toBeVisible();
     await expect(page.getByText('Tarayici programi')).toBeVisible();
     await expect(page.getByText('Tarayici taslak')).toBeVisible();
     await expect(page.getByText('Örnek program')).toHaveCount(0);
@@ -59,6 +63,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.goto(data.paths.curriculumNew);
     await expect(page.getByRole('heading', { level: 1, name: 'Yeni program' })).toBeVisible();
     await expect(page.getByText('Program taslak oluşur. Bu form programı yayınlamaz.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dersi pasif yap' })).toBeVisible();
     const columns = await page.locator('.admin-institution-create').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
     expect(columns).toBe(viewport.width >= 1024 ? 2 : 1);
     await assertLayout(page);
@@ -80,6 +85,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await expect(page.getByRole('heading', { level: 1, name: 'Tarayici programi' })).toBeVisible();
     await expect(page.getByText('Üst program nedeniyle öğrenciye kapalı')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Programı pasif yap' })).toBeVisible();
     await expect(page.getByText('Arşiv ayrıdır ve geri açılmaz.')).toBeVisible();
     await expect(page.getByText('Alt kayıt, sınıf dersi, içerik veya soru bağlantısı olduğu için program silinemez.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Programı sil' })).toHaveCount(0);

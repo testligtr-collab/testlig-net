@@ -13,6 +13,7 @@ use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Repository\UserRepository;
+use App\Service\CurriculumAccessGateManager;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
@@ -297,6 +298,118 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
         self::assertSame('1.0', $this->reload($program->getId())->getVersion());
     }
 
+    public function testParentAccessGrantsStaySeparateAndDoNotRewriteChildren(): void
+    {
+        $super = $this->user('http-cur-parent-sa@example.com', UserRole::SuperAdmin);
+        $manage = $this->user('http-cur-parent-manage@example.com', UserRole::Moderator);
+        $archive = $this->user('http-cur-parent-archive@example.com', UserRole::Moderator);
+        $availability = $this->user('http-cur-parent-open@example.com', UserRole::Moderator);
+        $this->grants()->replace($super->getId(), $manage->getId(), 0, [ModeratorModuleGrant::CurriculumManage->value]);
+        $this->grants()->replace($super->getId(), $archive->getId(), 0, [ModeratorModuleGrant::CurriculumArchive->value]);
+        $this->grants()->replace($super->getId(), $availability->getId(), 0, [
+            ModeratorModuleGrant::CurriculumView->value,
+            ModeratorModuleGrant::CurriculumAvailability->value,
+        ]);
+        $subject = $this->subjects()->create($super, 'http_cur_parent', 'Ust ders', 'curriculum_setup');
+        $program = $this->programs()->createDraft($subject, $super, GradeLevel::Grade12, 'http_cur_parent', 'Ust program', '1.0', 'curriculum_setup');
+        $unit = $this->units()->create($program, $super, 'http_cur_parent_u', 'Ust unite', 1, 'curriculum_setup');
+        $this->programs()->publish($program, $super, 'curriculum_publish');
+        $programId = $program->getId()->toRfc4122();
+        $subjectId = $subject->getId()->toRfc4122();
+        $programPath = '/yonetim/programlar/'.$programId.'/erisim/pasif';
+        $subjectPath = '/yonetim/programlar/ders/'.$subjectId.'/erisim/pasif';
+        $gradePath = '/yonetim/programlar/sinif/12/erisim/pasif';
+
+        try {
+            self::ensureKernelShutdown();
+            $client = static::createClient();
+            $this->authenticate($client, $manage->getEmail());
+            $client->request('POST', $programPath, [
+                'admin_curriculum_passive_program' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+            ]);
+            self::assertResponseStatusCodeSame(403);
+            $client->request('POST', $subjectPath, [
+                'admin_curriculum_passive_subject' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+            ]);
+            self::assertResponseStatusCodeSame(403);
+            $client->request('POST', $gradePath, [
+                'admin_curriculum_passive_gate' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+            ]);
+            self::assertResponseStatusCodeSame(403);
+
+            self::ensureKernelShutdown();
+            $client = static::createClient();
+            $this->authenticate($client, $archive->getEmail());
+            $client->request('POST', $programPath, [
+                'admin_curriculum_passive_program' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+            ]);
+            self::assertResponseStatusCodeSame(403);
+            self::assertSame('published', $this->programColumn($program->getId(), 'status'));
+            self::assertSame('active', $this->programColumn($program->getId(), 'student_access'));
+            self::assertSame('active', $this->nodeStatus('subjects', $subject->getId()));
+            self::assertSame('active', $this->nodeStatus('curriculum_units', $unit->getId()));
+
+            self::ensureKernelShutdown();
+            $client = static::createClient();
+            $this->authenticate($client, $availability->getEmail());
+            $client->request('POST', $programPath, [
+                'admin_curriculum_passive_program' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+            ]);
+            self::assertResponseStatusCodeSame(403);
+            $client->request('GET', '/yonetim/programlar/'.$programId);
+            $token = $this->csrf($client, 'admin_curriculum_pasif_'.$programId);
+            $client->request('POST', $programPath, [
+                'admin_curriculum_passive_program' => [
+                    '_token' => $token,
+                    'reasonCode' => 'curriculum_passive',
+                    'confirm' => '1',
+                ],
+            ]);
+            self::assertResponseRedirects('/yonetim/programlar/'.$programId);
+            self::assertSame('published', $this->programColumn($program->getId(), 'status'));
+            self::assertSame('inactive', $this->programColumn($program->getId(), 'student_access'));
+            self::assertSame('http_cur_parent', $this->reload($program->getId())->getCode());
+            self::assertSame('1.0', $this->reload($program->getId())->getVersion());
+            self::assertSame('active', $this->nodeStatus('curriculum_units', $unit->getId()));
+
+            $client->request('GET', '/yonetim/programlar/'.$programId);
+            $subjectToken = $this->csrf($client, 'admin_curriculum_pasif_'.$subjectId);
+            $client->request('POST', $subjectPath, [
+                'admin_curriculum_passive_subject' => [
+                    '_token' => $subjectToken,
+                    'reasonCode' => 'curriculum_passive',
+                    'confirm' => '1',
+                ],
+            ]);
+            self::assertResponseRedirects('/yonetim/programlar/yeni');
+            self::assertSame('inactive', $this->nodeStatus('subjects', $subject->getId()));
+            self::assertSame('published', $this->programColumn($program->getId(), 'status'));
+            self::assertSame('active', $this->nodeStatus('curriculum_units', $unit->getId()));
+
+            $client->request('GET', '/yonetim/programlar');
+            $gradeToken = $this->csrf($client, 'admin_curriculum_pasif_gate_grade_12');
+            $client->request('POST', $gradePath, [
+                'admin_curriculum_passive_gate' => [
+                    '_token' => $gradeToken,
+                    'reasonCode' => 'curriculum_passive',
+                    'confirm' => '1',
+                ],
+            ]);
+            self::assertResponseRedirects('/yonetim/programlar');
+            self::assertSame('inactive', $this->gateStatus('grade', '12'));
+            self::assertSame(12, $this->reload($program->getId())->getGradeLevel()->value);
+            self::assertSame('active', $this->nodeStatus('curriculum_units', $unit->getId()));
+        } finally {
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $gates = static::getContainer()->get(CurriculumAccessGateManager::class);
+            self::assertInstanceOf(CurriculumAccessGateManager::class, $gates);
+            if ('inactive' === $this->gateStatus('grade', '12')) {
+                $gates->reactivate('grade', '12', $super, 'curriculum_activate');
+            }
+        }
+    }
+
     private function csrf(KernelBrowser $client, string $id): string
     {
         $request = $client->getRequest();
@@ -400,6 +513,34 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
             'SELECT status FROM '.$table.' WHERE id = :id',
             ['id' => $id->toBinary()],
             ['id' => \Doctrine\DBAL\ParameterType::BINARY],
+        );
+    }
+
+    private function programColumn(Uuid $id, string $column): string
+    {
+        if (!\in_array($column, ['status', 'student_access'], true)) {
+            self::fail('Unexpected column.');
+        }
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->clear();
+
+        return (string) $em->getConnection()->fetchOne(
+            \sprintf('SELECT %s FROM curriculum_programs WHERE id = :id', $column),
+            ['id' => $id->toBinary()],
+            ['id' => \Doctrine\DBAL\ParameterType::BINARY],
+        );
+    }
+
+    private function gateStatus(string $kind, string $key): string
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->clear();
+
+        return (string) $em->getConnection()->fetchOne(
+            'SELECT status FROM curriculum_access_gates WHERE kind = :kind AND gate_key = :key',
+            ['kind' => $kind, 'key' => $key],
         );
     }
 

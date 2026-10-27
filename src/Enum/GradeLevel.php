@@ -18,4 +18,13 @@ enum GradeLevel: int
     case Grade10 = 10;
     case Grade11 = 11;
     case Grade12 = 12;
+
+    public function stageKey(): string
+    {
+        return match (true) {
+            $this->value <= 4 => 'ilkokul',
+            $this->value <= 8 => 'ortaokul',
+            default => 'lise',
+        };
+    }
 }

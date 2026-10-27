@@ -76,6 +76,7 @@ final class QuestionPackageImportService
         private readonly SecurityAuditRecorder $auditRecorder,
         private readonly EntityManagerInterface $entityManager,
         private readonly LockFactory $locks,
+        private readonly CurriculumStudentAccess $studentAccess,
     ) {
     }
 
@@ -308,7 +309,7 @@ final class QuestionPackageImportService
             }
         }
         $outcomeFound = $outcome instanceof CurriculumLearningOutcome
-            && (new CurriculumStudentAccess())->studentOpen($outcome)
+            && $this->studentAccess->studentOpen($outcome)
             ? 1
             : 0;
         if (0 === $outcomeFound) {

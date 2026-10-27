@@ -5,21 +5,29 @@ declare(strict_types=1);
 namespace App\Tests\Service;
 
 use App\Entity\CatalogUnit;
+use App\Entity\CurriculumAccessGate;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
+use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\CurriculumAccessState;
 use App\Enum\CurriculumContentStatus;
 use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\SecurityAuditAction;
+use App\Enum\SubjectStatus;
 use App\Enum\UserRole;
 use App\Exception\CurriculumDeletionException;
+use App\Exception\CurriculumException;
 use App\Exception\CurriculumUnitException;
+use App\Exception\SubjectException;
+use App\Repository\CurriculumAccessGateRepository;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\UserRepository;
 use App\Service\CatalogWriteService;
+use App\Service\CurriculumAccessGateManager;
 use App\Service\CurriculumDraftDeletion;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
@@ -154,7 +162,7 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         try {
             $this->programs()->publish($program, $moderator, 'curriculum_publish');
             self::fail('Moderator without publish grant published a program.');
-        } catch (\App\Exception\CurriculumException $e) {
+        } catch (CurriculumException $e) {
             self::assertSame('unauthorized', $e->getReason()->value);
         }
         self::assertSame(CurriculumStatus::Draft, $this->em->find(CurriculumProgram::class, $program->getId())?->getStatus());
@@ -178,7 +186,7 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         try {
             $this->programs()->renameDraft($renamed, $sa, 'Sessiz ad', 'curriculum_correction');
             self::fail('Published program was renamed in place.');
-        } catch (\App\Exception\CurriculumException $e) {
+        } catch (CurriculumException $e) {
             self::assertSame('program_not_draft', $e->getReason()->value);
         }
         $this->em->clear();
@@ -257,6 +265,106 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
         self::assertSame('cur_pas_prog', $this->freshProgram($program)->getCode());
         self::assertSame('1.0', $this->freshProgram($program)->getVersion());
+    }
+
+    public function testSubjectProgramAndLevelPassiveCloseStudentsWithoutRewritingChildren(): void
+    {
+        $sa = $this->superAdmin('curriculum-level-sa@example.com');
+        self::assertSame('ilkokul', GradeLevel::Grade1->stageKey());
+        self::assertSame('ortaokul', GradeLevel::Grade5->stageKey());
+        self::assertSame('lise', GradeLevel::Grade9->stageKey());
+        $subject = $this->subjects()->create($sa, 'cur_lvl_subj', 'Duzey dersi', 'curriculum_setup');
+        $program = $this->programs()->createDraft($subject, $sa, GradeLevel::Grade9, 'cur_lvl_prog', 'Duzey programi', '1.0', 'curriculum_setup');
+        $unit = $this->units()->create($program, $sa, 'cur_lvl_u', 'Unite', 1, 'curriculum_setup');
+        $topic = $this->topics()->createRoot($unit, $sa, 'cur_lvl_t', 'Konu', 1, 'curriculum_setup');
+        $outcome = $this->outcomes()->create($topic, $sa, 'cur_lvl_o', 'Kazanim', 1, 'curriculum_setup');
+        $this->programs()->publish($program, $sa, 'curriculum_publish');
+        $this->em->clear();
+        self::assertTrue($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+        $this->subjects()->deactivate($this->freshSubject($subject), $sa, 'curriculum_passive');
+        $this->em->clear();
+        self::assertSame(SubjectStatus::Inactive, $this->freshSubject($subject)->getStatus());
+        self::assertSame(CurriculumStatus::Published, $this->freshProgram($program)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshTopic($topic)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshOutcome($outcome)->getStatus());
+        self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+        $this->subjects()->reactivate($this->freshSubject($subject), $sa, 'curriculum_activate');
+        $this->em->clear();
+        self::assertTrue($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+        $archived = $this->subjects()->create($sa, 'cur_lvl_arch', 'Arsiv dersi', 'curriculum_setup');
+        $this->subjects()->archive($archived, $sa, 'curriculum_archive');
+        try {
+            $this->subjects()->reactivate($this->freshSubject($archived), $sa, 'curriculum_activate');
+            self::fail('Archived subject was reopened.');
+        } catch (SubjectException $e) {
+            self::assertSame('invalid_transition', $e->getReason()->value);
+        }
+
+        $unused = $this->subjects()->create($sa, 'cur_lvl_free', 'Bos ders', 'curriculum_setup');
+        $removed = $unused->getId();
+        $deleted = $this->auditCount(SecurityAuditAction::SubjectDeleted);
+        $this->subjects()->deleteUnused($unused, $sa, 'curriculum_delete');
+        self::assertNull($this->em->find(Subject::class, $removed));
+        self::assertSame($deleted + 1, $this->auditCount(SecurityAuditAction::SubjectDeleted));
+        $recreated = $this->subjects()->create($sa, 'cur_lvl_free', 'Bos ders', 'curriculum_setup');
+        self::assertFalse($removed->equals($recreated->getId()));
+
+        $blocked = $this->auditCount(SecurityAuditAction::SubjectDeleted);
+        try {
+            $this->subjects()->deleteUnused($this->freshSubject($subject), $sa, 'curriculum_delete');
+            self::fail('Subject with a program was deleted.');
+        } catch (SubjectException $e) {
+            self::assertSame('dependent', $e->getReason()->value);
+        }
+        self::assertInstanceOf(Subject::class, $this->freshSubject($subject));
+        self::assertSame($blocked, $this->auditCount(SecurityAuditAction::SubjectDeleted));
+
+        $this->programs()->changeStudentAccess($this->freshProgram($program), $sa, 'curriculum_passive', false);
+        $this->em->clear();
+        $closed = $this->freshProgram($program);
+        self::assertSame(CurriculumStatus::Published, $closed->getStatus());
+        self::assertSame(CurriculumAccessState::Inactive, $closed->getStudentAccess());
+        self::assertSame('cur_lvl_prog', $closed->getCode());
+        self::assertSame('1.0', $closed->getVersion());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshOutcome($outcome)->getStatus());
+        self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+        $this->programs()->changeStudentAccess($closed, $sa, 'curriculum_activate', true);
+        $this->em->clear();
+        self::assertSame(CurriculumAccessState::Active, $this->freshProgram($program)->getStudentAccess());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
+        self::assertTrue($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+        try {
+            $this->gates()->deactivate('grade', '9', $sa, 'curriculum_passive');
+            $this->gates()->deactivate('stage', 'lise', $sa, 'curriculum_passive');
+            $this->em->clear();
+            self::assertSame(GradeLevel::Grade9, $this->freshProgram($program)->getGradeLevel());
+            self::assertSame(CurriculumContentStatus::Active, $this->freshOutcome($outcome)->getStatus());
+            self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+            $this->gates()->reactivate('stage', 'lise', $sa, 'curriculum_activate');
+            $this->em->clear();
+            self::assertSame(CurriculumAccessState::Inactive, $this->gate('grade', '9')->getStatus());
+            self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+            $this->gates()->reactivate('grade', '9', $sa, 'curriculum_activate');
+            $this->em->clear();
+            self::assertTrue($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+            $this->programs()->retire($this->freshProgram($program), $sa, 'curriculum_retire');
+            try {
+                $this->programs()->changeStudentAccess($this->freshProgram($program), $sa, 'curriculum_passive', false);
+                self::fail('Retired program changed student access.');
+            } catch (CurriculumException $e) {
+                self::assertSame('invalid_transition', $e->getReason()->value);
+            }
+            self::assertSame('cur_lvl_prog', $this->freshProgram($program)->getCode());
+            self::assertSame(CurriculumStatus::Retired, $this->freshProgram($program)->getStatus());
+        } finally {
+            $this->restoreGate($sa, 'stage', 'lise');
+            $this->restoreGate($sa, 'grade', '9');
+        }
     }
 
     public function testProgramSearchPageDoesNotGrowWithRowCount(): void
@@ -375,7 +483,45 @@ final class AdminCurriculumManagementTest extends KernelTestCase
 
     private function access(): CurriculumStudentAccess
     {
-        return new CurriculumStudentAccess();
+        $service = static::getContainer()->get(CurriculumStudentAccess::class);
+        self::assertInstanceOf(CurriculumStudentAccess::class, $service);
+
+        return $service;
+    }
+
+    private function gates(): CurriculumAccessGateManager
+    {
+        $service = static::getContainer()->get(CurriculumAccessGateManager::class);
+        self::assertInstanceOf(CurriculumAccessGateManager::class, $service);
+
+        return $service;
+    }
+
+    private function gate(string $kind, string $key): CurriculumAccessGate
+    {
+        $repository = static::getContainer()->get(CurriculumAccessGateRepository::class);
+        self::assertInstanceOf(CurriculumAccessGateRepository::class, $repository);
+        $gate = $repository->findOne($kind, $key);
+        self::assertInstanceOf(CurriculumAccessGate::class, $gate);
+
+        return $gate;
+    }
+
+    private function restoreGate(User $actor, string $kind, string $key): void
+    {
+        $this->em->clear();
+        if (CurriculumAccessState::Inactive !== $this->gate($kind, $key)->getStatus()) {
+            return;
+        }
+        $this->gates()->reactivate($kind, $key, $actor, 'curriculum_activate');
+    }
+
+    private function freshSubject(Subject $subject): Subject
+    {
+        $fresh = $this->em->find(Subject::class, $subject->getId());
+        self::assertInstanceOf(Subject::class, $fresh);
+
+        return $fresh;
     }
 
     private function deletion(): CurriculumDraftDeletion

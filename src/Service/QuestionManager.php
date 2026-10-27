@@ -103,6 +103,7 @@ final class QuestionManager
         private readonly QuestionImageReferenceGuard $imageReferences,
         private readonly QuestionImageMetadataPort $imageMetadata,
         private readonly UserModulePermissionPolicy $modulePermissions,
+        private readonly CurriculumStudentAccess $studentAccess,
     ) {
     }
 
@@ -892,7 +893,7 @@ final class QuestionManager
             if (CurriculumContentStatus::Active !== $topic->getStatus()) {
                 throw QuestionException::alignmentInvalid('Curriculum topic must be active on publish.');
             }
-            if (!(new CurriculumStudentAccess())->studentOpen($outcome)) {
+            if (!$this->studentAccess->studentOpen($outcome)) {
                 throw QuestionException::alignmentInvalid('Learning outcome must be active on publish.');
             }
         }

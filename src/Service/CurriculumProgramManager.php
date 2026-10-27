@@ -305,6 +305,69 @@ final class CurriculumProgramManager
         $this->authCache->invalidateCurriculumProgram($programId);
     }
 
+    public function changeStudentAccess(CurriculumProgram $program, User $actor, string $reasonCode, bool $active): void
+    {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $programId = $program->getId();
+        $subjectId = $program->getSubject()->getId();
+        $actorId = $actor->getId();
+        $rejected = null;
+
+        try {
+            $this->entityManager->wrapInTransaction(function () use (
+                $programId,
+                $subjectId,
+                $actorId,
+                $reasonCode,
+                $active,
+                &$rejected,
+            ): void {
+                try {
+                    $lockedSubject = $this->lockSubject($subjectId);
+                    $locked = $this->lockProgram($programId);
+                    if (!$locked->getSubject()->getId()->equals($lockedSubject->getId())) {
+                        throw CurriculumException::conflict();
+                    }
+                    $freshActor = $this->lockActor($actorId, CurriculumOperation::Availability);
+                    $old = $locked->getStudentAccess()->value;
+                    $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                    if ($active) {
+                        $locked->reactivateStudentAccess($now);
+                    } else {
+                        $locked->deactivateStudentAccess($now);
+                    }
+                    $this->programs->save($locked, false);
+                    $this->auditRecorder->record(new SecurityAuditContext(
+                        action: SecurityAuditAction::CurriculumProgramUpdated,
+                        actorType: SecurityAuditActorType::User,
+                        outcome: SecurityAuditOutcome::Success,
+                        actorUser: $freshActor,
+                        metadata: [
+                            'source' => 'curriculum_program_manager',
+                            'reason_code' => $reasonCode,
+                            'subject_id' => $lockedSubject->getId()->toRfc4122(),
+                            'curriculum_id' => $locked->getId()->toRfc4122(),
+                            'code' => $locked->getCode(),
+                            'version' => $locked->getVersion(),
+                            'target_type' => 'student_access',
+                            'old_status' => $old,
+                            'new_status' => $locked->getStudentAccess()->value,
+                        ],
+                        captureRequestHashes: false,
+                    ), false);
+                    $this->entityManager->flush();
+                } catch (CurriculumException $exception) {
+                    $rejected = $exception;
+                }
+            });
+        } catch (DeadlockException|LockWaitTimeoutException) {
+            throw CurriculumException::conflict();
+        }
+        if ($rejected instanceof CurriculumException) {
+            throw $rejected;
+        }
+    }
+
     public function cloneAsNewVersion(
         CurriculumProgram $source,
         User $actor,

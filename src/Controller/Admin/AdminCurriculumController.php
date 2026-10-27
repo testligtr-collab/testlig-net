@@ -25,6 +25,7 @@ use App\Form\AdminCurriculumActionFormType;
 use App\Form\AdminCurriculumNodeFormType;
 use App\Form\AdminCurriculumProgramCreateFormType;
 use App\Form\AdminCurriculumSubjectFormType;
+use App\Repository\CurriculumAccessGateRepository;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\CurriculumTopicRepository;
@@ -32,6 +33,7 @@ use App\Repository\CurriculumUnitRepository;
 use App\Repository\SubjectRepository;
 use App\Security\AdminPermission;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\CurriculumAccessGateManager;
 use App\Service\CurriculumDraftDeletion;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
@@ -62,7 +64,9 @@ final class AdminCurriculumController extends AdminBaseController
         private readonly CurriculumTopicRepository $topics,
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly SubjectRepository $subjects,
+        private readonly CurriculumAccessGateRepository $gates,
         private readonly SubjectManager $subjectManager,
+        private readonly CurriculumAccessGateManager $gateManager,
         private readonly CurriculumProgramManager $programManager,
         private readonly CurriculumUnitManager $unitManager,
         private readonly CurriculumTopicManager $topicManager,
@@ -83,30 +87,7 @@ final class AdminCurriculumController extends AdminBaseController
     #[IsGranted(AdminPermission::ADMIN_CURRICULUM_VIEW)]
     public function list(Request $request): Response
     {
-        $q = trim((string) $request->query->get('q', ''));
-        $grade = GradeLevel::tryFrom((int) $request->query->get('sinif', 0));
-        $status = $this->statusFilter((string) $request->query->get('durum', ''));
-        $subjectId = $this->uuidOrNull((string) $request->query->get('ders', ''));
-        $page = max(1, (int) $request->query->get('sayfa', 1));
-        $result = $this->programs->searchAdmin($q, $grade, $status, $subjectId, $page, 20);
-        $pages = max(1, (int) ceil($result['total'] / 20));
-
-        return $this->renderAdmin('admin/curriculum/list.html.twig', [
-            'rows' => $result['rows'],
-            'summary' => $this->programs->countByStatus(),
-            'subjects' => $this->subjects->findActiveOrdered(),
-            'grades' => GradeLevel::cases(),
-            'filters' => [
-                'q' => $q,
-                'sinif' => $grade instanceof GradeLevel ? (string) $grade->value : '',
-                'durum' => $status instanceof CurriculumStatus ? $status->value : '',
-                'ders' => $subjectId instanceof Uuid ? $subjectId->toRfc4122() : '',
-            ],
-            'page' => min($page, $pages),
-            'pages' => $pages,
-            'can_manage' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_MANAGE),
-            'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
-        ]);
+        return $this->renderList($request);
     }
 
     #[Route('/yonetim/programlar/yeni', name: 'app_admin_curriculum_new', methods: ['GET', 'POST'])]
@@ -211,6 +192,97 @@ final class AdminCurriculumController extends AdminBaseController
         return $this->redirectToRoute('app_admin_curriculum_new');
     }
 
+    #[Route('/yonetim/programlar/ders/{subject}/erisim/{mode}', name: 'app_admin_curriculum_subject_access', methods: ['POST'], requirements: ['subject' => Requirement::UUID, 'mode' => 'pasif|aktif'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY)]
+    public function subjectAccess(Request $request, string $subject, string $mode): Response
+    {
+        $found = $this->freshSubject($subject) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+        $active = 'aktif' === $mode;
+
+        return $this->subjectAction(
+            $request,
+            $active ? 'admin_curriculum_active_subject' : 'admin_curriculum_passive_subject',
+            [$active ? 'Yeniden aktif etme' : 'Pasif yapma' => $active ? AdminCurriculumActionRequest::REASON_ACTIVATE : AdminCurriculumActionRequest::REASON_PASSIVE],
+            $active ? 'Dersi yeniden aktif etmeyi onaylıyorum' : 'Dersi pasif yapmayı onaylıyorum. Program ve alt kayıtların kendi durumu değişmez.',
+            'admin_curriculum_'.$mode.'_'.$found->getId()->toRfc4122(),
+            $this->mutateLimiter,
+            'curriculum-subject-access',
+            function (AdminCurriculumActionRequest $data) use ($found, $active): void {
+                $active
+                    ? $this->subjectManager->reactivate($found, $this->requireActorUser(), $data->reasonCode)
+                    : $this->subjectManager->deactivate($found, $this->requireActorUser(), $data->reasonCode);
+            },
+        );
+    }
+
+    #[Route('/yonetim/programlar/ders/{subject}/arsivle', name: 'app_admin_curriculum_subject_archive', methods: ['POST'], requirements: ['subject' => Requirement::UUID])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE)]
+    public function archiveSubject(Request $request, string $subject): Response
+    {
+        $found = $this->freshSubject($subject) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+
+        return $this->subjectAction(
+            $request,
+            'admin_curriculum_archive_subject',
+            ['Arşiv' => AdminCurriculumActionRequest::REASON_ARCHIVE],
+            'Dersi arşivlemeyi onaylıyorum. Arşiv geri açılmaz.',
+            'admin_curriculum_archive_subject_'.$found->getId()->toRfc4122(),
+            $this->archiveLimiter,
+            'curriculum-subject-archive',
+            function (AdminCurriculumActionRequest $data) use ($found): void {
+                $this->subjectManager->archive($found, $this->requireActorUser(), $data->reasonCode);
+            },
+        );
+    }
+
+    #[Route('/yonetim/programlar/ders/{subject}/sil', name: 'app_admin_curriculum_subject_delete', methods: ['POST'], requirements: ['subject' => Requirement::UUID])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE)]
+    public function deleteSubject(Request $request, string $subject): Response
+    {
+        $found = $this->freshSubject($subject) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+
+        return $this->subjectAction(
+            $request,
+            'admin_curriculum_delete_subject',
+            ['Kullanılmamış dersi silme' => AdminCurriculumActionRequest::REASON_DELETE],
+            'Bağlı kaydı olmadığını ve dersin kalıcı silineceğini onaylıyorum',
+            'admin_curriculum_delete_subject_'.$found->getId()->toRfc4122(),
+            $this->archiveLimiter,
+            'curriculum-subject-delete',
+            function (AdminCurriculumActionRequest $data) use ($found): void {
+                $this->subjectManager->deleteUnused($found, $this->requireActorUser(), $data->reasonCode);
+            },
+        );
+    }
+
+    #[Route('/yonetim/programlar/kademe/{key}/erisim/{mode}', name: 'app_admin_curriculum_stage_access', methods: ['POST'], requirements: ['key' => 'ilkokul|ortaokul|lise', 'mode' => 'pasif|aktif'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY)]
+    public function stageAccess(Request $request, string $key, string $mode): Response
+    {
+        return $this->gateAccess($request, 'stage', $key, $mode);
+    }
+
+    #[Route('/yonetim/programlar/kademe/{key}/ad', name: 'app_admin_curriculum_stage_rename', methods: ['POST'], requirements: ['key' => 'ilkokul|ortaokul|lise'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_MANAGE)]
+    public function stageRename(Request $request, string $key): Response
+    {
+        return $this->gateRename($request, 'stage', $key);
+    }
+
+    #[Route('/yonetim/programlar/sinif/{grade}/erisim/{mode}', name: 'app_admin_curriculum_grade_access', methods: ['POST'], requirements: ['grade' => '[1-9]|1[0-2]', 'mode' => 'pasif|aktif'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY)]
+    public function gradeAccess(Request $request, string $grade, string $mode): Response
+    {
+        return $this->gateAccess($request, 'grade', $grade, $mode);
+    }
+
+    #[Route('/yonetim/programlar/sinif/{grade}/ad', name: 'app_admin_curriculum_grade_rename', methods: ['POST'], requirements: ['grade' => '[1-9]|1[0-2]'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_MANAGE)]
+    public function gradeRename(Request $request, string $grade): Response
+    {
+        return $this->gateRename($request, 'grade', $grade);
+    }
+
     #[Route('/yonetim/programlar/{id}', name: 'app_admin_curriculum_show', methods: ['GET'], requirements: ['id' => Requirement::UUID])]
     #[IsGranted(AdminPermission::ADMIN_CURRICULUM_VIEW)]
     public function show(string $id): Response
@@ -267,6 +339,25 @@ final class AdminCurriculumController extends AdminBaseController
         }
 
         return $this->redirectToRoute('app_admin_curriculum_show', ['id' => $program->getId()->toRfc4122()]);
+    }
+
+    #[Route('/yonetim/programlar/{id}/erisim/{mode}', name: 'app_admin_curriculum_program_access', methods: ['POST'], requirements: ['id' => Requirement::UUID, 'mode' => 'pasif|aktif'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY)]
+    public function programAccess(Request $request, string $id, string $mode): Response
+    {
+        $program = $this->requireProgram($id);
+        $active = 'aktif' === $mode;
+        $form = $this->actionForm(
+            $active ? 'admin_curriculum_active_program' : 'admin_curriculum_passive_program',
+            [$active ? 'Yeniden aktif etme' : 'Pasif yapma' => $active ? AdminCurriculumActionRequest::REASON_ACTIVATE : AdminCurriculumActionRequest::REASON_PASSIVE],
+            $active ? 'Programı yeniden aktif etmeyi onaylıyorum' : 'Programı pasif yapmayı onaylıyorum. Yayın ve alt kayıtların kendi durumu değişmez.',
+            'admin_curriculum_'.$mode.'_'.$program->getId()->toRfc4122(),
+        );
+        $form->handleRequest($request);
+
+        return $this->handleAction($form, $program, $this->mutateLimiter, 'curriculum-program-access', function (AdminCurriculumActionRequest $data) use ($program, $active): void {
+            $this->programManager->changeStudentAccess($program, $this->requireActorUser(), $data->reasonCode, $active);
+        });
     }
 
     #[Route('/yonetim/programlar/{id}/yayinla', name: 'app_admin_curriculum_publish', methods: ['POST'], requirements: ['id' => Requirement::UUID])]
@@ -717,6 +808,9 @@ final class AdminCurriculumController extends AdminBaseController
             'subject_form' => $subjectForm->createView(),
             'program_form' => $programForm->createView(),
             'subjects' => $subjects,
+            'subject_cards' => $this->subjects->findNotArchivedOrdered(),
+            'can_availability' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY),
+            'can_archive' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE),
             'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
         ];
     }
@@ -761,6 +855,136 @@ final class AdminCurriculumController extends AdminBaseController
         }
 
         return ['title' => $title, 'reason' => $reason];
+    }
+
+    /**
+     * @param array<string, string>                        $reasons
+     * @param \Closure(AdminCurriculumActionRequest): void $action
+     */
+    private function subjectAction(Request $request, string $name, array $reasons, string $confirm, string $csrf, RateLimiterFactory $limiter, string $bucket, \Closure $action): Response
+    {
+        $form = $this->actionForm($name, $reasons, $confirm, $csrf);
+        $form->handleRequest($request);
+        if ($this->formHasCsrfFailure($form)) {
+            throw new AccessDeniedHttpException('CSRF doğrulaması başarısız.');
+        }
+        if (!$form->isValid()) {
+            return $this->blankCreate(Response::HTTP_UNPROCESSABLE_ENTITY, 'İşlem onaylanmadı.');
+        }
+        /** @var AdminCurriculumActionRequest $data */
+        $data = $form->getData();
+        try {
+            $this->consume($limiter, $bucket.'-'.$this->requireActorId()->toRfc4122());
+            $action($data);
+        } catch (SubjectException $e) {
+            $message = $this->publicFailure($e->getReason()->value);
+            if ('Bu işlem için yetkiniz yok.' === $message) {
+                throw new AccessDeniedHttpException($message);
+            }
+
+            return $this->blankCreate(Response::HTTP_UNPROCESSABLE_ENTITY, $message);
+        }
+
+        return $this->redirectToRoute('app_admin_curriculum_new');
+    }
+
+    private function gateAccess(Request $request, string $kind, string $key, string $mode): Response
+    {
+        $active = 'aktif' === $mode;
+        $form = $this->actionForm(
+            $active ? 'admin_curriculum_active_gate' : 'admin_curriculum_passive_gate',
+            [$active ? 'Yeniden aktif etme' : 'Pasif yapma' => $active ? AdminCurriculumActionRequest::REASON_ACTIVATE : AdminCurriculumActionRequest::REASON_PASSIVE],
+            $active ? 'Yeniden aktif etmeyi onaylıyorum. Alt kayıtların kendi durumu değişmez.' : 'Pasif yapmayı onaylıyorum. Alt kayıtların kendi durumu değişmez.',
+            'admin_curriculum_'.$mode.'_gate_'.$kind.'_'.$key,
+        );
+        $form->handleRequest($request);
+        if ($this->formHasCsrfFailure($form)) {
+            throw new AccessDeniedHttpException('CSRF doğrulaması başarısız.');
+        }
+        if (!$form->isValid()) {
+            return $this->renderList($request, 'İşlem onaylanmadı.', Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        /** @var AdminCurriculumActionRequest $data */
+        $data = $form->getData();
+        try {
+            $this->consume($this->mutateLimiter, 'curriculum-gate-access-'.$this->requireActorId()->toRfc4122());
+            $active
+                ? $this->gateManager->reactivate($kind, $key, $this->requireActorUser(), $data->reasonCode)
+                : $this->gateManager->deactivate($kind, $key, $this->requireActorUser(), $data->reasonCode);
+        } catch (CurriculumException $e) {
+            $message = $this->publicFailure($e->getReason()->value);
+            if ('Bu işlem için yetkiniz yok.' === $message) {
+                throw new AccessDeniedHttpException($message);
+            }
+
+            return $this->renderList($request, $message, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return $this->redirectToRoute('app_admin_curriculum');
+    }
+
+    private function gateRename(Request $request, string $kind, string $key): Response
+    {
+        $payload = $this->renamePayload($request, 'admin_curriculum_rename_gate', 'admin_curriculum_rename_gate_'.$kind.'_'.$key);
+        if (\is_string($payload)) {
+            return $this->renderList($request, $payload, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+        try {
+            $this->consume($this->mutateLimiter, 'curriculum-gate-rename-'.$this->requireActorId()->toRfc4122());
+            $this->gateManager->rename($kind, $key, $this->requireActorUser(), $payload['title'], $payload['reason']);
+        } catch (CurriculumException $e) {
+            $message = $this->publicFailure($e->getReason()->value);
+            if ('Bu işlem için yetkiniz yok.' === $message) {
+                throw new AccessDeniedHttpException($message);
+            }
+
+            return $this->renderList($request, $message, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return $this->redirectToRoute('app_admin_curriculum');
+    }
+
+    private function blankCreate(int $status, string $message): Response
+    {
+        $subjects = $this->subjects->findActiveOrdered();
+        $subjectForm = $this->createForm(AdminCurriculumSubjectFormType::class, new AdminCurriculumSubjectRequest());
+        $programForm = $this->createForm(AdminCurriculumProgramCreateFormType::class, new AdminCurriculumProgramCreateRequest(), [
+            'subjects' => $subjects,
+        ]);
+
+        return $this->renderCreate($subjectForm, $programForm, $subjects, $status, $message);
+    }
+
+    private function renderList(Request $request, ?string $error = null, int $status = Response::HTTP_OK): Response
+    {
+        $q = trim((string) $request->query->get('q', ''));
+        $grade = GradeLevel::tryFrom((int) $request->query->get('sinif', 0));
+        $filter = $this->statusFilter((string) $request->query->get('durum', ''));
+        $subjectId = $this->uuidOrNull((string) $request->query->get('ders', ''));
+        $page = max(1, (int) $request->query->get('sayfa', 1));
+        $result = $this->programs->searchAdmin($q, $grade, $filter, $subjectId, $page, 20);
+        $pages = max(1, (int) ceil($result['total'] / 20));
+
+        return $this->renderAdmin('admin/curriculum/list.html.twig', [
+            'rows' => $result['rows'],
+            'summary' => $this->programs->countByStatus(),
+            'subjects' => $this->subjects->findActiveOrdered(),
+            'gates' => $this->gates->findOrdered(),
+            'grades' => GradeLevel::cases(),
+            'filters' => [
+                'q' => $q,
+                'sinif' => $grade instanceof GradeLevel ? (string) $grade->value : '',
+                'durum' => $filter instanceof CurriculumStatus ? $filter->value : '',
+                'ders' => $subjectId instanceof Uuid ? $subjectId->toRfc4122() : '',
+            ],
+            'page' => min($page, $pages),
+            'pages' => $pages,
+            'can_manage' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_MANAGE),
+            'can_availability' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY),
+            'can_archive' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE),
+            'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
+            'gate_error' => $error,
+        ], new Response(status: $status));
     }
 
     private function requireProgram(string $id): CurriculumProgram
@@ -907,6 +1131,7 @@ final class AdminCurriculumController extends AdminBaseController
             'invalid_transition' => 'Bu durum geçişi yapılamaz.',
             'program_not_draft' => 'Yayımlanmış programın yapısı değişmez. Yeni bir program sürümü açın.',
             'subject_archived' => 'Arşivlenmiş derse kayıt eklenmez.',
+            'dependent' => 'Bağlı kayıt olduğu için ders silinmedi.',
             'date_overlap' => 'Aynı ders ve sınıf düzeyinde yayımlı başka program var.',
             'not_found' => 'Kayıt bulunamadı.',
             'active_children' => 'Aktif alt kayıt varken arşivlenemez.',

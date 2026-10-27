@@ -188,6 +188,7 @@
         "Süper yönetici /yonetim/rol-yetkileri adresinde moderatör hesaplarına learning_content.manage, question.manage ve assessment.author izinlerini verir veya kaldırır. İzin menü, route ve platform işlem servisinde aynı UserModulePermissionPolicy ile uygulanır. Yayın, arşiv, ödeme, denetim, kurum üyeliği ve global rol bu ekrandan verilmez. Canlı görsel kabul yapılmadı.",
         "Aynı ekran curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinlerini ayrı satırlarda verir. İçerik, soru ve test izni müfredat izni vermez. Yayın izni oluşturma izninden çıkmaz. Moderatör kendi iznini veremez. Canlı görsel kabul yapılmadı.",
         "Aynı ekrana curriculum.availability satırı eklendi. Bu izin ünite, konu ve kazanımı pasif yapar veya yeniden aktif eder. Oluşturma, yayın ve arşiv vermez. Arşiv izni pasiflik vermez. Canlı görsel kabul yapılmadı.",
+        "curriculum.availability dersi, programın öğrenci erişimini ve sabit kademe ile sınıf düzeyi kapılarını da pasif yapar veya yeniden açar. curriculum.archive kullanılmamış aktif dersi siler veya dersi arşivler. Bu izinler birbirinden çıkmaz. Canlı görsel kabul yapılmadı.",
         "Liste, rol kartları, moderatör hesap paneli, arama ve boş durum düzenini kullanır. Hesap varsa gerçek satırlar görünür. Adres, katalog ve kayıt kuralları aynıdır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
@@ -443,13 +444,14 @@
         "2026-10-26 kullanıcı kararı açık iş olarak durur: kategori/kademeden sınıf düzeyi, ders, ünite/tema, konu ve kazanıma kadar oluşturma, düzenleme, aktif/pasif ve silme/arşiv. Moderatör yalnız ayrıca verilmiş müfredat izniyle işlem yapar. Bağımlılığı olmayan kullanılmamış taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış sayılmaz. Üst kayıt açılınca alt kayıtların durumu sessiz değişmez. Yeniden oluşturulan kayıt yeni kimlik alır. Toplu alt kayıt silme bağımlılık özeti, açık onay ve audit ister. Bu tur CRUD veya moderatör delegasyonu uygulanmadı. Ayrı 1-12 İngilizce entegre şema metni bu teslimata ekli değildi; uydurulmuş ağaç veya resmî kazanım kodu yazılmadı. docs/curriculum/m10-management-decision.md",
         "2026-10-26 takip: kaynak metin mesajda yine yoktu. docs/curriculum/sources/user-provided-grade-1-12-tree.md ve docs/curriculum/grade-1-12-tree-outline.md yazılmadı. Oluşturma, düzenleme, aktif/pasif, güvenli silme/arşiv ve açık izinli moderatör delegasyonu açık iş olarak durur.",
         "2026-10-26 program yönetimi mevcut Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic ve CurriculumLearningOutcome modeli üzerinde /yonetim/programlar adresinde çalışır. GradeLevel enum olarak kalır. Öğrenci kataloğu ayrıdır. Liste, arama, filtre, detay, oluşturma, taslak ad düzenleme, yayın, emekliye ayırma ve bağımlılığı olmayan taslak silme vardır. Moderatör curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinleriyle ayrılır. Resmî 1-12 metni gelmediği için kaynak dosyaları yazılmadı. Import, resmî doğrulama ve production kabulü açıktır.",
-        "2026-10-27 ünite, konu ve kazanım için geri alınabilir pasif durum eklendi. Arşiv son durumdur. Üst kayıt pasifken alt kayıt öğrenciye kapalı kalır ve yeniden açılınca kendi durumu değişmez. Pasif veya bağlı kayıt silinmez. Ders, sınıf düzeyi ve program için ayrı pasif durum yoktur. 1-12 metni yer tutucuydu; kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir."
+        "2026-10-27 ünite, konu ve kazanım için geri alınabilir pasif durum eklendi. Arşiv son durumdur. Üst kayıt pasifken alt kayıt öğrenciye kapalı kalır ve yeniden açılınca kendi durumu değişmez. Pasif veya bağlı kayıt silinmez. Ders, sınıf düzeyi ve program için ayrı pasif durum yoktur. 1-12 metni yer tutucuydu; kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
+        "2026-10-27 sonraki turda ders inactive durumunu, program student_access alanını ve sabit kademe ile 1-12 sınıf kapılarını aldı. Pasif üst kayıt öğrenciyi kapatır. Yeniden açmak alt kaydın kendi durumunu yazmaz. Kullanılmamış aktif ders silinir. Bağlı ders silinmez. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Aynı günün mesajında 1-12 ağaç metni yoktu. Kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",
         "https://github.com/testligtr-collab/testlig-net/pull/174"
       ],
-      "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, ünite/konu/kazanım pasifliği, arşiv ve bağımlılığı olmayan aktif taslak silme çalışır. Kademe kaydı, ders ve program pasifliği, resmî 1-12 doğrulaması, import ve production kabulü ayrı kanıt ister.",
+      "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, ders ve program öğrenci erişimi, sabit kademe ve sınıf kapısı, ünite/konu/kazanım pasifliği, arşiv ve bağımlılığı olmayan aktif kayıt silme çalışır. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Resmî 1-12 doğrulaması, import ve production kabulü ayrı kanıt ister.",
       "scope_decision": {
         "date": "2026-10-26",
         "source": "Kullanıcı kararı, Sınıflar admin teslimi ile birlikte kaydedildi.",
@@ -1211,7 +1213,8 @@
         "Akademik yıllar menüsü yer tutucu bölüm girişinden /yonetim/akademik-yillar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Sınıflar menüsü yer tutucu bölüm girişinden /yonetim/siniflar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Kurum paneli ve öğretmen Sınıflarım aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Programlar menüsü /yonetim/programlar adresine alındı. Müfredat görüntüleme izni olan moderatör kabuğu görür. Oluşturma, yayın ve arşiv düğmeleri ayrı izinlere bağlıdır. Öğrenci kataloğu /yonetim/mufredat adresinde kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Program detayında ünite, konu ve kazanım için pasif yapma ve yeniden aktif etme ayrı curriculum.availability iznine bağlıdır. Arşiv düğmesi pasiflik değildir. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Program detayında ünite, konu ve kazanım için pasif yapma ve yeniden aktif etme ayrı curriculum.availability iznine bağlıdır. Arşiv düğmesi pasiflik değildir. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Program listesinde sabit kademe ve sınıf düzeyi kapıları, program detayında programı pasif yapma ve yeni program ekranında dersi pasif yapma aynı yönetim kabuğundadır. Kademe ve sınıf düzeyi için oluşturma veya silme düğmesi yoktur. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

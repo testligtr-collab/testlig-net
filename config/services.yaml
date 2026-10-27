@@ -375,6 +375,14 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\CurriculumAccessGateManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumStudentAccess:
+            public: true
+            autowire: true
+            autoconfigure: true
         App\Service\CurriculumUnitManager:
             public: true
             autowire: true

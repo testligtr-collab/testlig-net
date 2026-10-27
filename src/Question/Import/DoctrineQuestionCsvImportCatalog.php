@@ -17,6 +17,7 @@ final class DoctrineQuestionCsvImportCatalog implements QuestionCsvImportCatalog
         private readonly SubjectRepository $subjects,
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly QuestionRepository $questions,
+        private readonly CurriculumStudentAccess $studentAccess,
     ) {
     }
 
@@ -69,6 +70,6 @@ final class DoctrineQuestionCsvImportCatalog implements QuestionCsvImportCatalog
 
     private function isUsable(CurriculumLearningOutcome $outcome): bool
     {
-        return (new CurriculumStudentAccess())->studentOpen($outcome);
+        return $this->studentAccess->studentOpen($outcome);
     }
 }
