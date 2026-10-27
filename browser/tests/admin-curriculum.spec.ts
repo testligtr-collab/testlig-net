@@ -124,6 +124,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.getByRole('button', { name: /Tarayici unite/ }).click();
     await page.getByRole('button', { name: /Tarayici konu/ }).click();
     await expect(page.getByText('Tarayici kazanimi')).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await assertLayout(page);
     await capture(page, info, `admin-program-agac-${viewport.name}.png`);
     await page.goto('/yonetim/mufredat');
