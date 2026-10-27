@@ -93,7 +93,7 @@
             {% for unit in units %}
                 {% set unit_topics = topics_by_unit[unit.id.toRfc4122]|default([]) %}
                 <details class="admin-curriculum-node">
-                    <summary><span>{{ unit.title }}</span><span class="admin-institution-status admin-institution-status--{{ unit.status.value == 'active' ? 'active' : (unit.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[unit.status.value] }}</span></summary>
+                    <summary><span class="admin-curriculum-node__line"><span>{{ unit.title }}</span><span class="admin-institution-status admin-institution-status--{{ unit.status.value == 'active' ? 'active' : (unit.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[unit.status.value] }}</span></span></summary>
                     <p>Ünite · {{ unit_topics|length }} konu</p>
                     {% if unit.status.value == 'inactive' %}
                         <p>Bu ünitenin kendi durumu pasif. Alt kayıtların durumu değişmedi. Öğrenci bu üniteyi görmez.</p>
@@ -165,7 +165,7 @@
                     {% for topic in unit_topics %}
                         {% set topic_outcomes = outcomes_by_topic[topic.id.toRfc4122]|default([]) %}
                         <details class="admin-curriculum-node">
-                            <summary><span>{{ topic.title }}</span><span class="admin-institution-status admin-institution-status--{{ topic.status.value == 'active' ? 'active' : (topic.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[topic.status.value] }}</span></summary>
+                            <summary><span class="admin-curriculum-node__line"><span>{{ topic.title }}</span><span class="admin-institution-status admin-institution-status--{{ topic.status.value == 'active' ? 'active' : (topic.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[topic.status.value] }}</span></span></summary>
                             <p>Konu · {{ topic_outcomes|length }} kazanım</p>
                             {% if topic.status.value == 'inactive' %}
                                 <p>Bu konunun kendi durumu pasif. Alt kayıtların durumu değişmedi.</p>
@@ -232,7 +232,7 @@
                             {% endif %}
                             {% for outcome in topic_outcomes %}
                                 <details class="admin-curriculum-node">
-                                    <summary><span>{{ outcome.description }}</span><span class="admin-institution-status admin-institution-status--{{ outcome.status.value == 'active' ? 'active' : (outcome.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[outcome.status.value] }}</span></summary>
+                                    <summary><span class="admin-curriculum-node__line"><span>{{ outcome.description }}</span><span class="admin-institution-status admin-institution-status--{{ outcome.status.value == 'active' ? 'active' : (outcome.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[outcome.status.value] }}</span></span></summary>
                                     {% if outcome.status.value == 'inactive' %}
                                         <p>Bu kazanımın kendi durumu pasif.</p>
                                     {% elseif outcome.status.value == 'archived' %}

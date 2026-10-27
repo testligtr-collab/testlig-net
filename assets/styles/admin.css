@@ -3306,17 +3306,23 @@ body.is-admin-panel {
 .is-admin-panel .admin-curriculum-page .admin-curriculum-node { padding: 0 0.8rem 0.15rem; }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary,
 .is-admin-panel .admin-curriculum-page .admin-curriculum-node > summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.6rem;
     min-height: 44px;
     padding: 0.55rem 0.15rem;
     cursor: pointer;
+    list-style-position: inside;
     overflow-wrap: anywhere;
 }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary { padding-inline: 0.8rem; }
-.is-admin-panel .admin-curriculum-page .admin-curriculum-node > summary span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: calc(100% - 1.4rem);
+    min-width: 0;
+    vertical-align: middle;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line span:first-child { min-width: 0; overflow-wrap: anywhere; }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-actions form,
 .is-admin-panel .admin-curriculum-page .admin-curriculum-node > p { margin: 0.35rem 0 0.7rem; }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-actions form {
