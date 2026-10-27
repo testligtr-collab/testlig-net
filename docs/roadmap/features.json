@@ -451,7 +451,8 @@
         "2026-10-27 sonraki turda ders inactive durumunu, program student_access alanını ve sabit kademe ile 1-12 sınıf kapılarını aldı. Pasif üst kayıt öğrenciyi kapatır. Yeniden açmak alt kaydın kendi durumunu yazmaz. Kullanılmamış aktif ders silinir. Bağlı ders silinmez. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Aynı günün mesajında 1-12 ağaç metni yoktu. Kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
         "2026-10-27 kullanıcı 1-12 ağacı docs/curriculum/sources/user-provided-grade-1-12-tree.md dosyasına aynen alındı. Okunur özet docs/curriculum/grade-1-12-tree-outline.md yalnız 11 ve 12. sınıf girintisini düzeltir. Metin kullanıcı taslağıdır ve resmî MEB müfredatı olarak doğrulanmamıştır. Import, resmî kazanım kodu, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 program listesinde sabit kademe kartları ve sınıf düzeyleri gerçek kapılara bağlıdır. İşlem formları kartın İşlemler alanında açılır. Program detayında ünite, konu ve kazanım açılıp kapanır. Katalog adresi ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
-        "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır."
+        "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır.",
+        "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",

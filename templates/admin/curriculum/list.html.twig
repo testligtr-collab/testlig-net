@@ -19,7 +19,7 @@
         {% if gate.kind == 'stage' %}
             {% set stage_gates = stage_gates|merge([gate]) %}
         {% else %}
-            {% set grade_gates = grade_gates|merge({ (gate.gateKey): gate }) %}
+            {% set grade_gates = grade_gates|merge({ ('g' ~ gate.gateKey): gate }) %}
         {% endif %}
     {% endfor %}
     {% set selected_stage = filters.kademe %}
@@ -51,7 +51,7 @@
                     <p>Sabit kademe. Oluşturulmaz ve silinmez.</p>
                     <div class="admin-curriculum-grades" aria-label="{{ gate.label }} sınıf düzeyleri">
                         {% for grade in stage_grades[gate.gateKey] %}
-                            {% set grade_gate = grade_gates[grade ~ '']|default(null) %}
+                            {% set grade_gate = grade_gates['g' ~ grade]|default(null) %}
                             <a class="admin-curriculum-grade{% if filters.sinif == grade ~ '' %} is-selected{% endif %}" href="{{ path('app_admin_curriculum', { q: filters.q, ders: filters.ders, sinif: grade, durum: filters.durum }) }}"{% if filters.sinif == grade ~ '' %} aria-current="page"{% endif %}>
                                 <span>{{ grade }}. sınıf</span>
                                 <small>{{ grade_gate and grade_gate.status.value == 'active' ? 'Aktif' : 'Pasif' }}</small>
@@ -89,7 +89,7 @@
                                 </form>
                             {% endif %}
                             {% for grade in stage_grades[gate.gateKey] %}
-                                {% set grade_gate = grade_gates[grade ~ '']|default(null) %}
+                                {% set grade_gate = grade_gates['g' ~ grade]|default(null) %}
                                 {% if grade_gate and can_manage %}
                                     <form method="post" action="{{ path('app_admin_curriculum_grade_rename', { grade: grade_gate.gateKey }) }}">
                                         <label>{{ grade }}. sınıf görünen adı<input name="admin_curriculum_rename_gate[title]" value="{{ grade_gate.label }}" maxlength="80"></label>
