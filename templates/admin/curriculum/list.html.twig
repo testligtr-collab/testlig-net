@@ -60,7 +60,7 @@
                     </div>
                     {% if can_manage or can_availability %}
                         <details class="admin-curriculum-actions">
-                            <summary>İşlemler</summary>
+                            <summary role="button">İşlemler</summary>
                             {% if can_manage %}
                                 <form method="post" action="{{ path('app_admin_curriculum_stage_rename', { key: gate.gateKey }) }}">
                                     <p>Ad değişikliği kademenin kimliğini değiştirmez.</p>

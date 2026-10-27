@@ -44,12 +44,12 @@
             <p>{{ access_note }}</p>
             <p>Pasif yapmak öğrenciyi kapatır ve geri alınır. Yayın ile alt kayıtların kendi durumu değişmez. Arşiv ayrıdır ve geri açılmaz. Emekliye ayırma da geri açılmaz.</p>
             <details class="admin-curriculum-actions">
-                <summary>Teknik bilgiler</summary>
+                <summary role="button">Teknik bilgiler</summary>
                 <p>Teknik kod: {{ program.code }}. Bu kod resmî kazanım kodu değildir. Kod, ders, sınıf düzeyi ve sürüm yerinde değişmez.</p>
             </details>
             {% if can_availability or can_manage %}
                 <details class="admin-curriculum-actions">
-                    <summary>İşlemler</summary>
+                    <summary role="button">İşlemler</summary>
                     {% if can_availability and program.studentAccess.value == 'active' %}
                         <form method="post" action="{{ path('app_admin_curriculum_program_access', { id: program.id, mode: 'pasif' }) }}">
                             <p>Pasif yapmak yayını değiştirmez. Alt kayıtların kendi durumu değişmez. Bu işlem emekliye ayırma değildir.</p>
@@ -93,7 +93,7 @@
             {% for unit in units %}
                 {% set unit_topics = topics_by_unit[unit.id.toRfc4122]|default([]) %}
                 <details class="admin-curriculum-node">
-                    <summary><span class="admin-curriculum-node__line"><span>{{ unit.title }}</span><span class="admin-institution-status admin-institution-status--{{ unit.status.value == 'active' ? 'active' : (unit.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[unit.status.value] }}</span></span></summary>
+                    <summary role="button"><span class="admin-curriculum-node__line"><span>{{ unit.title }}</span><span class="admin-institution-status admin-institution-status--{{ unit.status.value == 'active' ? 'active' : (unit.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[unit.status.value] }}</span></span></summary>
                     <p>Ünite · {{ unit_topics|length }} konu</p>
                     {% if unit.status.value == 'inactive' %}
                         <p>Bu ünitenin kendi durumu pasif. Alt kayıtların durumu değişmedi. Öğrenci bu üniteyi görmez.</p>
@@ -104,7 +104,7 @@
                     {% endif %}
                     {% if can_manage or can_availability or can_archive %}
                         <details class="admin-curriculum-actions">
-                            <summary>İşlemler</summary>
+                            <summary role="button">İşlemler</summary>
                             {% if can_manage and unit.status.value != 'archived' %}
                                 <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'unite', node: unit.id }) }}">
                                     <label>Ünite adı<input name="admin_curriculum_rename_unite[title]" value="{{ unit.title }}" maxlength="160"></label>
@@ -152,20 +152,20 @@
                                 <p>Alt kayıt olduğu için bu ünite silinemez.</p>
                             {% endif %}
                             <details class="admin-curriculum-actions">
-                                <summary>Teknik bilgiler</summary>
+                                <summary role="button">Teknik bilgiler</summary>
                                 <p>Teknik kod: {{ unit.code }}. Bu kod resmî kazanım kodu değildir.</p>
                             </details>
                         </details>
                     {% else %}
                         <details class="admin-curriculum-actions">
-                            <summary>Teknik bilgiler</summary>
+                            <summary role="button">Teknik bilgiler</summary>
                             <p>Teknik kod: {{ unit.code }}. Bu kod resmî kazanım kodu değildir.</p>
                         </details>
                     {% endif %}
                     {% for topic in unit_topics %}
                         {% set topic_outcomes = outcomes_by_topic[topic.id.toRfc4122]|default([]) %}
                         <details class="admin-curriculum-node">
-                            <summary><span class="admin-curriculum-node__line"><span>{{ topic.title }}</span><span class="admin-institution-status admin-institution-status--{{ topic.status.value == 'active' ? 'active' : (topic.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[topic.status.value] }}</span></span></summary>
+                            <summary role="button"><span class="admin-curriculum-node__line"><span>{{ topic.title }}</span><span class="admin-institution-status admin-institution-status--{{ topic.status.value == 'active' ? 'active' : (topic.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[topic.status.value] }}</span></span></summary>
                             <p>Konu · {{ topic_outcomes|length }} kazanım</p>
                             {% if topic.status.value == 'inactive' %}
                                 <p>Bu konunun kendi durumu pasif. Alt kayıtların durumu değişmedi.</p>
@@ -176,7 +176,7 @@
                             {% endif %}
                             {% if can_manage or can_availability or can_archive %}
                                 <details class="admin-curriculum-actions">
-                                    <summary>İşlemler</summary>
+                                    <summary role="button">İşlemler</summary>
                                     {% if can_manage and topic.status.value != 'archived' %}
                                         <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'konu', node: topic.id }) }}">
                                             <label>Konu adı<input name="admin_curriculum_rename_konu[title]" value="{{ topic.title }}" maxlength="160"></label>
@@ -220,19 +220,19 @@
                                         </form>
                                     {% endif %}
                                     <details class="admin-curriculum-actions">
-                                        <summary>Teknik bilgiler</summary>
+                                        <summary role="button">Teknik bilgiler</summary>
                                         <p>Teknik kod: {{ topic.code }}. Bu kod resmî kazanım kodu değildir.</p>
                                     </details>
                                 </details>
                             {% else %}
                                 <details class="admin-curriculum-actions">
-                                    <summary>Teknik bilgiler</summary>
+                                    <summary role="button">Teknik bilgiler</summary>
                                     <p>Teknik kod: {{ topic.code }}. Bu kod resmî kazanım kodu değildir.</p>
                                 </details>
                             {% endif %}
                             {% for outcome in topic_outcomes %}
                                 <details class="admin-curriculum-node">
-                                    <summary><span class="admin-curriculum-node__line"><span>{{ outcome.description }}</span><span class="admin-institution-status admin-institution-status--{{ outcome.status.value == 'active' ? 'active' : (outcome.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[outcome.status.value] }}</span></span></summary>
+                                    <summary role="button"><span class="admin-curriculum-node__line"><span>{{ outcome.description }}</span><span class="admin-institution-status admin-institution-status--{{ outcome.status.value == 'active' ? 'active' : (outcome.status.value == 'inactive' ? 'pending' : 'archived') }}">{{ node_labels[outcome.status.value] }}</span></span></summary>
                                     {% if outcome.status.value == 'inactive' %}
                                         <p>Bu kazanımın kendi durumu pasif.</p>
                                     {% elseif outcome.status.value == 'archived' %}
@@ -242,7 +242,7 @@
                                     {% endif %}
                                     {% if can_manage or can_availability or can_archive %}
                                         <details class="admin-curriculum-actions">
-                                            <summary>İşlemler</summary>
+                                            <summary role="button">İşlemler</summary>
                                             {% if can_manage and outcome.status.value != 'archived' %}
                                                 <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'kazanim', node: outcome.id }) }}">
                                                     <label>Kazanım metni<input name="admin_curriculum_rename_kazanim[title]" value="{{ outcome.description }}" maxlength="500"></label>
@@ -286,13 +286,13 @@
                                                 </form>
                                             {% endif %}
                                             <details class="admin-curriculum-actions">
-                                                <summary>Teknik bilgiler</summary>
+                                                <summary role="button">Teknik bilgiler</summary>
                                                 <p>Teknik kod: {{ outcome.code }}. Bu kod resmî kazanım kodu değildir.</p>
                                             </details>
                                         </details>
                                     {% else %}
                                         <details class="admin-curriculum-actions">
-                                            <summary>Teknik bilgiler</summary>
+                                            <summary role="button">Teknik bilgiler</summary>
                                             <p>Teknik kod: {{ outcome.code }}. Bu kod resmî kazanım kodu değildir.</p>
                                         </details>
                                     {% endif %}
@@ -317,7 +317,7 @@
                 {% set create_labels = { 'curriculum_unit': 'Ünite ekle', 'curriculum_topic': 'Konu ekle', 'curriculum_outcome': 'Kazanım ekle' } %}
                 {% for name, active in forms %}
                     <details class="admin-curriculum-actions" {% if invalid_name == name %}open{% endif %}>
-                        <summary>{{ create_labels[name] }}</summary>
+                        <summary role="button">{{ create_labels[name] }}</summary>
                         {{ form_start(active, { action: actions[name], attr: { novalidate: 'novalidate' } }) }}
                             {% for field in active %}
                                 {% if field.vars.name != '_token' %}
@@ -345,7 +345,7 @@
             {% endif %}
             {% if can_publish or can_archive %}
                 <details class="admin-curriculum-actions">
-                    <summary>Yayın ve kalıcı işlemler</summary>
+                    <summary role="button">Yayın ve kalıcı işlemler</summary>
                     {% if can_publish %}
                         {% set active = publish_form %}
                         {{ form_start(active, { action: path('app_admin_curriculum_publish', { id: program.id }), attr: { novalidate: 'novalidate' } }) }}

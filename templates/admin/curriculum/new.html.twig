@@ -47,7 +47,7 @@
                         <h3>{{ subject.name }}</h3>
                         <p>Kendi durumu: {{ subject.status.value == 'active' ? 'Aktif' : (subject.status.value == 'archived' ? 'Arşiv' : 'Pasif') }}. Pasif ders öğrenciyi kapatır. Arşiv geri açılmaz.</p>
                         <details class="admin-curriculum-actions">
-                            <summary>İşlemler</summary>
+                            <summary role="button">İşlemler</summary>
                     <form method="post" action="{{ path('app_admin_curriculum_subject_rename', { subject: subject.id }) }}">
                         <div class="admin-institution-field">
                             <label for="subject-name-{{ subject.id }}">Ders adı</label>
@@ -93,7 +93,7 @@
                     {% endif %}
                         </details>
                         <details class="admin-curriculum-actions">
-                            <summary>Teknik bilgiler</summary>
+                            <summary role="button">Teknik bilgiler</summary>
                             <p>Teknik kod: {{ subject.code }}. Kod değişmez. Bu kod resmî kazanım kodu değildir.</p>
                         </details>
                     </article>

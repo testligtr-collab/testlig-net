@@ -3306,6 +3306,7 @@ body.is-admin-panel {
 .is-admin-panel .admin-curriculum-page .admin-curriculum-node { padding: 0 0.8rem 0.15rem; }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary,
 .is-admin-panel .admin-curriculum-page .admin-curriculum-node > summary {
+    display: list-item;
     min-height: 44px;
     padding: 0.55rem 0.15rem;
     cursor: pointer;

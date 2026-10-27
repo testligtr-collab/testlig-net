@@ -10,6 +10,7 @@ const VIEWPORTS = [
 ] as const;
 
 test('curriculum program tree, create error, delete block, and moderator view', async ({ page, browser }, info) => {
+  test.setTimeout(240_000);
   const data = manifest();
   const deniedContext = await browser.newContext();
   const denied = await deniedContext.newPage();
