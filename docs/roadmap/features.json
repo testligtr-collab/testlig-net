@@ -198,7 +198,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/166",
         "https://github.com/testligtr-collab/testlig-net/pull/167",
         "https://github.com/testligtr-collab/testlig-net/pull/174",
-        "https://github.com/testligtr-collab/testlig-net/pull/175"
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176"
       ],
       "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini ve beş ayrı müfredat iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Ödeme, denetim ve canlı kabul açıktır.",
       "scope_decision": null
@@ -459,7 +460,8 @@
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",
         "https://github.com/testligtr-collab/testlig-net/pull/174",
-        "https://github.com/testligtr-collab/testlig-net/pull/175"
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176"
       ],
       "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, ders ve program öğrenci erişimi, sabit kademe ve sınıf kapısı, ünite/konu/kazanım pasifliği, arşiv ve bağımlılığı olmayan aktif kayıt silme çalışır. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Kullanıcı 1-12 kaynağı dosyada durur ve resmî müfredat değildir. Resmî doğrulama, import, toplu işlem ve production kabulü ayrı kanıt ister.",
       "scope_decision": {
@@ -1249,7 +1251,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/172",
         "https://github.com/testligtr-collab/testlig-net/pull/173",
         "https://github.com/testligtr-collab/testlig-net/pull/174",
-        "https://github.com/testligtr-collab/testlig-net/pull/175"
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null
