@@ -87,7 +87,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.goto(data.paths.curriculumProgram);
     await expect(page.getByRole('heading', { level: 1, name: 'Tarayici programi' })).toBeVisible();
     await expect(page.getByText('Üst program nedeniyle öğrenciye kapalı')).toHaveCount(0);
-    await expect(page.getByText('Arşiv ayrıdır ve geri açılmaz.')).toBeVisible();
+    await expect(page.getByText('Emekliye ayırma da geri açılmaz.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeHidden();
     await expect(page.getByRole('button', { name: 'Programı pasif yap' })).toBeHidden();
     await expect(page.getByText('Alt kayıt, sınıf dersi, içerik veya soru bağlantısı olduğu için program silinemez.')).toBeVisible();
