@@ -38,6 +38,8 @@ Ders `SubjectStatus` içinde `inactive` değerini de taşır. Aktif ve pasif bir
 
 Programın yayın durumu `draft`, `published` ve `retired` olarak kalır. Öğrenci erişimi ayrı `student_access` alanıdır. Pasif yapmak yayını, kodu, dersi, sınıf düzeyini, sürümü ve alt kayıtların kendi durumunu değiştirmez. Emekli programın öğrenci erişimi değişmez. Emekliye ayırma geri açılmaz.
 
+Yönetim menüsünde tek giriş Müfredat Yönetimi'dir. `/yonetim/programlar` ve `/yonetim/mufredat` adresleri durur. Aynı ekranda görünmeleri iki modeli veya yayın zincirini birleştirmez.
+
 Kademe ve sınıf düzeyi yeni kayıt değildir. `curriculum_access_gates` tablosunda sabit üç kademe ve 1–12 sınıf düzeyi vardır. Yeni kademe veya sınıf eklenmez, silinmez ve arşivlenmez. Pasif kapı öğrenciyi kapatır. Kapı açılınca alt kayıtların kendi durumu yazılmaz. Operasyonel 5-A bu kapı değildir. `GradeLevel` enum olarak kalır.
 
 Üst düğüm yayında veya aktif değilse alt düğüm öğrenciye kendi durumundan bağımsız kapalıdır. Üst kayıt açılınca alt kaydın kendi durumu yazılmaz. Bağımlı kayıt kalıcı silinmez. Pasif veya arşiv kayıt da silinmez. Silinen taslağın kodu yeniden kullanılınca yeni kimlik alır. Yayımlı programın kodu, dersi, sınıf düzeyi ve sürümü yerinde değişmez.

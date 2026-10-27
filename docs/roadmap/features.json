@@ -191,6 +191,7 @@
         "curriculum.availability dersi, programın öğrenci erişimini ve sabit kademe ile sınıf düzeyi kapılarını da pasif yapar veya yeniden açar. curriculum.archive kullanılmamış aktif dersi siler veya dersi arşivler. Bu izinler birbirinden çıkmaz. Canlı görsel kabul yapılmadı.",
         "Kullanıcı 1-12 ağacı dosyaya alındı. İzin kataloğu değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "Program ve katalog ekranlarının sadeleşmesi izin kataloğunu değiştirmez. curriculum.view, curriculum.manage, curriculum.publish, curriculum.availability ve curriculum.archive ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Tek Müfredat Yönetimi girişi izin kataloğunu değiştirmez. Katalog izni olmayan kullanıcı katalog satırlarını görmez. Beş müfredat izni ayrı kalır.",
         "Liste, rol kartları, moderatör hesap paneli, arama ve boş durum düzenini kullanır. Hesap varsa gerçek satırlar görünür. Adres, katalog ve kayıt kuralları aynıdır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
@@ -452,7 +453,8 @@
         "2026-10-27 kullanıcı 1-12 ağacı docs/curriculum/sources/user-provided-grade-1-12-tree.md dosyasına aynen alındı. Okunur özet docs/curriculum/grade-1-12-tree-outline.md yalnız 11 ve 12. sınıf girintisini düzeltir. Metin kullanıcı taslağıdır ve resmî MEB müfredatı olarak doğrulanmamıştır. Import, resmî kazanım kodu, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 program listesinde sabit kademe kartları ve sınıf düzeyleri gerçek kapılara bağlıdır. İşlem formları kartın İşlemler alanında açılır. Program detayında ünite, konu ve kazanım açılıp kapanır. Katalog adresi ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır.",
-        "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır."
+        "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır.",
+        "2026-10-27 yönetim menüsünde tek Müfredat Yönetimi girişi vardır. /yonetim/programlar ve /yonetim/mufredat durur. Seçilen kademenin sınıfları, o sınıfın programları ve aynı sınıfın öğrenci kataloğu ayrı kayıtlar olarak görünür. Katalog yayını programı yayınlamaz. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",
@@ -1225,7 +1227,8 @@
         "Program listesinde sabit kademe ve sınıf düzeyi kapıları, program detayında programı pasif yapma ve yeni program ekranında dersi pasif yapma aynı yönetim kabuğundadır. Kademe ve sınıf düzeyi için oluşturma veya silme düğmesi yoktur. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Kullanıcı 1-12 ağacı dosyaya alındı. Programlar menüsü ve ekran kapsamı değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "Programlar, program detayı ve müfredat kataloğu aynı açık yönetim kabuğunda sadeleşti. Sol menü ve logo aynı kaldı. Adresler değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
-        "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir."
+        "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

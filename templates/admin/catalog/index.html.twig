@@ -21,7 +21,7 @@
                 <a class="btn admin-institution-primary" href="{{ path('app_admin_catalog_subject_new') }}"><span aria-hidden="true">+ </span>Yeni ders</a>
             {% endif %}
         </header>
-        <p class="admin-institution-note">Program sürümü ve kazanım <a href="{{ path('app_admin_curriculum') }}">Programlar</a> ekranındadır. İki kayıt birbirinin yerine geçmez. Katalog yayını programın yayınını değiştirmez.</p>
+        <p class="admin-institution-note">Program sürümü ve kazanım <a href="{{ path('app_admin_curriculum') }}">Müfredat Yönetimi</a> ekranındadır. İki kayıt birbirinin yerine geçmez. Katalog yayını programın yayınını değiştirmez.</p>
 
         {% if subjects is empty %}
             {% include 'components/empty_state.html.twig' with {

@@ -27,7 +27,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   await watch(viewer);
   await login(viewer, data.users.curriculumModerator);
   await viewer.goto(data.paths.curriculum);
-  await expect(viewer.getByRole('heading', { level: 1, name: 'Programlar' })).toBeVisible();
+  await expect(viewer.getByRole('heading', { level: 1, name: 'Müfredat Yönetimi' })).toBeVisible();
   await expect(viewer.getByRole('link', { name: 'Yeni program', exact: true })).toHaveCount(0);
   await viewer.goto(data.paths.curriculumProgram);
   await expect(viewer.getByRole('button', { name: 'Programı yayınla' })).toHaveCount(0);
@@ -47,7 +47,11 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(data.paths.curriculum);
-    await expect(page.getByRole('heading', { level: 1, name: 'Programlar' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Müfredat Yönetimi' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Müfredat Yönetimi', exact: true }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Programlar', exact: true })).toHaveCount(0);
+    await page.getByRole('link', { name: 'İlkokul', exact: true }).click();
+    await expect(page.getByRole('link', { name: '1. sınıf Aktif', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Yeni program', exact: true })).toBeVisible();
     await expect(page.getByText('Sınıf düzeyi silinmez')).toBeVisible();
     await expect(page.getByText('Tarayici programi')).toBeVisible();
@@ -86,6 +90,9 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(data.paths.curriculumProgram);
     await expect(page.getByRole('heading', { level: 1, name: 'Tarayici programi' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Program ve kazanımlar' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Öğrenci kataloğu' })).toBeVisible();
+    await expect(page.getByText('Katalog yayını programın yayınını değiştirmez.')).toBeVisible();
     await expect(page.getByText('Üst program nedeniyle öğrenciye kapalı')).toHaveCount(0);
     await expect(page.getByText('Emekliye ayırma da geri açılmaz.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeHidden();
@@ -129,7 +136,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await capture(page, info, `admin-program-agac-${viewport.name}.png`);
     await page.goto('/yonetim/mufredat');
     await expect(page.getByRole('heading', { level: 1, name: 'Müfredat kataloğu' })).toBeVisible();
-    await expect(page.locator('.admin-curriculum-page').getByRole('link', { name: 'Programlar' })).toBeVisible();
+    await expect(page.locator('.admin-curriculum-page').getByRole('link', { name: 'Müfredat Yönetimi' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Detay' }).first()).toBeVisible();
     await assertLayout(page);
     await capture(page, info, `admin-mufredat-${viewport.name}.png`);
@@ -137,7 +144,12 @@ test('curriculum program tree, create error, delete block, and moderator view', 
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(data.paths.curriculum);
+  await page.getByRole('link', { name: 'İlkokul', exact: true }).click();
+  await expect(page.getByRole('link', { name: '5. sınıf Aktif', exact: true })).toHaveCount(0);
   await page.getByRole('link', { name: '1. sınıf Aktif', exact: true }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Öğrenci kataloğu' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Matematik' })).toBeVisible();
+  await expect(page.getByText('Taslak Ders')).toBeVisible();
   await expect(page.getByText('Tarayici programi')).toBeVisible();
   await expect(page.getByText('Tarayici taslak')).toHaveCount(0);
   const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
