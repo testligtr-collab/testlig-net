@@ -63,7 +63,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.goto(data.paths.curriculumNew);
     await expect(page.getByRole('heading', { level: 1, name: 'Yeni program' })).toBeVisible();
     await expect(page.getByText('Program taslak oluşur. Bu form programı yayınlamaz.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Dersi pasif yap' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Dersi pasif yap' })).toBeHidden();
     const columns = await page.locator('.admin-institution-create').evaluate((node) => getComputedStyle(node).gridTemplateColumns.split(' ').filter(Boolean).length);
     expect(columns).toBe(viewport.width >= 1024 ? 2 : 1);
     await assertLayout(page);
@@ -78,15 +78,17 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   await expect(page.getByText('Sürüm gerekli.')).toBeVisible();
   await assertLayout(page);
   await capture(page, info, 'admin-program-yeni-hata-1440.png');
+  await page.getByRole('button', { name: 'İşlemler', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Dersi pasif yap' })).toBeVisible();
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(data.paths.curriculumProgram);
     await expect(page.getByRole('heading', { level: 1, name: 'Tarayici programi' })).toBeVisible();
     await expect(page.getByText('Üst program nedeniyle öğrenciye kapalı')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Programı pasif yap' })).toBeVisible();
     await expect(page.getByText('Arşiv ayrıdır ve geri açılmaz.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Programı pasif yap' })).toBeHidden();
     await expect(page.getByText('Alt kayıt, sınıf dersi, içerik veya soru bağlantısı olduğu için program silinemez.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Programı sil' })).toHaveCount(0);
     await assertLayout(page);
@@ -95,10 +97,47 @@ test('curriculum program tree, create error, delete block, and moderator view', 
 
   await page.goto(data.paths.curriculumDraft);
   await expect(page.getByText('Program taslak. Alt kayıtlar kendi durumunu korur')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Programı sil' })).toBeHidden();
+  await page.getByRole('button', { name: 'Yayın ve kalıcı işlemler' }).click();
   await expect(page.getByRole('button', { name: 'Programı sil' })).toBeVisible();
   await expect(page.getByText('Bu programda ünite yok.')).toBeVisible();
   await assertLayout(page);
   await capture(page, info, 'admin-program-taslak-1440.png');
+
+  await page.goto(data.paths.curriculumProgram);
+  await page.getByRole('button', { name: 'İşlemler', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Programı pasif yap' })).toBeVisible();
+  const unit = page.getByRole('button', { name: /Tarayici unite/ });
+  await unit.focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('button', { name: /Tarayici konu/ })).toBeVisible();
+  await page.getByRole('button', { name: /Tarayici konu/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Tarayici kazanimi')).toBeVisible();
+  await page.getByRole('button', { name: 'İşlemler', exact: true }).nth(1).click();
+  await expect(page.getByRole('button', { name: 'Üniteyi pasif yap' })).toBeVisible();
+
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.goto(data.paths.curriculumProgram);
+    await page.getByRole('button', { name: /Tarayici unite/ }).click();
+    await page.getByRole('button', { name: /Tarayici konu/ }).click();
+    await expect(page.getByText('Tarayici kazanimi')).toBeVisible();
+    await assertLayout(page);
+    await capture(page, info, `admin-program-agac-${viewport.name}.png`);
+    await page.goto('/yonetim/mufredat');
+    await expect(page.getByRole('heading', { level: 1, name: 'Müfredat kataloğu' })).toBeVisible();
+    await expect(page.locator('.admin-curriculum-page').getByRole('link', { name: 'Programlar' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Detay' }).first()).toBeVisible();
+    await assertLayout(page);
+    await capture(page, info, `admin-mufredat-${viewport.name}.png`);
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(data.paths.curriculum);
+  await page.getByRole('link', { name: /1\. sınıf/ }).click();
+  await expect(page.getByText('Tarayici programi')).toBeVisible();
+  await expect(page.getByText('Tarayici taslak')).toHaveCount(0);
   const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
   let ignoredValidationResponses = 0;
   (page as Page & { __notes?: string[] }).__notes = notes.filter((note) => {

@@ -379,6 +379,10 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         $page = $repository->searchAdmin('', null, null, $subject->getId(), 1, 2);
         self::assertSame(3, $page['total']);
         self::assertCount(2, $page['rows']);
+        $this->programs()->createDraft($subject, $sa, GradeLevel::Grade5, 'cur_page_mid', 'Sayfa ortaokul', '1.0', 'curriculum_setup');
+        self::assertSame(3, $repository->searchAdmin('', null, null, $subject->getId(), 1, 20, 'ilkokul')['total']);
+        self::assertSame(1, $repository->searchAdmin('', null, null, $subject->getId(), 1, 20, 'ortaokul')['total']);
+        self::assertSame(3, $repository->searchAdmin('', GradeLevel::Grade1, null, $subject->getId(), 1, 20, 'ortaokul')['total']);
     }
 
     private function auditCount(SecurityAuditAction $action): int

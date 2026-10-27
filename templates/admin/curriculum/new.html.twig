@@ -43,9 +43,12 @@
                     <p class="admin-institution-note">{{ rename_error }}</p>
                 {% endif %}
                 {% for subject in subject_cards %}
-                    <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_rename', { subject: subject.id }) }}">
+                    <article class="admin-institution-card admin-curriculum-subject">
                         <h3>{{ subject.name }}</h3>
-                        <p>Teknik kod: {{ subject.code }}. Kod değişmez. Kendi durumu: {{ subject.status.value == 'active' ? 'Aktif' : 'Pasif' }}.</p>
+                        <p>Kendi durumu: {{ subject.status.value == 'active' ? 'Aktif' : (subject.status.value == 'archived' ? 'Arşiv' : 'Pasif') }}. Pasif ders öğrenciyi kapatır. Arşiv geri açılmaz.</p>
+                        <details class="admin-curriculum-actions">
+                            <summary>İşlemler</summary>
+                    <form method="post" action="{{ path('app_admin_curriculum_subject_rename', { subject: subject.id }) }}">
                         <div class="admin-institution-field">
                             <label for="subject-name-{{ subject.id }}">Ders adı</label>
                             <input id="subject-name-{{ subject.id }}" name="admin_curriculum_rename_subject[title]" value="{{ subject.name }}" maxlength="160">
@@ -56,7 +59,7 @@
                         <button class="btn btn--ghost" type="submit">Ders adını kaydet</button>
                     </form>
                     {% if can_availability and subject.status.value == 'active' %}
-                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'pasif' }) }}">
+                        <form method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'pasif' }) }}">
                             <p>Pasif ders öğrenciyi kapatır. Programa bağlı ünite, konu ve kazanımın kendi durumu değişmez.</p>
                             <label><input type="checkbox" name="admin_curriculum_passive_subject[confirm]" value="1"> Dersi pasif yapmayı onaylıyorum</label>
                             <input type="hidden" name="admin_curriculum_passive_subject[reasonCode]" value="curriculum_passive">
@@ -64,7 +67,7 @@
                             <button class="btn btn--ghost" type="submit">Dersi pasif yap</button>
                         </form>
                     {% elseif can_availability %}
-                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'aktif' }) }}">
+                        <form method="post" action="{{ path('app_admin_curriculum_subject_access', { subject: subject.id, mode: 'aktif' }) }}">
                             <label><input type="checkbox" name="admin_curriculum_active_subject[confirm]" value="1"> Dersi yeniden aktif etmeyi onaylıyorum</label>
                             <input type="hidden" name="admin_curriculum_active_subject[reasonCode]" value="curriculum_activate">
                             <input type="hidden" name="admin_curriculum_active_subject[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ subject.id) }}">
@@ -72,7 +75,7 @@
                         </form>
                     {% endif %}
                     {% if can_archive and subject.status.value != 'archived' %}
-                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_archive', { subject: subject.id }) }}">
+                        <form method="post" action="{{ path('app_admin_curriculum_subject_archive', { subject: subject.id }) }}">
                             <label><input type="checkbox" name="admin_curriculum_archive_subject[confirm]" value="1"> Dersi arşivlemeyi onaylıyorum. Arşiv geri açılmaz.</label>
                             <input type="hidden" name="admin_curriculum_archive_subject[reasonCode]" value="curriculum_archive">
                             <input type="hidden" name="admin_curriculum_archive_subject[_token]" value="{{ csrf_token('admin_curriculum_archive_subject_' ~ subject.id) }}">
@@ -80,7 +83,7 @@
                         </form>
                     {% endif %}
                     {% if can_archive and subject.status.value == 'active' %}
-                        <form class="admin-institution-card" method="post" action="{{ path('app_admin_curriculum_subject_delete', { subject: subject.id }) }}">
+                        <form method="post" action="{{ path('app_admin_curriculum_subject_delete', { subject: subject.id }) }}">
                             <p>Bağlı program, içerik, soru, test veya sınıf dersi silmeyi durdurur.</p>
                             <label><input type="checkbox" name="admin_curriculum_delete_subject[confirm]" value="1"> Kalıcı silmeyi onaylıyorum</label>
                             <input type="hidden" name="admin_curriculum_delete_subject[reasonCode]" value="curriculum_delete">
@@ -88,6 +91,12 @@
                             <button class="btn btn--ghost" type="submit">Dersi sil</button>
                         </form>
                     {% endif %}
+                        </details>
+                        <details class="admin-curriculum-actions">
+                            <summary>Teknik bilgiler</summary>
+                            <p>Teknik kod: {{ subject.code }}. Kod değişmez. Bu kod resmî kazanım kodu değildir.</p>
+                        </details>
+                    </article>
                 {% endfor %}
             </div>
             <div class="admin-institution-create__main">
