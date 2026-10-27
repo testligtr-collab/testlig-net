@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Question\Import;
 
 use App\Entity\CurriculumLearningOutcome;
-use App\Enum\CurriculumContentStatus;
-use App\Enum\CurriculumStatus;
 use App\Enum\SubjectStatus;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionRepository;
 use App\Repository\SubjectRepository;
+use App\Service\CurriculumStudentAccess;
 
 final class DoctrineQuestionCsvImportCatalog implements QuestionCsvImportCatalog
 {
@@ -70,11 +69,6 @@ final class DoctrineQuestionCsvImportCatalog implements QuestionCsvImportCatalog
 
     private function isUsable(CurriculumLearningOutcome $outcome): bool
     {
-        $program = $outcome->getCurriculumProgram();
-
-        return CurriculumContentStatus::Active === $outcome->getStatus()
-            && CurriculumContentStatus::Active === $outcome->getTopic()->getStatus()
-            && CurriculumStatus::Published === $program->getStatus()
-            && SubjectStatus::Active === $program->getSubject()->getStatus();
+        return (new CurriculumStudentAccess())->studentOpen($outcome);
     }
 }

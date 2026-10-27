@@ -7,6 +7,8 @@ namespace App\Tests\Service;
 use App\Entity\CatalogUnit;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
+use App\Entity\CurriculumTopic;
+use App\Entity\CurriculumUnit;
 use App\Entity\User;
 use App\Enum\CurriculumContentStatus;
 use App\Enum\CurriculumStatus;
@@ -14,12 +16,14 @@ use App\Enum\GradeLevel;
 use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Exception\CurriculumDeletionException;
+use App\Exception\CurriculumUnitException;
 use App\Repository\CurriculumProgramRepository;
 use App\Repository\UserRepository;
 use App\Service\CatalogWriteService;
 use App\Service\CurriculumDraftDeletion;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
+use App\Service\CurriculumStudentAccess;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\StudentCatalogQuery;
@@ -184,6 +188,77 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         self::assertSame($before, $this->auditCount(SecurityAuditAction::CurriculumProgramUpdated));
     }
 
+    public function testPassiveParentHidesChildrenWithoutRewritingThemAndArchiveStaysClosed(): void
+    {
+        $sa = $this->superAdmin('curriculum-passive-sa@example.com');
+        $subject = $this->subjects()->create($sa, 'cur_pas_subj', 'Pasif dersi', 'curriculum_setup');
+        $program = $this->programs()->createDraft($subject, $sa, GradeLevel::Grade9, 'cur_pas_prog', 'Pasif programi', '1.0', 'curriculum_setup');
+        $unit = $this->units()->create($program, $sa, 'cur_pas_u', 'Unite', 1, 'curriculum_setup');
+        $topic = $this->topics()->createRoot($unit, $sa, 'cur_pas_t', 'Konu', 1, 'curriculum_setup');
+        $outcome = $this->outcomes()->create($topic, $sa, 'cur_pas_o', 'Kazanim', 1, 'curriculum_setup');
+        $this->programs()->publish($program, $sa, 'curriculum_publish');
+        $this->em->clear();
+        $open = $this->freshOutcome($outcome);
+        self::assertTrue($this->access()->studentOpen($open));
+
+        $audits = $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated);
+        $this->units()->deactivate($this->freshUnit($unit), $sa, 'curriculum_passive');
+        $this->em->clear();
+        self::assertSame(CurriculumContentStatus::Inactive, $this->freshUnit($unit)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshTopic($topic)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshOutcome($outcome)->getStatus());
+        self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+        self::assertSame($audits + 1, $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated));
+
+        $this->units()->reactivate($this->freshUnit($unit), $sa, 'curriculum_activate');
+        $this->em->clear();
+        self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
+        self::assertSame(CurriculumContentStatus::Active, $this->freshTopic($topic)->getStatus());
+        self::assertTrue($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+        $this->outcomes()->deactivate($this->freshOutcome($outcome), $sa, 'curriculum_passive');
+        $this->units()->deactivate($this->freshUnit($unit), $sa, 'curriculum_passive');
+        $this->units()->reactivate($this->freshUnit($unit), $sa, 'curriculum_activate');
+        $this->em->clear();
+        self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
+        self::assertSame(CurriculumContentStatus::Inactive, $this->freshOutcome($outcome)->getStatus());
+        self::assertFalse($this->access()->studentOpen($this->freshOutcome($outcome)));
+
+        $draft = $this->programs()->createDraft($subject, $sa, GradeLevel::Grade9, 'cur_pas_draft', 'Arsiv programi', '1.0', 'curriculum_setup');
+        $archived = $this->units()->create($draft, $sa, 'cur_pas_arch', 'Arsiv unite', 1, 'curriculum_setup');
+        $this->units()->archive($archived, $sa, 'curriculum_archive');
+        try {
+            $this->units()->reactivate($this->freshUnit($archived), $sa, 'curriculum_activate');
+            self::fail('Archived unit was reopened.');
+        } catch (CurriculumUnitException $e) {
+            self::assertSame('invalid_transition', $e->getReason()->value);
+        }
+        self::assertSame(CurriculumContentStatus::Archived, $this->freshUnit($archived)->getStatus());
+
+        $passive = $this->units()->create($draft, $sa, 'cur_pas_del', 'Pasif unite', 2, 'curriculum_setup');
+        $this->units()->deactivate($passive, $sa, 'curriculum_passive');
+        $kept = $passive->getId();
+        try {
+            $this->deletion()->deleteUnit($this->freshUnit($passive), $sa, 'curriculum_delete');
+            self::fail('Passive unit was deleted.');
+        } catch (CurriculumDeletionException $e) {
+            self::assertSame('Pasif veya arşiv kayıt silinmez.', $e->getMessage());
+        }
+        self::assertSame(CurriculumContentStatus::Inactive, $this->freshUnit($passive)->getStatus());
+        self::assertTrue($kept->equals($this->freshUnit($passive)->getId()));
+
+        $this->programs()->retire($this->freshProgram($program), $sa, 'curriculum_retire');
+        try {
+            $this->units()->deactivate($this->freshUnit($unit), $sa, 'curriculum_passive');
+            self::fail('Retired program changed availability.');
+        } catch (CurriculumUnitException $e) {
+            self::assertSame('invalid_transition', $e->getReason()->value);
+        }
+        self::assertSame(CurriculumContentStatus::Active, $this->freshUnit($unit)->getStatus());
+        self::assertSame('cur_pas_prog', $this->freshProgram($program)->getCode());
+        self::assertSame('1.0', $this->freshProgram($program)->getVersion());
+    }
+
     public function testProgramSearchPageDoesNotGrowWithRowCount(): void
     {
         $sa = $this->superAdmin('curriculum-page-sa@example.com');
@@ -264,6 +339,43 @@ final class AdminCurriculumManagementTest extends KernelTestCase
         self::assertInstanceOf(CurriculumLearningOutcomeManager::class, $service);
 
         return $service;
+    }
+
+    private function freshProgram(CurriculumProgram $program): CurriculumProgram
+    {
+        $fresh = $this->em->find(CurriculumProgram::class, $program->getId());
+        self::assertInstanceOf(CurriculumProgram::class, $fresh);
+
+        return $fresh;
+    }
+
+    private function freshUnit(CurriculumUnit $unit): CurriculumUnit
+    {
+        $fresh = $this->em->find(CurriculumUnit::class, $unit->getId());
+        self::assertInstanceOf(CurriculumUnit::class, $fresh);
+
+        return $fresh;
+    }
+
+    private function freshTopic(CurriculumTopic $topic): CurriculumTopic
+    {
+        $fresh = $this->em->find(CurriculumTopic::class, $topic->getId());
+        self::assertInstanceOf(CurriculumTopic::class, $fresh);
+
+        return $fresh;
+    }
+
+    private function freshOutcome(CurriculumLearningOutcome $outcome): CurriculumLearningOutcome
+    {
+        $fresh = $this->em->find(CurriculumLearningOutcome::class, $outcome->getId());
+        self::assertInstanceOf(CurriculumLearningOutcome::class, $fresh);
+
+        return $fresh;
+    }
+
+    private function access(): CurriculumStudentAccess
+    {
+        return new CurriculumStudentAccess();
     }
 
     private function deletion(): CurriculumDraftDeletion

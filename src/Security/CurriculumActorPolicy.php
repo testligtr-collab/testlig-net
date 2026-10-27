@@ -74,6 +74,7 @@ final class CurriculumActorPolicy
             CurriculumOperation::View => ModeratorModuleGrant::CurriculumView,
             CurriculumOperation::Manage => ModeratorModuleGrant::CurriculumManage,
             CurriculumOperation::Publish => ModeratorModuleGrant::CurriculumPublish,
+            CurriculumOperation::Availability => ModeratorModuleGrant::CurriculumAvailability,
             CurriculumOperation::Archive => ModeratorModuleGrant::CurriculumArchive,
         };
     }

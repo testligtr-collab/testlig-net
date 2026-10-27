@@ -12,5 +12,6 @@ enum CurriculumOperation: string
     case View = 'view';
     case Manage = 'manage';
     case Publish = 'publish';
+    case Availability = 'availability';
     case Archive = 'archive';
 }

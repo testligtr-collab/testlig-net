@@ -175,6 +175,16 @@ final class CurriculumTopicManager
         });
     }
 
+    public function deactivate(CurriculumTopic $topic, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($topic, $actor, $reasonCode, false);
+    }
+
+    public function reactivate(CurriculumTopic $topic, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($topic, $actor, $reasonCode, true);
+    }
+
     public function archive(CurriculumTopic $topic, User $actor, string $reasonCode): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
@@ -206,6 +216,49 @@ final class CurriculumTopicManager
                 ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
             );
         }, CurriculumOperation::Archive);
+    }
+
+    private function changeAvailability(CurriculumTopic $topic, User $actor, string $reasonCode, bool $active): void
+    {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $rejected = null;
+
+        $this->mutate($topic, $actor, $reasonCode, function (
+            Subject $lockedSubject,
+            CurriculumProgram $lockedProgram,
+            CurriculumUnit $lockedUnit,
+            CurriculumTopic $locked,
+            User $freshActor,
+            string $reasonCode,
+        ) use ($active, &$rejected): void {
+            try {
+                $this->assertNotRetired($lockedProgram);
+                $oldStatus = $locked->getStatus()->value;
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                if ($active) {
+                    $locked->reactivate($now);
+                } else {
+                    $locked->deactivate($now);
+                }
+                $this->topics->save($locked, false);
+                $this->record(
+                    SecurityAuditAction::CurriculumTopicUpdated,
+                    $lockedSubject,
+                    $lockedProgram,
+                    $lockedUnit,
+                    $locked,
+                    $freshActor,
+                    $reasonCode,
+                    ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
+                );
+            } catch (CurriculumTopicException $exception) {
+                $rejected = $exception;
+            }
+        }, CurriculumOperation::Availability);
+
+        if ($rejected instanceof CurriculumTopicException) {
+            throw $rejected;
+        }
     }
 
     private function create(
@@ -412,6 +465,13 @@ final class CurriculumTopicManager
         }
 
         return [$lockedSubject, $lockedProgram, $lockedUnit];
+    }
+
+    private function assertNotRetired(CurriculumProgram $program): void
+    {
+        if (CurriculumStatus::Retired === $program->getStatus()) {
+            throw CurriculumTopicException::invalidTransition();
+        }
     }
 
     private function assertDraft(CurriculumProgram $program): void

@@ -399,6 +399,33 @@ final class AdminCurriculumController extends AdminBaseController
         return $this->redirectToRoute('app_admin_curriculum_show', ['id' => $program->getId()->toRfc4122()]);
     }
 
+    #[Route('/yonetim/programlar/{id}/{kind}/{node}/erisim/{mode}', name: 'app_admin_curriculum_availability', methods: ['POST'], requirements: ['id' => Requirement::UUID, 'kind' => 'unite|konu|kazanim', 'node' => Requirement::UUID, 'mode' => 'pasif|aktif'])]
+    #[IsGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY)]
+    public function availability(Request $request, string $id, string $kind, string $node, string $mode): Response
+    {
+        $program = $this->requireProgram($id);
+        $active = 'aktif' === $mode;
+        $prefix = $active ? 'admin_curriculum_active_' : 'admin_curriculum_passive_';
+        $form = $this->actionForm($prefix.$kind, [
+            $active ? 'Yeniden aktif etme' : 'Pasif yapma' => $active ? AdminCurriculumActionRequest::REASON_ACTIVATE : AdminCurriculumActionRequest::REASON_PASSIVE,
+        ], $active ? 'Kaydı yeniden aktif etmeyi onaylıyorum' : 'Kaydı pasif yapmayı onaylıyorum. Alt kayıtların kendi durumu değişmez.', 'admin_curriculum_'.$mode.'_'.$node);
+        $form->handleRequest($request);
+
+        return $this->handleAction($form, $program, $this->mutateLimiter, 'curriculum-availability', function (AdminCurriculumActionRequest $data) use ($program, $kind, $node, $active): void {
+            $actor = $this->requireActorUser();
+            if ('unite' === $kind) {
+                $unit = $this->unitInProgram($node, $program) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+                $active ? $this->unitManager->reactivate($unit, $actor, $data->reasonCode) : $this->unitManager->deactivate($unit, $actor, $data->reasonCode);
+            } elseif ('konu' === $kind) {
+                $topic = $this->topicInProgram($node, $program) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+                $active ? $this->topicManager->reactivate($topic, $actor, $data->reasonCode) : $this->topicManager->deactivate($topic, $actor, $data->reasonCode);
+            } else {
+                $outcome = $this->outcomeInProgram($node, $program) ?? throw new NotFoundHttpException('Kayıt bulunamadı.');
+                $active ? $this->outcomeManager->reactivate($outcome, $actor, $data->reasonCode) : $this->outcomeManager->deactivate($outcome, $actor, $data->reasonCode);
+            }
+        });
+    }
+
     #[Route('/yonetim/programlar/{id}/{kind}/{node}/arsivle', name: 'app_admin_curriculum_archive_node', methods: ['POST'], requirements: ['id' => Requirement::UUID, 'kind' => 'unite|konu|kazanim', 'node' => Requirement::UUID])]
     #[IsGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE)]
     public function archiveNode(Request $request, string $id, string $kind, string $node): Response
@@ -569,6 +596,7 @@ final class AdminCurriculumController extends AdminBaseController
             'access_note' => $this->accessNote($program),
             'can_manage' => $draft && $this->isGranted(AdminPermission::ADMIN_CURRICULUM_MANAGE),
             'can_publish' => $draft && $this->isGranted(AdminPermission::ADMIN_CURRICULUM_PUBLISH),
+            'can_availability' => CurriculumStatus::Retired !== $program->getStatus() && $this->isGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY),
             'can_archive' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE),
             'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
             'invalid_form' => $invalid?->createView(),

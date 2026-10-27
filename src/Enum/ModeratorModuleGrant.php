@@ -8,7 +8,7 @@ namespace App\Enum;
  * Direct platform grants a superadmin may give a moderator.
  *
  * Content publish, payment, audit, and institution membership stay absent.
- * Curriculum view, editing, publishing, and archive are separate grants.
+ * Curriculum view, editing, availability, publishing, and archive are separate grants.
  */
 enum ModeratorModuleGrant: string
 {
@@ -18,6 +18,7 @@ enum ModeratorModuleGrant: string
     case CurriculumView = 'curriculum.view';
     case CurriculumManage = 'curriculum.manage';
     case CurriculumPublish = 'curriculum.publish';
+    case CurriculumAvailability = 'curriculum.availability';
     case CurriculumArchive = 'curriculum.archive';
 
     public function moduleLabel(): string
@@ -29,6 +30,7 @@ enum ModeratorModuleGrant: string
             self::CurriculumView => 'Müfredat',
             self::CurriculumManage => 'Müfredat',
             self::CurriculumPublish => 'Müfredat',
+            self::CurriculumAvailability => 'Müfredat',
             self::CurriculumArchive => 'Müfredat',
         };
     }
@@ -42,6 +44,7 @@ enum ModeratorModuleGrant: string
             self::CurriculumView => 'Program, ünite, konu ve kazanım görüntüleme',
             self::CurriculumManage => 'Taslak program ve alt kayıt oluşturma, düzenleme',
             self::CurriculumPublish => 'Program yayınlama',
+            self::CurriculumAvailability => 'Ünite, konu ve kazanımı pasif yapma veya yeniden aktif etme',
             self::CurriculumArchive => 'Arşiv, emekliye ayırma ve kullanılmamış taslağı silme',
         };
     }
@@ -53,9 +56,10 @@ enum ModeratorModuleGrant: string
             self::QuestionManage => 'Rolden gelen erişim: görüntüleme, inceleme ve cevap anahtarını görme.',
             self::AssessmentAuthor => 'Rolden gelen erişim: görüntüleme ve inceleme.',
             self::CurriculumView => 'Rolden gelen müfredat erişimi yoktur.',
-            self::CurriculumManage => 'Oluşturma izni yayın veya arşiv vermez.',
-            self::CurriculumPublish => 'Yayın izni oluşturma veya arşiv vermez.',
-            self::CurriculumArchive => 'Arşiv izni oluşturma veya yayın vermez.',
+            self::CurriculumManage => 'Oluşturma izni yayın, pasiflik veya arşiv vermez.',
+            self::CurriculumPublish => 'Yayın izni oluşturma, pasiflik veya arşiv vermez.',
+            self::CurriculumAvailability => 'Pasiflik izni oluşturma, yayın veya arşiv vermez.',
+            self::CurriculumArchive => 'Arşiv izni pasiflik, oluşturma veya yayın vermez.',
         };
     }
 
@@ -64,9 +68,10 @@ enum ModeratorModuleGrant: string
         return match ($this) {
             self::LearningContentManage, self::QuestionManage, self::AssessmentAuthor => 'Yayın ve arşiv bu ekrandan verilmez.',
             self::CurriculumView => 'Görüntüleme, kayıt oluşturmaz.',
-            self::CurriculumManage => 'Bu izin yayın, arşiv veya silme vermez.',
+            self::CurriculumManage => 'Bu izin yayın, pasiflik, arşiv veya silme vermez.',
             self::CurriculumPublish => 'Bu izin yalnız program yayınını kapsar.',
-            self::CurriculumArchive => 'Bu izin arşiv, emekliye ayırma ve bağımlılığı olmayan taslak silmeyi kapsar.',
+            self::CurriculumAvailability => 'Bu izin arşiv değildir. Pasif kayıt yeniden açılır. Arşiv geri açılmaz.',
+            self::CurriculumArchive => 'Bu izin arşiv, emekliye ayırma ve bağımlılığı olmayan taslak silmeyi kapsar. Pasif yapma vermez.',
         };
     }
 

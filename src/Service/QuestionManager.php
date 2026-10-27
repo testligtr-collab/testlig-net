@@ -892,7 +892,7 @@ final class QuestionManager
             if (CurriculumContentStatus::Active !== $topic->getStatus()) {
                 throw QuestionException::alignmentInvalid('Curriculum topic must be active on publish.');
             }
-            if (CurriculumContentStatus::Active !== $outcome->getStatus()) {
+            if (!(new CurriculumStudentAccess())->studentOpen($outcome)) {
                 throw QuestionException::alignmentInvalid('Learning outcome must be active on publish.');
             }
         }

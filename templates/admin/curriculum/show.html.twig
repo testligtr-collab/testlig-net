@@ -14,7 +14,7 @@
 
 {% block panel_content %}
     {% set program_labels = { 'draft': 'Taslak', 'published': 'Yayında', 'retired': 'Emekli' } %}
-    {% set node_labels = { 'active': 'Aktif', 'archived': 'Arşiv' } %}
+    {% set node_labels = { 'active': 'Aktif', 'inactive': 'Pasif', 'archived': 'Arşiv' } %}
     {% set closed_by_parent = program.status.value != 'published' %}
     <div class="admin-user-page admin-curriculum-page">
         {% if invalid_form %}
@@ -62,7 +62,7 @@
                 <article>
                     <h3>{{ unit.title }}</h3>
                     <p>Tür: ünite. Üst kayıt: {{ program.name }}. Kendi durumu: {{ node_labels[unit.status.value] }}. Kod: {{ unit.code }}. Konu sayısı: {{ unit_topics|length }}.</p>
-                    {% if can_manage and unit.status.value == 'active' %}
+                    {% if can_manage and unit.status.value != 'archived' %}
                         <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'unite', node: unit.id }) }}">
                             <label>Ünite adı<input name="admin_curriculum_rename_unite[title]" value="{{ unit.title }}" maxlength="160"></label>
                             <input type="hidden" name="admin_curriculum_rename_unite[reasonCode]" value="curriculum_correction">
@@ -71,8 +71,29 @@
                             <button class="btn btn--ghost" type="submit">Ünite adını kaydet</button>
                         </form>
                     {% endif %}
-                    {% if closed_by_parent %}
+                    {% if unit.status.value == 'inactive' %}
+                        <p>Bu ünitenin kendi durumu pasif. Alt kayıtların durumu değişmedi.</p>
+                    {% elseif unit.status.value == 'archived' %}
+                        <p>Bu ünite arşivde. Arşiv geri açılmaz.</p>
+                    {% elseif closed_by_parent %}
                         <p>Üst program nedeniyle öğrenciye kapalı. Bu ünitenin kendi durumu değişmedi.</p>
+                    {% endif %}
+                    {% if can_availability and unit.status.value == 'active' %}
+                        <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'unite', node: unit.id, mode: 'pasif' }) }}">
+                            <p>Pasif yapmak alt kayıtların kendi durumunu değiştirmez. Arşiv ayrıdır ve geri açılmaz.</p>
+                            <label><input type="checkbox" name="admin_curriculum_passive_unite[confirm]" value="1"> Pasif yapmayı onaylıyorum</label>
+                            <input type="hidden" name="admin_curriculum_passive_unite[reasonCode]" value="curriculum_passive">
+                            <input type="hidden" name="admin_curriculum_passive_unite[_token]" value="{{ csrf_token('admin_curriculum_pasif_' ~ unit.id) }}">
+                            <button class="btn btn--ghost" type="submit">Üniteyi pasif yap</button>
+                        </form>
+                    {% elseif can_availability and unit.status.value == 'inactive' %}
+                        <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'unite', node: unit.id, mode: 'aktif' }) }}">
+                            <p>Yeniden açmak alt kayıtların kendi durumunu değiştirmez.</p>
+                            <label><input type="checkbox" name="admin_curriculum_active_unite[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum</label>
+                            <input type="hidden" name="admin_curriculum_active_unite[reasonCode]" value="curriculum_activate">
+                            <input type="hidden" name="admin_curriculum_active_unite[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ unit.id) }}">
+                            <button class="btn btn--ghost" type="submit">Üniteyi yeniden aktif yap</button>
+                        </form>
                     {% endif %}
                     {% if can_archive and unit.status.value == 'active' and program.status.value == 'draft' %}
                         <form method="post" action="{{ path('app_admin_curriculum_archive_node', { id: program.id, kind: 'unite', node: unit.id }) }}">
@@ -99,7 +120,7 @@
                             <li>
                                 <strong>{{ topic.title }}</strong>
                                 <span>Konu · {{ node_labels[topic.status.value] }} · {{ topic.code }} · {{ topic_outcomes|length }} kazanım</span>
-                                {% if can_manage and topic.status.value == 'active' %}
+                                {% if can_manage and topic.status.value != 'archived' %}
                                     <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'konu', node: topic.id }) }}">
                                         <label>Konu adı<input name="admin_curriculum_rename_konu[title]" value="{{ topic.title }}" maxlength="160"></label>
                                         <input type="hidden" name="admin_curriculum_rename_konu[reasonCode]" value="curriculum_correction">
@@ -108,8 +129,35 @@
                                         <button class="btn btn--ghost" type="submit">Konu adını kaydet</button>
                                     </form>
                                 {% endif %}
-                                {% if closed_by_parent or unit.status.value != 'active' %}
+                                {% if topic.status.value == 'inactive' %}
+                                    <span>Bu konunun kendi durumu pasif. Alt kayıtların durumu değişmedi.</span>
+                                {% elseif topic.status.value == 'archived' %}
+                                    <span>Bu konu arşivde. Arşiv geri açılmaz.</span>
+                                {% elseif closed_by_parent or unit.status.value != 'active' %}
                                     <span>Üst kayıt nedeniyle öğrenciye kapalı. Konunun kendi durumu değişmedi.</span>
+                                {% endif %}
+                                {% if can_availability and topic.status.value == 'active' %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'konu', node: topic.id, mode: 'pasif' }) }}">
+                                        <label><input type="checkbox" name="admin_curriculum_passive_konu[confirm]" value="1"> Pasif yapmayı onaylıyorum</label>
+                                        <input type="hidden" name="admin_curriculum_passive_konu[reasonCode]" value="curriculum_passive">
+                                        <input type="hidden" name="admin_curriculum_passive_konu[_token]" value="{{ csrf_token('admin_curriculum_pasif_' ~ topic.id) }}">
+                                        <button class="btn btn--ghost" type="submit">Konuyu pasif yap</button>
+                                    </form>
+                                {% elseif can_availability and topic.status.value == 'inactive' %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'konu', node: topic.id, mode: 'aktif' }) }}">
+                                        <label><input type="checkbox" name="admin_curriculum_active_konu[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum</label>
+                                        <input type="hidden" name="admin_curriculum_active_konu[reasonCode]" value="curriculum_activate">
+                                        <input type="hidden" name="admin_curriculum_active_konu[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ topic.id) }}">
+                                        <button class="btn btn--ghost" type="submit">Konuyu yeniden aktif yap</button>
+                                    </form>
+                                {% endif %}
+                                {% if can_archive and topic.status.value == 'active' and program.status.value == 'draft' %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_archive_node', { id: program.id, kind: 'konu', node: topic.id }) }}">
+                                        <input type="hidden" name="admin_curriculum_archive_konu[reasonCode]" value="curriculum_archive">
+                                        <input type="hidden" name="admin_curriculum_archive_konu[confirm]" value="1">
+                                        <input type="hidden" name="admin_curriculum_archive_konu[_token]" value="{{ csrf_token('admin_curriculum_archive_' ~ topic.id) }}">
+                                        <button class="btn btn--ghost" type="submit">Konuyu arşivle</button>
+                                    </form>
                                 {% endif %}
                                 {% if child_topics[topic.id.toRfc4122]|default(false) or topic_outcomes is not empty %}
                                     <span>Alt kayıt olduğu için bu konu silinemez.</span>
@@ -126,13 +174,43 @@
                                         <li>
                                             {{ outcome.description }}
                                             <span>Kazanım · {{ node_labels[outcome.status.value] }} · teknik kod {{ outcome.code }}</span>
-                                            {% if can_manage and outcome.status.value == 'active' %}
+                                            {% if can_manage and outcome.status.value != 'archived' %}
                                                 <form method="post" action="{{ path('app_admin_curriculum_rename_node', { id: program.id, kind: 'kazanim', node: outcome.id }) }}">
                                                     <label>Kazanım metni<input name="admin_curriculum_rename_kazanim[title]" value="{{ outcome.description }}" maxlength="500"></label>
                                                     <input type="hidden" name="admin_curriculum_rename_kazanim[reasonCode]" value="curriculum_correction">
                                                     <label><input type="checkbox" name="admin_curriculum_rename_kazanim[confirm]" value="1"> Metin değişikliğini onaylıyorum</label>
                                                     <input type="hidden" name="admin_curriculum_rename_kazanim[_token]" value="{{ csrf_token('admin_curriculum_rename_' ~ outcome.id) }}">
                                                     <button class="btn btn--ghost" type="submit">Kazanım metnini kaydet</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if outcome.status.value == 'inactive' %}
+                                                <span>Bu kazanımın kendi durumu pasif.</span>
+                                            {% elseif outcome.status.value == 'archived' %}
+                                                <span>Bu kazanım arşivde. Arşiv geri açılmaz.</span>
+                                            {% elseif closed_by_parent or unit.status.value != 'active' or topic.status.value != 'active' %}
+                                                <span>Üst kayıt nedeniyle öğrenciye kapalı. Kazanımın kendi durumu değişmedi.</span>
+                                            {% endif %}
+                                            {% if can_availability and outcome.status.value == 'active' %}
+                                                <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'kazanim', node: outcome.id, mode: 'pasif' }) }}">
+                                                    <label><input type="checkbox" name="admin_curriculum_passive_kazanim[confirm]" value="1"> Pasif yapmayı onaylıyorum</label>
+                                                    <input type="hidden" name="admin_curriculum_passive_kazanim[reasonCode]" value="curriculum_passive">
+                                                    <input type="hidden" name="admin_curriculum_passive_kazanim[_token]" value="{{ csrf_token('admin_curriculum_pasif_' ~ outcome.id) }}">
+                                                    <button class="btn btn--ghost" type="submit">Kazanımı pasif yap</button>
+                                                </form>
+                                            {% elseif can_availability and outcome.status.value == 'inactive' %}
+                                                <form method="post" action="{{ path('app_admin_curriculum_availability', { id: program.id, kind: 'kazanim', node: outcome.id, mode: 'aktif' }) }}">
+                                                    <label><input type="checkbox" name="admin_curriculum_active_kazanim[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum</label>
+                                                    <input type="hidden" name="admin_curriculum_active_kazanim[reasonCode]" value="curriculum_activate">
+                                                    <input type="hidden" name="admin_curriculum_active_kazanim[_token]" value="{{ csrf_token('admin_curriculum_aktif_' ~ outcome.id) }}">
+                                                    <button class="btn btn--ghost" type="submit">Kazanımı yeniden aktif yap</button>
+                                                </form>
+                                            {% endif %}
+                                            {% if can_archive and outcome.status.value == 'active' and program.status.value == 'draft' %}
+                                                <form method="post" action="{{ path('app_admin_curriculum_archive_node', { id: program.id, kind: 'kazanim', node: outcome.id }) }}">
+                                                    <input type="hidden" name="admin_curriculum_archive_kazanim[reasonCode]" value="curriculum_archive">
+                                                    <input type="hidden" name="admin_curriculum_archive_kazanim[confirm]" value="1">
+                                                    <input type="hidden" name="admin_curriculum_archive_kazanim[_token]" value="{{ csrf_token('admin_curriculum_archive_' ~ outcome.id) }}">
+                                                    <button class="btn btn--ghost" type="submit">Kazanımı arşivle</button>
                                                 </form>
                                             {% endif %}
                                             {% if linked_outcomes[outcome.id.toRfc4122]|default(false) %}

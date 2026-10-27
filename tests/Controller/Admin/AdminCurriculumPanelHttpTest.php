@@ -13,7 +13,9 @@ use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Repository\UserRepository;
+use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
+use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
@@ -204,6 +206,97 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
         self::assertNull($this->topicByCode('http_cur_cross'));
     }
 
+    public function testAvailabilityReopensWithoutChangingChildrenAndOtherGrantsCannot(): void
+    {
+        $super = $this->user('http-cur-av-sa@example.com', UserRole::SuperAdmin);
+        $manage = $this->user('http-cur-av-manage@example.com', UserRole::Moderator);
+        $archive = $this->user('http-cur-av-archive@example.com', UserRole::Moderator);
+        $availability = $this->user('http-cur-av-open@example.com', UserRole::Moderator);
+        $this->grants()->replace($super->getId(), $manage->getId(), 0, [ModeratorModuleGrant::CurriculumManage->value]);
+        $this->grants()->replace($super->getId(), $archive->getId(), 0, [ModeratorModuleGrant::CurriculumArchive->value]);
+        $this->grants()->replace($super->getId(), $availability->getId(), 0, [
+            ModeratorModuleGrant::CurriculumView->value,
+            ModeratorModuleGrant::CurriculumAvailability->value,
+        ]);
+        $subject = $this->subjects()->create($super, 'http_cur_av', 'Erisim dersi', 'curriculum_setup');
+        $program = $this->programs()->createDraft($subject, $super, GradeLevel::Grade10, 'http_cur_av', 'Erisim programi', '1.0', 'curriculum_setup');
+        $unit = $this->units()->create($program, $super, 'http_cur_av_u', 'Erisim unite', 1, 'curriculum_setup');
+        $topic = $this->topics()->createRoot($unit, $super, 'http_cur_av_t', 'Erisim konu', 1, 'curriculum_setup');
+        $outcome = $this->outcomes()->create($topic, $super, 'http_cur_av_o', 'Erisim kazanim', 1, 'curriculum_setup');
+        $this->programs()->publish($program, $super, 'curriculum_publish');
+        $programId = $program->getId()->toRfc4122();
+        $unitId = $unit->getId();
+        $path = '/yonetim/programlar/'.$programId.'/unite/'.$unitId->toRfc4122().'/erisim/pasif';
+        $audits = $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated);
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->authenticate($client, $manage->getEmail());
+        $client->request('POST', $path, [
+            'admin_curriculum_passive_unite' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('active', $this->nodeStatus('curriculum_units', $unitId));
+        self::assertSame($audits, $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated));
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->authenticate($client, $archive->getEmail());
+        $client->request('POST', $path, [
+            'admin_curriculum_passive_unite' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('active', $this->nodeStatus('curriculum_units', $unitId));
+        self::assertSame('active', $this->nodeStatus('curriculum_topics', $topic->getId()));
+        self::assertSame('active', $this->nodeStatus('curriculum_learning_outcomes', $outcome->getId()));
+
+        self::ensureKernelShutdown();
+        $client = static::createClient();
+        $this->authenticate($client, $availability->getEmail());
+        $client->request('GET', '/yonetim/programlar/'.$programId);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('button:contains("Üniteyi pasif yap")');
+        $client->request('POST', $path, [
+            'admin_curriculum_passive_unite' => ['reasonCode' => 'curriculum_passive', 'confirm' => '1'],
+        ]);
+        self::assertResponseStatusCodeSame(403);
+        self::assertSame('active', $this->nodeStatus('curriculum_units', $unitId));
+        self::assertSame($audits, $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated));
+
+        $client->request('GET', '/yonetim/programlar/'.$programId);
+        $token = $this->csrf($client, 'admin_curriculum_pasif_'.$unitId->toRfc4122());
+        $client->request('POST', $path, [
+            'admin_curriculum_passive_unite' => [
+                '_token' => $token,
+                'reasonCode' => 'curriculum_passive',
+                'confirm' => '1',
+            ],
+        ]);
+        self::assertResponseRedirects('/yonetim/programlar/'.$programId);
+        self::assertSame('inactive', $this->nodeStatus('curriculum_units', $unitId));
+        self::assertSame('active', $this->nodeStatus('curriculum_topics', $topic->getId()));
+        self::assertSame('active', $this->nodeStatus('curriculum_learning_outcomes', $outcome->getId()));
+        self::assertSame($audits + 1, $this->auditCount(SecurityAuditAction::CurriculumUnitUpdated));
+
+        $client->request('GET', '/yonetim/programlar/'.$programId);
+        self::assertSelectorTextContains('body', 'Bu ünitenin kendi durumu pasif.');
+        self::assertSelectorTextContains('body', 'Üst kayıt nedeniyle öğrenciye kapalı. Konunun kendi durumu değişmedi.');
+        $activeToken = $this->csrf($client, 'admin_curriculum_aktif_'.$unitId->toRfc4122());
+        $client->request('POST', '/yonetim/programlar/'.$programId.'/unite/'.$unitId->toRfc4122().'/erisim/aktif', [
+            'admin_curriculum_active_unite' => [
+                '_token' => $activeToken,
+                'reasonCode' => 'curriculum_activate',
+                'confirm' => '1',
+            ],
+        ]);
+        self::assertResponseRedirects('/yonetim/programlar/'.$programId);
+        self::assertSame('active', $this->nodeStatus('curriculum_units', $unitId));
+        self::assertSame('active', $this->nodeStatus('curriculum_topics', $topic->getId()));
+        self::assertSame('active', $this->nodeStatus('curriculum_learning_outcomes', $outcome->getId()));
+        self::assertSame('http_cur_av', $this->reload($program->getId())->getCode());
+        self::assertSame('1.0', $this->reload($program->getId())->getVersion());
+    }
+
     private function csrf(KernelBrowser $client, string $id): string
     {
         $request = $client->getRequest();
@@ -279,6 +372,35 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
         self::assertInstanceOf(CurriculumUnitManager::class, $service);
 
         return $service;
+    }
+
+    private function topics(): CurriculumTopicManager
+    {
+        $service = static::getContainer()->get(CurriculumTopicManager::class);
+        self::assertInstanceOf(CurriculumTopicManager::class, $service);
+
+        return $service;
+    }
+
+    private function outcomes(): CurriculumLearningOutcomeManager
+    {
+        $service = static::getContainer()->get(CurriculumLearningOutcomeManager::class);
+        self::assertInstanceOf(CurriculumLearningOutcomeManager::class, $service);
+
+        return $service;
+    }
+
+    private function nodeStatus(string $table, Uuid $id): string
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $em->clear();
+
+        return (string) $em->getConnection()->fetchOne(
+            'SELECT status FROM '.$table.' WHERE id = :id',
+            ['id' => $id->toBinary()],
+            ['id' => \Doctrine\DBAL\ParameterType::BINARY],
+        );
     }
 
     private function grants(): UserModulePermissionManager

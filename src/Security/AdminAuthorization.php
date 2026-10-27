@@ -355,6 +355,11 @@ final class AdminAuthorization
         return $this->curriculumActors->allows($actor, CurriculumOperation::Archive);
     }
 
+    public function canChangeCurriculumAvailability(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Availability);
+    }
+
     public function canViewCatalog(User $actor): bool
     {
         return $this->canAccessAdminShell($actor);

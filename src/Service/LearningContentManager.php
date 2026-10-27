@@ -1249,7 +1249,7 @@ final class LearningContentManager
             if (!$outcome instanceof CurriculumLearningOutcome) {
                 throw LearningContentException::alignmentInvalid('Learning outcome not found.');
             }
-            if (CurriculumContentStatus::Active !== $outcome->getStatus()) {
+            if (!(new CurriculumStudentAccess())->chainActive($outcome)) {
                 throw LearningContentException::alignmentInvalid('Learning outcome must be active.');
             }
             $program = $outcome->getCurriculumProgram();
@@ -1376,10 +1376,15 @@ final class LearningContentManager
     private function assertPublishableAlignments(LearningContentRevision $revision, LearningContent $content): void
     {
         $rows = $this->entityManager->getConnection()->fetchAllAssociative(
-            'SELECT a.is_primary, a.subject_id, p.status AS program_status, o.status AS outcome_status
+            'SELECT a.is_primary, a.subject_id, p.status AS program_status, s.status AS subject_status,
+                    o.status AS outcome_status, u.status AS unit_status, t.status AS topic_status, pt.status AS parent_status
                FROM learning_content_outcome_alignments a
                INNER JOIN curriculum_programs p ON p.id = a.curriculum_program_id
+               INNER JOIN subjects s ON s.id = p.subject_id
                INNER JOIN curriculum_learning_outcomes o ON o.id = a.learning_outcome_id
+               INNER JOIN curriculum_units u ON u.id = o.unit_id
+               INNER JOIN curriculum_topics t ON t.id = o.topic_id
+               LEFT JOIN curriculum_topics pt ON pt.id = t.parent_id
               WHERE a.revision_id = ?',
             [$revision->getId()->toBinary()],
             [ParameterType::BINARY],
@@ -1399,7 +1404,12 @@ final class LearningContentManager
             if (CurriculumStatus::Published->value !== (string) $row['program_status']) {
                 throw LearningContentException::curriculumNotPublished();
             }
-            if (CurriculumContentStatus::Active->value !== (string) $row['outcome_status']) {
+            if (SubjectStatus::Active->value !== (string) $row['subject_status']
+                || CurriculumContentStatus::Active->value !== (string) $row['outcome_status']
+                || CurriculumContentStatus::Active->value !== (string) $row['unit_status']
+                || CurriculumContentStatus::Active->value !== (string) $row['topic_status']
+                || (null !== $row['parent_status'] && CurriculumContentStatus::Active->value !== (string) $row['parent_status'])
+            ) {
                 throw LearningContentException::alignmentInvalid('Learning outcome must be active.');
             }
         }

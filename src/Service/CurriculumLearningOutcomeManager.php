@@ -193,6 +193,16 @@ final class CurriculumLearningOutcomeManager
         });
     }
 
+    public function deactivate(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($outcome, $actor, $reasonCode, false);
+    }
+
+    public function reactivate(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode): void
+    {
+        $this->changeAvailability($outcome, $actor, $reasonCode, true);
+    }
+
     public function archive(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode): void
     {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
@@ -223,6 +233,51 @@ final class CurriculumLearningOutcomeManager
                 ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
             );
         }, CurriculumOperation::Archive);
+    }
+
+    private function changeAvailability(CurriculumLearningOutcome $outcome, User $actor, string $reasonCode, bool $active): void
+    {
+        $reasonCode = $this->normalizeReasonCode($reasonCode);
+        $rejected = null;
+
+        $this->mutate($outcome, $actor, $reasonCode, function (
+            Subject $lockedSubject,
+            CurriculumProgram $lockedProgram,
+            CurriculumUnit $lockedUnit,
+            CurriculumTopic $lockedTopic,
+            CurriculumLearningOutcome $locked,
+            User $freshActor,
+            string $reasonCode,
+        ) use ($active, &$rejected): void {
+            try {
+                $this->assertNotRetired($lockedProgram);
+                $oldStatus = $locked->getStatus()->value;
+                $now = \DateTimeImmutable::createFromInterface($this->clock->now());
+                if ($active) {
+                    $locked->reactivate($now);
+                } else {
+                    $locked->deactivate($now);
+                }
+                $this->outcomes->save($locked, false);
+                $this->record(
+                    SecurityAuditAction::CurriculumLearningOutcomeUpdated,
+                    $lockedSubject,
+                    $lockedProgram,
+                    $lockedUnit,
+                    $lockedTopic,
+                    $locked,
+                    $freshActor,
+                    $reasonCode,
+                    ['old_status' => $oldStatus, 'new_status' => $locked->getStatus()->value],
+                );
+            } catch (LearningOutcomeException $exception) {
+                $rejected = $exception;
+            }
+        }, CurriculumOperation::Availability);
+
+        if ($rejected instanceof LearningOutcomeException) {
+            throw $rejected;
+        }
     }
 
     /**
@@ -332,6 +387,13 @@ final class CurriculumLearningOutcomeManager
         }
 
         return [$lockedSubject, $lockedProgram, $lockedUnit, $lockedTopic];
+    }
+
+    private function assertNotRetired(CurriculumProgram $program): void
+    {
+        if (CurriculumStatus::Retired === $program->getStatus()) {
+            throw LearningOutcomeException::invalidTransition();
+        }
     }
 
     private function assertDraft(CurriculumProgram $program): void

@@ -8,6 +8,8 @@ Teslim isteği, “MEB 1–12 Müfredat Şema Ağacı — İngilizce entegre” 
 
 2026-10-26 müfredat yönetimi turunda da bu metin yoktu. İki dosya bu yüzden oluşturulmadı. Ağaç uydurulmadı. Resmî kazanım kodu üretilmedi. Yayımlı katalog değiştirilmedi. Program sürümü, dersler, öğrenme çıktıları ve resmî kodlar doğrulanmadan metin production’a aktarılmaz, import edilmez ve yayımlanmaz. Kaynak eksikliği katalog ve program yönetimini durdurmadı.
 
+2026-10-27 devam turunda mesajın sonundaki ağaç yeri yalnızca “[1–12 MÜFREDAT AĞACI METNİNİ BURAYA YAPIŞTIR]” yer tutucusuydu. Bu yer tutucu müfredat metni değildir. İki kaynak dosyası yine yazılmadı. Resmî kazanım kodu üretilmedi. Veri tabanına import edilmedi.
+
 Metin aynen gelirse kaynak dosyası açıklama paragrafından sonra eksiksiz saklanır. Özet yalnız hiyerarşiyi düzenler; içerik eklemez ve resmî doğruluk iddiası taşımaz.
 
 ## Mevcut model
@@ -26,14 +28,16 @@ Ders `Subject` kaydıdır. Program ve sürüm `CurriculumProgram` kaydıdır. Ü
 
 `/yonetim/programlar` liste, arama, filtre, detay, ders ve taslak program oluşturma, taslak ad düzenleme, yayın, emekliye ayırma ve bağımlılığı olmayan taslak silme sunar. Alt kayıt oluşturma, ad düzenleme, arşiv ve kullanılmamış taslak silme aynı programın içinde kalır. Başka programın UUID’si üst kayıt olamaz. Yayımlı programın adı ve yapısı yerinde değişmez.
 
-Aktif doğrulanmış süper yönetici ve yönetici bu işlemleri kullanır. Moderatör yalnız `curriculum.view`, `curriculum.manage`, `curriculum.publish` ve `curriculum.archive` izinlerinden sahibine açık olanı kullanır. İçerik, soru ve test izinleri müfredat izni vermez. Yayın izni oluşturma izninden çıkmaz.
+Aktif doğrulanmış süper yönetici ve yönetici bu işlemleri kullanır. Moderatör yalnız `curriculum.view`, `curriculum.manage`, `curriculum.publish`, `curriculum.availability` ve `curriculum.archive` izinlerinden sahibine açık olanı kullanır. İçerik, soru ve test izinleri müfredat izni vermez. Yayın, pasiflik ve arşiv izinleri birbirinden çıkmaz.
 
-Üst düğüm yayında veya aktif değilse alt düğüm öğrenciye kendi durumundan bağımsız kapalıdır. Üst kayıt açılınca alt kaydın kendi durumu yazılmaz. Bağımlı kayıt kalıcı silinmez. Silinen taslağın kodu yeniden kullanılınca yeni kimlik alır.
+Ünite, konu ve kazanım `active`, `inactive` ve `archived` durumlarını taşır. Pasif kayıt yeniden aktif edilir. Arşiv son durumdur ve pasif gibi gösterilmez. Pasif yapmak alt kaydın kendi durumunu yazmaz. Üst kayıt pasif, arşiv veya program yayında değilse alt kayıt öğrenciye kapalı kalır. Üst kayıt yeniden açılınca alt kaydın kendi durumu değişmez. Ders ve program için ayrı bir geri alınabilir pasif durum yoktur. Program taslağı ve emekli program zaten öğrenciye kapalıdır. Emekli programda pasiflik değişmez.
+
+Üst düğüm yayında veya aktif değilse alt düğüm öğrenciye kendi durumundan bağımsız kapalıdır. Üst kayıt açılınca alt kaydın kendi durumu yazılmaz. Bağımlı kayıt kalıcı silinmez. Pasif veya arşiv kayıt da silinmez. Silinen taslağın kodu yeniden kullanılınca yeni kimlik alır. Yayımlı programın kodu, dersi, sınıf düzeyi ve sürümü yerinde değişmez.
 
 ## Açık kalan karar
 
-- Kullanıcının 1–12 İngilizce entegre ağaç metni hâlâ gelmedi. Kaynak dosyaları yazılmadı.
+- Kullanıcının 1–12 İngilizce entegre ağaç metni hâlâ gelmedi. 2026-10-27 mesajında yalnız yer tutucu vardı. Kaynak dosyaları yazılmadı.
 - Resmî program yılı, sürüm ve kazanım kodu doğrulanmadı. Import ve yayın yok.
-- Production görsel kabulü yok.
-- İçerik durumu aktiften arşive gider. Ayrı bir geri alınabilir pasif durum eklenmedi.
+- Production görsel kabulü yok. CI görüntüsü canlı kabul değildir.
+- Kademe kaydı, sınıf düzeyi kaydı, ders ve program için geri alınabilir pasif durum yoktur. Sınıf düzeyi `GradeLevel` enum olarak kalır.
 - Toplu işlem yok.

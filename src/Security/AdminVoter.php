@@ -75,6 +75,7 @@ final class AdminVoter extends Voter
                     AdminPermission::ADMIN_CURRICULUM_VIEW => $this->adminAuthorization->canViewCurriculum($actor),
                     AdminPermission::ADMIN_CURRICULUM_MANAGE => $this->adminAuthorization->canManageCurriculum($actor),
                     AdminPermission::ADMIN_CURRICULUM_PUBLISH => $this->adminAuthorization->canPublishCurriculum($actor),
+                    AdminPermission::ADMIN_CURRICULUM_AVAILABILITY => $this->adminAuthorization->canChangeCurriculumAvailability($actor),
                     AdminPermission::ADMIN_CURRICULUM_ARCHIVE => $this->adminAuthorization->canArchiveCurriculum($actor),
                     AdminPermission::ADMIN_LEARNING_CONTENT_VIEW => $this->adminAuthorization->canViewLearningContentWorkspace($actor),
                     AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE => $this->adminAuthorization->canManageLearningContentWorkspace($actor),

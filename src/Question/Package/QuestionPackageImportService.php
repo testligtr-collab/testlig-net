@@ -11,7 +11,6 @@ use App\Entity\Question;
 use App\Entity\QuestionRevision;
 use App\Entity\Subject;
 use App\Entity\User;
-use App\Enum\CurriculumContentStatus;
 use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
 use App\Enum\QuestionDifficulty;
@@ -38,6 +37,7 @@ use App\Repository\QuestionRevisionOptionRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\SubjectRepository;
 use App\Security\AdminAuthorization;
+use App\Service\CurriculumStudentAccess;
 use App\Service\QuestionManager;
 use App\Service\SecurityAuditRecorder;
 use Doctrine\DBAL\Connection;
@@ -308,7 +308,7 @@ final class QuestionPackageImportService
             }
         }
         $outcomeFound = $outcome instanceof CurriculumLearningOutcome
-            && CurriculumContentStatus::Active === $outcome->getStatus()
+            && (new CurriculumStudentAccess())->studentOpen($outcome)
             ? 1
             : 0;
         if (0 === $outcomeFound) {

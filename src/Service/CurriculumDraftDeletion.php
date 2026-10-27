@@ -210,7 +210,7 @@ final class CurriculumDraftDeletion
     private function assertActive(CurriculumContentStatus $status): void
     {
         if (CurriculumContentStatus::Active !== $status) {
-            throw new CurriculumDeletionException('Arşivlenmiş kayıt silinmez.');
+            throw new CurriculumDeletionException('Pasif veya arşiv kayıt silinmez.');
         }
     }
 
