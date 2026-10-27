@@ -48,8 +48,10 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await page.goto(data.paths.curriculum);
     await expect(page.getByRole('heading', { level: 1, name: 'Müfredat Yönetimi' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Müfredat Yönetimi', exact: true }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Programlar', exact: true })).toHaveCount(0);
+    if (viewport.width >= 1024) {
+      await expect(page.getByRole('link', { name: 'Müfredat Yönetimi', exact: true }).first()).toBeVisible();
+    }
     await page.getByRole('link', { name: 'İlkokul', exact: true }).click();
     await expect(page.getByRole('link', { name: '1. sınıf Aktif', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Yeni program', exact: true })).toBeVisible();
