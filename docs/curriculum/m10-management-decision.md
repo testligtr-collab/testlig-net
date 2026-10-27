@@ -44,8 +44,8 @@ Kademe ve sınıf düzeyi yeni kayıt değildir. `curriculum_access_gates` tablo
 
 ## Açık kalan karar
 
-- Kullanıcının 1–12 İngilizce entegre ağaç metni hâlâ gelmedi. 2026-10-27 sonraki mesajı da metni içermiyordu. Kaynak dosyaları yazılmadı.
-- Resmî program yılı, sürüm ve kazanım kodu doğrulanmadı. Import ve yayın yok.
+- Kullanıcının 1–12 İngilizce entegre ağaç metni `docs/curriculum/sources/user-provided-grade-1-12-tree.md` dosyasında aynen durur. Okunur özet `docs/curriculum/grade-1-12-tree-outline.md` yalnız 11 ve 12. sınıf girintisini düzeltir. Bu metin kullanıcı taslağıdır. Resmî MEB müfredatı olarak doğrulanmamıştır.
+- Resmî program yılı, sürüm ve kazanım kodu doğrulanmadı. Import ve yayın yok. Resmî kazanım kodu üretilmedi.
 - Production görsel kabulü yok. CI görüntüsü canlı kabul değildir.
 - Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Sabit kapılar yalnız pasif, yeniden aktif ve ad düzenleme taşır. Sınıf düzeyi `GradeLevel` enum olarak kalır.
 - Toplu işlem yok.
