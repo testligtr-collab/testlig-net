@@ -43,6 +43,23 @@ class CurriculumAccessGate
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $updatedAt;
 
+    private function __construct(
+        Uuid $id,
+        string $kind,
+        string $gateKey,
+        string $label,
+        CurriculumAccessState $status,
+        \DateTimeImmutable $createdAt,
+    ) {
+        $this->id = $id;
+        $this->kind = $kind;
+        $this->gateKey = $gateKey;
+        $this->label = $label;
+        $this->status = $status;
+        $this->createdAt = $createdAt;
+        $this->updatedAt = $createdAt;
+    }
+
     public function getId(): Uuid
     {
         return $this->id;

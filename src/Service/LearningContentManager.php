@@ -1390,14 +1390,14 @@ final class LearningContentManager
                LEFT JOIN curriculum_topics pt ON pt.id = t.parent_id
                LEFT JOIN curriculum_access_gates stage_gate
                  ON stage_gate.kind = \'stage\'
-                AND stage_gate.gate_key = CASE
+                AND stage_gate.gate_key = (CASE
                     WHEN p.grade_level <= 4 THEN \'ilkokul\'
                     WHEN p.grade_level <= 8 THEN \'ortaokul\'
                     ELSE \'lise\'
-                END
+                END) COLLATE utf8mb4_unicode_ci
                LEFT JOIN curriculum_access_gates grade_gate
                  ON grade_gate.kind = \'grade\'
-                AND grade_gate.gate_key = CAST(p.grade_level AS CHAR)
+                AND grade_gate.gate_key = CAST(p.grade_level AS CHAR) COLLATE utf8mb4_unicode_ci
               WHERE a.revision_id = ?',
             [$revision->getId()->toBinary()],
             [ParameterType::BINARY],
