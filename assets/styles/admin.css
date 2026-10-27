@@ -3229,3 +3229,120 @@ body.is-admin-panel {
     .is-admin-panel .admin-institution-profile-row { grid-template-columns: minmax(0, 1fr); }
     .is-admin-panel .admin-institution-profile-row { display: grid; }
 }
+
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stages {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage {
+    min-width: 0;
+    border: 1px solid #d7e4ef;
+    border-radius: 16px;
+    background: #f4fbf7;
+    padding: 0.9rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage--ortaokul { background: #f3f8ff; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage--lise { background: #fff6f0; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage.is-selected { box-shadow: inset 0 0 0 2px #13b3b3; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 a { color: inherit; text-decoration: none; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 a[aria-current="page"] { text-decoration: underline; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage p { margin: 0.35rem 0 0.7rem; color: #53647d; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grades { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 4.5rem;
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 12px;
+    background: #fff;
+    color: #16324f;
+    text-decoration: none;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade small { color: #66758c; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected { border-color: #13b3b3; background: #e7f8f8; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-summary,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tree,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-subject {
+    min-width: 0;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin: 0 0 0.8rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts div {
+    min-width: 0;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts dt { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts dd { margin: 0.15rem 0 0; overflow-wrap: anywhere; font-weight: 650; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node {
+    min-width: 0;
+    margin-top: 0.55rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 14px;
+    background: #fff;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node { padding: 0 0.8rem 0.15rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node > summary {
+    display: list-item;
+    min-height: 44px;
+    padding: 0.55rem 0.15rem;
+    cursor: pointer;
+    list-style-position: inside;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary { padding-inline: 0.8rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: calc(100% - 1.4rem);
+    min-width: 0;
+    vertical-align: middle;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions form,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node > p { margin: 0.35rem 0 0.7rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions form {
+    display: grid;
+    gap: 0.45rem;
+    padding-bottom: 0.8rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions input:not([type="checkbox"]):not([type="hidden"]),
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+.is-admin-panel .admin-curriculum-page summary:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-stages,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-facts { grid-template-columns: 1fr; }
+}
+

@@ -102,12 +102,12 @@ class CurriculumProgramRepository extends ServiceEntityRepository
     /**
      * @return array{rows: list<CurriculumProgram>, total: int}
      */
-    public function searchAdmin(string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId, int $page, int $perPage): array
+    public function searchAdmin(string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId, int $page, int $perPage, ?string $stageKey = null): array
     {
         $qb = $this->createQueryBuilder('p')->join('p.subject', 's');
-        $this->applyAdminFilters($qb, $q, $grade, $status, $subjectId);
+        $this->applyAdminFilters($qb, $q, $grade, $status, $subjectId, $stageKey);
         $countQb = $this->createQueryBuilder('p')->select('COUNT(p.id)')->join('p.subject', 's');
-        $this->applyAdminFilters($countQb, $q, $grade, $status, $subjectId);
+        $this->applyAdminFilters($countQb, $q, $grade, $status, $subjectId, $stageKey);
         $total = (int) $countQb->getQuery()->getSingleScalarResult();
         /** @var list<CurriculumProgram> $rows */
         $rows = $qb
@@ -120,7 +120,7 @@ class CurriculumProgramRepository extends ServiceEntityRepository
         return ['rows' => $rows, 'total' => $total];
     }
 
-    private function applyAdminFilters(\Doctrine\ORM\QueryBuilder $qb, string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId): void
+    private function applyAdminFilters(\Doctrine\ORM\QueryBuilder $qb, string $q, ?GradeLevel $grade, ?CurriculumStatus $status, ?Uuid $subjectId, ?string $stageKey = null): void
     {
         if ('' !== $q) {
             $qb->andWhere('p.code LIKE :q OR p.normalizedName LIKE :q')
@@ -128,6 +128,12 @@ class CurriculumProgramRepository extends ServiceEntityRepository
         }
         if ($grade instanceof GradeLevel) {
             $qb->andWhere('p.gradeLevel = :grade')->setParameter('grade', $grade);
+        } elseif (\in_array($stageKey, ['ilkokul', 'ortaokul', 'lise'], true)) {
+            $stageGrades = array_values(array_filter(
+                GradeLevel::cases(),
+                static fn (GradeLevel $level): bool => $level->stageKey() === $stageKey,
+            ));
+            $qb->andWhere('p.gradeLevel IN (:stageGrades)')->setParameter('stageGrades', $stageGrades);
         }
         if ($status instanceof CurriculumStatus) {
             $qb->andWhere('p.status = :status')->setParameter('status', $status);

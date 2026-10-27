@@ -190,12 +190,14 @@
         "Aynı ekrana curriculum.availability satırı eklendi. Bu izin ünite, konu ve kazanımı pasif yapar veya yeniden aktif eder. Oluşturma, yayın ve arşiv vermez. Arşiv izni pasiflik vermez. Canlı görsel kabul yapılmadı.",
         "curriculum.availability dersi, programın öğrenci erişimini ve sabit kademe ile sınıf düzeyi kapılarını da pasif yapar veya yeniden açar. curriculum.archive kullanılmamış aktif dersi siler veya dersi arşivler. Bu izinler birbirinden çıkmaz. Canlı görsel kabul yapılmadı.",
         "Kullanıcı 1-12 ağacı dosyaya alındı. İzin kataloğu değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Program ve katalog ekranlarının sadeleşmesi izin kataloğunu değiştirmez. curriculum.view, curriculum.manage, curriculum.publish, curriculum.availability ve curriculum.archive ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "Liste, rol kartları, moderatör hesap paneli, arama ve boş durum düzenini kullanır. Hesap varsa gerçek satırlar görünür. Adres, katalog ve kayıt kuralları aynıdır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/166",
         "https://github.com/testligtr-collab/testlig-net/pull/167",
-        "https://github.com/testligtr-collab/testlig-net/pull/174"
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175"
       ],
       "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini ve beş ayrı müfredat iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Ödeme, denetim ve canlı kabul açıktır.",
       "scope_decision": null
@@ -447,11 +449,15 @@
         "2026-10-26 program yönetimi mevcut Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic ve CurriculumLearningOutcome modeli üzerinde /yonetim/programlar adresinde çalışır. GradeLevel enum olarak kalır. Öğrenci kataloğu ayrıdır. Liste, arama, filtre, detay, oluşturma, taslak ad düzenleme, yayın, emekliye ayırma ve bağımlılığı olmayan taslak silme vardır. Moderatör curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinleriyle ayrılır. Resmî 1-12 metni gelmediği için kaynak dosyaları yazılmadı. Import, resmî doğrulama ve production kabulü açıktır.",
         "2026-10-27 ünite, konu ve kazanım için geri alınabilir pasif durum eklendi. Arşiv son durumdur. Üst kayıt pasifken alt kayıt öğrenciye kapalı kalır ve yeniden açılınca kendi durumu değişmez. Pasif veya bağlı kayıt silinmez. Ders, sınıf düzeyi ve program için ayrı pasif durum yoktur. 1-12 metni yer tutucuydu; kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
         "2026-10-27 sonraki turda ders inactive durumunu, program student_access alanını ve sabit kademe ile 1-12 sınıf kapılarını aldı. Pasif üst kayıt öğrenciyi kapatır. Yeniden açmak alt kaydın kendi durumunu yazmaz. Kullanılmamış aktif ders silinir. Bağlı ders silinmez. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Aynı günün mesajında 1-12 ağaç metni yoktu. Kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
-        "2026-10-27 kullanıcı 1-12 ağacı docs/curriculum/sources/user-provided-grade-1-12-tree.md dosyasına aynen alındı. Okunur özet docs/curriculum/grade-1-12-tree-outline.md yalnız 11 ve 12. sınıf girintisini düzeltir. Metin kullanıcı taslağıdır ve resmî MEB müfredatı olarak doğrulanmamıştır. Import, resmî kazanım kodu, toplu işlem ve canlı kabul ayrı açık işlerdir."
+        "2026-10-27 kullanıcı 1-12 ağacı docs/curriculum/sources/user-provided-grade-1-12-tree.md dosyasına aynen alındı. Okunur özet docs/curriculum/grade-1-12-tree-outline.md yalnız 11 ve 12. sınıf girintisini düzeltir. Metin kullanıcı taslağıdır ve resmî MEB müfredatı olarak doğrulanmamıştır. Import, resmî kazanım kodu, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 program listesinde sabit kademe kartları ve sınıf düzeyleri gerçek kapılara bağlıdır. İşlem formları kartın İşlemler alanında açılır. Program detayında ünite, konu ve kazanım açılıp kapanır. Katalog adresi ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır.",
+        "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",
-        "https://github.com/testligtr-collab/testlig-net/pull/174"
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175"
       ],
       "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, ders ve program öğrenci erişimi, sabit kademe ve sınıf kapısı, ünite/konu/kazanım pasifliği, arşiv ve bağımlılığı olmayan aktif kayıt silme çalışır. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Kullanıcı 1-12 kaynağı dosyada durur ve resmî müfredat değildir. Resmî doğrulama, import, toplu işlem ve production kabulü ayrı kanıt ister.",
       "scope_decision": {
@@ -1217,7 +1223,9 @@
         "Programlar menüsü /yonetim/programlar adresine alındı. Müfredat görüntüleme izni olan moderatör kabuğu görür. Oluşturma, yayın ve arşiv düğmeleri ayrı izinlere bağlıdır. Öğrenci kataloğu /yonetim/mufredat adresinde kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Program detayında ünite, konu ve kazanım için pasif yapma ve yeniden aktif etme ayrı curriculum.availability iznine bağlıdır. Arşiv düğmesi pasiflik değildir. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Program listesinde sabit kademe ve sınıf düzeyi kapıları, program detayında programı pasif yapma ve yeni program ekranında dersi pasif yapma aynı yönetim kabuğundadır. Kademe ve sınıf düzeyi için oluşturma veya silme düğmesi yoktur. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Kullanıcı 1-12 ağacı dosyaya alındı. Programlar menüsü ve ekran kapsamı değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir."
+        "Kullanıcı 1-12 ağacı dosyaya alındı. Programlar menüsü ve ekran kapsamı değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Programlar, program detayı ve müfredat kataloğu aynı açık yönetim kabuğunda sadeleşti. Sol menü ve logo aynı kaldı. Adresler değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1237,7 +1245,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/171",
         "https://github.com/testligtr-collab/testlig-net/pull/172",
         "https://github.com/testligtr-collab/testlig-net/pull/173",
-        "https://github.com/testligtr-collab/testlig-net/pull/174"
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
       "scope_decision": null

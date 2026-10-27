@@ -108,6 +108,13 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
         $this->authenticate($client, $admin->getEmail());
         $client->request('GET', '/yonetim/programlar');
         self::assertResponseIsSuccessful();
+        $grade1 = $client->getCrawler()->filter('form[action$="/sinif/1/ad"] input[name="admin_curriculum_rename_gate[title]"]');
+        $grade12 = $client->getCrawler()->filter('form[action$="/sinif/12/ad"] input[name="admin_curriculum_rename_gate[title]"]');
+        self::assertSame('1. sınıf', $grade1->attr('value'));
+        self::assertSame('12. sınıf', $grade12->attr('value'));
+        $chip12 = $client->getCrawler()->filter('a[href*="sinif=12"]');
+        self::assertGreaterThan(0, $chip12->count());
+        self::assertStringContainsString('Aktif', $chip12->text());
 
         self::ensureKernelShutdown();
         $client = static::createClient();

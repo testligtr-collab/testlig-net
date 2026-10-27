@@ -12,16 +12,114 @@
 
 {% block panel_content %}
     {% set status_labels = { 'draft': 'Taslak', 'published': 'Yayında', 'retired': 'Emekli' } %}
+    {% set stage_grades = { 'ilkokul': [1, 2, 3, 4], 'ortaokul': [5, 6, 7, 8], 'lise': [9, 10, 11, 12] } %}
+    {% set stage_gates = [] %}
+    {% set grade_gates = {} %}
+    {% for gate in gates %}
+        {% if gate.kind == 'stage' %}
+            {% set stage_gates = stage_gates|merge([gate]) %}
+        {% else %}
+            {% set grade_gates = grade_gates|merge({ ('g' ~ gate.gateKey): gate }) %}
+        {% endif %}
+    {% endfor %}
+    {% set selected_stage = filters.kademe %}
+    {% if filters.sinif %}
+        {% set selected_value = filters.sinif + 0 %}
+        {% set selected_stage = selected_value <= 4 ? 'ilkokul' : (selected_value <= 8 ? 'ortaokul' : 'lise') %}
+    {% endif %}
     <div class="admin-user-page admin-curriculum-page">
         <header class="admin-user-head">
             <div>
                 <h1 class="panel-greeting">Programlar</h1>
-                <p>Ders, sınıf düzeyi ve sürüm kapsamındaki müfredat programlarını yönetin. Operasyonel sınıf adı, örneğin 5-A, bu listedeki sınıf düzeyi değildir.</p>
+                <p>Ders, sınıf düzeyi ve sürüm kapsamındaki müfredat programlarını yönetin. Kazanımlar programın içindedir. Öğrenci kataloğu ayrı bir yayın zinciridir. Operasyonel sınıf adı, örneğin 5-A, bu listedeki sınıf düzeyi değildir.</p>
             </div>
             {% if can_manage %}
                 <a class="btn admin-institution-primary" href="{{ path('app_admin_curriculum_new') }}"><span aria-hidden="true">+ </span>Yeni program</a>
             {% endif %}
         </header>
+        <p class="admin-institution-note">Kademe ve sınıf düzeyi sabittir. Yeni düzey eklenmez. Sınıf düzeyi silinmez. Pasif kayıt öğrenci erişimini kapatır; yeniden açmak alt kayıtların kendi durumunu değiştirmez. Arşiv ve emekli ayrıdır, geri açılmaz. Sayaçlar seçili filtreden bağımsızdır.</p>
+
+        <section class="admin-curriculum-stages" aria-label="Kademe ve sınıf düzeyi">
+            {% for gate in stage_gates %}
+                <article class="admin-curriculum-stage admin-curriculum-stage--{{ gate.gateKey }}{% if selected_stage == gate.gateKey %} is-selected{% endif %}">
+                    <div class="admin-curriculum-stage__head">
+                        <h2>
+                            <a href="{{ path('app_admin_curriculum', { q: filters.q, ders: filters.ders, kademe: gate.gateKey, durum: filters.durum }) }}"{% if filters.kademe == gate.gateKey and filters.sinif == '' %} aria-current="page"{% endif %}>{{ gate.label }}</a>
+                        </h2>
+                        <span class="admin-institution-status admin-institution-status--{{ gate.status.value == 'active' ? 'active' : 'suspended' }}">{{ gate.status.value == 'active' ? 'Aktif' : 'Pasif' }}</span>
+                    </div>
+                    <p>Sabit kademe. Oluşturulmaz ve silinmez.</p>
+                    <div class="admin-curriculum-grades" aria-label="{{ gate.label }} sınıf düzeyleri">
+                        {% for grade in stage_grades[gate.gateKey] %}
+                            {% set grade_gate = grade_gates['g' ~ grade]|default(null) %}
+                            <a class="admin-curriculum-grade{% if filters.sinif == grade ~ '' %} is-selected{% endif %}" href="{{ path('app_admin_curriculum', { q: filters.q, ders: filters.ders, sinif: grade, durum: filters.durum }) }}"{% if filters.sinif == grade ~ '' %} aria-current="page"{% endif %}>
+                                <span>{{ grade }}. sınıf</span>
+                                <small>{{ grade_gate and grade_gate.status.value == 'active' ? 'Aktif' : 'Pasif' }}</small>
+                            </a>
+                        {% endfor %}
+                    </div>
+                    {% if can_manage or can_availability %}
+                        <details class="admin-curriculum-actions">
+                            <summary role="button">İşlemler</summary>
+                            {% if can_manage %}
+                                <form method="post" action="{{ path('app_admin_curriculum_stage_rename', { key: gate.gateKey }) }}">
+                                    <p>Ad değişikliği kademenin kimliğini değiştirmez.</p>
+                                    <label>Görünen ad<input name="admin_curriculum_rename_gate[title]" value="{{ gate.label }}" maxlength="80"></label>
+                                    <input type="hidden" name="admin_curriculum_rename_gate[reasonCode]" value="curriculum_correction">
+                                    <label><input type="checkbox" name="admin_curriculum_rename_gate[confirm]" value="1"> Ad değişikliğini onaylıyorum</label>
+                                    <input type="hidden" name="admin_curriculum_rename_gate[_token]" value="{{ csrf_token('admin_curriculum_rename_gate_stage_' ~ gate.gateKey) }}">
+                                    <button class="btn btn--ghost" type="submit">Adı kaydet</button>
+                                </form>
+                            {% endif %}
+                            {% if can_availability and gate.status.value == 'active' %}
+                                <form method="post" action="{{ path('app_admin_curriculum_stage_access', { key: gate.gateKey, mode: 'pasif' }) }}">
+                                    <p>Pasif yapmak öğrenciyi kapatır. Alt kayıtların kendi durumu değişmez. Bu işlem arşiv değildir.</p>
+                                    <label><input type="checkbox" name="admin_curriculum_passive_gate[confirm]" value="1"> Pasif yapmayı onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
+                                    <input type="hidden" name="admin_curriculum_passive_gate[reasonCode]" value="curriculum_passive">
+                                    <input type="hidden" name="admin_curriculum_passive_gate[_token]" value="{{ csrf_token('admin_curriculum_pasif_gate_stage_' ~ gate.gateKey) }}">
+                                    <button class="btn btn--ghost" type="submit">{{ gate.gateKey == 'ilkokul' ? 'İlkokulu pasif yap' : (gate.gateKey == 'ortaokul' ? 'Ortaokulu pasif yap' : 'Liseyi pasif yap') }}</button>
+                                </form>
+                            {% elseif can_availability %}
+                                <form method="post" action="{{ path('app_admin_curriculum_stage_access', { key: gate.gateKey, mode: 'aktif' }) }}">
+                                    <p>Yeniden açmak alt kayıtların kendi durumunu yazmaz.</p>
+                                    <label><input type="checkbox" name="admin_curriculum_active_gate[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
+                                    <input type="hidden" name="admin_curriculum_active_gate[reasonCode]" value="curriculum_activate">
+                                    <input type="hidden" name="admin_curriculum_active_gate[_token]" value="{{ csrf_token('admin_curriculum_aktif_gate_stage_' ~ gate.gateKey) }}">
+                                    <button class="btn btn--ghost" type="submit">{{ gate.label }} düzeyini yeniden aktif yap</button>
+                                </form>
+                            {% endif %}
+                            {% for grade in stage_grades[gate.gateKey] %}
+                                {% set grade_gate = grade_gates['g' ~ grade]|default(null) %}
+                                {% if grade_gate and can_manage %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_grade_rename', { grade: grade_gate.gateKey }) }}">
+                                        <label>{{ grade }}. sınıf görünen adı<input name="admin_curriculum_rename_gate[title]" value="{{ grade_gate.label }}" maxlength="80"></label>
+                                        <input type="hidden" name="admin_curriculum_rename_gate[reasonCode]" value="curriculum_correction">
+                                        <label><input type="checkbox" name="admin_curriculum_rename_gate[confirm]" value="1"> Ad değişikliğini onaylıyorum</label>
+                                        <input type="hidden" name="admin_curriculum_rename_gate[_token]" value="{{ csrf_token('admin_curriculum_rename_gate_grade_' ~ grade_gate.gateKey) }}">
+                                        <button class="btn btn--ghost" type="submit">Adı kaydet</button>
+                                    </form>
+                                {% endif %}
+                                {% if grade_gate and can_availability and grade_gate.status.value == 'active' %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_grade_access', { grade: grade_gate.gateKey, mode: 'pasif' }) }}">
+                                        <label><input type="checkbox" name="admin_curriculum_passive_gate[confirm]" value="1"> Pasif yapmayı onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
+                                        <input type="hidden" name="admin_curriculum_passive_gate[reasonCode]" value="curriculum_passive">
+                                        <input type="hidden" name="admin_curriculum_passive_gate[_token]" value="{{ csrf_token('admin_curriculum_pasif_gate_grade_' ~ grade_gate.gateKey) }}">
+                                        <button class="btn btn--ghost" type="submit">{{ grade_gate.label }} düzeyini pasif yap</button>
+                                    </form>
+                                {% elseif grade_gate and can_availability %}
+                                    <form method="post" action="{{ path('app_admin_curriculum_grade_access', { grade: grade_gate.gateKey, mode: 'aktif' }) }}">
+                                        <label><input type="checkbox" name="admin_curriculum_active_gate[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
+                                        <input type="hidden" name="admin_curriculum_active_gate[reasonCode]" value="curriculum_activate">
+                                        <input type="hidden" name="admin_curriculum_active_gate[_token]" value="{{ csrf_token('admin_curriculum_aktif_gate_grade_' ~ grade_gate.gateKey) }}">
+                                        <button class="btn btn--ghost" type="submit">{{ grade_gate.label }} düzeyini yeniden aktif yap</button>
+                                    </form>
+                                {% endif %}
+                            {% endfor %}
+                        </details>
+                    {% endif %}
+                </article>
+            {% endfor %}
+        </section>
 
         <section class="admin-user-stats" aria-label="Program özeti">
             <article class="admin-user-stat admin-user-stat--total">
@@ -53,10 +151,12 @@
                 </span>
             </article>
         </section>
-        <p class="admin-institution-note">Kademe ve sınıf düzeyi sabittir. 1–4 ilkokul, 5–8 ortaokul ve 9–12 lise, mevcut sınıf düzeyi üzerinden okunur. Yeni düzey eklenmez ve sınıf düzeyi silinmez. Pasif kayıt öğrenci erişimini kapatır; alt kayıtların kendi durumu değişmez. Operasyonel sınıf adı, örneğin 5-A, bu liste değildir. Sayaçlar seçili filtreden bağımsızdır. Öğrenci kataloğu ayrı yayın zinciridir.</p>
 
         <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_curriculum') }}" aria-label="Programları filtrele">
             <h2>Programları filtrele</h2>
+            {% if filters.kademe %}
+                <input type="hidden" name="kademe" value="{{ filters.kademe }}">
+            {% endif %}
             <div class="admin-user-filters__fields">
                 <label class="admin-user-search" for="curriculum-filter-q">
                     <span class="sr-only">Program adı veya kod</span>
@@ -140,42 +240,8 @@
         {% if gate_error %}
             <p class="admin-institution-note">{{ gate_error }}</p>
         {% endif %}
-        <section class="admin-institution-card" aria-labelledby="curriculum-gates">
-            <h2 id="curriculum-gates">Kademe ve sınıf düzeyi</h2>
-            <p>Bu kayıtlar oluşturulmaz ve silinmez. Pasif yapmak öğrenciyi kapatır. Yeniden açmak alt programın, dersin, ünite, konu ve kazanımın kendi durumunu yazmaz.</p>
-            {% for gate in gates %}
-                <article>
-                    <h3>{{ gate.label }}</h3>
-                    <p>{{ gate.kind == 'stage' ? 'Kademe' : 'Sınıf düzeyi' }}. Kendi durumu: {{ gate.status.value == 'active' ? 'Aktif' : 'Pasif' }}.</p>
-                    {% if can_manage %}
-                        <form method="post" action="{{ path(gate.kind == 'stage' ? 'app_admin_curriculum_stage_rename' : 'app_admin_curriculum_grade_rename', gate.kind == 'stage' ? { key: gate.gateKey } : { grade: gate.gateKey }) }}">
-                            <label>Görünen ad<input name="admin_curriculum_rename_gate[title]" value="{{ gate.label }}" maxlength="80"></label>
-                            <input type="hidden" name="admin_curriculum_rename_gate[reasonCode]" value="curriculum_correction">
-                            <label><input type="checkbox" name="admin_curriculum_rename_gate[confirm]" value="1"> Ad değişikliğini onaylıyorum</label>
-                            <input type="hidden" name="admin_curriculum_rename_gate[_token]" value="{{ csrf_token('admin_curriculum_rename_gate_' ~ gate.kind ~ '_' ~ gate.gateKey) }}">
-                            <button class="btn btn--ghost" type="submit">Adı kaydet</button>
-                        </form>
-                    {% endif %}
-                    {% if can_availability and gate.status.value == 'active' %}
-                        <form method="post" action="{{ path(gate.kind == 'stage' ? 'app_admin_curriculum_stage_access' : 'app_admin_curriculum_grade_access', gate.kind == 'stage' ? { key: gate.gateKey, mode: 'pasif' } : { grade: gate.gateKey, mode: 'pasif' }) }}">
-                            <label><input type="checkbox" name="admin_curriculum_passive_gate[confirm]" value="1"> Pasif yapmayı onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
-                            <input type="hidden" name="admin_curriculum_passive_gate[reasonCode]" value="curriculum_passive">
-                            <input type="hidden" name="admin_curriculum_passive_gate[_token]" value="{{ csrf_token('admin_curriculum_pasif_gate_' ~ gate.kind ~ '_' ~ gate.gateKey) }}">
-                            <button class="btn btn--ghost" type="submit">{{ gate.gateKey == 'ilkokul' ? 'İlkokulu pasif yap' : (gate.gateKey == 'ortaokul' ? 'Ortaokulu pasif yap' : (gate.gateKey == 'lise' ? 'Liseyi pasif yap' : gate.label ~ ' düzeyini pasif yap')) }}</button>
-                        </form>
-                    {% elseif can_availability %}
-                        <form method="post" action="{{ path(gate.kind == 'stage' ? 'app_admin_curriculum_stage_access' : 'app_admin_curriculum_grade_access', gate.kind == 'stage' ? { key: gate.gateKey, mode: 'aktif' } : { grade: gate.gateKey, mode: 'aktif' }) }}">
-                            <label><input type="checkbox" name="admin_curriculum_active_gate[confirm]" value="1"> Yeniden aktif etmeyi onaylıyorum. Alt kayıtların kendi durumu değişmez.</label>
-                            <input type="hidden" name="admin_curriculum_active_gate[reasonCode]" value="curriculum_activate">
-                            <input type="hidden" name="admin_curriculum_active_gate[_token]" value="{{ csrf_token('admin_curriculum_aktif_gate_' ~ gate.kind ~ '_' ~ gate.gateKey) }}">
-                            <button class="btn btn--ghost" type="submit">{{ gate.label }} düzeyini yeniden aktif yap</button>
-                        </form>
-                    {% endif %}
-                </article>
-            {% endfor %}
-        </section>
         {% if can_catalog %}
-            <p class="admin-institution-note"><a href="{{ path('app_admin_catalog') }}">Öğrenci kataloğu</a> ders, ünite ve konu yayını içindir.</p>
+            <p class="admin-institution-note"><a href="{{ path('app_admin_catalog') }}">Öğrenci kataloğu</a> yayımlanmış ders, ünite ve konu zinciri içindir. Program sürümünü değiştirmez.</p>
         {% endif %}
     </div>
 {% endblock %}

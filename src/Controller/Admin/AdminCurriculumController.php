@@ -959,10 +959,14 @@ final class AdminCurriculumController extends AdminBaseController
     {
         $q = trim((string) $request->query->get('q', ''));
         $grade = GradeLevel::tryFrom((int) $request->query->get('sinif', 0));
+        $stageKey = (string) $request->query->get('kademe', '');
+        if (!\in_array($stageKey, ['ilkokul', 'ortaokul', 'lise'], true) || $grade instanceof GradeLevel) {
+            $stageKey = '';
+        }
         $filter = $this->statusFilter((string) $request->query->get('durum', ''));
         $subjectId = $this->uuidOrNull((string) $request->query->get('ders', ''));
         $page = max(1, (int) $request->query->get('sayfa', 1));
-        $result = $this->programs->searchAdmin($q, $grade, $filter, $subjectId, $page, 20);
+        $result = $this->programs->searchAdmin($q, $grade, $filter, $subjectId, $page, 20, '' !== $stageKey ? $stageKey : null);
         $pages = max(1, (int) ceil($result['total'] / 20));
 
         return $this->renderAdmin('admin/curriculum/list.html.twig', [
@@ -974,6 +978,7 @@ final class AdminCurriculumController extends AdminBaseController
             'filters' => [
                 'q' => $q,
                 'sinif' => $grade instanceof GradeLevel ? (string) $grade->value : '',
+                'kademe' => $stageKey,
                 'durum' => $filter instanceof CurriculumStatus ? $filter->value : '',
                 'ders' => $subjectId instanceof Uuid ? $subjectId->toRfc4122() : '',
             ],
