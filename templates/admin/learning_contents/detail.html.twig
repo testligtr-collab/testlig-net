@@ -3,13 +3,6 @@
 {% block title %}{{ content.title }} — Öğrenme İçerikleri — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        {% include 'admin/_crumb_root.html.twig' %}
-        <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_learning_contents') }}">Öğrenme İçerikleri</a>
-        <span aria-hidden="true">/</span>
-        <span>{{ content.title }}</span>
-    </nav>
     {% set status_variant = {
         draft: 'neutral',
         in_review: 'warning',
@@ -57,6 +50,14 @@
         {% set catalog_variant = 'neutral' %}
     {% endif %}
     <div class="admin-user-page admin-learning-content-page">
+        <div class="admin-learning-content-pin">
+            <nav class="admin-breadcrumb" aria-label="Konum">
+                {% include 'admin/_crumb_root.html.twig' %}
+                <span aria-hidden="true">/</span>
+                <a href="{{ path('app_admin_learning_contents') }}">Öğrenme İçerikleri</a>
+                <span aria-hidden="true">/</span>
+                <span>{{ content.title }}</span>
+            </nav>
         <header class="admin-user-head">
             <div>
                 <h1 class="panel-greeting">{{ content.title }}</h1>
@@ -85,6 +86,7 @@
                 {% endif %}
             </div>
         </header>
+        </div>
 
         <div class="admin-learning-content-stage">
             <div class="admin-learning-content-main">
