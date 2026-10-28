@@ -44,6 +44,9 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('nav', 'Öğrenme içerikleri');
+        self::assertSelectorTextContains('h1', 'Öğrenme İçerikleri');
+        self::assertSelectorExists('[data-content-summary="total"]');
+        self::assertSelectorExists('a[href="/yonetim/icerikler/yeni"]');
 
         $client = $this->newClient();
         $this->login($client, 'lc-teacher-list@example.com');
@@ -54,6 +57,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $this->login($client, 'lc-mod-list@example.com');
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('a[href="/yonetim/icerikler/yeni"]');
 
         $client = $this->newClient();
         $this->login($client, 'lc-student-list@example.com');
@@ -83,6 +87,12 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $client->request('GET', '/yonetim/icerikler/'.$ownId->toRfc4122());
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Teacher Own');
+        self::assertSelectorTextContains('body', 'Ders, program ve kazanım');
+
+        $client->request('GET', '/yonetim/icerikler');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Teacher Own');
+        self::assertStringNotContainsString('Admin Secret', (string) $client->getResponse()->getContent());
 
         unset($teacherContent);
     }
@@ -120,6 +130,8 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'Taslak Başlık');
+        self::assertSelectorTextContains('body', 'Ders, program ve kazanım');
+        self::assertStringNotContainsString('Bu sürümde program veya kazanım bağlantısı yok.', (string) $client->getResponse()->getContent());
 
         self::ensureKernelShutdown();
         self::bootKernel();
@@ -190,6 +202,22 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         // Archived subject must not appear in the active select options.
         self::assertSelectorNotExists('option[value="'.$subjectId->toRfc4122().'"]');
+    }
+
+    public function testInvalidCreateKeepsTheEnteredTitle(): void
+    {
+        $this->createPrivileged('lc-admin-invalid@example.com', UserRole::Admin);
+        $client = $this->newClient();
+        $this->login($client, 'lc-admin-invalid@example.com');
+        $crawler = $client->request('GET', '/yonetim/icerikler/yeni');
+        self::assertResponseIsSuccessful();
+        $client->submit($crawler->selectButton('Taslak oluştur')->form([
+            'learning_content_create[code]' => '',
+            'learning_content_create[title]' => 'Korunan baslik',
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Kod zorunludur.');
+        self::assertInputValueSame('learning_content_create[title]', 'Korunan baslik');
     }
 
     /**

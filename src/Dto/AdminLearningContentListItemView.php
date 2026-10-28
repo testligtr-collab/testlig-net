@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Dto;
 
 use App\Enum\GradeLevel;
+use App\Enum\LearningContentScope;
 use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
 use Symfony\Component\Uid\Uuid;
@@ -24,6 +25,9 @@ final class AdminLearningContentListItemView
         public readonly Uuid $createdById,
         public readonly ?string $accessClass,
         public readonly \DateTimeImmutable $updatedAt,
+        public readonly ?int $currentRevisionNumber,
+        public readonly ?int $publishedRevisionNumber,
+        public readonly LearningContentScope $scope,
     ) {
     }
 }

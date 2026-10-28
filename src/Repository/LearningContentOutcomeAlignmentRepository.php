@@ -36,6 +36,31 @@ class LearningContentOutcomeAlignmentRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * One query for the admin detail panel. Hierarchy is joined so the page does not query per row.
+     *
+     * @return list<LearningContentOutcomeAlignment>
+     */
+    public function findDetailedByRevision(LearningContentRevision $revision): array
+    {
+        /** @var list<LearningContentOutcomeAlignment> $rows */
+        $rows = $this->createQueryBuilder('alignment')
+            ->addSelect('program', 'programSubject', 'outcome', 'topic', 'unit')
+            ->innerJoin('alignment.curriculumProgram', 'program')
+            ->innerJoin('program.subject', 'programSubject')
+            ->innerJoin('alignment.learningOutcome', 'outcome')
+            ->innerJoin('alignment.curriculumTopic', 'topic')
+            ->innerJoin('topic.unit', 'unit')
+            ->andWhere('alignment.revision = :revision')
+            ->setParameter('revision', $revision)
+            ->orderBy('alignment.position', 'ASC')
+            ->addOrderBy('alignment.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function save(LearningContentOutcomeAlignment $entity, bool $flush = true): void
     {
         $this->getEntityManager()->persist($entity);

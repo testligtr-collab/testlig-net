@@ -1,103 +1,196 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}İçerikler — Testlig{% endblock %}
+{% block title %}Öğrenme İçerikleri — Testlig{% endblock %}
 
-{% block panel_content %}
+{% block panel_breadcrumb %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
-        <span>İçerikler</span>
+        <span>Öğrenme İçerikleri</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">İçerikler</h1>
-        {% if can_manage %}
-            <a class="btn btn--cta" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
-        {% endif %}
-        {% if can_create_subject %}
-            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
-        {% endif %}
-    </div>
+{% endblock %}
 
-    <form method="get" class="admin-filters" action="{{ path('app_admin_learning_contents') }}">
-        <label>Ara
-            <input type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off">
-        </label>
-        <label>Durum
-            <select name="status">
-                <option value="">Tümü</option>
-                {% for s in ['draft','in_review','published','archived'] %}
-                    <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s|workflow_label('status') }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Ders
-            <select name="subject_id">
-                <option value="">Tümü</option>
-                {% for s in subjects %}
-                    <option value="{{ s.id.toRfc4122 }}" {% if filters.subject_id|default('') == s.id.toRfc4122 %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Sınıf
-            <select name="grade">
-                <option value="">Tümü</option>
-                {% for g in 1..12 %}
-                    <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
-                {% endfor %}
-            </select>
-        </label>
-        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_learning_contents'), filters: filters } only %}
-    </form>
-
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Kayıt yok',
-            body: 'Filtrelere uygun içerik bulunamadı.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Başlık</th>
-                        <th>Tür</th>
-                        <th>Kapsam</th>
-                        <th>Durum</th>
-                        <th>Güncelleme</th>
-                        {% set show_author = is_granted('ROLE_ADMIN') or is_granted('ROLE_SUPER_ADMIN') or is_granted('ROLE_HEAD_TEACHER') or is_granted('ROLE_EXPERT_TEACHER') or is_granted('ROLE_MODERATOR') %}
-                        {% if show_author %}<th>Yazar</th>{% endif %}
-                        <th>Sıradaki işlem</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.title }}</td>
-                            <td>{{ row.contentType.value|workflow_label('type') }}</td>
-                            <td>{{ row.subjectName }} · {{ row.gradeLevel.value }}. sınıf</td>
-                            <td><span class="ws-badge">{{ row.status.value|workflow_label('status') }}</span></td>
-                            <td>{{ row.updatedAt|date('d.m.Y') }}</td>
-                            {% if show_author %}<td>{{ row.authorName }}</td>{% endif %}
-                            <td>
-                                <a href="{{ path('app_admin_learning_content', { id: row.id.toRfc4122 }) }}">
-                                    {% if row.status.value == 'draft' and can_manage %}Düzenle{% elseif row.status.value == 'in_review' %}İncele{% else %}Görüntüle{% endif %}
-                                </a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-
-    {% include 'components/admin_pagination.html.twig' with {
-        result: result,
-        route: 'app_admin_learning_contents',
-        query: {
-            q: filters.q|default(''),
-            status: filters.status|default(''),
-            subject_id: filters.subject_id|default(''),
-            grade: filters.grade|default('')
-        }
+{% block panel_content %}
+    {% set status_variant = {
+        draft: 'neutral',
+        in_review: 'warning',
+        published: 'success',
+        archived: 'neutral'
     } %}
+    {% set show_author = is_granted('ROLE_ADMIN') or is_granted('ROLE_SUPER_ADMIN') or is_granted('ROLE_HEAD_TEACHER') or is_granted('ROLE_EXPERT_TEACHER') or is_granted('ROLE_MODERATOR') %}
+    <div class="admin-user-page admin-learning-content-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Öğrenme İçerikleri</h1>
+                <p>Ders anlatımlarını ve diğer öğrenme içeriklerini buradan bulun. Yayın, erişim politikası ve öğrenci kataloğundaki yerleşim ayrı adımlardır.</p>
+            </div>
+            <div class="admin-learning-content-head__actions">
+                {% if can_manage %}
+                    <a class="btn admin-institution-primary" href="{{ path('app_admin_learning_content_new') }}"><span aria-hidden="true">+ </span>Yeni içerik</a>
+                {% endif %}
+                {% if can_create_subject %}
+                    <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
+                {% endif %}
+                {% if admin_filters_active(filters|default({})) %}
+                    <a class="admin-user-clear" href="{{ path('app_admin_learning_contents') }}">Filtreleri temizle</a>
+                {% endif %}
+            </div>
+        </header>
+        <p class="admin-institution-note">Sayaçlar seçili filtreden bağımsızdır ve yalnız sizin görebileceğiniz kayıtları sayar. Yayında olmak tek başına ücretsiz erişim değildir.</p>
+
+        <section class="admin-user-stats" aria-label="İçerik özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam</span>
+                    <strong class="admin-user-stat__value" data-content-summary="total">{{ status_counts.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Taslak</span>
+                    <strong class="admin-user-stat__value" data-content-summary="draft">{{ status_counts.draft }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--suspended">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">İncelemede</span>
+                    <strong class="admin-user-stat__value" data-content-summary="in_review">{{ status_counts.in_review }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Yayında</span>
+                    <strong class="admin-user-stat__value" data-content-summary="published">{{ status_counts.published }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'default' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Arşivlenmiş</span>
+                    <strong class="admin-user-stat__value" data-content-summary="archived">{{ status_counts.archived }}</strong>
+                </span>
+            </article>
+        </section>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_learning_contents') }}">
+            <h2>İçerikleri filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <div class="admin-learning-content-filter">
+                    <label for="content-filter-q">Başlık veya teknik kod</label>
+                    <div class="admin-user-search">
+                        <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                        <input id="content-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Başlık veya teknik kod">
+                    </div>
+                </div>
+                <label for="content-filter-status">Durum
+                    <select id="content-filter-status" name="status">
+                        <option value="">Tümü</option>
+                        {% for s in ['draft','in_review','published','archived'] %}
+                            <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ s|workflow_label('status') }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="content-filter-subject">Ders
+                    <select id="content-filter-subject" name="subject_id">
+                        <option value="">Tümü</option>
+                        {% for s in subjects %}
+                            <option value="{{ s.id.toRfc4122 }}" {% if filters.subject_id|default('') == s.id.toRfc4122 %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="content-filter-grade">Sınıf
+                    <select id="content-filter-grade" name="grade">
+                        <option value="">Tümü</option>
+                        {% for g in 1..12 %}
+                            <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                </div>
+            </div>
+        </form>
+
+        {% if result.items is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Kayıt yok',
+                body: 'Filtrelere uygun içerik bulunamadı.'
+            } %}
+        {% else %}
+            <div class="admin-table-wrap">
+                <table class="admin-table admin-learning-content-table">
+                    <thead>
+                        <tr>
+                            <th>Başlık</th>
+                            <th>Tür</th>
+                            <th>Ders ve sınıf</th>
+                            <th>Sürüm</th>
+                            <th>Durum</th>
+                            <th>Güncelleme</th>
+                            {% if show_author %}<th>Yazar</th>{% endif %}
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in result.items %}
+                            {% set variant = status_variant[row.status.value]|default('') %}
+                            {% set status_label = row.status.value|workflow_label('status') %}
+                            {% set revision_label = row.currentRevisionNumber ? 'Sürüm #' ~ row.currentRevisionNumber : 'Sürüm yok' %}
+                            {% if row.publishedRevisionNumber and row.publishedRevisionNumber != row.currentRevisionNumber %}
+                                {% set revision_label = revision_label ~ ' · Yayın #' ~ row.publishedRevisionNumber %}
+                            {% endif %}
+                            {% set action_label = row.status.value == 'draft' and can_manage ? 'Düzenle' : (row.status.value == 'in_review' ? 'İncele' : 'Görüntüle') %}
+                            {% set open_href = path('app_admin_learning_content', { id: row.id.toRfc4122 }) %}
+                            <tr>
+                                <td class="admin-learning-content__identity">
+                                    <div class="admin-learning-content__head">
+                                        <span class="admin-learning-content__name">{{ row.title }}</span>
+                                        <span class="admin-status admin-learning-content__card-status{{ variant ? ' admin-status--' ~ variant : '' }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status_label }}</span>
+                                    </div>
+                                    <p class="admin-learning-content__meta">{{ row.contentType.value|workflow_label('type') }} · {{ row.subjectName }} · {{ row.gradeLevel.value }}. sınıf · {{ revision_label }}</p>
+                                    <div class="admin-learning-content__foot">
+                                        <details class="admin-learning-content-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-learning-content-tech__panel">
+                                                <dl>
+                                                    <div><dt>Teknik kod</dt><dd><code>{{ row.code }}</code></dd></div>
+                                                    <div><dt>Kısa ref</dt><dd><code>{{ row.id.toRfc4122|slice(0, 8) }}</code></dd></div>
+                                                    <div><dt>Kapsam</dt><dd>{{ row.scope.value|workflow_label('scope') }}</dd></div>
+                                                    <div><dt>Erişim</dt><dd>{% if row.accessClass %}{{ row.accessClass|workflow_label('access') }}{% else %}Yapılandırılmamış{% endif %}</dd></div>
+                                                </dl>
+                                            </div>
+                                        </details>
+                                        <a class="admin-institution-detail admin-learning-content__open" href="{{ open_href }}">{{ action_label }} <span aria-hidden="true">→</span></a>
+                                    </div>
+                                </td>
+                                <td class="admin-learning-content__type">{{ row.contentType.value|workflow_label('type') }}</td>
+                                <td class="admin-learning-content__relation">{{ row.subjectName }} · {{ row.gradeLevel.value }}. sınıf</td>
+                                <td class="admin-learning-content__revision">{{ revision_label }}</td>
+                                <td class="admin-learning-content__status"><span class="admin-status{{ variant ? ' admin-status--' ~ variant : '' }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status_label }}</span></td>
+                                <td class="admin-learning-content__updated">{{ row.updatedAt|date('d.m.Y') }}</td>
+                                {% if show_author %}<td class="admin-learning-content__author">{{ row.authorName }}</td>{% endif %}
+                                <td class="admin-learning-content__action"><a class="admin-institution-detail" href="{{ open_href }}">{{ action_label }} <span aria-hidden="true">→</span></a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_learning_contents',
+            query: {
+                q: filters.q|default(''),
+                status: filters.status|default(''),
+                subject_id: filters.subject_id|default(''),
+                grade: filters.grade|default('')
+            }
+        } %}
+    </div>
 {% endblock %}
