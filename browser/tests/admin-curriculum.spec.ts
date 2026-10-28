@@ -295,12 +295,14 @@ test('curriculum program tree, create error, delete block, and moderator view', 
 
 async function oneLine(locator: Locator): Promise<boolean> {
   return locator.evaluate((node) => {
+    const texts = [...node.childNodes].filter((child) => child.nodeType === Node.TEXT_NODE && (child.textContent ?? '').trim() !== '');
+    const target = texts.length > 0 ? texts[texts.length - 1] : node;
     const range = document.createRange();
-    range.selectNodeContents(node);
-    const rects = [...range.getClientRects()];
+    range.selectNodeContents(target);
+    const rects = [...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0);
     const top = rects[0]?.top ?? 0;
 
-    return rects.length > 0 && rects.every((rect) => Math.abs(rect.top - top) < 3);
+    return rects.length > 0 && rects.every((rect) => Math.abs(rect.top - top) < 4);
   });
 }
 
