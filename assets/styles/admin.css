@@ -3448,9 +3448,23 @@ body.is-admin-panel {
     font-size: 0.82rem;
     overflow-wrap: anywhere;
 }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-status,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-institution-detail {
+    white-space: nowrap;
+}
 .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-institution-detail {
     box-sizing: border-box;
     min-height: 44px;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__subject,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__grade,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__version,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__status,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__action {
+        width: 1%;
+        white-space: nowrap;
+    }
 }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table a:focus-visible {
     outline: 2px solid #0b6e99;

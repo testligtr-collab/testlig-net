@@ -76,6 +76,9 @@ test('curriculum program tree, create error, delete block, and moderator view', 
       await expect(row.locator('.admin-curriculum-program__subject')).toBeVisible();
       await expect(row.locator('.admin-curriculum-program__status')).toHaveText('Yayında');
       await expect(row.locator('.admin-curriculum-program__action a')).toBeVisible();
+      expect(await oneLine(row.locator('.admin-curriculum-program__status .admin-status'))).toBe(true);
+      expect(await oneLine(row.locator('.admin-curriculum-program__action a'))).toBe(true);
+      expect(await oneLine(row.locator('.admin-curriculum-program__grade'))).toBe(true);
     } else {
       await expect(meta).toHaveText('Tarayici dersi · 1. sınıf · 1.0');
       await expect(cardStatus).toHaveText('Yayında');
@@ -289,6 +292,17 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   expect(ignoredValidationResponses).toBe(1);
   await assertClean(page);
 });
+
+async function oneLine(locator: Locator): Promise<boolean> {
+  return locator.evaluate((node) => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const rects = [...range.getClientRects()];
+    const top = rects[0]?.top ?? 0;
+
+    return rects.length > 0 && rects.every((rect) => Math.abs(rect.top - top) < 3);
+  });
+}
 
 function boxesOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
   return a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1;
