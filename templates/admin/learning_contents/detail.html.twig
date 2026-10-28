@@ -60,17 +60,21 @@
         <header class="admin-user-head">
             <div>
                 <h1 class="panel-greeting">{{ content.title }}</h1>
-                <p class="admin-learning-content-statusline">
-                    <span class="admin-status{{ variant ? ' admin-status--' ~ variant : '' }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ content.status.value|workflow_label('status') }}</span>
+                <dl class="admin-learning-content-statusline">
+                    <dt class="visually-hidden">Durum</dt>
+                    <dd><span class="admin-status{{ variant ? ' admin-status--' ~ variant : '' }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ content.status.value|workflow_label('status') }}</span></dd>
                     {% if content.currentRevision %}
-                        <span>Sürüm #{{ content.currentRevision.revisionNumber }}{% if content.currentRevision.sealed %} · Mühürlü{% else %} · Taslak{% endif %}</span>
+                        <dt class="visually-hidden">Sürüm</dt>
+                        <dd>Sürüm #{{ content.currentRevision.revisionNumber }}{% if content.currentRevision.sealed %} · Mühürlü{% else %} · Taslak{% endif %}</dd>
                         {% if content.publishedRevisionNumber and content.publishedRevisionNumber != content.currentRevision.revisionNumber %}
-                            <span>Yayın #{{ content.publishedRevisionNumber }}</span>
+                            <dt class="visually-hidden">Yayımlı sürüm</dt>
+                            <dd>Yayın #{{ content.publishedRevisionNumber }}</dd>
                         {% endif %}
                     {% else %}
-                        <span>Sürüm yok</span>
+                        <dt class="visually-hidden">Sürüm</dt>
+                        <dd>Sürüm yok</dd>
                     {% endif %}
-                </p>
+                </dl>
             </div>
             <div class="admin-learning-content-head__actions">
                 {% if can_manage %}

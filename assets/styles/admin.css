@@ -3712,6 +3712,7 @@ body.is-admin-panel {
 
 .is-admin-panel .admin-learning-content-page .admin-user-head .panel-greeting { display: inline; margin-right: 0.65rem; }
 .is-admin-panel .admin-learning-content-page .admin-learning-content-statusline { display: inline-flex; vertical-align: middle; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-statusline dd { margin: 0; }
 .is-admin-panel .admin-learning-content-page .admin-learning-content-cardhead {
     display: flex;
     align-items: center;
