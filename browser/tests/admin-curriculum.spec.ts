@@ -163,12 +163,13 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await expect(page.getByText('Tarayici taslak')).toHaveCount(0);
     const before = await stageHeights();
     expect(Math.max(...before) - Math.min(...before)).toBeLessThanOrEqual(4);
-    await page.getByRole('button', { name: 'İşlemler', exact: true }).click();
-    const after = await stageHeights();
-    expect(Math.max(...after) - Math.min(...after)).toBeLessThanOrEqual(4);
     await page.evaluate(() => window.scrollTo(0, 0));
     await assertLayout(page);
     await capture(page, info, `admin-sinif-1-${viewport.name}.png`);
+    await page.getByRole('button', { name: 'İşlemler', exact: true }).click();
+    const after = await stageHeights();
+    expect(Math.max(...after) - Math.min(...after)).toBeLessThanOrEqual(4);
+    await page.getByRole('button', { name: 'İşlemler', exact: true }).click();
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('link', { name: '2. sınıf Aktif', exact: true }).click();
