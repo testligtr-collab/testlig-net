@@ -6,7 +6,7 @@
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_curriculum') }}">Müfredat Yönetimi</a>
+        <a href="{{ path('app_admin_curriculum', { sinif: program.gradeLevel.value }) }}">Müfredat Yönetimi</a>
         <span aria-hidden="true">/</span>
         <span>{{ program.name }}</span>
     </nav>
@@ -29,7 +29,7 @@
                 <h1 class="panel-greeting">{{ program.name }}</h1>
                 <p>{{ program.subject.name }} · {{ program.gradeLevel.value }}. sınıf · sürüm {{ program.version }}</p>
             </div>
-            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_curriculum') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_curriculum', { sinif: program.gradeLevel.value }) }}"><span aria-hidden="true">← </span>Listeye dön</a>
         </header>
 
         <section class="admin-curriculum-summary" aria-labelledby="curriculum-node">

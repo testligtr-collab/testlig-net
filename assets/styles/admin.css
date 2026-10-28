@@ -3276,7 +3276,13 @@ body.is-admin-panel {
     text-decoration: none;
 }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-grade small { color: #66758c; }
-.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected { border-color: #13b3b3; background: #e7f8f8; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected {
+    border-color: #0c7c7c;
+    background: #128f8f;
+    color: #fff;
+    box-shadow: 0 0 0 3px #b7ecec;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected small { color: #e7f8f8; }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-summary,
 .is-admin-panel .admin-curriculum-page .admin-curriculum-tree,
 .is-admin-panel .admin-curriculum-page .admin-curriculum-catalog,

@@ -168,9 +168,6 @@
             {% if filters.kademe %}
                 <input type="hidden" name="kademe" value="{{ filters.kademe }}">
             {% endif %}
-            {% if filters.kademe %}
-                <input type="hidden" name="kademe" value="{{ filters.kademe }}">
-            {% endif %}
             <div class="admin-user-filters__fields">
                 <label class="admin-user-search" for="curriculum-filter-q">
                     <span class="sr-only">Program adı veya kod</span>
@@ -212,7 +209,7 @@
         {% if rows is empty %}
             <section class="admin-institution-card">
                 <h2>Kayıt yok</h2>
-                <p>Filtrelere uygun program bulunamadı.</p>
+                <p>{% if filters.sinif %}Bu sınıf düzeyinde program yok.{% else %}Filtrelere uygun program bulunamadı.{% endif %}</p>
             </section>
         {% else %}
             <div class="admin-table-wrap">

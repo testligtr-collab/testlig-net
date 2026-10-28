@@ -455,7 +455,8 @@
         "2026-10-27 program listesinde sabit kademe kartları ve sınıf düzeyleri gerçek kapılara bağlıdır. İşlem formları kartın İşlemler alanında açılır. Program detayında ünite, konu ve kazanım açılıp kapanır. Katalog adresi ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır.",
         "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır.",
-        "2026-10-27 yönetim menüsünde tek Müfredat Yönetimi girişi vardır. /yonetim/programlar ve /yonetim/mufredat durur. Seçilen kademenin sınıfları, o sınıfın programları ve aynı sınıfın öğrenci kataloğu ayrı kayıtlar olarak görünür. Katalog yayını programı yayınlamaz. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir."
+        "2026-10-27 yönetim menüsünde tek Müfredat Yönetimi girişi vardır. /yonetim/programlar ve /yonetim/mufredat durur. Seçilen kademenin sınıfları, o sınıfın programları ve aynı sınıfın öğrenci kataloğu ayrı kayıtlar olarak görünür. Katalog yayını programı yayınlamaz. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-28 seçili sınıf düğmesi belirgindir. 1. sınıf yalnız kendi programını ve katalog kayıtlarını gösterir. 2. sınıfa geçince önceki kayıtlar karışmaz. Programı veya kataloğu olmayan sınıfta boş durum vardır. Detaydan dönüş seçili sınıfı korur. Durum partial kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/173",
@@ -1230,7 +1231,8 @@
         "Kullanıcı 1-12 ağacı dosyaya alındı. Programlar menüsü ve ekran kapsamı değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "Programlar, program detayı ve müfredat kataloğu aynı açık yönetim kabuğunda sadeleşti. Sol menü ve logo aynı kaldı. Adresler değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
