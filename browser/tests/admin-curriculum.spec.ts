@@ -106,7 +106,7 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     expect(await page.locator(':focus').evaluate((node) => getComputedStyle(node).outlineWidth)).not.toBe('0px');
     await page.keyboard.press('Shift+Tab');
     await expect(summary).toBeFocused();
-    expect(await summary.evaluate((node) => getComputedStyle(node).outlineWidth)).not.toBe('0px');
+    await expect.poll(async () => summary.evaluate((node) => getComputedStyle(node).outlineWidth)).not.toBe('0px');
     if (viewport.width < 1024) {
       const textRight = await summary.evaluate((node) => {
         const range = document.createRange();

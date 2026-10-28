@@ -1233,7 +1233,8 @@
         "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Öğrenme İçerikleri listesi, içerik detayı ve mevcut sürüm düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/icerikler ve alt yolları aynı kaldı. Liste GET kayıt, revision, yayın veya erişim politikası yazmaz. Sayaçlar tek sayım sorgusudur ve seçili filtreden bağımsızdır. Yayın, erişim ve katalog yerleşimi ayrı kalır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1256,9 +1257,10 @@
         "https://github.com/testligtr-collab/testlig-net/pull/174",
         "https://github.com/testligtr-collab/testlig-net/pull/175",
         "https://github.com/testligtr-collab/testlig-net/pull/176",
-        "https://github.com/testligtr-collab/testlig-net/pull/177"
+        "https://github.com/testligtr-collab/testlig-net/pull/177",
+        "https://github.com/testligtr-collab/testlig-net/pull/178"
       ],
-      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
+      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null
     },
     {

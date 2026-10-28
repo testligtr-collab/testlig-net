@@ -6,242 +6,264 @@
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <a href="{{ path('app_admin_learning_contents') }}">Öğrenme İçerikleri</a>
         <span aria-hidden="true">/</span>
         <a href="{{ path('app_admin_learning_content', {id: content.id.toRfc4122}) }}">{{ content.title }}</a>
         <span aria-hidden="true">/</span>
         <span>Sürüm</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Sürüm düzenleyici</h1>
-        <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision_preview', {id: content.id.toRfc4122}) }}">Önizleme</a>
-    </div>
-
-    <dl class="account-dl">
-        <dt>İçerik</dt><dd>{{ content.title }} · <code>{{ content.code }}</code></dd>
-        <dt>Sürüm</dt><dd>#{{ revision.revisionNumber }}{% if revision.sealed %} · mühürlü{% else %} · taslak{% endif %}</dd>
-    </dl>
-
-    {% if revision.sealed %}
-        <section class="admin-section" aria-labelledby="clone-heading">
-            <h2 id="clone-heading">Mühürlü sürüm</h2>
-            <p class="muted">Bu sürüm değiştirilemez. Düzenlemek için yeni bir taslak sürüm klonlayın.</p>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_clone', {id: content.id.toRfc4122}) }}" class="stack-sm">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                <button type="submit" class="btn btn--primary">Yeni sürüm klonla</button>
-            </form>
-        </section>
-
-        <section class="admin-section" aria-labelledby="readonly-heading">
-            <h2 id="readonly-heading">Bloklar (salt okunur)</h2>
-            <ol class="stack-sm">
-                {% for block in editor_blocks %}
-                    <li>
-                        <strong>{{ block.type_label }}</strong>
-                        {% if block.type == 'heading' %}
-                            <p>H{{ block.level }}: {{ block.text }}</p>
-                        {% elseif block.type == 'list' %}
-                            <pre>{{ block.items_text }}</pre>
-                        {% elseif block.type == 'math' %}
-                            <code>{{ block.latex }}</code>
-                        {% elseif block.type == 'callout' %}
-                            <p>[{{ block.variant|workflow_label('callout') }}] {{ block.callout_text }}</p>
-                        {% elseif block.type == 'video' %}
-                            <p>{{ block.video_title }}</p>
-                            {% if block.video_description %}<p>{{ block.video_description }}</p>{% endif %}
-                        {% elseif block.type == 'document' %}
-                            <p>{{ block.document_label }}</p>
-                        {% else %}
-                            <p>{{ block.text }}</p>
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            </ol>
-        </section>
-    {% else %}
-        <section class="admin-section" aria-labelledby="blocks-heading">
-            <h2 id="blocks-heading">Bloklar</h2>
-            <p class="muted">Düz metin alanları. Kaydetmeden çıkarsanız yazdıklarınız kaybolur.</p>
-
-            <form method="post" action="{{ path('app_admin_learning_content_revision_save', {id: content.id.toRfc4122}) }}" class="stack-sm" id="revision-save-form" data-controller="dirty-form">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-
-                {% for block in editor_blocks %}
-                    <fieldset class="admin-section">
-                        <legend>Blok {{ loop.index }} — {{ block.type_label }}</legend>
-                        <input type="hidden" name="blocks[{{ loop.index0 }}][type]" value="{{ block.type }}">
-
-                        {% if block.type == 'heading' %}
-                            <label>Seviye
-                                <select name="blocks[{{ loop.index0 }}][level]">
-                                    {% for level in 1..3 %}
-                                        <option value="{{ level }}" {% if block.level == level %}selected{% endif %}>H{{ level }}</option>
-                                    {% endfor %}
-                                </select>
-                            </label>
-                            <label>Metin
-                                <input type="text" name="blocks[{{ loop.index0 }}][text]" value="{{ block.text }}" required>
-                            </label>
-                        {% elseif block.type == 'paragraph' or block.type == 'quote' %}
-                            <label>Metin
-                                <textarea name="blocks[{{ loop.index0 }}][text]" rows="8" required class="revision-text">{{ block.text }}</textarea>
-                            </label>
-                        {% elseif block.type == 'list' %}
-                            <label>Maddeler (satır başına bir)
-                                <textarea name="blocks[{{ loop.index0 }}][items]" rows="8" required class="revision-text">{{ block.items_text }}</textarea>
-                            </label>
-                        {% elseif block.type == 'math' %}
-                            <label>LaTeX
-                                <input type="text" name="blocks[{{ loop.index0 }}][latex]" value="{{ block.latex }}" required>
-                            </label>
-                        {% elseif block.type == 'callout' %}
-                            <label>Tür
-                                <select name="blocks[{{ loop.index0 }}][variant]">
-                                    {% for variant in ['info', 'warning', 'tip', 'note'] %}
-                                        <option value="{{ variant }}" {% if block.variant == variant %}selected{% endif %}>{{ variant|workflow_label('callout') }}</option>
-                                    {% endfor %}
-                                </select>
-                            </label>
-                            <label>Metin
-                                <textarea name="blocks[{{ loop.index0 }}][callout_text]" rows="6" required class="revision-text">{{ block.callout_text }}</textarea>
-                            </label>
-                        {% elseif block.type == 'video' %}
-                            <label>Başlık
-                                <textarea name="blocks[{{ loop.index0 }}][video_title]" rows="2" class="revision-text">{{ block.video_title }}</textarea>
-                            </label>
-                            <label>Açıklama
-                                <textarea name="blocks[{{ loop.index0 }}][video_description]" rows="4" class="revision-text">{{ block.video_description }}</textarea>
-                            </label>
-                        {% elseif block.type == 'document' %}
-                            <label>Görünen bağlantı metni
-                                <textarea name="blocks[{{ loop.index0 }}][document_label]" rows="2" required class="revision-text">{{ block.document_label }}</textarea>
-                            </label>
-                        {% endif %}
-                    </fieldset>
-                {% endfor %}
-
-                <button type="submit" class="btn btn--primary">Kaydet</button>
-            </form>
-
-            <div class="stack-sm u-mt1">
-                {% for block in editor_blocks %}
-                    <div class="admin-actions">
-                        <span class="muted">Blok {{ loop.index }}:</span>
-                        {% if not loop.first %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
-                                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                                <input type="hidden" name="index" value="{{ loop.index0 }}">
-                                <input type="hidden" name="direction" value="up">
-                                <button type="submit" class="btn btn--ghost">Yukarı</button>
-                            </form>
-                        {% endif %}
-                        {% if not loop.last %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
-                                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                                <input type="hidden" name="index" value="{{ loop.index0 }}">
-                                <input type="hidden" name="direction" value="down">
-                                <button type="submit" class="btn btn--ghost">Aşağı</button>
-                            </form>
-                        {% endif %}
-                        {% if editor_blocks|length > 1 %}
-                            <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-confirm-submit-message-value="Bu blok kaldırılsın mı?" data-warn-unsaved="1">
-                                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                                <input type="hidden" name="index" value="{{ loop.index0 }}">
-                                <button type="submit" class="btn btn--ghost" data-action="confirm-submit#submit">Kaldır</button>
-                            </form>
-                        {% endif %}
-                    </div>
-                {% endfor %}
+    {% set status_variant = {
+        draft: 'neutral',
+        in_review: 'warning',
+        published: 'success',
+        archived: 'neutral'
+    } %}
+    {% set variant = status_variant[content.status.value]|default('') %}
+    <div class="admin-user-page admin-learning-content-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">{{ content.title }}</h1>
+                <p class="admin-learning-content-statusline">
+                    <span class="admin-status{{ variant ? ' admin-status--' ~ variant : '' }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ content.status.value|workflow_label('status') }}</span>
+                    <span>Sürüm #{{ revision.revisionNumber }}{% if revision.sealed %} · mühürlü{% else %} · taslak{% endif %}</span>
+                </p>
             </div>
-        </section>
+            <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision_preview', {id: content.id.toRfc4122}) }}">Önizleme</a>
+        </header>
 
-        <section class="admin-section" aria-labelledby="add-heading">
-            <h2 id="add-heading">Yeni blok ekle</h2>
-            <p class="muted">Seçtiğiniz tür listenin sonuna boş bir blok olarak eklenir. Metni kaydettikten sonra bu blokta doldurun.</p>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_add_block', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                <label>Tür
-                    <select name="block_type" required>
-                        {% for label, value in type_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </label>
-                <button type="submit" class="btn btn--primary">Yeni blok ekle</button>
-            </form>
-        </section>
+        <details class="admin-learning-content-tech">
+            <summary role="button">Teknik bilgiler</summary>
+            <div class="admin-learning-content-tech__panel">
+                <dl>
+                    <div><dt>Teknik kod</dt><dd><code>{{ content.code }}</code></dd></div>
+                    <div><dt>Kısa ref</dt><dd><code>{{ content.id.toRfc4122|slice(0, 8) }}</code></dd></div>
+                </dl>
+            </div>
+        </details>
 
-        <section class="admin-section" aria-labelledby="video-heading">
-            <h2 id="video-heading">Video ekle</h2>
-            <p class="muted">YouTube veya Vimeo sayfa adresini yapıştırın. Gömme kodu, iframe ve ham HTML kabul edilmez.</p>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_video', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                <label>Video adresi
-                    <input type="url" name="video_url" required placeholder="https://">
-                </label>
-                <label>Başlık
-                    <textarea name="title" rows="2" class="revision-text"></textarea>
-                </label>
-                <label>Açıklama
-                    <textarea name="description" rows="4" class="revision-text"></textarea>
-                </label>
-                <button type="submit" class="btn btn--primary">Video ekle</button>
-            </form>
-        </section>
+        {% if revision.sealed %}
+            <section class="admin-section" aria-labelledby="clone-heading">
+                <h2 id="clone-heading">Mühürlü sürüm</h2>
+                <p class="muted">Bu sürüm değiştirilemez. Düzenlemek için yeni bir taslak sürüm klonlayın. Yayınlanmış gövde yerinde değişmez.</p>
+                <form method="post" action="{{ path('app_admin_learning_content_revision_clone', {id: content.id.toRfc4122}) }}" class="stack-sm">
+                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                    <button type="submit" class="btn btn--primary">Yeni sürüm klonla</button>
+                </form>
+            </section>
 
-        <section class="admin-section" aria-labelledby="pdf-heading">
-            <h2 id="pdf-heading">PDF doküman ekle</h2>
-            <p class="muted">Yalnız PDF, en fazla 25 MB. Dosya onay bekler; yönetici kullanıma hazır demeden sürüme bağlanamaz. Antivirüs taraması yoktur.</p>
-            <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-controller="pdf-meta" data-warn-unsaved="1">
-                <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                <label>PDF dosyası
-                    <input type="file" name="pdf" accept="application/pdf,.pdf" required id="pdf-file">
-                </label>
-                <p id="pdf-file-meta" class="muted" role="status"></p>
-                <button type="submit" class="btn btn--primary">PDF yükle</button>
-            </form>
-            {% if documents is not empty %}
-                <ul class="stack-sm">
-                    {% for card in documents %}
+            <section class="admin-section" aria-labelledby="readonly-heading">
+                <h2 id="readonly-heading">Bloklar (salt okunur)</h2>
+                <ol class="stack-sm admin-learning-content-readonly">
+                    {% for block in editor_blocks %}
                         <li>
-                            <strong>{{ card.name }}</strong>
-                            <span class="muted">{{ card.sizeLabel }} · {{ card.statusLabel }}</span>
-                            <a href="{{ path('app_admin_learning_document_preview', {id: content.id.toRfc4122, handle: card.handle}) }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
-                            {% if card.canApprove %}
-                                <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_ready', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
-                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                                    <input type="hidden" name="handle" value="{{ card.handle }}">
-                                    <button type="submit" class="btn btn--ghost">Kullanıma hazır</button>
-                                </form>
-                            {% endif %}
-                            {% if card.canAttach %}
-                                <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_attach', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
-                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
-                                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
-                                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
-                                    <input type="hidden" name="handle" value="{{ card.handle }}">
-                                    <label>Görünen bağlantı metni
-                                        <textarea name="label" rows="2" required class="revision-text"></textarea>
-                                    </label>
-                                    <button type="submit" class="btn btn--ghost">Sürüme ekle</button>
-                                </form>
+                            <strong>{{ block.type_label }}</strong>
+                            {% if block.type == 'heading' %}
+                                <p>H{{ block.level }}: {{ block.text }}</p>
+                            {% elseif block.type == 'list' %}
+                                <pre>{{ block.items_text }}</pre>
+                            {% elseif block.type == 'math' %}
+                                <code>{{ block.latex }}</code>
+                            {% elseif block.type == 'callout' %}
+                                <p>[{{ block.variant|workflow_label('callout') }}] {{ block.callout_text }}</p>
+                            {% elseif block.type == 'video' %}
+                                <p>{{ block.video_title }}</p>
+                                {% if block.video_description %}<p>{{ block.video_description }}</p>{% endif %}
+                            {% elseif block.type == 'document' %}
+                                <p>{{ block.document_label }}</p>
+                            {% else %}
+                                <p>{{ block.text }}</p>
                             {% endif %}
                         </li>
                     {% endfor %}
-                </ul>
-            {% endif %}
-        </section>
-    {% endif %}
+                </ol>
+            </section>
+        {% else %}
+            <section class="admin-section" aria-labelledby="blocks-heading">
+                <h2 id="blocks-heading">Bloklar</h2>
+                <p class="muted">Kaydetmeden çıkarsanız yazdıklarınız kaybolur. Sıralama ve kaldırma, kaydedilmemiş metni sormadan uygulanmaz.</p>
+
+                <form method="post" action="{{ path('app_admin_learning_content_revision_save', {id: content.id.toRfc4122}) }}" class="stack-sm" id="revision-save-form" data-controller="dirty-form">
+                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+
+                    {% for block in editor_blocks %}
+                        <fieldset class="admin-section admin-learning-content-block">
+                            <legend>Blok {{ loop.index }} — {{ block.type_label }}</legend>
+                            <input type="hidden" name="blocks[{{ loop.index0 }}][type]" value="{{ block.type }}">
+
+                            {% if block.type == 'heading' %}
+                                <label>Seviye
+                                    <select name="blocks[{{ loop.index0 }}][level]">
+                                        {% for level in 1..3 %}
+                                            <option value="{{ level }}" {% if block.level == level %}selected{% endif %}>H{{ level }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <label>Metin
+                                    <input type="text" name="blocks[{{ loop.index0 }}][text]" value="{{ block.text }}" required>
+                                </label>
+                            {% elseif block.type == 'paragraph' or block.type == 'quote' %}
+                                <label>Metin
+                                    <textarea name="blocks[{{ loop.index0 }}][text]" rows="8" required class="revision-text">{{ block.text }}</textarea>
+                                </label>
+                            {% elseif block.type == 'list' %}
+                                <label>Maddeler (satır başına bir)
+                                    <textarea name="blocks[{{ loop.index0 }}][items]" rows="8" required class="revision-text">{{ block.items_text }}</textarea>
+                                </label>
+                            {% elseif block.type == 'math' %}
+                                <label>LaTeX
+                                    <input type="text" name="blocks[{{ loop.index0 }}][latex]" value="{{ block.latex }}" required>
+                                </label>
+                            {% elseif block.type == 'callout' %}
+                                <label>Tür
+                                    <select name="blocks[{{ loop.index0 }}][variant]">
+                                        {% for variant in ['info', 'warning', 'tip', 'note'] %}
+                                            <option value="{{ variant }}" {% if block.variant == variant %}selected{% endif %}>{{ variant|workflow_label('callout') }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                <label>Metin
+                                    <textarea name="blocks[{{ loop.index0 }}][callout_text]" rows="6" required class="revision-text">{{ block.callout_text }}</textarea>
+                                </label>
+                            {% elseif block.type == 'video' %}
+                                <label>Başlık
+                                    <textarea name="blocks[{{ loop.index0 }}][video_title]" rows="2" class="revision-text">{{ block.video_title }}</textarea>
+                                </label>
+                                <label>Açıklama
+                                    <textarea name="blocks[{{ loop.index0 }}][video_description]" rows="4" class="revision-text">{{ block.video_description }}</textarea>
+                                </label>
+                            {% elseif block.type == 'document' %}
+                                <label>Görünen bağlantı metni
+                                    <textarea name="blocks[{{ loop.index0 }}][document_label]" rows="2" required class="revision-text">{{ block.document_label }}</textarea>
+                                </label>
+                            {% endif %}
+                        </fieldset>
+                    {% endfor %}
+
+                    <button type="submit" class="btn btn--primary">Kaydet</button>
+                </form>
+
+                <div class="stack-sm u-mt1">
+                    {% for block in editor_blocks %}
+                        <div class="admin-actions">
+                            <span class="muted">Blok {{ loop.index }}:</span>
+                            {% if not loop.first %}
+                                <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                    <input type="hidden" name="direction" value="up">
+                                    <button type="submit" class="btn btn--ghost">Yukarı</button>
+                                </form>
+                            {% endif %}
+                            {% if not loop.last %}
+                                <form method="post" action="{{ path('app_admin_learning_content_revision_move_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-warn-unsaved="1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                    <input type="hidden" name="direction" value="down">
+                                    <button type="submit" class="btn btn--ghost">Aşağı</button>
+                                </form>
+                            {% endif %}
+                            {% if editor_blocks|length > 1 %}
+                                <form method="post" action="{{ path('app_admin_learning_content_revision_remove_block', {id: content.id.toRfc4122}) }}" class="u-inline" data-controller="confirm-submit" data-confirm-submit-message-value="Bu blok kaldırılsın mı?" data-warn-unsaved="1">
+                                    <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                    <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                                    <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                                    <input type="hidden" name="index" value="{{ loop.index0 }}">
+                                    <button type="submit" class="btn btn--ghost" data-action="confirm-submit#submit">Kaldır</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <div class="admin-learning-content-tools">
+                <section class="admin-section" aria-labelledby="add-heading">
+                    <h2 id="add-heading">Yeni blok ekle</h2>
+                    <p class="muted">Seçtiğiniz tür listenin sonuna boş bir blok olarak eklenir. Metni kaydettikten sonra bu blokta doldurun.</p>
+                    <form method="post" action="{{ path('app_admin_learning_content_revision_add_block', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                        <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                        <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                        <label>Tür
+                            <select name="block_type" required>
+                                {% for label, value in type_choices %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
+                        <button type="submit" class="btn btn--primary">Yeni blok ekle</button>
+                    </form>
+                </section>
+
+                <section class="admin-section" aria-labelledby="video-heading">
+                    <h2 id="video-heading">Video ekle</h2>
+                    <p class="muted">YouTube veya Vimeo sayfa adresini yapıştırın. Gömme kodu, iframe ve ham HTML kabul edilmez.</p>
+                    <form method="post" action="{{ path('app_admin_learning_content_revision_video', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                        <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                        <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                        <label>Video adresi
+                            <input type="url" name="video_url" required placeholder="https://">
+                        </label>
+                        <label>Başlık
+                            <textarea name="title" rows="2" class="revision-text"></textarea>
+                        </label>
+                        <label>Açıklama
+                            <textarea name="description" rows="4" class="revision-text"></textarea>
+                        </label>
+                        <button type="submit" class="btn btn--primary">Video ekle</button>
+                    </form>
+                </section>
+
+                <section class="admin-section" aria-labelledby="pdf-heading">
+                    <h2 id="pdf-heading">PDF doküman ekle</h2>
+                    <p class="muted">Yalnız PDF, en fazla 25 MB. Dosya onay bekler; yönetici kullanıma hazır demeden sürüme bağlanamaz. Antivirüs taraması yoktur.</p>
+                    <form method="post" action="{{ path('app_admin_learning_content_revision_pdf', {id: content.id.toRfc4122}) }}" enctype="multipart/form-data" class="stack-sm" data-controller="pdf-meta" data-warn-unsaved="1">
+                        <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                        <label>PDF dosyası
+                            <input type="file" name="pdf" accept="application/pdf,.pdf" required id="pdf-file">
+                        </label>
+                        <p id="pdf-file-meta" class="muted" role="status"></p>
+                        <button type="submit" class="btn btn--primary">PDF yükle</button>
+                    </form>
+                    {% if documents is not empty %}
+                        <ul class="stack-sm">
+                            {% for card in documents %}
+                                <li>
+                                    <strong>{{ card.name }}</strong>
+                                    <span class="muted">{{ card.sizeLabel }} · {{ card.statusLabel }}</span>
+                                    <a href="{{ path('app_admin_learning_document_preview', {id: content.id.toRfc4122, handle: card.handle}) }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
+                                    {% if card.canApprove %}
+                                        <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_ready', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                                            <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                            <input type="hidden" name="handle" value="{{ card.handle }}">
+                                            <button type="submit" class="btn btn--ghost">Kullanıma hazır</button>
+                                        </form>
+                                    {% endif %}
+                                    {% if card.canAttach %}
+                                        <form method="post" action="{{ path('app_admin_learning_content_revision_pdf_attach', {id: content.id.toRfc4122}) }}" class="stack-sm" data-warn-unsaved="1">
+                                            <input type="hidden" name="_token" value="{{ csrf_token(csrf_id) }}">
+                                            <input type="hidden" name="expected_revision_id" value="{{ revision.id.toRfc4122 }}">
+                                            <input type="hidden" name="expected_content_hash" value="{{ revision.contentHash }}">
+                                            <input type="hidden" name="handle" value="{{ card.handle }}">
+                                            <label>Görünen bağlantı metni
+                                                <textarea name="label" rows="2" required class="revision-text"></textarea>
+                                            </label>
+                                            <button type="submit" class="btn btn--ghost">Sürüme ekle</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </section>
+            </div>
+        {% endif %}
+    </div>
 {% endblock %}

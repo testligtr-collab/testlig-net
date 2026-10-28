@@ -205,8 +205,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
             $subject,
             GradeLevel::Grade1,
             LearningContentType::TopicExplanation,
-            'browser_draft',
-            'Duzenlenen anlatim',
+            'browser_draft_uzun_teknik_kod_satiri_tasmadan_sarilir',
+            'Duzenlenen anlatim uzun baslik durum etiketiyle carpismaz ve dar ekranda kendi alaninda sarilir',
             null,
             LearningContentDocument::fromArray([
                 'schemaVersion' => 1,

@@ -6,19 +6,22 @@
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_learning_contents') }}">İçerikler</a>
+        <a href="{{ path('app_admin_learning_contents') }}">Öğrenme İçerikleri</a>
         <span aria-hidden="true">/</span>
         <a href="{{ path('app_admin_learning_content', {id: content.id.toRfc4122}) }}">{{ content.title }}</a>
         <span aria-hidden="true">/</span>
         <span>Önizleme</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Yönetici önizleme</h1>
+    <div class="admin-user-page admin-learning-content-page">
+    <header class="admin-user-head">
+        <div>
+            <h1 class="panel-greeting">{{ content.title }}</h1>
+            <p>Yönetici önizleme. Öğrenci yüzü değildir. Metin otomatik kaçış ile gösterilir; ham HTML ve JSON yoktur.</p>
+        </div>
         {% if can_manage %}
             <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_revision', {id: content.id.toRfc4122}) }}">Düzenle</a>
         {% endif %}
-    </div>
-    <p class="muted">Öğrenci yüzü değildir. Metin Twig otomatik kaçış ile gösterilir; ham HTML/JSON yok.</p>
+    </header>
 
     <article class="admin-section" aria-label="Sürüm gövdesi">
         {% for block in preview_blocks %}
@@ -81,4 +84,5 @@
             <p class="muted">Blok yok.</p>
         {% endfor %}
     </article>
+    </div>
 {% endblock %}
