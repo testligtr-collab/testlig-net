@@ -2,7 +2,7 @@
 
 {% block title %}{{ content.title }} — Öğrenme İçerikleri — Testlig{% endblock %}
 
-{% block panel_breadcrumb %}
+{% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,9 +10,6 @@
         <span aria-hidden="true">/</span>
         <span>{{ content.title }}</span>
     </nav>
-{% endblock %}
-
-{% block panel_content %}
     {% set status_variant = {
         draft: 'neutral',
         in_review: 'warning',
@@ -90,6 +87,7 @@
             <h2 id="relations-heading">Ders, program ve kazanım</h2>
             <p class="muted">Ders ve sınıf bu içeriğin kaydıdır. Program ve kazanım güncel sürüme bağlıdır. Katalog yerleşimi ve öğrenci erişimi ayrıdır.</p>
             <dl class="account-dl admin-learning-content-facts">
+                <dt>Durum</dt><dd>{{ content.status.value|workflow_label('status') }}</dd>
                 <dt>Ders</dt><dd>{{ content.subject.name }}</dd>
                 <dt>Sınıf</dt><dd>{{ content.gradeLevel.value }}. sınıf</dd>
                 <dt>Tür</dt><dd>{{ content.contentType.value|workflow_label('type') }}</dd>

@@ -2,7 +2,7 @@
 
 {% block title %}Önizleme — {{ content.title }} — Testlig{% endblock %}
 
-{% block panel_breadcrumb %}
+{% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -12,9 +12,6 @@
         <span aria-hidden="true">/</span>
         <span>Önizleme</span>
     </nav>
-{% endblock %}
-
-{% block panel_content %}
     <div class="admin-user-page admin-learning-content-page">
     <header class="admin-user-head">
         <div>

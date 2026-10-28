@@ -141,6 +141,19 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await capture(page, info, `admin-icerik-yeni-hata-${viewport.name}.png`);
   }
 
+  const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
+  let ignoredValidationResponses = 0;
+  const kept = notes.filter((note) => {
+    if (note.includes('status of 422')) {
+      ignoredValidationResponses += 1;
+
+      return false;
+    }
+
+    return true;
+  });
+  expect(ignoredValidationResponses).toBe(4);
+  (page as Page & { __notes?: string[] }).__notes = kept;
   await assertClean(page);
 });
 

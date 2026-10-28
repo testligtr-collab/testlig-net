@@ -2,7 +2,7 @@
 
 {% block title %}Sürüm düzenle — {{ content.title }} — Testlig{% endblock %}
 
-{% block panel_breadcrumb %}
+{% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -12,9 +12,6 @@
         <span aria-hidden="true">/</span>
         <span>Sürüm</span>
     </nav>
-{% endblock %}
-
-{% block panel_content %}
     {% set status_variant = {
         draft: 'neutral',
         in_review: 'warning',

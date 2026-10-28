@@ -215,7 +215,7 @@ final class AdminLearningContentControllerTest extends WebTestCase
             'learning_content_create[code]' => '',
             'learning_content_create[title]' => 'Korunan baslik',
         ]));
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'Kod zorunludur.');
         self::assertInputValueSame('learning_content_create[title]', 'Korunan baslik');
     }
