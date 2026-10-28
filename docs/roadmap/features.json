@@ -1259,7 +1259,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/175",
         "https://github.com/testligtr-collab/testlig-net/pull/176",
         "https://github.com/testligtr-collab/testlig-net/pull/177",
-        "https://github.com/testligtr-collab/testlig-net/pull/178"
+        "https://github.com/testligtr-collab/testlig-net/pull/178",
+        "https://github.com/testligtr-collab/testlig-net/pull/179"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null
