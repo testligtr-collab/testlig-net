@@ -57,6 +57,8 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
       await expect.poll(async () => published.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('table-cell');
       expect(await oneLine(published.locator('.admin-learning-content__status .admin-status'))).toBeTruthy();
       expect(await oneLine(published.locator('.admin-learning-content__action a'))).toBeTruthy();
+      expect(await oneLine(published.locator('.admin-learning-content__relation'))).toBeTruthy();
+      expect(await oneLine(page.getByRole('columnheader', { name: 'Ders ve sınıf' }))).toBeTruthy();
     } else {
       await expect.poll(async () => row.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('block');
       const nameBox = await row.locator('.admin-learning-content__name').boundingBox();
