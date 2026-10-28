@@ -12,6 +12,7 @@
 
 {% block panel_content %}
     {% set status_labels = { 'draft': 'Taslak', 'published': 'Yayında', 'retired': 'Emekli' } %}
+    {% set status_variants = { 'draft': 'neutral', 'published': 'success', 'retired': 'neutral' } %}
     {% set stage_grades = { 'ilkokul': [1, 2, 3, 4], 'ortaokul': [5, 6, 7, 8], 'lise': [9, 10, 11, 12] } %}
     {% set stage_gates = [] %}
     {% set grade_gates = {} %}
@@ -213,7 +214,7 @@
             </section>
         {% else %}
             <div class="admin-table-wrap">
-                <table class="admin-table admin-user-table">
+                <table class="admin-table admin-user-table admin-curriculum-program-table">
                     <thead>
                         <tr>
                             <th>Program</th>
@@ -227,18 +228,39 @@
                     <tbody>
                         {% for row in rows %}
                             <tr>
-                                <td data-label="Program">
-                                    <span class="admin-user-person__name">{{ row.name }}</span>
-                                    <details class="admin-curriculum-actions">
-                                        <summary role="button">Teknik bilgiler</summary>
-                                        <p>Teknik kod: {{ row.code }}. Bu kod resmî kazanım kodu değildir.</p>
-                                    </details>
+                                <td class="admin-curriculum-program__identity" data-label="Program">
+                                    <div class="admin-curriculum-program__head">
+                                        <span class="admin-user-person__name">{{ row.name }}</span>
+                                        <span class="admin-status admin-status--{{ status_variants[row.status.value] }} admin-curriculum-program__card-status">
+                                            <span class="admin-status__dot" aria-hidden="true"></span>
+                                            {{ status_labels[row.status.value] }}
+                                        </span>
+                                    </div>
+                                    <p class="admin-curriculum-program__meta">{{ row.subject.name }} · {{ row.gradeLevel.value }}. sınıf · {{ row.version }}</p>
+                                    <div class="admin-curriculum-program__foot">
+                                        <details class="admin-curriculum-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-curriculum-tech__panel">
+                                                <dl>
+                                                    <dt>Teknik kod</dt>
+                                                    <dd><code>{{ row.code }}</code></dd>
+                                                </dl>
+                                                <p>Bu kod resmî kazanım kodu değildir.</p>
+                                            </div>
+                                        </details>
+                                        <a class="btn btn--ghost admin-institution-detail admin-curriculum-program__open" href="{{ path('app_admin_curriculum_show', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a>
+                                    </div>
                                 </td>
-                                <td data-label="Ders">{{ row.subject.name }}</td>
-                                <td data-label="Sınıf">{{ row.gradeLevel.value }}. sınıf</td>
-                                <td data-label="Sürüm">{{ row.version }}</td>
-                                <td data-label="Durum">{{ status_labels[row.status.value] }}</td>
-                                <td data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_curriculum_show', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a></td>
+                                <td class="admin-curriculum-program__subject" data-label="Ders">{{ row.subject.name }}</td>
+                                <td class="admin-curriculum-program__grade" data-label="Sınıf">{{ row.gradeLevel.value }}. sınıf</td>
+                                <td class="admin-curriculum-program__version" data-label="Sürüm">{{ row.version }}</td>
+                                <td class="admin-curriculum-program__status" data-label="Durum">
+                                    <span class="admin-status admin-status--{{ status_variants[row.status.value] }}">
+                                        <span class="admin-status__dot" aria-hidden="true"></span>
+                                        {{ status_labels[row.status.value] }}
+                                    </span>
+                                </td>
+                                <td class="admin-curriculum-program__action" data-label="İşlem"><a class="btn btn--ghost admin-institution-detail" href="{{ path('app_admin_curriculum_show', { id: row.id }) }}">İncele <span aria-hidden="true">→</span></a></td>
                             </tr>
                         {% endfor %}
                     </tbody>
