@@ -166,7 +166,7 @@ final class AdminLearningContentController extends AdminBaseController
         return $this->renderAdmin('admin/learning_contents/create.html.twig', [
             'form' => $form,
             'can_create_subject' => $this->isGranted(AdminPermission::ADMIN_PAYMENT_OPS),
-        ]);
+        ], $form->isSubmitted() && !$form->isValid() ? new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY) : null);
     }
 
     #[Route('/yonetim/icerikler/konu-alani/yeni', name: 'app_admin_learning_content_subject_new', methods: ['GET', 'POST'])]
@@ -201,7 +201,7 @@ final class AdminLearningContentController extends AdminBaseController
 
         return $this->renderAdmin('admin/learning_contents/subject_create.html.twig', [
             'form' => $form,
-        ]);
+        ], $form->isSubmitted() && !$form->isValid() ? new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY) : null);
     }
 
     #[Route('/yonetim/icerikler/{id}', name: 'app_admin_learning_content', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -274,6 +274,7 @@ final class AdminLearningContentController extends AdminBaseController
             'can_archive' => $this->isGranted(LearningContentPermission::ARCHIVE, $content),
             'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
                 && LearningContentStatus::Archived !== $content->getStatus(),
+            'preview_blocks' => $this->currentRevisionBlocks($revision),
         ]);
     }
 
@@ -748,16 +749,11 @@ final class AdminLearningContentController extends AdminBaseController
     {
         $content = $this->requireContent($id);
         $revision = $this->requireCurrentRevision($content);
-        $structured = $revision->getStructuredContent();
-        $blocks = $structured['blocks'] ?? [];
-        if (!\is_array($blocks)) {
-            $blocks = [];
-        }
 
         return $this->renderAdmin('admin/learning_contents/revision_preview.html.twig', [
             'content' => $content,
             'revision' => $revision,
-            'preview_blocks' => $blocks,
+            'preview_blocks' => $this->currentRevisionBlocks($revision),
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
         ]);
     }
@@ -991,6 +987,30 @@ final class AdminLearningContentController extends AdminBaseController
         }
 
         return $revision;
+    }
+
+    /**
+     * @return list<array<array-key, mixed>>
+     */
+    private function currentRevisionBlocks(?LearningContentRevision $revision): array
+    {
+        if (!$revision instanceof LearningContentRevision) {
+            return [];
+        }
+        $structured = $revision->getStructuredContent();
+        $blocks = $structured['blocks'] ?? [];
+        if (!\is_array($blocks)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($blocks as $block) {
+            if (\is_array($block)) {
+                $normalized[] = $block;
+            }
+        }
+
+        return $normalized;
     }
 
     private function assertRevisionCsrf(Request $request, string $id): void

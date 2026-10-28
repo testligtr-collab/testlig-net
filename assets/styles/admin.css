@@ -3710,3 +3710,148 @@ body.is-admin-panel {
     .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl { grid-template-columns: minmax(0, 1fr); }
 }
 
+.is-admin-panel .admin-learning-content-page .admin-user-head .panel-greeting { display: inline; margin-right: 0.65rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-statusline { display: inline-flex; vertical-align: middle; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-cardhead {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 0 0.85rem;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-main,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-side,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create-side {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body {
+    padding: 1.25rem 1rem;
+    border-radius: 0.9rem;
+    background: #eef6fb;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h2,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h3,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h4 { margin: 0.4rem 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body p,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body li { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next {
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-gaps {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.7rem;
+    align-items: center;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li > span:nth-child(2) {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts strong { display: block; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li span span { color: #52667d; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-relation-title { margin: 0 0 0.35rem; font-weight: 700; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold { min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-learning-content-page .admin-section.admin-learning-content-fold > summary { margin-bottom: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel { display: none; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold[open] > .admin-learning-content-fold__panel {
+    display: block;
+    margin-top: 0.75rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dl {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: 0.4rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel > dl > div { display: contents; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dt { color: #66758c; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create input,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea { width: 100%; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create ul {
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: #9b2c2c;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create .help-text { color: #66758c; font-size: 0.9rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-form-actions .btn { width: auto; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject { max-width: 40rem; margin-inline: auto; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject .panel-greeting { display: flex; margin: 0; font-size: 1.5rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject__badge { margin: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-note {
+    margin: 0.25rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.75rem;
+    background: #eef6fb;
+    color: #24506d;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject .admin-learning-content-form-actions { justify-content: flex-end; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-stage { grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 24rem); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-create-grid { grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 24rem); }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-facts li { grid-template-columns: auto minmax(0, 1fr); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-facts li > .admin-status { grid-column: 2; justify-self: start; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dl { grid-template-columns: minmax(0, 1fr); }
+}
+

@@ -87,7 +87,9 @@ final class AdminLearningContentControllerTest extends WebTestCase
         $client->request('GET', '/yonetim/icerikler/'.$ownId->toRfc4122());
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Teacher Own');
-        self::assertSelectorTextContains('body', 'Ders, program ve kazanım');
+        self::assertSelectorTextContains('body', 'Ders ve kazanım');
+        self::assertSelectorTextContains('body', '[Taslak]');
+        self::assertStringNotContainsString('Tamam —', (string) $client->getResponse()->getContent());
 
         $client->request('GET', '/yonetim/icerikler');
         self::assertResponseIsSuccessful();
@@ -130,8 +132,10 @@ final class AdminLearningContentControllerTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'Taslak Başlık');
-        self::assertSelectorTextContains('body', 'Ders, program ve kazanım');
+        self::assertSelectorTextContains('body', 'Ders ve kazanım');
+        self::assertSelectorTextContains('body', '[Taslak]');
         self::assertStringNotContainsString('Bu sürümde program veya kazanım bağlantısı yok.', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('öğrencilerin erişimine açıktır.', (string) $client->getResponse()->getContent());
 
         self::ensureKernelShutdown();
         self::bootKernel();

@@ -1,6 +1,6 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Yeni içerik — Testlig{% endblock %}
+{% block title %}Yeni öğrenme içeriği — Testlig{% endblock %}
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
@@ -13,8 +13,8 @@
     <div class="admin-user-page admin-learning-content-page">
         <header class="admin-user-head">
             <div>
-                <h1 class="panel-greeting">Yeni içerik</h1>
-                <p>Platform kapsamında taslak oluşur. Gövde boş bir paragraftır. Kazanım, erişim politikası ve katalog yerleşimi bundan sonra ayrı adımlardır.</p>
+                <h1 class="panel-greeting">Yeni öğrenme içeriği</h1>
+                <p>Temel bilgileri girerek taslak oluşturun. Bu form yayın veya ücretsiz erişim vermez.</p>
             </div>
             {% if can_create_subject %}
                 <a class="btn btn--ghost" href="{{ path('app_admin_learning_content_subject_new') }}">Konu alanı ekle</a>
@@ -22,24 +22,36 @@
         </header>
 
         {{ form_start(form, { attr: { class: 'admin-learning-content-create' } }) }}
-            <fieldset class="admin-section">
-                <legend>Temel bilgiler</legend>
-                {{ form_row(form.code) }}
-                {{ form_row(form.title) }}
-                {{ form_row(form.summary) }}
-                {{ form_row(form.contentType) }}
-            </fieldset>
-            <fieldset class="admin-section">
-                <legend>Ders ve sınıf</legend>
-                {{ form_row(form.gradeLevel) }}
-                {{ form_row(form.subjectId) }}
-            </fieldset>
-            <fieldset class="admin-section">
-                <legend>Kazanım</legend>
-                {{ form_row(form.learningOutcomeId) }}
-                <p class="muted">Seçilen kazanım bu taslağın ilk sürümüne birincil bağlantı olarak yazılır. Yayını açmaz.</p>
-            </fieldset>
-            <div class="admin-learning-content-head__actions">
+            <div class="admin-learning-content-create-grid">
+                <section class="admin-section" aria-labelledby="content-fields-heading">
+                    <h2 id="content-fields-heading" class="admin-learning-content-cardhead">
+                        <span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                        İçerik bilgileri
+                    </h2>
+                    {{ form_row(form.title) }}
+                    {{ form_row(form.summary) }}
+                    {{ form_row(form.contentType) }}
+                    {{ form_row(form.code) }}
+                </section>
+                <div class="admin-learning-content-create-side">
+                    <section class="admin-section" aria-labelledby="subject-fields-heading">
+                        <h2 id="subject-fields-heading" class="admin-learning-content-cardhead">
+                            <span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span>
+                            Ders ve sınıf
+                        </h2>
+                        {{ form_row(form.gradeLevel) }}
+                        {{ form_row(form.subjectId) }}
+                    </section>
+                    <section class="admin-section" aria-labelledby="outcome-fields-heading">
+                        <h2 id="outcome-fields-heading" class="admin-learning-content-cardhead">
+                            <span class="admin-institution-heading-icon admin-institution-heading-icon--violet" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'questions' } only %}</span>
+                            Kazanım bağlantısı
+                        </h2>
+                        {{ form_row(form.learningOutcomeId) }}
+                    </section>
+                </div>
+            </div>
+            <div class="admin-learning-content-form-actions">
                 <button type="submit" class="btn admin-institution-primary">Taslak oluştur</button>
                 <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
             </div>

@@ -109,7 +109,9 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await page.goto(data.paths.reviewDetail);
     await expect(page.getByRole('heading', { level: 1, name: 'Yayin bekleyen anlatim' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Yayımla' })).toBeVisible();
-    await expect(page.getByRole('heading', { level: 2, name: 'Ders, program ve kazanım' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'Ders ve kazanım' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: 'İçerik önizlemesi' })).toBeVisible();
+    await expect(page.locator('ol.workflow-steps')).toHaveCount(0);
     await assertLayout(page);
     await capture(page, info, `admin-icerik-detay-${viewport.name}.png`);
   }
@@ -134,7 +136,7 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/icerikler/yeni');
-    await expect(page.getByRole('heading', { level: 1, name: 'Yeni içerik' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Yeni öğrenme içeriği' })).toBeVisible();
     await page.locator('#learning_content_create_code').evaluate((node) => node.removeAttribute('required'));
     await page.locator('#learning_content_create_subjectId').evaluate((node) => node.removeAttribute('required'));
     await page.locator('#learning_content_create_learningOutcomeId').evaluate((node) => node.removeAttribute('required'));
@@ -144,6 +146,50 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await expect(page.getByLabel('Başlık')).toHaveValue('Korunan baslik');
     await assertLayout(page);
     await capture(page, info, `admin-icerik-yeni-hata-${viewport.name}.png`);
+  }
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(data.paths.publishedDetail);
+  await expect(page.getByRole('heading', { level: 1, name: 'Toplama anlatimi' })).toBeVisible();
+  await expect(page.getByText('Iki sayiyi toplariz')).toBeVisible();
+  await expect(page.getByText('Yayın öğrenci erişimini açmaz.')).toBeVisible();
+  await expect(page.getByText('Ücretsiz').first()).toBeVisible();
+  await expect(page.getByText('öğrencilerin erişimine açıktır')).toHaveCount(0);
+  await expect(page.locator('ol.workflow-steps')).toHaveCount(0);
+  await assertLayout(page);
+  await capture(page, info, 'admin-icerik-yayin-1440.png');
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto(data.paths.draftDetail);
+  await expect(page.getByRole('heading', { level: 1, name: draftTitle })).toBeVisible();
+  await expect(page.getByText('Taslak ilk paragraf')).toBeVisible();
+  await expect(page.getByText('Taslak ikinci paragraf')).toBeVisible();
+  await expect(page.getByText('Taslak öğrencide görünmez.')).toBeVisible();
+  await expect(page.getByText('Bu sürümde program veya kazanım bağlantısı yok.')).toHaveCount(0);
+  await assertLayout(page);
+  await capture(page, info, 'admin-icerik-taslak-1440.png');
+
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/icerikler/konu-alani/yeni');
+    await expect(page.getByRole('heading', { level: 1, name: 'Yeni konu alanı' })).toBeVisible();
+    await expect(page.getByText('Bu işlem öğrenme içeriği oluşturmaz.')).toBeVisible();
+    await expect(page.getByLabel('Konu alanı adı')).toHaveValue('');
+    await assertLayout(page);
+    await capture(page, info, `admin-konu-alani-${viewport.name}.png`);
+  }
+
+  for (const viewport of [{ name: '1440', width: 1440, height: 900 }, { name: '390', width: 390, height: 844 }] as const) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/icerikler/konu-alani/yeni');
+    await page.locator('#subject_create_code').evaluate((node) => node.removeAttribute('required'));
+    await page.locator('#subject_create_name').evaluate((node) => node.removeAttribute('required'));
+    await page.getByRole('button', { name: 'Konu alanını oluştur' }).click();
+    await expect(page.getByText('Kod zorunludur.')).toBeVisible();
+    await expect(page.getByText('Ad zorunludur.')).toBeVisible();
+    await expect(page.getByLabel('Konu alanı adı')).toHaveValue('');
+    await assertLayout(page);
+    await capture(page, info, `admin-konu-alani-hata-${viewport.name}.png`);
   }
 
   const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
@@ -157,7 +203,7 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
 
     return true;
   });
-  expect(ignoredValidationResponses).toBe(4);
+  expect(ignoredValidationResponses).toBe(6);
   (page as Page & { __notes?: string[] }).__notes = kept;
   await assertClean(page);
 });
