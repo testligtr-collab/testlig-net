@@ -50,6 +50,23 @@ final class CatalogSubjectRepository extends ServiceEntityRepository
         return $rows;
     }
 
+    /**
+     * @return list<CatalogSubject>
+     */
+    public function findByGradeOrdered(GradeLevel $grade): array
+    {
+        /** @var list<CatalogSubject> $rows */
+        $rows = $this->createQueryBuilder('s')
+            ->andWhere('s.gradeLevel = :grade')
+            ->setParameter('grade', $grade)
+            ->orderBy('s.position', 'ASC')
+            ->addOrderBy('s.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
+    }
+
     public function findOneBySourceIdentity(?string $version, ?string $code, int $occurrence): ?CatalogSubject
     {
         if (null === $version || null === $code) {

@@ -108,13 +108,27 @@ final class AdminCurriculumPanelHttpTest extends WebTestCase
         $this->authenticate($client, $admin->getEmail());
         $client->request('GET', '/yonetim/programlar');
         self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Müfredat Yönetimi', (string) $client->getResponse()->getContent());
+        self::assertSelectorNotExists('form[action$="/sinif/1/ad"]');
+        self::assertSelectorNotExists('a[href*="sinif=12"]');
+        $client->request('GET', '/yonetim/programlar?kademe=ilkokul');
+        self::assertResponseIsSuccessful();
         $grade1 = $client->getCrawler()->filter('form[action$="/sinif/1/ad"] input[name="admin_curriculum_rename_gate[title]"]');
-        $grade12 = $client->getCrawler()->filter('form[action$="/sinif/12/ad"] input[name="admin_curriculum_rename_gate[title]"]');
         self::assertSame('1. sınıf', $grade1->attr('value'));
+        self::assertSelectorNotExists('form[action$="/sinif/12/ad"]');
+        $client->request('GET', '/yonetim/programlar?kademe=lise');
+        self::assertResponseIsSuccessful();
+        $grade12 = $client->getCrawler()->filter('form[action$="/sinif/12/ad"] input[name="admin_curriculum_rename_gate[title]"]');
         self::assertSame('12. sınıf', $grade12->attr('value'));
         $chip12 = $client->getCrawler()->filter('a[href*="sinif=12"]');
         self::assertGreaterThan(0, $chip12->count());
         self::assertStringContainsString('Aktif', $chip12->text());
+        $client->request('GET', '/yonetim/programlar/'.$program->getId()->toRfc4122());
+        self::assertResponseIsSuccessful();
+        $show = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Program ve kazanımlar', $show);
+        self::assertStringContainsString('Öğrenci kataloğu', $show);
+        self::assertStringContainsString('Katalog yayını programın yayınını değiştirmez.', $show);
 
         self::ensureKernelShutdown();
         $client = static::createClient();

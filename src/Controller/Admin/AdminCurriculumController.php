@@ -25,6 +25,7 @@ use App\Form\AdminCurriculumActionFormType;
 use App\Form\AdminCurriculumNodeFormType;
 use App\Form\AdminCurriculumProgramCreateFormType;
 use App\Form\AdminCurriculumSubjectFormType;
+use App\Repository\CatalogSubjectRepository;
 use App\Repository\CurriculumAccessGateRepository;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\CurriculumProgramRepository;
@@ -65,6 +66,7 @@ final class AdminCurriculumController extends AdminBaseController
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly SubjectRepository $subjects,
         private readonly CurriculumAccessGateRepository $gates,
+        private readonly CatalogSubjectRepository $catalogSubjects,
         private readonly SubjectManager $subjectManager,
         private readonly CurriculumAccessGateManager $gateManager,
         private readonly CurriculumProgramManager $programManager,
@@ -690,6 +692,9 @@ final class AdminCurriculumController extends AdminBaseController
             'can_availability' => CurriculumStatus::Retired !== $program->getStatus() && $this->isGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY),
             'can_archive' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE),
             'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
+            'catalog_subjects' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW)
+                ? $this->catalogSubjects->findByGradeOrdered($program->getGradeLevel())
+                : [],
             'invalid_form' => $invalid?->createView(),
             'unit_form' => $this->prefer($invalid, $this->namedForm('curriculum_unit', 'admin_curriculum_unit_'.$program->getId()->toRfc4122(), [], 'Ad'))->createView(),
             'topic_form' => $this->prefer($invalid, $this->namedForm('curriculum_topic', 'admin_curriculum_topic_'.$program->getId()->toRfc4122(), $this->choices($units), 'Ad', 'Ünite'))->createView(),
@@ -988,6 +993,9 @@ final class AdminCurriculumController extends AdminBaseController
             'can_availability' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_AVAILABILITY),
             'can_archive' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_ARCHIVE),
             'can_catalog' => $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW),
+            'catalog_subjects' => $grade instanceof GradeLevel && $this->isGranted(AdminPermission::ADMIN_CATALOG_VIEW)
+                ? $this->catalogSubjects->findByGradeOrdered($grade)
+                : [],
             'gate_error' => $error,
         ], new Response(status: $status));
     }

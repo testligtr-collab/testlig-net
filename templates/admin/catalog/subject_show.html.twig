@@ -12,6 +12,9 @@
     </nav>
     <div class="admin-page-header">
         <h1 class="panel-greeting">{{ subject.name }}</h1>
+        {% if is_granted('ADMIN_CURRICULUM_VIEW') %}
+            <a class="btn btn--ghost" href="{{ path('app_admin_curriculum', { sinif: subject.gradeLevel.value }) }}">Müfredat Yönetimine dön</a>
+        {% endif %}
         {% if can_manage %}
             <a class="btn btn--ghost" href="{{ path('app_admin_catalog_subject_edit', {id: subject.id.toRfc4122}) }}">Düzenle</a>
             <a class="btn btn--primary" href="{{ path('app_admin_catalog_unit_new', {id: subject.id.toRfc4122}) }}">Ünite ekle</a>

@@ -91,11 +91,15 @@ final class AdminNavBuilder
             $items[] = $this->item('classes', 'Sınıflar', 'app_admin_classrooms', $currentPath, '/yonetim/siniflar', false, 'classrooms');
         }
 
-        if ($this->adminAuthorization->canViewCatalog($actor)) {
-            $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
-        }
-        if ($canCurriculum) {
-            $items[] = $this->item('curriculum', 'Programlar', 'app_admin_curriculum', $currentPath, '/yonetim/programlar', false, 'catalog');
+        if ($canCurriculum || $this->adminAuthorization->canViewCatalog($actor)) {
+            $route = $canCurriculum ? 'app_admin_curriculum' : 'app_admin_catalog';
+            $prefix = $canCurriculum ? '/yonetim/programlar' : '/yonetim/mufredat';
+            $item = $this->item('curriculum', 'Müfredat Yönetimi', $route, $currentPath, $prefix, false, 'catalog');
+            $related = $canCurriculum ? '/yonetim/mufredat' : '/yonetim/programlar';
+            if (!$item['current'] && ($currentPath === $related || str_starts_with($currentPath, $related.'/'))) {
+                $item['current'] = true;
+            }
+            $items[] = $item;
         }
 
         if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {

@@ -22,7 +22,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   expect(dashboard?.headers()['x-robots-tag'] ?? '').toContain('noindex');
   await expect(adminPage.locator('.panel-role')).toHaveText('Yönetici');
   await expandAdminGroups(adminPage);
-  for (const label of ['Genel Bakış', 'Sistem durumu', 'Kullanıcılar', 'Kurumlar', 'Müfredat', 'Öğrenme içerikleri', 'Soru havuzu', 'Test ve sınavlar', 'Haberler']) {
+  for (const label of ['Genel Bakış', 'Sistem durumu', 'Kullanıcılar', 'Kurumlar', 'Müfredat Yönetimi', 'Öğrenme içerikleri', 'Soru havuzu', 'Test ve sınavlar', 'Haberler']) {
     await expect(adminPage.getByRole('link', { name: label, exact: true }).first()).toBeVisible();
   }
   for (const label of ['Şube ve kampüsler', 'Simülasyonlar', 'Paketler ve teklifler', 'SMS']) {

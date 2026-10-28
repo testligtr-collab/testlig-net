@@ -6,7 +6,7 @@
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_curriculum') }}">Programlar</a>
+        <a href="{{ path('app_admin_curriculum', { sinif: program.gradeLevel.value }) }}">Müfredat Yönetimi</a>
         <span aria-hidden="true">/</span>
         <span>{{ program.name }}</span>
     </nav>
@@ -29,7 +29,7 @@
                 <h1 class="panel-greeting">{{ program.name }}</h1>
                 <p>{{ program.subject.name }} · {{ program.gradeLevel.value }}. sınıf · sürüm {{ program.version }}</p>
             </div>
-            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_curriculum') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_curriculum', { sinif: program.gradeLevel.value }) }}"><span aria-hidden="true">← </span>Listeye dön</a>
         </header>
 
         <section class="admin-curriculum-summary" aria-labelledby="curriculum-node">
@@ -84,8 +84,9 @@
             {% endif %}
         </section>
 
+        <div class="admin-curriculum-workspace">
         <section class="admin-curriculum-tree" aria-labelledby="curriculum-tree">
-            <h2 id="curriculum-tree">Ünite, konu ve kazanım</h2>
+            <h2 id="curriculum-tree">Program ve kazanımlar</h2>
             <p>Bir üniteyi açınca konuları, bir konuyu açınca kazanımları görürsünüz. İşlemler seçilen kaydın yanında açılır.</p>
             {% if units is empty %}
                 <p>Bu programda ünite yok.</p>
@@ -303,6 +304,36 @@
                 </details>
             {% endfor %}
         </section>
+        <section class="admin-curriculum-catalog" aria-labelledby="curriculum-catalog">
+            <h2 id="curriculum-catalog">Öğrenci kataloğu</h2>
+            {% if can_catalog %}
+                <p>Aynı sınıf düzeyinin katalog dersleri. Katalog yayını programın yayınını değiştirmez. Program yayını katalog kaydını yayınlamaz.</p>
+                {% if catalog_subjects is empty %}
+                    <p>Bu sınıf düzeyinde öğrenci kataloğu kaydı yok.</p>
+                {% else %}
+                    <ul class="admin-curriculum-catalog-list">
+                        {% for subject in catalog_subjects %}
+                            {% set catalog_labels = { 'draft': 'Katalog taslağı', 'published': 'Katalog yayında', 'archived': 'Katalog arşivi' } %}
+                            {% set linked = subject.canonicalSubject and subject.canonicalSubject.id.toRfc4122 == program.subject.id.toRfc4122 %}
+                            <li>
+                                <a href="{{ path('app_admin_catalog_subject', { id: subject.id }) }}">{{ subject.name }}</a>
+                                <span>{{ catalog_labels[subject.status.value]|default(subject.status.value) }}</span>
+                                {% if linked %}
+                                    <span>Bu programın dersine bağlı</span>
+                                {% elseif subject.canonicalSubject %}
+                                    <span>Başka derse bağlı: {{ subject.canonicalSubject.name }}</span>
+                                {% else %}
+                                    <span>Programa bağlı ders yok</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% else %}
+                <p>Öğrenci kataloğunu görmek için katalog izni gerekir. Bu programın yayın durumu katalog kaydını yayınlamaz.</p>
+            {% endif %}
+        </section>
+        </div>
 
         {% if can_manage %}
             <section class="admin-institution-card" aria-labelledby="curriculum-create-nodes">
