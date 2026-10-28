@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-27",
+  "updated_at": "2026-10-28",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
     "X10-admin-navigation"
@@ -1232,7 +1232,8 @@
         "Programlar, program detayı ve müfredat kataloğu aynı açık yönetim kabuğunda sadeleşti. Sol menü ve logo aynı kaldı. Adresler değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
         "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir.",
-        "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

@@ -150,7 +150,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->profiles->completeOnboarding($otherStudent, $this->profile(GradeLevel::Grade1));
 
         $subject = $this->subjects->create($superAdmin, 'browser_subj', 'Tarayici dersi', 'browser_create');
-        $program = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade1, 'browser_prog', 'Tarayici programi', '1.0', 'browser_create');
+        $program = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade1, 'browser_prog_uzun_teknik_kod_satiri_tasmadan_sarilir', 'Tarayici programi uzun kart basligi durum etiketiyle carpismaz ve dar ekranda alt satira iner', '1.0', 'browser_create');
         $curriculumUnit = $this->curriculumUnits->create($program, $superAdmin, 'browser_u', 'Tarayici unite', 1, 'browser_create');
         $curriculumTopic = $this->curriculumTopics->createRoot($curriculumUnit, $superAdmin, 'browser_t', 'Tarayici konu', 1, 'browser_create');
         $outcome = $this->outcomes->create($curriculumTopic, $superAdmin, 'browser_lo', 'Tarayici kazanimi', 1, 'browser_create');

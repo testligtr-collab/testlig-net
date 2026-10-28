@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import { assertClean, assertLayout, installVideoAbort, login, manifest, watch } from './support';
 
 const VIEWPORTS = [
@@ -8,6 +8,9 @@ const VIEWPORTS = [
   { name: '768', width: 768, height: 1024 },
   { name: '390', width: 390, height: 844 },
 ] as const;
+
+const programName = 'Tarayici programi uzun kart basligi durum etiketiyle carpismaz ve dar ekranda alt satira iner';
+const programCode = 'browser_prog_uzun_teknik_kod_satiri_tasmadan_sarilir';
 
 test('curriculum program tree, create error, delete block, and moderator view', async ({ page, browser }, info) => {
   test.setTimeout(240_000);
@@ -56,13 +59,85 @@ test('curriculum program tree, create error, delete block, and moderator view', 
     await expect(page.getByRole('link', { name: '1. sınıf Aktif', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Yeni program', exact: true })).toBeVisible();
     await expect(page.getByText('Sınıf düzeyi silinmez')).toBeVisible();
-    await expect(page.getByText('Tarayici programi')).toBeVisible();
+    await expect(page.getByText(programName)).toBeVisible();
     await expect(page.getByText('Tarayici taslak')).toBeVisible();
     await expect(page.getByText('Örnek program')).toHaveCount(0);
-    const cellDisplay = await page.locator('.admin-user-table tbody td').first().evaluate((node) => getComputedStyle(node).display);
+    const cellDisplay = await page.locator('.admin-curriculum-program-table tbody td').first().evaluate((node) => getComputedStyle(node).display);
     expect(cellDisplay).toBe(viewport.width >= 1024 ? 'table-cell' : 'block');
+    const row = page.locator('.admin-curriculum-program-table tbody tr').filter({ hasText: programName });
+    const details = row.locator('details.admin-curriculum-tech');
+    const summary = details.locator('summary');
+    const meta = row.locator('.admin-curriculum-program__meta');
+    const cardStatus = row.locator('.admin-curriculum-program__card-status');
+    if (viewport.width >= 1024) {
+      await expect(meta).toBeHidden();
+      await expect(cardStatus).toBeHidden();
+      await expect(row.locator('.admin-curriculum-program__open')).toBeHidden();
+      await expect(row.locator('.admin-curriculum-program__subject')).toBeVisible();
+      await expect(row.locator('.admin-curriculum-program__status')).toHaveText('Yayında');
+      await expect(row.locator('.admin-curriculum-program__action a')).toBeVisible();
+    } else {
+      await expect(meta).toHaveText('Tarayici dersi · 1. sınıf · 1.0');
+      await expect(cardStatus).toHaveText('Yayında');
+      await expect(row.locator('.admin-curriculum-program__status')).toBeHidden();
+      await expect(row.locator('.admin-curriculum-program__action a')).toBeHidden();
+      await expect(row.locator('.admin-curriculum-program__open')).toBeVisible();
+      const nameBox = await row.locator('.admin-user-person__name').boundingBox();
+      const statusBox = await cardStatus.boundingBox();
+      expect(nameBox && statusBox && boxesOverlap(nameBox, statusBox)).toBe(false);
+    }
+    const closedBox = await details.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { height: node.getBoundingClientRect().height, border: style.borderTopWidth, background: style.backgroundColor };
+    });
+    expect(closedBox.border).toBe('0px');
+    expect(['rgba(0, 0, 0, 0)', 'transparent']).toContain(closedBox.background);
+    expect(closedBox.height).toBeLessThanOrEqual(64);
     await assertLayout(page);
     await capture(page, info, `admin-programlar-${viewport.name}.png`);
+    await row.scrollIntoViewIfNeeded();
+    await captureElement(row, info, `admin-program-kart-kapali-${viewport.name}.png`);
+    await summary.focus();
+    await page.keyboard.press('Tab');
+    await expect(page.locator(':focus')).toHaveText(/İncele/);
+    expect(await page.locator(':focus').evaluate((node) => getComputedStyle(node).outlineWidth)).not.toBe('0px');
+    await page.keyboard.press('Shift+Tab');
+    await expect(summary).toBeFocused();
+    expect(await summary.evaluate((node) => getComputedStyle(node).outlineWidth)).not.toBe('0px');
+    if (viewport.width < 1024) {
+      const textRight = await summary.evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        return range.getBoundingClientRect().right;
+      });
+      const linkBox = await row.locator('.admin-curriculum-program__open').boundingBox();
+      expect(linkBox && textRight <= linkBox.x + 1).toBe(true);
+    }
+    await page.keyboard.press('Enter');
+    await expect(details).toHaveJSProperty('open', true);
+    await expect(row.locator('code')).toHaveText(programCode);
+    const codeFit = await row.locator('code').evaluate((node) => ({
+      fits: node.scrollWidth <= node.clientWidth + 1,
+      font: getComputedStyle(node).fontFamily.toLowerCase(),
+    }));
+    expect(codeFit.fits).toBe(true);
+    expect(codeFit.font).toMatch(/mono|menlo|consolas/);
+    const panel = row.locator('.admin-curriculum-tech__panel');
+    await expect(panel).toBeVisible();
+    const panelStyle = await panel.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { background: style.backgroundColor, border: style.borderTopWidth };
+    });
+    expect(panelStyle.background).toBe('rgb(247, 250, 252)');
+    expect(panelStyle.border).toBe('1px');
+    const openHeight = await details.evaluate((node) => node.getBoundingClientRect().height);
+    expect(openHeight).toBeGreaterThan(closedBox.height + 24);
+    const nameFit = await row.locator('.admin-user-person__name').evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
+    expect(nameFit).toBe(true);
+    await assertLayout(page);
+    await captureElement(row, info, `admin-program-kart-acik-${viewport.name}.png`);
+    await page.keyboard.press('Enter');
+    await expect(details).toHaveJSProperty('open', false);
   }
 
   for (const viewport of VIEWPORTS) {
@@ -214,6 +289,17 @@ test('curriculum program tree, create error, delete block, and moderator view', 
   expect(ignoredValidationResponses).toBe(1);
   await assertClean(page);
 });
+
+function boxesOverlap(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }): boolean {
+  return a.x < b.x + b.width - 1 && a.x + a.width > b.x + 1 && a.y < b.y + b.height - 1 && a.y + a.height > b.y + 1;
+}
+
+async function captureElement(locator: Locator, info: TestInfo, name: string): Promise<void> {
+  expect(name).not.toMatch(/@|[0-9a-f]{8}-[0-9a-f]{4}-/i);
+  const file = path.join('artifacts', 'screenshots', name);
+  await locator.screenshot({ path: file });
+  await info.attach(name, { path: file, contentType: 'image/png' });
+}
 
 async function capture(page: Page, info: TestInfo, name: string): Promise<void> {
   expect(name).not.toMatch(/@|[0-9a-f]{8}-[0-9a-f]{4}-/i);
