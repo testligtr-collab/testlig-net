@@ -3377,8 +3377,10 @@ body.is-admin-panel {
     min-width: 0;
 }
 .is-admin-panel .admin-curriculum-page summary:focus,
-.is-admin-panel .admin-curriculum-page summary:focus-visible {
-    outline: 2px solid #0b6e99;
+.is-admin-panel .admin-curriculum-page summary:focus-visible,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech > summary:focus,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech > summary:focus-visible {
+    outline: 2px solid #0b6e99 !important;
     outline-offset: 2px;
 }
 .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__identity { min-width: 0; }
