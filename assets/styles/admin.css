@@ -3644,6 +3644,7 @@ body.is-admin-panel {
     outline-offset: 2px;
 }
 @media (min-width: 1024px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table th:not(:first-child),
     .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__type,
     .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__relation,
     .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__revision,
@@ -3653,9 +3654,8 @@ body.is-admin-panel {
     .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__action {
         width: 1%;
         white-space: nowrap;
-    }
-    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__relation {
-        white-space: normal;
+        overflow-wrap: normal;
+        word-break: normal;
     }
 }
 @media (max-width: 1023px) {
