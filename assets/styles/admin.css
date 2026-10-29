@@ -3864,3 +3864,40 @@ body.is-admin-panel {
     .is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dl { grid-template-columns: minmax(0, 1fr); }
 }
 
+
+/* Keep the learning-content forms consistent with the approved card layout. */
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create input:not([type="checkbox"]):not([type="hidden"]),
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea {
+    box-sizing: border-box;
+    max-width: none;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #cdd9e8;
+    border-radius: 0.65rem;
+    background: #fff;
+    color: #18324c;
+    font: inherit;
+    line-height: 1.5;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea {
+    resize: vertical;
+    min-height: 7rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create .admin-section > div {
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create label {
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create :is(input, select, textarea):focus-visible,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea:focus-visible {
+    outline: 3px solid #0b8eab;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create [aria-invalid="true"],
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create ul + :is(input, select, textarea) {
+    border-color: #bf3a3a;
+}
