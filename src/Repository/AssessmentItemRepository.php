@@ -9,7 +9,6 @@ use App\Entity\Question;
 use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<AssessmentItem>
@@ -42,23 +41,26 @@ class AssessmentItemRepository extends ServiceEntityRepository
             return [];
         }
 
-        /** @var list<AssessmentItem> $rows */
-        $rows = $this->createQueryBuilder('item')
+        $qb = $this->createQueryBuilder('item')
             ->addSelect('assessmentRevision', 'assessment', 'questionRevision', 'question')
             ->innerJoin('item.assessmentRevision', 'assessmentRevision')
             ->innerJoin('assessmentRevision.assessment', 'assessment')
             ->innerJoin('item.questionRevision', 'questionRevision')
             ->innerJoin('item.question', 'question')
-            ->andWhere('IDENTITY(item.question) IN (:questionIds)')
             ->andWhere('assessment.scope = :scope')
             ->andWhere('assessment.institution IS NULL')
-            ->setParameter('questionIds', array_map(static fn (Question $question): Uuid => $question->getId(), $questions))
             ->setParameter('scope', AssessmentScope::Platform)
             ->orderBy('assessment.code', 'ASC')
             ->addOrderBy('assessmentRevision.revisionNumber', 'ASC')
-            ->addOrderBy('item.position', 'ASC')
-            ->getQuery()
-            ->getResult();
+            ->addOrderBy('item.position', 'ASC');
+        $match = $qb->expr()->orX();
+        foreach ($questions as $index => $question) {
+            $match->add('IDENTITY(item.question) = :question'.$index);
+            $qb->setParameter('question'.$index, $question->getId(), 'uuid');
+        }
+
+        /** @var list<AssessmentItem> $rows */
+        $rows = $qb->andWhere($match)->getQuery()->getResult();
 
         return $rows;
     }
