@@ -141,7 +141,7 @@ final class QuestionSingleChoiceForm
             if (!\is_string($documentRaw) || !\is_string($plain)) {
                 throw QuestionException::invalidInput('Option text is required.');
             }
-            if ('' === trim($documentRaw) && '' === trim($plain)) {
+            if (!\array_key_exists($index, $rawOptions) && !\array_key_exists($index, $rawDocuments)) {
                 continue;
             }
             $document = $this->fieldDocument($documentRaw, $plain, 'Option text is required.', 'option_markup', true);

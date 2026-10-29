@@ -659,7 +659,11 @@ final class AdminQuestionController extends AdminBaseController
         if (!$question instanceof Question) {
             return $blank;
         }
-        $revision = $this->currentRevision($question);
+        $revision = $this->revisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber())
+            ?? $this->revisions->findLatestForQuestion($question);
+        if (!$revision instanceof QuestionRevision) {
+            throw $this->createNotFoundException();
+        }
         if (QuestionType::SingleChoice !== $revision->getType()) {
             throw $this->createAccessDeniedException();
         }
