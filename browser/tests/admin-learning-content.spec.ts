@@ -133,6 +133,23 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await capture(page, info, `admin-icerik-editor-${viewport.name}.png`);
   }
 
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/yonetim/icerikler/yeni');
+  const title = page.getByLabel('Başlık');
+  await title.focus();
+  await page.keyboard.press('End');
+  await expect(title).toBeFocused();
+  expect(await title.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+  await title.blur();
+
+  await page.goto('/yonetim/icerikler/konu-alani/yeni');
+  const subjectName = page.getByLabel('Konu alanı adı');
+  await subjectName.focus();
+  await page.keyboard.press('End');
+  await expect(subjectName).toBeFocused();
+  expect(await subjectName.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+  await subjectName.blur();
+
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/icerikler/yeni');
