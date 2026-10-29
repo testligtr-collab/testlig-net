@@ -3674,12 +3674,20 @@ body.is-admin-panel {
     }
     .is-admin-panel .admin-learning-content-page .admin-learning-content__identity {
         width: 46%;
-        min-width: 16rem;
+        min-width: 18rem;
     }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__foot,
     .is-admin-panel .admin-learning-content-page .admin-learning-content-tech,
-    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl {
         width: 100%;
         max-width: 100%;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl {
+        grid-template-columns: 8rem minmax(12rem, 1fr);
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dd {
+        min-width: 12rem;
     }
     .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel code {
         display: block;
