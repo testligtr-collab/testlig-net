@@ -484,12 +484,14 @@
         "src/Controller/Admin/AdminQuestionController.php",
         "Soru resmi yükleme altyapısı JPEG, PNG ve WebP ile taslak revision image_reference bağlar. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128",
         "src/Question/Image/Scan/QuestionImageScanner.php kayıtlı platform görselini özel okur ve clamd INSTREAM ile tarar. PR #129 sırasında canlı kurulum ve tarama kabulü açıktı. 2026-10-15 izole kurulum geçti; uygulama soketi ve production varlık taraması açık kaldı. Öğrenci görsel sunumu açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/129",
-        "Platform soru ayrıntısındaki SuperAdmin POST yalnız güncel revision’a bağlı tek pending görseli tarar. Ayrı CSRF ve PRG vardır. Aktör, storageKey ve dosya yolu formdan alınmaz. İmza kapısı boş CVD dizininde clean/ready yazmaz. Doğrulanmayan DNS yanıtı clean/ready yazmaz. clamd VERSION yalnız yüklenmiş daily sürümünü kanıtlar; yüklenmiş main ve bytecode kanıtlanmadı."
+        "Platform soru ayrıntısındaki SuperAdmin POST yalnız güncel revision’a bağlı tek pending görseli tarar. Ayrı CSRF ve PRG vardır. Aktör, storageKey ve dosya yolu formdan alınmaz. İmza kapısı boş CVD dizininde clean/ready yazmaz. Doğrulanmayan DNS yanıtı clean/ready yazmaz. clamd VERSION yalnız yüklenmiş daily sürümünü kanıtlar; yüklenmiş main ve bytecode kanıtlanmadı.",
+        "Soru Havuzu listesi, detayı ve düzenleyici mevcut soru, revision, seçenek, cevap anahtarı ve kazanım hizalamasıyla açık yönetim düzenine alındı. Adresler /yonetim/sorular ve alt yolları aynı kaldı. question.manage oluşturma ve düzenlemeyi korur; yayın bu izinden çıkmaz. Yayımlanmış revision yerinde değişmez. CSV içe aktarma aynı yetkide kalır. Öğrenci görsel sunumu ve cevap anahtarı sızıntısı bu düzenle açılmaz. Ekran görüntüsü canlı kabul değildir. Soru ürünü tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/128",
         "https://github.com/testligtr-collab/testlig-net/pull/129",
-        "https://github.com/testligtr-collab/testlig-net/pull/133"
+        "https://github.com/testligtr-collab/testlig-net/pull/133",
+        "https://github.com/testligtr-collab/testlig-net/pull/181"
       ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
@@ -1236,7 +1238,8 @@
         "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğrenme İçerikleri listesi, içerik detayı ve mevcut sürüm düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/icerikler ve alt yolları aynı kaldı. Liste GET kayıt, revision, yayın veya erişim politikası yazmaz. Sayaçlar tek sayım sorgusudur ve seçili filtreden bağımsızdır. Yayın, erişim ve katalog yerleşimi ayrı kalır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
         "İçerik detayı, yeni içerik ve yeni konu alanı aynı açık yönetim kabuğunda kart düzenine alındı. Detay güncel sürümün kaçışlı önizlemesini ve gerçek yayın, erişim ve katalog durumunu ayrı gösterir. Yeni içerik ve konu alanı mevcut form alanlarını kullanır. Yayın veya ücretsiz erişim bu formlardan çıkmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
-        "Öğrenme içeriği önizlemesinde bilgi kutusu etiketleri mevcut katalogla Bilgi, Uyarı, İpucu ve Not olarak kalır ve harf harf kırılmaz. Yayın ve erişim kartı uzun önizlemeyle uzamaz. Liste satırı masaüstünde kısalır; sayaç notu, yayın ikonu ve arşiv ikonu aynı sayfada kalır. Adres, yetki, yayın ve erişim aynıdır. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz."
+        "Öğrenme içeriği önizlemesinde bilgi kutusu etiketleri mevcut katalogla Bilgi, Uyarı, İpucu ve Not olarak kalır ve harf harf kırılmaz. Yayın ve erişim kartı uzun önizlemeyle uzamaz. Liste satırı masaüstünde kısalır; sayaç notu, yayın ikonu ve arşiv ikonu aynı sayfada kalır. Adres, yetki, yayın ve erişim aynıdır. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
+        "Soru Havuzu listesi, detayı ve düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/sorular ve alt yolları aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Soru ürünü tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1262,7 +1265,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/177",
         "https://github.com/testligtr-collab/testlig-net/pull/178",
         "https://github.com/testligtr-collab/testlig-net/pull/179",
-        "https://github.com/testligtr-collab/testlig-net/pull/180"
+        "https://github.com/testligtr-collab/testlig-net/pull/180",
+        "https://github.com/testligtr-collab/testlig-net/pull/181"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null

@@ -67,6 +67,15 @@ final class AdminQuestionControllerTest extends WebTestCase
         ]);
         $location = $this->openCreated($client);
         self::assertSelectorTextContains('body', 'Taslak');
+        $client->request('GET', '/yonetim/sorular');
+        self::assertResponseIsSuccessful();
+        $list = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Soru Havuzu', $list);
+        self::assertStringContainsString('Kare bir sekil midir?', $list);
+        self::assertStringNotContainsString('correctStableKey', $list);
+        $client->request('GET', '/yonetim/sorular?q=yokboyle-soru');
+        self::assertStringNotContainsString('Kare bir sekil midir?', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Bu filtreye uyan soru yok.', (string) $client->getResponse()->getContent());
 
         $client = $this->newClient();
         $this->login($client, 'qb-teacher-b@example.com');
@@ -88,19 +97,27 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(403);
 
         $this->postNew($client, $ids, ['stem' => '<script>alert(1)</script>']);
-        self::assertResponseRedirects();
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         $html = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('alert(1)', $html);
         self::assertStringContainsString('Soru kaydedilemedi', $html);
+        self::assertStringContainsString('Bu alanda HTML kullanılamaz.', $html);
+        self::assertStringContainsString('Kare', $html);
 
         $this->postNew($client, $ids, ['options' => ['Ayni', 'Ayni']]);
-        $client->followRedirect();
-        self::assertStringContainsString('Soru kaydedilemedi', (string) $client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(422);
+        $duplicate = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Soru kaydedilemedi', $duplicate);
+        self::assertStringContainsString('Seçenekler aynı olamaz.', $duplicate);
+        self::assertStringContainsString('Ayni', $duplicate);
+        self::assertStringContainsString('Dort kenari esit olan sekil hangisidir?', $duplicate);
 
         $this->postNew($client, $ids, ['options' => ['Dolu', '   ']]);
-        $client->followRedirect();
-        self::assertStringContainsString('Soru kaydedilemedi', (string) $client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(422);
+        $blank = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Soru kaydedilemedi', $blank);
+        self::assertStringContainsString('Seçenek metni gerekli.', $blank);
+        self::assertStringContainsString('Dolu', $blank);
     }
 
     public function testOutcomeListKeepsOnlyActiveSubjectGradeOutcomes(): void
