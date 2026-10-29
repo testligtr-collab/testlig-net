@@ -3672,6 +3672,19 @@ body.is-admin-panel {
     .is-admin-panel .admin-learning-content-page .admin-learning-content-tech > summary {
         min-height: 2rem;
     }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__identity {
+        width: 46%;
+        min-width: 16rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel {
+        width: 100%;
+        max-width: 100%;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel code {
+        display: block;
+        max-width: 100%;
+    }
 }
 @media (max-width: 1023px) {
     .is-admin-panel .admin-learning-content-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -113,6 +113,12 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await expect(code).toBeVisible();
     const codeFit = await code.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
     expect(codeFit).toBeTruthy();
+    if (viewport.width >= 1024) {
+      const codeBox = await code.boundingBox();
+      expect(codeBox).not.toBeNull();
+      expect(codeBox!.width).toBeGreaterThan(120);
+      expect(codeBox!.height).toBeLessThan(codeBox!.width);
+    }
     const panel = await row.locator('.admin-learning-content-tech__panel').evaluate((node) => {
       const style = getComputedStyle(node);
       return { background: style.backgroundColor, border: style.borderTopWidth };
