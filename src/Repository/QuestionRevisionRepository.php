@@ -37,7 +37,7 @@ class QuestionRevisionRepository extends ServiceEntityRepository
         }
         $qb = $this->createQueryBuilder('revision');
         $or = $qb->expr()->orX();
-        foreach (array_values($questions) as $index => $question) {
+        foreach ($questions as $index => $question) {
             $or->add($qb->expr()->andX(
                 'IDENTITY(revision.question) = :question'.$index,
                 'revision.revisionNumber = :number'.$index,

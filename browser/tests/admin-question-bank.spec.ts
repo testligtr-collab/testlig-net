@@ -107,7 +107,8 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto(draftDetail);
-    await expect(page.getByText(longStem)).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(longStem);
+    await expect(page.locator('.admin-question-preview')).toContainText(longStem);
     await expect(page.getByText('Doğru cevap')).toBeVisible();
     const previewBox = await page.locator('.admin-question-preview').boundingBox();
     const cardBox = await page.locator('.admin-question-side section').first().boundingBox();
@@ -128,7 +129,8 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto(data.paths.questionReview);
-    await expect(page.getByText('Inceleme sorusu koku')).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Inceleme sorusu koku');
+    await expect(page.locator('.admin-question-preview')).toContainText('Inceleme sorusu koku');
     await expect(page.getByRole('button', { name: 'Yayınla' })).toBeVisible();
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
     await assertLayout(page);
