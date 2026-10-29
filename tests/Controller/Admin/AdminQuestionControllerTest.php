@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Admin;
 
 use App\Entity\Question;
+use App\Entity\QuestionAnswerKey;
 use App\Entity\QuestionRevision;
 use App\Entity\StoredMediaAsset;
 use App\Entity\User;
@@ -498,6 +499,112 @@ final class AdminQuestionControllerTest extends WebTestCase
      *
      * @return array<string, mixed>
      */
+    public function testRichEditorKeepsTheOldRevisionAndRejectsAForeignImage(): void
+    {
+        $ids = $this->seedCurriculum('qbrich');
+        $this->createPrivileged('qb-teacher-rich@example.com', UserRole::HeadTeacher);
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-rich@example.com');
+        $this->postNew($client, $ids, ['stem' => 'Eski duz metin']);
+        $path = $this->openCreated($client);
+        $questionId = basename($path);
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        self::assertResponseIsSuccessful();
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'stem' => 'Yeni kok',
+            'stem_document' => json_encode([
+                'schemaVersion' => 1,
+                'blocks' => [[
+                    'type' => 'paragraph',
+                    'inlines' => [
+                        ['type' => 'text', 'text' => 'Yeni kok ', 'marks' => ['bold']],
+                        ['type' => 'math', 'latex' => 'x^{2}'],
+                    ],
+                ]],
+            ], \JSON_THROW_ON_ERROR),
+            'options' => ['Bir secenek', 'Su'],
+            'options_document' => [
+                json_encode(['schemaVersion' => 1, 'blocks' => [['type' => 'paragraph', 'text' => 'Bir secenek']]], \JSON_THROW_ON_ERROR),
+                json_encode(['schemaVersion' => 1, 'blocks' => [['type' => 'paragraph', 'inlines' => [['type' => 'math', 'latex' => 'H_{2}O']]]]], \JSON_THROW_ON_ERROR),
+            ],
+            'explanation' => 'Cozum metni',
+            'explanation_document' => json_encode(['schemaVersion' => 1, 'blocks' => [['type' => 'paragraph', 'text' => 'Cozum metni']]], \JSON_THROW_ON_ERROR),
+            'correct' => '2',
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $page = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<strong>', $page);
+        self::assertStringContainsString('Yeni kok', $page);
+        self::assertStringContainsString('<sup>', $page);
+        self::assertStringContainsString('<sub>', $page);
+        self::assertStringContainsString('Doğru cevap', $page);
+        self::assertStringNotContainsString('storageKey', $page);
+        self::assertStringContainsString('Henüz kullanılmadı', $page);
+        $revisions = $this->revisionStems($questionId);
+        self::assertCount(2, $revisions);
+        self::assertStringContainsString('Eski duz metin', $revisions[0]);
+        self::assertStringNotContainsString('Yeni kok', $revisions[0]);
+        self::assertSame(['opt_1', 'opt_2'], $this->answerKeys($questionId));
+
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '2',
+            'stem_document' => json_encode([
+                'schemaVersion' => 1,
+                'blocks' => [
+                    ['type' => 'paragraph', 'text' => 'Kok'],
+                    ['type' => 'image_reference', 'mediaId' => '11111111-1111-4111-8111-111111111111'],
+                ],
+            ], \JSON_THROW_ON_ERROR),
+            'explanation' => 'Korunan cozum',
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        $errorPage = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('11111111-1111-4111-8111-111111111111', $errorPage);
+        self::assertStringContainsString('Korunan cozum', $errorPage);
+        $after = $this->revisionStems($questionId);
+        self::assertSame($revisions, $after);
+        self::assertSame(['opt_1', 'opt_2'], $this->answerKeys($questionId));
+
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '2',
+            'stem_document' => json_encode([
+                'schemaVersion' => 1,
+                'blocks' => [['type' => 'paragraph', 'text' => '<script>alert(1)</script>']],
+            ], \JSON_THROW_ON_ERROR),
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringNotContainsString('alert(1)', (string) $client->getResponse()->getContent());
+        self::assertSame($revisions, $this->revisionStems($questionId));
+
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '2',
+            'explanation_document' => json_encode([
+                'schemaVersion' => 1,
+                'blocks' => [['type' => 'math', 'latex' => '\href{http://evil}']],
+            ], \JSON_THROW_ON_ERROR),
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Çözüm formülü kabul edilmiyor.', (string) $client->getResponse()->getContent());
+        self::assertSame($revisions, $this->revisionStems($questionId));
+        self::assertSame(['opt_1', 'opt_2'], $this->answerKeys($questionId));
+
+        $client->request('GET', '/yonetim/sorular?difficulty=kolay');
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Yeni kok', (string) $client->getResponse()->getContent());
+        $client->request('GET', '/yonetim/sorular?difficulty=zor');
+        self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('Yeni kok', (string) $client->getResponse()->getContent());
+    }
+
     private function payload(array $ids, array $overrides = []): array
     {
         return array_merge([
@@ -774,6 +881,33 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return $stems;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function answerKeys(string $questionId): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $question = $em->find(Question::class, Uuid::fromString($questionId));
+        self::assertInstanceOf(Question::class, $question);
+        $revisions = $em->getRepository(QuestionRevision::class)->findBy(['question' => $question], ['revisionNumber' => 'ASC']);
+        $keys = [];
+        foreach ($revisions as $revision) {
+            self::assertInstanceOf(QuestionRevision::class, $revision);
+            $key = $em->getRepository(QuestionAnswerKey::class)->findOneBy(['revision' => $revision]);
+            self::assertInstanceOf(QuestionAnswerKey::class, $key);
+            $payload = $key->getAnswerPayload();
+            $stable = $payload['correctStableKey'] ?? null;
+            self::assertIsString($stable);
+            $keys[] = $stable;
+        }
+        self::ensureKernelShutdown();
+
+        return $keys;
     }
 
     private function mediaCount(): int

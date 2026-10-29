@@ -36,6 +36,7 @@ use App\Exception\AssessmentException;
 use App\Exception\AssessmentScoringException;
 use App\Exception\StudentPracticeException;
 use App\Presentation\ResultPresentation;
+use App\Question\Content\QuestionContentView;
 use App\Question\Content\QuestionPlainText;
 use App\Repository\AssessmentAttemptAnswerRepository;
 use App\Repository\AssessmentAttemptItemRepository;
@@ -275,7 +276,8 @@ final class StudentAssessmentPractice implements ResetInterface
      *     count: int,
      *     progress: list<array{position: int, answered: bool, current: bool}>,
      *     stem: list<string>,
-     *     options: list<array{index: int, text: string, selected: bool}>,
+     *     stem_blocks: list<array<string, mixed>>,
+     *     options: list<array{index: int, text: string, selected: bool, blocks: list<array<string, mixed>>}>,
      *     answered: bool,
      *     expected_version: int
      * }
@@ -999,20 +1001,25 @@ SQL;
     }
 
     /**
-     * @return list<array{index: int, text: string, selected: bool}>
+     * @return list<array{index: int, text: string, selected: bool, blocks: list<array<string, mixed>>}>
      */
     private function choiceRows(AssessmentAttemptItem $item, ?string $selectedKey): array
     {
         $byKey = [];
         foreach ($this->options->findByRevision($item->getQuestionRevision()) as $option) {
-            $byKey[$option->getStableKey()] = implode(' ', QuestionPlainText::lines($option->getContent()));
+            $byKey[$option->getStableKey()] = [
+                'text' => implode(' ', QuestionPlainText::lines($option->getContent())),
+                'blocks' => QuestionContentView::blocks($option->getContent(), false),
+            ];
         }
         $rows = [];
         $index = 1;
         foreach ($this->orderedKeys($item) as $key) {
+            $choice = $byKey[$key] ?? ['text' => '', 'blocks' => []];
             $rows[] = [
                 'index' => $index,
-                'text' => $byKey[$key] ?? '',
+                'text' => $choice['text'],
+                'blocks' => $choice['blocks'],
                 'selected' => null !== $selectedKey && $selectedKey === $key,
             ];
             ++$index;
@@ -1185,7 +1192,8 @@ SQL;
      *     count: int,
      *     progress: list<array{position: int, answered: bool, current: bool}>,
      *     stem: list<string>,
-     *     options: list<array{index: int, text: string, selected: bool}>,
+     *     stem_blocks: list<array<string, mixed>>,
+     *     options: list<array{index: int, text: string, selected: bool, blocks: list<array<string, mixed>>}>,
      *     answered: bool,
      *     expected_version: int
      * }
@@ -1221,6 +1229,7 @@ SQL;
             'count' => \count($items),
             'progress' => $progress,
             'stem' => QuestionPlainText::lines($current->getQuestionRevision()->getStemContent()),
+            'stem_blocks' => QuestionContentView::blocks($current->getQuestionRevision()->getStemContent(), false),
             'options' => $this->choiceRows($current, $selectedKey),
             'answered' => $answer instanceof AssessmentAttemptAnswer,
             'expected_version' => $answer instanceof AssessmentAttemptAnswer ? $answer->getClientRevision() : 0,

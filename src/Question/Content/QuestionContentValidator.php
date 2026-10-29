@@ -67,15 +67,73 @@ final class QuestionContentValidator
      */
     private function assertParagraph(array $block, array $keys, int &$totalChars): void
     {
-        if ($keys !== ['text', 'type']) {
+        if ($keys === ['text', 'type']) {
+            $text = $block['text'] ?? null;
+            if (!\is_string($text) || '' === trim($text)) {
+                throw QuestionException::contentInvalid('Paragraph text is required.');
+            }
+            $this->assertSafeText($text);
+            $totalChars += mb_strlen($text);
+
+            return;
+        }
+        if ($keys !== ['inlines', 'type']) {
             throw QuestionException::contentInvalid('Invalid paragraph block.');
         }
-        $text = $block['text'] ?? null;
-        if (!\is_string($text) || '' === trim($text)) {
-            throw QuestionException::contentInvalid('Paragraph text is required.');
+        $inlines = $block['inlines'] ?? null;
+        if (!\is_array($inlines) || [] === $inlines || \count($inlines) > 40) {
+            throw QuestionException::contentInvalid('Invalid paragraph block.');
         }
-        $this->assertSafeText($text);
-        $totalChars += mb_strlen($text);
+        foreach ($inlines as $inline) {
+            if (!\is_array($inline)) {
+                throw QuestionException::contentInvalid('Invalid paragraph block.');
+            }
+            $this->assertInline($inline, $totalChars);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $inline
+     */
+    private function assertInline(array $inline, int &$totalChars): void
+    {
+        $type = $inline['type'] ?? null;
+        $keys = array_keys($inline);
+        sort($keys);
+        if ('text' === $type && ($keys === ['text', 'type'] || $keys === ['marks', 'text', 'type'])) {
+            $text = $inline['text'] ?? null;
+            if (!\is_string($text) || '' === $text) {
+                throw QuestionException::contentInvalid('Paragraph text is required.');
+            }
+            $this->assertSafeText($text);
+            $totalChars += mb_strlen($text);
+            if ($keys === ['marks', 'text', 'type']) {
+                $this->assertMarks($inline['marks'] ?? null);
+            }
+
+            return;
+        }
+        if ('math' === $type && $keys === ['latex', 'type']) {
+            $this->assertLatex($inline['latex'] ?? null, $totalChars);
+
+            return;
+        }
+
+        throw QuestionException::contentInvalid('Invalid paragraph block.');
+    }
+
+    private function assertMarks(mixed $marks): void
+    {
+        if (!\is_array($marks) || [] === $marks || \count($marks) > 3) {
+            throw QuestionException::contentInvalid('Invalid paragraph block.');
+        }
+        $seen = [];
+        foreach ($marks as $mark) {
+            if (!\is_string($mark) || !\in_array($mark, ['bold', 'italic', 'underline'], true) || isset($seen[$mark])) {
+                throw QuestionException::contentInvalid('Invalid paragraph block.');
+            }
+            $seen[$mark] = true;
+        }
     }
 
     /**
@@ -105,7 +163,10 @@ final class QuestionContentValidator
      */
     private function assertList(array $block, array $keys, int &$totalChars): void
     {
-        if ($keys !== ['items', 'type']) {
+        if ($keys !== ['items', 'type'] && $keys !== ['items', 'style', 'type']) {
+            throw QuestionException::contentInvalid('Invalid list block.');
+        }
+        if ($keys === ['items', 'style', 'type'] && !\in_array($block['style'] ?? null, ['bullet', 'ordered'], true)) {
             throw QuestionException::contentInvalid('Invalid list block.');
         }
         $items = $block['items'] ?? null;
@@ -130,11 +191,20 @@ final class QuestionContentValidator
         if ($keys !== ['latex', 'type']) {
             throw QuestionException::contentInvalid('Invalid math block.');
         }
-        $latex = $block['latex'] ?? null;
+        $this->assertLatex($block['latex'] ?? null, $totalChars);
+    }
+
+    private function assertLatex(mixed $latex, int &$totalChars): void
+    {
         if (!\is_string($latex) || '' === trim($latex)) {
             throw QuestionException::contentInvalid('Math latex is required.');
         }
         $this->assertSafeText($latex);
+        try {
+            QuestionMathExpression::assertSafe($latex);
+        } catch (\InvalidArgumentException) {
+            throw QuestionException::contentInvalid('Invalid math expression.');
+        }
         $totalChars += mb_strlen($latex);
     }
 

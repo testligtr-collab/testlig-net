@@ -42,6 +42,8 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await expect(page.getByRole('heading', { level: 1, name: 'Soru Havuzu' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Yeni soru', exact: true })).toBeVisible();
     await expect(page.getByRole('link', { name: 'CSV ile içe aktar' })).toBeVisible();
+    await expect(page.locator('#question-filter-difficulty')).toBeVisible();
+    await expect(page.locator('.admin-question-usage__empty', { hasText: 'Henüz kullanılmadı' }).locator('visible=true').first()).toBeVisible();
     await expect(page.locator('[data-question-summary="total"]')).toBeVisible();
     await expect(page.getByText(longStem).first()).toBeVisible();
     await expect(page.getByText('Iki arti iki kactir').first()).toBeVisible();
@@ -144,9 +146,13 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await expect(page.locator('.option-row')).toHaveCount(2);
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
     if (viewport.name === '1440') {
-      const stem = page.locator('#question-stem');
+      const stem = page.locator('.admin-question-stem-layout .q-surface');
       await stem.focus();
       expect(await stem.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+      await page.getByRole('button', { name: 'Kesir' }).first().click();
+      await expect(page.locator('.admin-question-stem-layout .q-chip')).toContainText('a/b');
+      await page.getByRole('button', { name: 'Geri al' }).first().click();
+      await expect(page.locator('.admin-question-stem-layout .q-chip')).toHaveCount(0);
       const before = await page.locator('.option-row').count();
       await page.locator('#add-option').click();
       await expect(page.locator('.option-row')).toHaveCount(before + 1);

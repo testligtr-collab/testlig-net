@@ -35,16 +35,28 @@
             <section class="admin-section admin-question-preview" aria-label="Soru önizlemesi">
                 <h2>Soru</h2>
                 <div class="admin-question-preview__body">
-                    {% for line in stem_lines %}
-                        <p>{{ line }}</p>
+                    {% if stem_blocks|default([]) is not empty %}
+                        {% include 'components/question_blocks.html.twig' with { blocks: stem_blocks } only %}
                     {% else %}
-                        <p>Soru metni yok.</p>
-                    {% endfor %}
+                        {% for line in stem_lines %}
+                            <p>{{ line }}</p>
+                        {% else %}
+                            <p>Soru metni yok.</p>
+                        {% endfor %}
+                    {% endif %}
+                    {% if image_note %}
+                        <div class="admin-question-image-frame"><p>{{ image_note }}</p></div>
+                    {% endif %}
                     {% if option_lines is not empty %}
-                        <ol>
+                        <ol class="admin-question-choices">
                             {% for line in option_lines %}
                                 <li>
-                                    {{ line }}
+                                    <span class="admin-question-option__letter" aria-hidden="true">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</span>
+                                    {% if option_blocks[loop.index0]|default([]) is not empty %}
+                                        {% include 'components/question_blocks.html.twig' with { blocks: option_blocks[loop.index0] } only %}
+                                    {% else %}
+                                        {{ line }}
+                                    {% endif %}
                                     {% if correct_position == loop.index %}
                                         <span class="admin-question-answer">Doğru cevap</span>
                                     {% endif %}
@@ -52,16 +64,24 @@
                             {% endfor %}
                         </ol>
                     {% endif %}
-                    {% if explanation_lines is not empty %}
+                    {% if explanation_blocks|default([]) is not empty or explanation_lines is not empty %}
                         <h3>Çözüm</h3>
-                        {% for line in explanation_lines %}
-                            <p>{{ line }}</p>
-                        {% endfor %}
+                        {% if explanation_blocks|default([]) is not empty %}
+                            {% include 'components/question_blocks.html.twig' with { blocks: explanation_blocks } only %}
+                        {% else %}
+                            {% for line in explanation_lines %}
+                                <p>{{ line }}</p>
+                            {% endfor %}
+                        {% endif %}
                     {% endif %}
                 </div>
             </section>
 
             <aside class="admin-question-side">
+                <section class="admin-section">
+                    <h2>Kullanıldığı testler</h2>
+                    {% include 'admin/questions/_usages.html.twig' with { usages: usages|default([]), can_view_tests: can_view_tests|default(false) } only %}
+                </section>
                 <section class="admin-section">
                     <h2>Ders ve kazanım</h2>
                     <dl class="admin-question-facts">

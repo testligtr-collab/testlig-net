@@ -11,6 +11,7 @@
     <div class="admin-user-page admin-question-page">
         <header class="admin-user-head">
             <div>
+                <p class="admin-question-kicker">Soru düzenleyici</p>
                 <h1 class="panel-greeting">{{ question ? 'Soruyu düzenle' : 'Yeni soru' }}</h1>
                 <p>Soru metni ve seçenekler kaydedilince yeni bir taslak sürüm oluşur. Yayımlanmış sürüm yerinde değişmez.</p>
             </div>
@@ -21,7 +22,7 @@
 
         <div class="admin-question-stage">
             <div class="admin-question-main">
-                <form method="post" id="question-editor" enctype="multipart/form-data" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+                <form method="post" id="question-editor" enctype="multipart/form-data" data-controller="question-options question-rich-editor" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
                     <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
                     <input type="hidden" name="grade" value="{{ grade }}">
@@ -32,9 +33,41 @@
                         {% if errors.fields.stem|default('') %}
                             <p class="admin-question-field-error" id="question-error-stem">{{ errors.fields.stem }}</p>
                         {% endif %}
-                        <label for="question-stem">Soru kökü
-                            <textarea id="question-stem" name="stem" rows="8" required class="revision-text" aria-invalid="{{ errors.fields.stem|default('') ? 'true' : 'false' }}" {% if errors.fields.stem|default('') %}aria-describedby="question-error-stem"{% endif %}>{{ values.stem }}</textarea>
-                        </label>
+                        <div class="admin-question-stem-layout">
+                            <div class="q-field" data-editor-field data-initial-document="{{ values.stem_document|default('')|e('html_attr') }}">
+                                {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Soru kökü araçları' } only %}
+                                <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Soru kökü"></div>
+                                <textarea id="question-stem" name="stem" rows="8" required class="q-fallback" aria-invalid="{{ errors.fields.stem|default('') ? 'true' : 'false' }}" {% if errors.fields.stem|default('') %}aria-describedby="question-error-stem"{% endif %}>{{ values.stem }}</textarea>
+                                <input type="hidden" name="stem_document" value="">
+                            </div>
+                            <div class="admin-question-image-box">
+                                <div class="admin-question-image-frame" data-image-preview>
+                                    <p>{{ image_note|default('250 × 250 önizleme. Görsel oranını korur.') }}</p>
+                                </div>
+                                {% if errors.fields.question_image|default('') %}
+                                    <p class="admin-question-field-error" id="question-error-image">{{ errors.fields.question_image }}</p>
+                                {% endif %}
+                                <label for="question-image">Görsel
+                                    <input id="question-image" type="file" name="question_image" accept="image/jpeg,image/png,image/webp" aria-invalid="{{ errors.fields.question_image|default('') ? 'true' : 'false' }}" {% if errors.fields.question_image|default('') %}aria-describedby="question-error-image"{% endif %}>
+                                </label>
+                                <label for="question-image-target">Görselin yeri
+                                    <select id="question-image-target" name="image_target">
+                                        <option value="stem" {{ values.image_slot|default('stem') == 'stem' ? 'selected' : '' }}>Soru kökü</option>
+                                        <option value="explanation" {{ values.image_slot|default('') == 'explanation' ? 'selected' : '' }}>Çözüm</option>
+                                        {% for text in values.options %}
+                                            <option value="option:{{ loop.index }}" {{ values.image_slot|default('') == 'option:' ~ loop.index ? 'selected' : '' }}>Seçenek {{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </label>
+                                {% if values.has_image|default(false) %}
+                                    <label class="admin-question-keep">
+                                        <input type="checkbox" name="keep_image" value="1" checked>
+                                        Kayıtlı görseli yeni sürümde tut
+                                    </label>
+                                {% endif %}
+                                <p class="admin-question-hint">Yeni görsel taslağa bağlanır ve tarama bekler. Hazır olmayan dosya öğrenciye sunulmaz. Önizleme kutusu dosyayı küçültmez.</p>
+                            </div>
+                        </div>
                     </section>
 
                     <section class="admin-section">
@@ -47,10 +80,14 @@
                         {% endif %}
                         <div id="option-list">
                             {% for text in values.options %}
-                                <div class="option-row admin-question-option">
-                                    <label>Seçenek
-                                        <textarea name="options[]" rows="3" required class="revision-text">{{ text }}</textarea>
+                                <div class="option-row admin-question-option" data-editor-field data-initial-document="{{ values.option_documents[loop.index0]|default('')|e('html_attr') }}">
+                                    <span class="admin-question-option__letter" aria-hidden="true">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</span>
+                                    {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Seçenek araçları' } only %}
+                                    <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Seçenek {{ loop.index }}"></div>
+                                    <label class="q-fallback-label">Seçenek
+                                        <textarea name="options[]" rows="3" required class="q-fallback">{{ text }}</textarea>
                                     </label>
+                                    <input type="hidden" name="options_document[]" value="">
                                     <label class="admin-question-correct">
                                         <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
                                         Doğru cevap
@@ -67,9 +104,14 @@
                         {% if errors.fields.explanation|default('') %}
                             <p class="admin-question-field-error" id="question-error-explanation">{{ errors.fields.explanation }}</p>
                         {% endif %}
-                        <label for="question-explanation">Çözüm metni
-                            <textarea id="question-explanation" name="explanation" rows="6" class="revision-text" aria-invalid="{{ errors.fields.explanation|default('') ? 'true' : 'false' }}" {% if errors.fields.explanation|default('') %}aria-describedby="question-error-explanation"{% endif %}>{{ values.explanation }}</textarea>
-                        </label>
+                        <div class="q-field" data-editor-field data-initial-document="{{ values.explanation_document|default('')|e('html_attr') }}">
+                            {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Çözüm araçları' } only %}
+                            <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Çözüm"></div>
+                            <label class="q-fallback-label" for="question-explanation">Çözüm metni
+                                <textarea id="question-explanation" name="explanation" rows="6" class="q-fallback" aria-invalid="{{ errors.fields.explanation|default('') ? 'true' : 'false' }}" {% if errors.fields.explanation|default('') %}aria-describedby="question-error-explanation"{% endif %}>{{ values.explanation }}</textarea>
+                            </label>
+                            <input type="hidden" name="explanation_document" value="">
+                        </div>
                         <div class="admin-question-form-actions">
                             <button class="btn admin-institution-primary" type="submit">Taslak kaydet</button>
                         </div>
@@ -130,20 +172,15 @@
                     {% if errors.fields.difficulty|default('') %}
                         <p class="admin-question-field-error" id="question-error-difficulty">{{ errors.fields.difficulty }}</p>
                     {% endif %}
-                    <label for="question-difficulty">Zorluk
-                        <select id="question-difficulty" name="difficulty" form="question-editor" required>
-                            {% for value, label in difficulties %}
-                                <option value="{{ value }}" {{ values.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    {% if errors.fields.question_image|default('') %}
-                        <p class="admin-question-field-error" id="question-error-image">{{ errors.fields.question_image }}</p>
-                    {% endif %}
-                    <label for="question-image">Soru görseli
-                        <input id="question-image" type="file" name="question_image" form="question-editor" accept="image/jpeg,image/png,image/webp" aria-invalid="{{ errors.fields.question_image|default('') ? 'true' : 'false' }}" {% if errors.fields.question_image|default('') %}aria-describedby="question-error-image"{% endif %}>
-                    </label>
-                    <p class="admin-question-hint">Yeni görsel taslağa bağlanır ve tarama bekler. Hazır olmayan dosya öğrenciye sunulmaz.</p>
+                    <fieldset class="admin-question-difficulty">
+                        <legend>Zorluk</legend>
+                        {% for value, label in difficulties %}
+                            <label class="admin-question-pill">
+                                <input type="radio" name="difficulty" value="{{ value }}" form="question-editor" {{ values.difficulty == value ? 'checked' : '' }} {% if loop.first %}required{% endif %}>
+                                {{ label }}
+                            </label>
+                        {% endfor %}
+                    </fieldset>
                 </section>
             </aside>
         </div>

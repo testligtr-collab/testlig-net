@@ -3058,6 +3058,35 @@ body.is-student-surface {
     line-height: 1.65;
 }
 
+.q-math,
+.q-frac,
+.q-sqrt,
+.q-script,
+.q-over {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.q-frac {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.q-num { border-bottom: 1px solid currentColor; }
+.q-sqrt,
+.q-over { white-space: nowrap; }
+.q-over { border-top: 1px solid currentColor; }
+.student-test-question .q-math,
+.student-review-item .q-math {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: middle;
+}
+
 .student-test-option {
     align-items: center;
     min-height: 2.75rem;

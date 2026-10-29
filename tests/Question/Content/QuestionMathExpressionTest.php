@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Question\Content;
+
+use App\Exception\QuestionException;
+use App\Question\Content\QuestionContentDocument;
+use App\Question\Content\QuestionContentValidator;
+use App\Question\Content\QuestionMathExpression;
+use App\Question\Content\QuestionPlainText;
+use PHPUnit\Framework\TestCase;
+
+final class QuestionMathExpressionTest extends TestCase
+{
+    public function testLegacyParagraphStaysReadable(): void
+    {
+        $document = ['schemaVersion' => 1, 'blocks' => [['type' => 'paragraph', 'text' => 'Duz metin']]];
+        (new QuestionContentValidator())->validate(QuestionContentDocument::fromArray($document));
+        self::assertSame(['Duz metin'], QuestionPlainText::lines($document));
+    }
+
+    public function testTemplatesParseAndDangerousCommandsFail(): void
+    {
+        foreach ([
+            '\frac{a}{b}',
+            '\sqrt{x}',
+            'x^{2}',
+            'x_{n}',
+            '\left(x\right)',
+            '\sum_{i=1}^{n}',
+            '\int_{a}^{b}',
+            '\le',
+            '\pi',
+            '\angle ABC',
+            '90^{\circ}',
+            'AB \parallel CD',
+            'AB \perp CD',
+            '\overline{AB}',
+            '\triangle ABC',
+            'H_{2}O',
+            'Fe^{3+}',
+            'A \rightarrow B',
+            'A \leftrightarrow B',
+            'CO_{2}',
+            'a \times 10^{n}',
+            '2 + 2 = 4',
+        ] as $latex) {
+            $view = QuestionMathExpression::view($latex);
+            self::assertNotSame('', $view['kind'] ?? null, $latex);
+        }
+        $fraction = QuestionMathExpression::view('\frac{a}{b}');
+        self::assertSame('frac', $fraction['kind']);
+        foreach (['\href{http://evil}', '\input{secret}', '\includegraphics{a}', '<script>', 'javascript:alert(1)'] as $unsafe) {
+            try {
+                QuestionMathExpression::assertSafe($unsafe);
+                self::fail($unsafe);
+            } catch (\InvalidArgumentException) {
+                self::assertTrue(true);
+            }
+        }
+    }
+
+    public function testInlineDocumentRoundTripAndMarkupRejection(): void
+    {
+        $validator = new QuestionContentValidator();
+        $document = QuestionContentDocument::fromArray([
+            'schemaVersion' => 1,
+            'blocks' => [[
+                'type' => 'paragraph',
+                'inlines' => [
+                    ['type' => 'text', 'text' => 'Sonuc ', 'marks' => ['bold']],
+                    ['type' => 'math', 'latex' => 'x^{2}'],
+                ],
+            ]],
+        ]);
+        $validator->validate($document);
+        self::assertSame(['Sonuc  x^{2}'], QuestionPlainText::lines($document->toArray()));
+        try {
+            $validator->validate(QuestionContentDocument::fromArray([
+                'schemaVersion' => 1,
+                'blocks' => [['type' => 'math', 'latex' => '\write18{rm}']],
+            ]));
+            self::fail('dangerous math was accepted');
+        } catch (QuestionException $exception) {
+            self::assertSame('Invalid math expression.', $exception->getMessage());
+        }
+    }
+}
