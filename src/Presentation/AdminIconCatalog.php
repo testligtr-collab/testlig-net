@@ -34,6 +34,7 @@ final class AdminIconCatalog
         'media_pdf',
         'media_play',
         'media_cloud',
+        'archive',
         self::DEFAULT,
     ];
 

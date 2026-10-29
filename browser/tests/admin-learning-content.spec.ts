@@ -51,6 +51,7 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await expect(page.locator('[data-content-summary="total"]')).toBeVisible();
     await expect(page.getByText(draftTitle).first()).toBeVisible();
     await expect(page.getByText('Toplama anlatimi').first()).toBeVisible();
+    await expect(page.getByText('Sayaçlar seçili filtreden bağımsızdır ve yalnız sizin görebileceğiniz kayıtları sayar. Yayında olmak tek başına ücretsiz erişim değildir.')).toBeVisible();
     const row = page.locator('tr', { hasText: draftTitle });
     const published = page.locator('tr', { hasText: 'Toplama anlatimi' }).first();
     if (viewport.width >= 1024) {
@@ -62,6 +63,21 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
       await expect(subjectHeader).toBeVisible();
       await expect(subjectHeader).toHaveText('Ders ve sınıf');
       expect(await oneLine(subjectHeader)).toBeTruthy();
+      const publishedStat = page.locator('article', { has: page.locator('[data-content-summary="published"]') });
+      const archivedStat = page.locator('article', { has: page.locator('[data-content-summary="archived"]') });
+      const publishedSvg = await publishedStat.locator('svg').innerHTML();
+      const archivedSvg = await archivedStat.locator('svg').innerHTML();
+      expect(publishedSvg).toContain('M8.5 12l2 2 4.5-5');
+      expect(publishedSvg).not.toContain('M4.5 18');
+      expect(archivedSvg).toContain('M4 8h16');
+      expect(archivedSvg).not.toContain('r="7"');
+      const statusBox = await published.locator('.admin-learning-content__status').boundingBox();
+      const updatedBox = await published.locator('.admin-learning-content__updated').boundingBox();
+      const actionBox = await published.locator('.admin-learning-content__action a').boundingBox();
+      expect(statusBox && updatedBox && actionBox).toBeTruthy();
+      const mid = (box: { y: number; height: number }) => box.y + box.height / 2;
+      expect(Math.abs(mid(statusBox!) - mid(updatedBox!))).toBeLessThan(8);
+      expect(Math.abs(mid(updatedBox!) - mid(actionBox!))).toBeLessThan(8);
     } else {
       await expect.poll(async () => row.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('block');
       const nameBox = await row.locator('.admin-learning-content__name').boundingBox();
@@ -75,12 +91,34 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
       expect(actionBox!.height).toBeGreaterThanOrEqual(44);
       expect(actionBox!.width).toBeGreaterThanOrEqual(44);
     }
-    await row.locator('summary').focus();
+    const closedHeight = viewport.width >= 1024 ? (await row.boundingBox())?.height ?? 0 : 0;
+    const summary = row.locator('summary');
+    await summary.focus();
+    if (viewport.name === '1440') {
+      expect(await summary.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+      const viewLink = row.locator('.admin-learning-content__action a');
+      await viewLink.focus();
+      expect(await viewLink.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+      await summary.focus();
+    }
     await page.keyboard.press('Enter');
+    if (viewport.width >= 1024) {
+      const openHeight = (await row.boundingBox())?.height ?? 0;
+      expect(openHeight).toBeGreaterThan(closedHeight + 16);
+    }
+    if (viewport.name === '1440') {
+      await capture(page, info, 'admin-icerikler-teknik-1440.png');
+    }
     const code = row.locator('code', { hasText: draftCode });
     await expect(code).toBeVisible();
     const codeFit = await code.evaluate((node) => node.scrollWidth <= node.clientWidth + 1);
     expect(codeFit).toBeTruthy();
+    if (viewport.width >= 1024) {
+      const codeBox = await code.boundingBox();
+      expect(codeBox).not.toBeNull();
+      expect(codeBox!.width).toBeGreaterThan(120);
+      expect(codeBox!.height).toBeLessThan(codeBox!.width);
+    }
     const panel = await row.locator('.admin-learning-content-tech__panel').evaluate((node) => {
       const style = getComputedStyle(node);
       return { background: style.backgroundColor, border: style.borderTopWidth };
@@ -165,16 +203,58 @@ test('learning content list, editor, detail, and form error', async ({ page, bro
     await capture(page, info, `admin-icerik-yeni-hata-${viewport.name}.png`);
   }
 
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(data.paths.publishedDetail);
-  await expect(page.getByRole('heading', { level: 1, name: 'Toplama anlatimi' })).toBeVisible();
-  await expect(page.getByText('Iki sayiyi toplariz')).toBeVisible();
-  await expect(page.getByText('Yayın öğrenci erişimini açmaz.')).toBeVisible();
-  await expect(page.getByText('Ücretsiz').first()).toBeVisible();
-  await expect(page.getByText('öğrencilerin erişimine açıktır')).toHaveCount(0);
-  await expect(page.locator('ol.workflow-steps')).toHaveCount(0);
-  await assertLayout(page);
-  await capture(page, info, 'admin-icerik-yayin-1440.png');
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto(data.paths.publishedDetail);
+    await expect(page.getByRole('heading', { level: 1, name: 'Toplama anlatimi' })).toBeVisible();
+    await expect(page.getByText('Iki sayiyi toplariz')).toBeVisible();
+    await expect(page.getByText('Yayın öğrenci erişimini açmaz.')).toBeVisible();
+    await expect(page.getByText('Ücretsiz').first()).toBeVisible();
+    await expect(page.getByText('öğrencilerin erişimine açıktır')).toHaveCount(0);
+    await expect(page.locator('ol.workflow-steps')).toHaveCount(0);
+    const infoLabel = page.locator('.admin-learning-content-callout--info .admin-learning-content-callout__label');
+    const tipLabel = page.locator('.admin-learning-content-callout--tip .admin-learning-content-callout__label');
+    await expect(infoLabel).toContainText('Bilgi');
+    await expect(tipLabel).toContainText('İpucu');
+    await expect(infoLabel).not.toContainText('info');
+    await expect(tipLabel).not.toContainText('tip');
+    expect(await oneLine(infoLabel.locator('span').last())).toBeTruthy();
+    expect(await oneLine(tipLabel.locator('span').last())).toBeTruthy();
+    const infoBody = page.locator('.admin-learning-content-callout--info .admin-learning-content-callout__body');
+    const infoLabelBox = await infoLabel.boundingBox();
+    const infoBodyBox = await infoBody.boundingBox();
+    expect(infoLabelBox && infoBodyBox).toBeTruthy();
+    expect(infoBodyBox!.width).toBeGreaterThan(160);
+    if (viewport.width <= 390) {
+      expect(infoLabelBox!.y + infoLabelBox!.height).toBeLessThanOrEqual(infoBodyBox!.y + 2);
+    }
+    const cards = await page.evaluate(() => {
+      const preview = document.querySelector('.admin-learning-content-preview');
+      const sections = [...document.querySelectorAll('.admin-learning-content-side .admin-section')];
+      const access = sections.find((node) => node.querySelector('h2')?.textContent?.includes('Yayın ve erişim'));
+      const outcome = sections.find((node) => node.querySelector('h2')?.textContent?.includes('Ders ve kazanım'));
+      if (!preview || !access || !outcome) {
+        return null;
+      }
+      const accessBox = access.getBoundingClientRect();
+      const outcomeBox = outcome.getBoundingClientRect();
+      const contentHeight = [...access.children].reduce((sum, child) => sum + child.getBoundingClientRect().height, 0);
+
+      return {
+        slack: accessBox.height - contentHeight,
+        gap: outcomeBox.top - accessBox.bottom,
+        preview: preview.getBoundingClientRect().height,
+        access: accessBox.height,
+      };
+    });
+    expect(cards).not.toBeNull();
+    expect(cards!.slack).toBeLessThan(80);
+    expect(cards!.gap).toBeGreaterThan(8);
+    expect(cards!.gap).toBeLessThan(40);
+    expect(cards!.preview).toBeGreaterThan(cards!.access + 80);
+    await assertLayout(page);
+    await capture(page, info, `admin-icerik-yayin-${viewport.name}.png`);
+  }
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto(data.paths.draftDetail);

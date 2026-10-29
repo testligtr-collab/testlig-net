@@ -608,10 +608,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'blocks' => [
                 ['type' => 'heading', 'level' => 2, 'text' => 'Toplama'],
                 ['type' => 'paragraph', 'text' => 'Iki sayiyi toplariz'],
-                ['type' => 'list', 'items' => ['Bir', 'Iki']],
+                ['type' => 'callout', 'variant' => 'info', 'blocks' => [
+                    ['type' => 'paragraph', 'text' => 'Bilgi kutusu metni dar bir sutuna sikismadan, etiketin yaninda okunur.'],
+                ]],
                 ['type' => 'callout', 'variant' => 'tip', 'blocks' => [
                     ['type' => 'paragraph', 'text' => 'Once onluklari yaz'],
                 ]],
+                ['type' => 'paragraph', 'text' => 'Uzun onizleme paragrafi. Iki sayiyi toplarken once onluklari, sonra birlikleri yazariz. Bu satir sag kartlarin yuksekligini olcmek icin kasitli olarak uzundur. '.str_repeat('Satir devam eder. ', 18)],
+                ['type' => 'list', 'items' => ['Bir', 'Iki']],
                 ['type' => 'quote', 'text' => 'Toplama biriktirmektir'],
                 ['type' => 'math', 'latex' => '2 + 2 = 4'],
                 [

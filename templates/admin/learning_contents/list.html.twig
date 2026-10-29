@@ -33,7 +33,7 @@
                 {% endif %}
             </div>
         </header>
-        <p class="admin-institution-note">Sayaçlar seçili filtreden bağımsızdır ve yalnız sizin görebileceğiniz kayıtları sayar. Yayında olmak tek başına ücretsiz erişim değildir.</p>
+        <p class="admin-learning-content-hint">Sayaçlar seçili filtreden bağımsızdır ve yalnız sizin görebileceğiniz kayıtları sayar. Yayında olmak tek başına ücretsiz erişim değildir.</p>
 
         <section class="admin-user-stats" aria-label="İçerik özeti">
             <article class="admin-user-stat admin-user-stat--total">
@@ -58,14 +58,14 @@
                 </span>
             </article>
             <article class="admin-user-stat admin-user-stat--active">
-                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
                 <span class="admin-user-stat__copy">
                     <span class="admin-user-stat__label">Yayında</span>
                     <strong class="admin-user-stat__value" data-content-summary="published">{{ status_counts.published }}</strong>
                 </span>
             </article>
             <article class="admin-user-stat">
-                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'default' } only %}</span>
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'archive' } only %}</span>
                 <span class="admin-user-stat__copy">
                     <span class="admin-user-stat__label">Arşivlenmiş</span>
                     <strong class="admin-user-stat__value" data-content-summary="archived">{{ status_counts.archived }}</strong>
