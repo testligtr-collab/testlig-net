@@ -32,6 +32,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
   await moderatorContext.close();
 
   installVideoAbort(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await watch(page);
   await login(page, data.users.admin);
 
@@ -152,7 +153,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
       await page.locator('[data-remove-option]').last().click();
       await expect(page.locator('.option-row')).toHaveCount(before);
     }
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
     await assertLayout(page);
     await capture(page, info, `admin-soru-editor-${viewport.name}.png`);
   }
