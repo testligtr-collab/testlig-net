@@ -18,14 +18,14 @@ final class SubjectCreateFormType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $builder
-            ->add('code', TextType::class, [
-                'label' => 'Kod',
-                'attr' => ['maxlength' => 64],
-                'help' => 'Kalıcı kimlik (snake_case). Oluşturulduktan sonra değiştirilemez.',
-            ])
             ->add('name', TextType::class, [
-                'label' => 'Ad',
+                'label' => 'Konu alanı adı',
                 'attr' => ['maxlength' => 180],
+            ])
+            ->add('code', TextType::class, [
+                'label' => 'Teknik kod',
+                'attr' => ['maxlength' => 64],
+                'help' => 'Kalıcıdır. Kısa ve snake_case olmalıdır. Oluşturulduktan sonra değiştirilemez.',
             ]);
     }
 

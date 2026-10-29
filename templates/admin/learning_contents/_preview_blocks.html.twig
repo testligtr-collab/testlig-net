@@ -1,0 +1,60 @@
+{# Current revision blocks only. Autoescape stays on. No raw HTML. #}
+{% for block in preview_blocks %}
+    {% set type = block.type|default('') %}
+    {% if type == 'heading' %}
+        {% if block.level|default(2) == 1 %}
+            <h2>{{ block.text|default('') }}</h2>
+        {% elseif block.level|default(2) == 2 %}
+            <h3>{{ block.text|default('') }}</h3>
+        {% else %}
+            <h4>{{ block.text|default('') }}</h4>
+        {% endif %}
+    {% elseif type == 'paragraph' %}
+        <p>{{ block.text|default('') }}</p>
+    {% elseif type == 'quote' %}
+        <blockquote><p>{{ block.text|default('') }}</p></blockquote>
+    {% elseif type == 'list' %}
+        <ul>
+            {% for item in block.items|default([]) %}
+                <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    {% elseif type == 'math' %}
+        <p><code>{{ block.latex|default('') }}</code></p>
+    {% elseif type == 'video' %}
+        <p>{{ block.title|default('Video') }}</p>
+        {% if block.description|default('') %}
+            <p>{{ block.description }}</p>
+        {% endif %}
+    {% elseif type == 'document' %}
+        <p>{{ block.label|default('') }}</p>
+        <a href="{{ path('app_admin_learning_document', {id: content.id.toRfc4122, index: loop.index0}) }}" target="_blank" rel="noopener noreferrer">PDF’yi aç</a>
+    {% elseif type == 'callout' %}
+        <aside class="admin-flash admin-flash--info" role="note">
+            <strong>{{ block.variant|default('info') }}</strong>
+            {% for child in block.blocks|default([]) %}
+                {% if child.type|default('') == 'paragraph' %}
+                    <p>{{ child.text|default('') }}</p>
+                {% elseif child.type|default('') == 'heading' %}
+                    <p><strong>{{ child.text|default('') }}</strong></p>
+                {% elseif child.type|default('') == 'list' %}
+                    <ul>
+                        {% for item in child.items|default([]) %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% elseif child.type|default('') == 'quote' %}
+                    <blockquote>{{ child.text|default('') }}</blockquote>
+                {% elseif child.type|default('') == 'math' %}
+                    <code>{{ child.latex|default('') }}</code>
+                {% else %}
+                    <p class="muted">Desteklenmeyen iç blok</p>
+                {% endif %}
+            {% endfor %}
+        </aside>
+    {% else %}
+        <p class="muted">Bu önizlemede gösterilmeyen blok türü.</p>
+    {% endif %}
+{% else %}
+    <p class="muted">Bu sürümde gösterilecek blok yok.</p>
+{% endfor %}

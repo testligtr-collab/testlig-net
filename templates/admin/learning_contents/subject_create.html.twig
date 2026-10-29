@@ -11,23 +11,24 @@
         <span>Konu alanı</span>
     </nav>
     <div class="admin-user-page admin-learning-content-page">
-        <header class="admin-user-head">
-            <div>
-                <h1 class="panel-greeting">Yeni canonical konu alanı</h1>
-                <p>Yalnız Süper Yönetici. Bu form bir öğrenme içeriği oluşturmaz.</p>
-            </div>
-        </header>
-
-        {{ form_start(form, { attr: { class: 'admin-learning-content-create' } }) }}
-            <fieldset class="admin-section">
-                <legend>Konu alanı</legend>
-                {{ form_row(form.code) }}
+        {{ form_start(form, { attr: { class: 'admin-learning-content-create admin-learning-content-subject' } }) }}
+            <section class="admin-section" aria-labelledby="subject-create-heading">
+                <div class="admin-learning-content-subject__head">
+                    <h1 id="subject-create-heading" class="panel-greeting admin-learning-content-cardhead">
+                        <span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span>
+                        Yeni konu alanı
+                    </h1>
+                    <p class="admin-learning-content-subject__badge"><span class="admin-status admin-status--neutral"><span class="admin-status__dot" aria-hidden="true"></span>Yalnız Süper Yönetici</span></p>
+                </div>
+                <p class="muted">İçerikleri ilişkilendirmek için bir konu alanı ekleyin.</p>
                 {{ form_row(form.name) }}
-            </fieldset>
-            <div class="admin-learning-content-head__actions">
-                <button type="submit" class="btn admin-institution-primary">Oluştur</button>
-                <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
-            </div>
+                {{ form_row(form.code) }}
+                <p class="admin-learning-content-note">Bu işlem öğrenme içeriği oluşturmaz.</p>
+                <div class="admin-learning-content-form-actions">
+                    <a class="btn btn--ghost" href="{{ path('app_admin_learning_contents') }}">İptal</a>
+                    <button type="submit" class="btn admin-institution-primary">Konu alanını oluştur</button>
+                </div>
+            </section>
         {{ form_end(form) }}
     </div>
 {% endblock %}
