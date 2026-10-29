@@ -154,7 +154,7 @@ final class QuestionSingleChoiceForm
 
     private function structured(string $raw, string $emptyMessage, string $markupCode, bool $required): ?QuestionContentDocument
     {
-        if (strlen($raw) > 30000 || str_contains(strtolower($raw), '<script') || str_contains($raw, '<')) {
+        if (\strlen($raw) > 30000 || str_contains(strtolower($raw), '<script') || str_contains($raw, '<')) {
             throw QuestionException::contentInvalid($markupCode);
         }
         try {

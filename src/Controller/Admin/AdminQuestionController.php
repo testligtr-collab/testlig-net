@@ -493,7 +493,7 @@ final class AdminQuestionController extends AdminBaseController
     private function visibleQuestion(string $id): Question
     {
         try {
-            $questionId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $questionId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException();
         }
@@ -551,7 +551,7 @@ final class AdminQuestionController extends AdminBaseController
     private function requireSubject(string $id): Subject
     {
         try {
-            $subjectId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $subjectId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw QuestionException::invalidInput('Subject is required.');
         }
@@ -566,7 +566,7 @@ final class AdminQuestionController extends AdminBaseController
     private function requireOutcome(string $id, Subject $subject, GradeLevel $grade): CurriculumLearningOutcome
     {
         try {
-            $outcomeId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $outcomeId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw QuestionException::alignmentInvalid('Outcome is required.');
         }
@@ -775,7 +775,7 @@ final class AdminQuestionController extends AdminBaseController
     /**
      * @param list<Subject> $subjects
      *
-     * @return array{status: ?QuestionStatus, grade: ?GradeLevel, subject: ?\Symfony\Component\Uid\Uuid, text: string, difficulties: ?list<QuestionDifficulty>, bucket: string, blocked: bool}
+     * @return array{status: ?QuestionStatus, grade: ?GradeLevel, subject: ?Uuid, text: string, difficulties: ?list<QuestionDifficulty>, bucket: string, blocked: bool}
      */
     private function listFilters(Request $request, array $subjects): array
     {
@@ -979,7 +979,7 @@ final class AdminQuestionController extends AdminBaseController
     private function restoredDocument(string $value): string
     {
         $value = trim($value);
-        if ('' === $value || strlen($value) > 30000 || $this->containsMarkup($value) || str_contains($value, 'image_reference') || str_contains($value, 'mediaId')) {
+        if ('' === $value || \strlen($value) > 30000 || $this->containsMarkup($value) || str_contains($value, 'image_reference') || str_contains($value, 'mediaId')) {
             return '';
         }
         try {

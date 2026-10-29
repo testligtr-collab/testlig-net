@@ -15,9 +15,9 @@ use Symfony\Component\Uid\Uuid;
 final class QuestionImagePlacement
 {
     /**
-     * @param array<string, mixed>|null                                                                 $explanation
-     * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}>           $options
-     * @param array{type: string, mediaId: string}|null                                                 $existing
+     * @param array<string, mixed>|null                                                       $explanation
+     * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options
+     * @param array{type: string, mediaId: string}|null                                       $existing
      *
      * @return array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>}
      */

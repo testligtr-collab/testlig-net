@@ -493,12 +493,6 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringContainsString('başka bir işlemle değişti', (string) $client->getResponse()->getContent());
     }
 
-    /**
-     * @param array{subject: string, outcome: string} $ids
-     * @param array<string, mixed>                    $overrides
-     *
-     * @return array<string, mixed>
-     */
     public function testRichEditorKeepsTheOldRevisionAndRejectsAForeignImage(): void
     {
         $ids = $this->seedCurriculum('qbrich');
@@ -605,6 +599,12 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::assertStringNotContainsString('Yeni kok', (string) $client->getResponse()->getContent());
     }
 
+    /**
+     * @param array{subject: string, outcome: string} $ids
+     * @param array<string, mixed>                    $overrides
+     *
+     * @return array<string, mixed>
+     */
     private function payload(array $ids, array $overrides = []): array
     {
         return array_merge([
