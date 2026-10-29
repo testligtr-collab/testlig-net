@@ -33,8 +33,11 @@ final class QuestionImagePlacement
         $explanationDocument = null === $explanation ? null : $this->withoutClientImages(QuestionContentDocument::fromArray($explanation));
         $cleanOptions = [];
         foreach ($options as $option) {
-            $option['content'] = $this->withoutClientImages($option['content']);
-            $cleanOptions[] = $option;
+            $cleanOptions[] = [
+                'stableKey' => $option['stableKey'],
+                'content' => $this->withoutClientImages($option['content']),
+                'position' => $option['position'],
+            ];
         }
         $block = null;
         if ($stagedId instanceof Uuid) {
@@ -45,7 +48,7 @@ final class QuestionImagePlacement
         if (null === $block) {
             return [
                 'stem' => $stem,
-                'explanation' => $explanationDocument?->toArray(),
+                'explanation' => $explanationDocument?->export(),
                 'options' => $cleanOptions,
             ];
         }
@@ -55,14 +58,19 @@ final class QuestionImagePlacement
             $explanationDocument = $this->append($base, $block);
         } elseif (str_starts_with($slot, 'option:')) {
             $index = (int) substr($slot, 7) - 1;
-            $cleanOptions[$index]['content'] = $this->append($cleanOptions[$index]['content'], $block);
+            $current = $cleanOptions[$index];
+            $cleanOptions[$index] = [
+                'stableKey' => $current['stableKey'],
+                'content' => $this->append($current['content'], $block),
+                'position' => $current['position'],
+            ];
         } else {
             $stem = $this->append($stem, $block);
         }
 
         return [
             'stem' => $stem,
-            'explanation' => $explanationDocument?->toArray(),
+            'explanation' => $explanationDocument?->export(),
             'options' => $cleanOptions,
         ];
     }

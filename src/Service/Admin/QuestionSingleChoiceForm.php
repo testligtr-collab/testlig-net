@@ -40,13 +40,7 @@ final class QuestionSingleChoiceForm
             throw QuestionException::invalidInput('Grade is required.');
         }
 
-        $difficulty = match ($request->request->getString('difficulty')) {
-            QuestionDifficulty::Easy->value => QuestionDifficulty::Easy,
-            QuestionDifficulty::Medium->value => QuestionDifficulty::Medium,
-            QuestionDifficulty::Hard->value => QuestionDifficulty::Hard,
-            default => throw QuestionException::invalidInput('Difficulty is required.'),
-        };
-
+        $difficulty = $this->difficulty($request->request->getString('difficulty'));
         $stem = $this->fieldDocument(
             $request->request->getString('stem_document'),
             $request->request->getString('stem'),
@@ -54,20 +48,19 @@ final class QuestionSingleChoiceForm
             'stem_markup',
             true,
         );
+        if (!$stem instanceof QuestionContentDocument) {
+            throw QuestionException::invalidInput('Stem is required.');
+        }
         $texts = $this->optionDocuments($request);
         $correct = $request->request->getInt('correct');
         if ($correct < 1 || $correct > \count($texts)) {
             throw QuestionException::invalidInput('Exactly one correct option is required.');
         }
 
+        /** @var list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options */
         $options = [];
         foreach ($texts as $index => $document) {
-            $position = $index + 1;
-            $options[] = [
-                'stableKey' => 'opt_'.$position,
-                'content' => $document,
-                'position' => $position,
-            ];
+            $options[] = $this->optionRow($document, $index + 1);
         }
 
         $explanation = $this->fieldDocument(
@@ -87,11 +80,50 @@ final class QuestionSingleChoiceForm
             'grade' => $grade,
             'difficulty' => $difficulty,
             'stem' => $stem,
-            'explanation' => $explanation?->toArray(),
+            'explanation' => $explanation?->export(),
             'options' => $options,
-            'answerSpec' => ['correctStableKey' => 'opt_'.$correct],
-            'outcomeId' => $outcomeId,
+            'answerSpec' => $this->answerSpec($correct),
+            'outcomeId' => $this->plainString($outcomeId),
         ];
+    }
+
+    private function difficulty(string $value): QuestionDifficulty
+    {
+        $difficulty = QuestionDifficulty::tryFrom($value);
+        if (!$difficulty instanceof QuestionDifficulty || !\in_array($difficulty->value, [
+            QuestionDifficulty::Easy->value,
+            QuestionDifficulty::Medium->value,
+            QuestionDifficulty::Hard->value,
+        ], true)) {
+            throw QuestionException::invalidInput('Difficulty is required.');
+        }
+
+        return $difficulty;
+    }
+
+    /**
+     * @return array{stableKey: string, content: QuestionContentDocument, position: int}
+     */
+    private function optionRow(QuestionContentDocument $content, int $position): array
+    {
+        return [
+            'stableKey' => $this->plainString('opt_'.$position),
+            'content' => $content,
+            'position' => $position,
+        ];
+    }
+
+    /**
+     * @return array{correctStableKey: string}
+     */
+    private function answerSpec(int $correct): array
+    {
+        return ['correctStableKey' => $this->plainString('opt_'.$correct)];
+    }
+
+    private function plainString(string $value): string
+    {
+        return $value;
     }
 
     /**
@@ -112,7 +144,11 @@ final class QuestionSingleChoiceForm
             if ('' === trim($documentRaw) && '' === trim($plain)) {
                 continue;
             }
-            $documents[] = $this->fieldDocument($documentRaw, $plain, 'Option text is required.', 'option_markup', true);
+            $document = $this->fieldDocument($documentRaw, $plain, 'Option text is required.', 'option_markup', true);
+            if (!$document instanceof QuestionContentDocument) {
+                throw QuestionException::invalidInput('Option text is required.');
+            }
+            $documents[] = $document;
         }
         $total = \count($documents);
         if ($total < 2 || $total > 6) {

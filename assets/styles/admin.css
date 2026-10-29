@@ -4296,11 +4296,19 @@ body.is-admin-panel {
     overflow-wrap: break-word;
 }
 .is-admin-panel .admin-question-page .q-surface:focus { outline: 3px solid #0b8eab; outline-offset: 2px; }
-.is-admin-panel .admin-question-page .q-fallback,
-.is-admin-panel .admin-question-page .q-fallback-label {
+.is-admin-panel .admin-question-page .q-field { position: relative; min-width: 0; max-width: 100%; }
+.is-admin-panel .admin-question-page .admin-question-stage :is(select, input[type="file"]) {
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-question-page .admin-section .q-fallback,
+.is-admin-panel .admin-question-page .admin-section .q-fallback-label {
     position: absolute;
     width: 1px;
+    min-width: 0;
+    max-width: 1px;
     height: 1px;
+    min-height: 0;
     padding: 0;
     margin: -1px;
     overflow: hidden;

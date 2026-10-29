@@ -52,12 +52,14 @@ final class QuestionMathExpressionTest extends TestCase
         $fraction = QuestionMathExpression::view('\frac{a}{b}');
         self::assertSame('frac', $fraction['kind']);
         foreach (['\href{http://evil}', '\input{secret}', '\includegraphics{a}', '<script>', 'javascript:alert(1)'] as $unsafe) {
+            $accepted = false;
             try {
                 QuestionMathExpression::assertSafe($unsafe);
-                self::fail($unsafe);
+                $accepted = true;
             } catch (\InvalidArgumentException) {
-                self::assertTrue(true);
+                $accepted = false;
             }
+            self::assertFalse($accepted, $unsafe);
         }
     }
 
