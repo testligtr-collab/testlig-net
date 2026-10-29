@@ -50,6 +50,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
     const row = page.locator('tr', { hasText: longStem });
     const published = page.locator('tr', { hasText: 'Iki arti iki kactir' }).first();
+    await expect(published.locator('.admin-question-usage', { hasText: 'Toplama testi' }).locator('visible=true')).toBeVisible();
     if (viewport.width >= 1024) {
       await expect.poll(async () => published.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('table-cell');
       expect(await oneLine(published.locator('.admin-question__status .admin-status'))).toBeTruthy();
@@ -97,6 +98,9 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await page.setViewportSize(viewport);
     await page.goto(data.paths.questionPublished);
     await expect(page.getByRole('heading', { level: 1, name: 'Iki arti iki kactir' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Toplama testi' })).toBeVisible();
+    await expect(page.getByText('Soru sürümü #1')).toBeVisible();
+    await expect(page.getByText('Konum 1')).toBeVisible();
     await expect(page.locator('.admin-question-statusline')).toContainText('Sürüm #');
     await expect(page.getByText('Doğru cevap')).toBeVisible();
     await expect(page.getByText('Dort')).toBeVisible();

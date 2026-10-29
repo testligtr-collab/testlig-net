@@ -9,6 +9,7 @@ use App\Entity\Question;
 use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<AssessmentItem>
@@ -48,10 +49,10 @@ class AssessmentItemRepository extends ServiceEntityRepository
             ->innerJoin('assessmentRevision.assessment', 'assessment')
             ->innerJoin('item.questionRevision', 'questionRevision')
             ->innerJoin('item.question', 'question')
-            ->andWhere('question IN (:questions)')
+            ->andWhere('IDENTITY(item.question) IN (:questionIds)')
             ->andWhere('assessment.scope = :scope')
             ->andWhere('assessment.institution IS NULL')
-            ->setParameter('questions', $questions)
+            ->setParameter('questionIds', array_map(static fn (Question $question): Uuid => $question->getId(), $questions))
             ->setParameter('scope', AssessmentScope::Platform)
             ->orderBy('assessment.code', 'ASC')
             ->addOrderBy('assessmentRevision.revisionNumber', 'ASC')
