@@ -16,7 +16,8 @@ concurrency:
 jobs:
   quality:
     name: Quality & tests
-    runs-on: ubuntu-latest
+    # Identity-window checks call chcon, which fails on the Ubuntu 26.04 runner image.
+    runs-on: ubuntu-24.04
 
     services:
       mariadb:

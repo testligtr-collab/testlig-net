@@ -152,6 +152,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
       await page.locator('[data-remove-option]').last().click();
       await expect(page.locator('.option-row')).toHaveCount(before);
     }
+    await page.evaluate(() => window.scrollTo(0, 0));
     await assertLayout(page);
     await capture(page, info, `admin-soru-editor-${viewport.name}.png`);
   }
