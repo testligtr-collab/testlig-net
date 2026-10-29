@@ -3659,6 +3659,19 @@ body.is-admin-panel {
         overflow-wrap: normal;
         word-break: normal;
     }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table th,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table td {
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__status,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__updated,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__action {
+        vertical-align: middle;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech > summary {
+        min-height: 2rem;
+    }
 }
 @media (max-width: 1023px) {
     .is-admin-panel .admin-learning-content-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3733,6 +3746,7 @@ body.is-admin-panel {
     grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
     margin-top: 1rem;
+    align-items: start;
 }
 .is-admin-panel .admin-learning-content-page .admin-learning-content-main,
 .is-admin-panel .admin-learning-content-page .admin-learning-content-side,
@@ -3740,6 +3754,10 @@ body.is-admin-panel {
     display: grid;
     gap: 1rem;
     min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-side {
+    align-content: start;
+    align-self: start;
 }
 .is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body {
     padding: 1.25rem 1rem;
@@ -3752,6 +3770,55 @@ body.is-admin-panel {
 .is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h4 { margin: 0.4rem 0; }
 .is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body p,
 .is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body li { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body p.admin-learning-content-callout__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    margin: 0;
+    color: #16324f;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.65rem 1rem;
+    margin: 0.85rem 0;
+    padding: 0.85rem 1rem;
+    border: 1px solid #d5e3ef;
+    border-radius: 0.75rem;
+    background: #fff;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--info { background: #f3f9fd; border-color: #c5dff0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--tip { background: #f1f8f4; border-color: #c6ead8; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--warning { background: #fff6ea; border-color: #f3d7b0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--note { background: #f6f8fb; border-color: #d7e0ea; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: #0b6e99;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__icon .admin-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body {
+    flex: 1 1 16rem;
+    min-width: min(100%, 16rem);
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body > :first-child { margin-top: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body > :last-child { margin-bottom: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-hint {
+    margin: 0.35rem 0 0;
+    color: #5c6d82;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
 .is-admin-panel .admin-learning-content-page .admin-learning-content-next {
     padding: 0.85rem 1rem;
     border: 1px solid #e2eaf4;
