@@ -12,8 +12,10 @@ final class QuestionImageScanMessage
             QuestionImageScanVerdict::Clean => 'Görsel tarandı ve kullanıma hazır.',
             QuestionImageScanVerdict::Infected => 'Görsel zararlı bulundu ve karantinaya alındı.',
             QuestionImageScanVerdict::StaleSignature => 'İmza güncelliği doğrulanamadı. Görsel beklemeye devam ediyor.',
+            QuestionImageScanVerdict::ConnectionFailed, QuestionImageScanVerdict::TimedOut => 'ClamAV bağlantısı kurulamadı.',
+            QuestionImageScanVerdict::Error, QuestionImageScanVerdict::SizeLimit, QuestionImageScanVerdict::Malformed, QuestionImageScanVerdict::HashMismatch => 'Tarama başarısız.',
+            QuestionImageScanVerdict::CleanupFailed => 'Tarama sonucu kaydedilemedi. Görsel beklemeye devam ediyor.',
             QuestionImageScanVerdict::Unchanged => 'Bu görsel taranamaz.',
-            default => 'Tarama tamamlanamadı.',
         };
     }
 

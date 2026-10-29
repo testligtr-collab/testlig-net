@@ -16,6 +16,9 @@
             </li>
         {% endfor %}
     </ol>
+    {% if image_status %}
+        <p>{{ image_status }}</p>
+    {% endif %}
     {% if can_scan_image %}
         <form method="post" action="{{ path('app_institution_question_image_scan', {reference: question.reference}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('question_image_scan') }}">

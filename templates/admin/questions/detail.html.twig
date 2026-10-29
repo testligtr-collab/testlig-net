@@ -67,10 +67,20 @@
         {% endfor %}
     {% endif %}
 
+    {% if image_status %}
+        <h2>Soru görseli</h2>
+        <p>{{ image_status }}</p>
+    {% endif %}
     {% if can_scan_image %}
         <form method="post" action="{{ path('app_admin_question_image_scan', {id: question.id.toRfc4122}) }}" class="stack-sm">
             <input type="hidden" name="_token" value="{{ csrf_token('question_image_scan') }}">
             <button class="btn btn--primary" type="submit">Görseli tara</button>
+        </form>
+    {% endif %}
+    {% if clamav_link_open %}
+        <form method="post" action="{{ path('app_admin_question_clamav_link', {id: question.id.toRfc4122}) }}" class="stack-sm">
+            <input type="hidden" name="_token" value="{{ csrf_token('question_image_clamav_link') }}">
+            <button class="btn btn--ghost" type="submit">ClamAV bağlantısını kontrol et</button>
         </form>
     {% endif %}
 
