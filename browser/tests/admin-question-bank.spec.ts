@@ -94,7 +94,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await page.setViewportSize(viewport);
     await page.goto(data.paths.questionPublished);
     await expect(page.getByRole('heading', { level: 1, name: 'Iki arti iki kactir' })).toBeVisible();
-    await expect(page.getByText('Sürüm #')).toBeVisible();
+    await expect(page.locator('.admin-question-statusline')).toContainText('Sürüm #');
     await expect(page.getByText('Doğru cevap')).toBeVisible();
     await expect(page.getByText('Dort')).toBeVisible();
     await expect(page.getByText('correctStableKey')).toHaveCount(0);

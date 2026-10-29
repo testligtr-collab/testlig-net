@@ -99,7 +99,7 @@ class QuestionRepository extends ServiceEntityRepository
             ->getArrayResult();
         foreach ($rows as $row) {
             $status = $row['status'] ?? null;
-            $key = $status instanceof QuestionStatus ? $status->value : (is_string($status) ? $status : '');
+            $key = $status instanceof QuestionStatus ? $status->value : (\is_string($status) ? $status : '');
             if (!isset($counts[$key])) {
                 continue;
             }
