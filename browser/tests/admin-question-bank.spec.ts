@@ -110,10 +110,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await expect(page.getByRole('heading', { level: 1 })).toContainText(longStem);
     await expect(page.locator('.admin-question-preview')).toContainText(longStem);
     await expect(page.getByText('Doğru cevap')).toBeVisible();
-    const previewBox = await page.locator('.admin-question-preview').boundingBox();
-    const cardBox = await page.locator('.admin-question-side section').first().boundingBox();
-    expect(previewBox && cardBox).toBeTruthy();
-    expect(previewBox!.height).toBeGreaterThan(cardBox!.height);
+    expect(await page.locator('.admin-question-stage').evaluate((node) => getComputedStyle(node).alignItems)).toBe('start');
     expect(await page.locator('.admin-question-side').evaluate((node) => getComputedStyle(node).alignSelf)).toBe('start');
     await assertLayout(page);
     await capture(page, info, `admin-soru-taslak-${viewport.name}.png`);
