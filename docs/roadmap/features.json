@@ -1235,7 +1235,8 @@
         "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
         "Öğrenme İçerikleri listesi, içerik detayı ve mevcut sürüm düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/icerikler ve alt yolları aynı kaldı. Liste GET kayıt, revision, yayın veya erişim politikası yazmaz. Sayaçlar tek sayım sorgusudur ve seçili filtreden bağımsızdır. Yayın, erişim ve katalog yerleşimi ayrı kalır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
-        "İçerik detayı, yeni içerik ve yeni konu alanı aynı açık yönetim kabuğunda kart düzenine alındı. Detay güncel sürümün kaçışlı önizlemesini ve gerçek yayın, erişim ve katalog durumunu ayrı gösterir. Yeni içerik ve konu alanı mevcut form alanlarını kullanır. Yayın veya ücretsiz erişim bu formlardan çıkmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz."
+        "İçerik detayı, yeni içerik ve yeni konu alanı aynı açık yönetim kabuğunda kart düzenine alındı. Detay güncel sürümün kaçışlı önizlemesini ve gerçek yayın, erişim ve katalog durumunu ayrı gösterir. Yeni içerik ve konu alanı mevcut form alanlarını kullanır. Yayın veya ücretsiz erişim bu formlardan çıkmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
+        "Öğrenme içeriği önizlemesinde bilgi kutusu etiketleri mevcut katalogla Bilgi, Uyarı, İpucu ve Not olarak kalır ve harf harf kırılmaz. Yayın ve erişim kartı uzun önizlemeyle uzamaz. Liste satırı masaüstünde kısalır; sayaç notu, yayın ikonu ve arşiv ikonu aynı sayfada kalır. Adres, yetki, yayın ve erişim aynıdır. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1260,7 +1261,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/176",
         "https://github.com/testligtr-collab/testlig-net/pull/177",
         "https://github.com/testligtr-collab/testlig-net/pull/178",
-        "https://github.com/testligtr-collab/testlig-net/pull/179"
+        "https://github.com/testligtr-collab/testlig-net/pull/179",
+        "https://github.com/testligtr-collab/testlig-net/pull/180"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null
