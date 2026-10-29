@@ -4,83 +4,148 @@
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_questions') }}">Sorular</a>
+        <a href="{{ path('app_admin_questions') }}">Soru Havuzu</a>
         <span aria-hidden="true">/</span>
         <span>{{ question ? 'Düzenle' : 'Yeni soru' }}</span>
     </nav>
-    <h1 class="panel-greeting">{{ question ? 'Soruyu düzenle' : 'Yeni soru' }}</h1>
-
-    <form method="get" class="admin-filters" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
-        <label>Sınıf
-            <select name="grade">
-                {% for item in grades %}
-                    <option value="{{ item.value }}" {{ grade == item.value ? 'selected' : '' }}>{{ item.value }}. sınıf</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Ders
-            <select name="subject_id">
-                {% for subject in subjects %}
-                    <option value="{{ subject.id.toRfc4122 }}" {{ subject_id == subject.id.toRfc4122 ? 'selected' : '' }}>{{ subject.name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <button class="btn" type="submit">Kazanımları getir</button>
-    </form>
-
-    <form method="post" id="question-editor" class="stack-sm" enctype="multipart/form-data" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
-        <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
-        <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
-        <input type="hidden" name="grade" value="{{ grade }}">
-        <input type="hidden" name="subject_id" value="{{ subject_id }}">
-
-        <label>Kazanım
-            <select name="outcome_id" required>
-                <option value="">Seçin</option>
-                {% for outcome in outcomes %}
-                    <option value="{{ outcome.id.toRfc4122 }}" {{ values.outcome_id == outcome.id.toRfc4122 ? 'selected' : '' }}>{{ outcome.code }} — {{ outcome.description }}</option>
-                {% endfor %}
-            </select>
-        </label>
-
-        <label>Zorluk
-            <select name="difficulty" required>
-                {% for value, label in difficulties %}
-                    <option value="{{ value }}" {{ values.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-
-        <label>Soru kökü
-            <textarea name="stem" rows="8" required class="revision-text">{{ values.stem }}</textarea>
-        </label>
-        <label>Soru görseli
-            <input type="file" name="question_image" accept="image/jpeg,image/png,image/webp">
-        </label>
-
-        <fieldset>
-            <legend>Cevap seçenekleri</legend>
-            <div id="option-list">
-                {% for text in values.options %}
-                    <div class="option-row stack-sm">
-                        <label>Seçenek
-                            <textarea name="options[]" rows="3" required class="revision-text">{{ text }}</textarea>
-                        </label>
-                        <label>
-                            <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
-                            Doğru cevap
-                        </label>
-                        <button class="btn btn--ghost" type="button" data-remove-option>Kaldır</button>
-                    </div>
-                {% endfor %}
+    <div class="admin-user-page admin-question-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">{{ question ? 'Soruyu düzenle' : 'Yeni soru' }}</h1>
+                <p>Soru metni ve seçenekler kaydedilince yeni bir taslak sürüm oluşur. Yayımlanmış sürüm yerinde değişmez.</p>
             </div>
-            <button class="btn" type="button" id="add-option">Seçenek ekle</button>
-        </fieldset>
+        </header>
+        {% if errors.summary|default('') %}
+            <p class="admin-question-error" role="alert">{{ errors.summary }}</p>
+        {% endif %}
 
-        <label>Çözüm
-            <textarea name="explanation" rows="6" class="revision-text">{{ values.explanation }}</textarea>
-        </label>
+        <div class="admin-question-stage">
+            <div class="admin-question-main">
+                <form method="post" id="question-editor" enctype="multipart/form-data" data-controller="question-options" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+                    <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
+                    <input type="hidden" name="grade" value="{{ grade }}">
+                    <input type="hidden" name="subject_id" value="{{ subject_id }}">
 
-        <button class="btn btn--primary" type="submit">Taslak kaydet</button>
-    </form>
+                    <section class="admin-section">
+                        <h2>Soru metni</h2>
+                        {% if errors.fields.stem|default('') %}
+                            <p class="admin-question-field-error" id="question-error-stem">{{ errors.fields.stem }}</p>
+                        {% endif %}
+                        <label for="question-stem">Soru kökü
+                            <textarea id="question-stem" name="stem" rows="8" required class="revision-text" aria-invalid="{{ errors.fields.stem|default('') ? 'true' : 'false' }}" {% if errors.fields.stem|default('') %}aria-describedby="question-error-stem"{% endif %}>{{ values.stem }}</textarea>
+                        </label>
+                    </section>
+
+                    <section class="admin-section">
+                        <h2>Cevap seçenekleri</h2>
+                        {% if errors.fields.options|default('') %}
+                            <p class="admin-question-field-error" id="question-error-options">{{ errors.fields.options }}</p>
+                        {% endif %}
+                        {% if errors.fields.correct|default('') %}
+                            <p class="admin-question-field-error" id="question-error-correct">{{ errors.fields.correct }}</p>
+                        {% endif %}
+                        <div id="option-list">
+                            {% for text in values.options %}
+                                <div class="option-row admin-question-option">
+                                    <label>Seçenek
+                                        <textarea name="options[]" rows="3" required class="revision-text">{{ text }}</textarea>
+                                    </label>
+                                    <label class="admin-question-correct">
+                                        <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
+                                        Doğru cevap
+                                    </label>
+                                    <button class="btn btn--ghost" type="button" data-remove-option>Kaldır</button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <button class="btn" type="button" id="add-option">Seçenek ekle</button>
+                    </section>
+
+                    <section class="admin-section">
+                        <h2>Çözüm</h2>
+                        {% if errors.fields.explanation|default('') %}
+                            <p class="admin-question-field-error" id="question-error-explanation">{{ errors.fields.explanation }}</p>
+                        {% endif %}
+                        <label for="question-explanation">Çözüm metni
+                            <textarea id="question-explanation" name="explanation" rows="6" class="revision-text" aria-invalid="{{ errors.fields.explanation|default('') ? 'true' : 'false' }}" {% if errors.fields.explanation|default('') %}aria-describedby="question-error-explanation"{% endif %}>{{ values.explanation }}</textarea>
+                        </label>
+                        <div class="admin-question-form-actions">
+                            <button class="btn admin-institution-primary" type="submit">Taslak kaydet</button>
+                        </div>
+                    </section>
+                </form>
+                {% if can_submit %}
+                    <form method="post" action="{{ path('app_admin_question_submit', {id: question.id.toRfc4122}) }}" class="admin-section admin-question-submit" data-warn-unsaved="1">
+                        <h2>İncelemeye gönder</h2>
+                        <p class="admin-question-hint">Bu eylem kayıtlı sürümü gönderir. Kaydedilmemiş metin dahil değildir.</p>
+                        <input type="hidden" name="_token" value="{{ csrf_token('question_editor') }}">
+                        <input type="hidden" name="expected_revision" value="{{ expected_revision }}">
+                        <label for="question-submit-note">İşlem notu
+                            <textarea id="question-submit-note" name="operator_note" maxlength="500" rows="2"></textarea>
+                        </label>
+                        <button class="btn btn--primary" type="submit">İncelemeye gönder</button>
+                    </form>
+                {% endif %}
+            </div>
+
+            <aside class="admin-question-side">
+                <form method="get" class="admin-section" action="{{ question ? path('app_admin_question_edit', {id: question.id.toRfc4122}) : path('app_admin_question_new') }}">
+                    <h2>Kazanımları getir</h2>
+                    {% if errors.fields.grade|default('') %}
+                        <p class="admin-question-field-error" id="question-error-grade">{{ errors.fields.grade }}</p>
+                    {% endif %}
+                    <label for="question-grade">Sınıf
+                        <select id="question-grade" name="grade">
+                            {% for item in grades %}
+                                <option value="{{ item.value }}" {{ grade == item.value ? 'selected' : '' }}>{{ item.value }}. sınıf</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% if errors.fields.subject_id|default('') %}
+                        <p class="admin-question-field-error" id="question-error-subject">{{ errors.fields.subject_id }}</p>
+                    {% endif %}
+                    <label for="question-subject">Ders
+                        <select id="question-subject" name="subject_id">
+                            {% for subject in subjects %}
+                                <option value="{{ subject.id.toRfc4122 }}" {{ subject_id == subject.id.toRfc4122 ? 'selected' : '' }}>{{ subject.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <button class="btn" type="submit">Kazanımları getir</button>
+                </form>
+                <section class="admin-section">
+                    <h2>Sınıflandırma</h2>
+                    {% if errors.fields.outcome_id|default('') %}
+                        <p class="admin-question-field-error" id="question-error-outcome">{{ errors.fields.outcome_id }}</p>
+                    {% endif %}
+                    <label for="question-outcome">Kazanım
+                        <select id="question-outcome" name="outcome_id" form="question-editor" required aria-invalid="{{ errors.fields.outcome_id|default('') ? 'true' : 'false' }}" {% if errors.fields.outcome_id|default('') %}aria-describedby="question-error-outcome"{% endif %}>
+                            <option value="">Seçin</option>
+                            {% for outcome in outcomes %}
+                                <option value="{{ outcome.id.toRfc4122 }}" {{ values.outcome_id == outcome.id.toRfc4122 ? 'selected' : '' }}>{{ outcome.code }} — {{ outcome.description }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% if errors.fields.difficulty|default('') %}
+                        <p class="admin-question-field-error" id="question-error-difficulty">{{ errors.fields.difficulty }}</p>
+                    {% endif %}
+                    <label for="question-difficulty">Zorluk
+                        <select id="question-difficulty" name="difficulty" form="question-editor" required>
+                            {% for value, label in difficulties %}
+                                <option value="{{ value }}" {{ values.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    {% if errors.fields.question_image|default('') %}
+                        <p class="admin-question-field-error" id="question-error-image">{{ errors.fields.question_image }}</p>
+                    {% endif %}
+                    <label for="question-image">Soru görseli
+                        <input id="question-image" type="file" name="question_image" form="question-editor" accept="image/jpeg,image/png,image/webp" aria-invalid="{{ errors.fields.question_image|default('') ? 'true' : 'false' }}" {% if errors.fields.question_image|default('') %}aria-describedby="question-error-image"{% endif %}>
+                    </label>
+                    <p class="admin-question-hint">Yeni görsel taslağa bağlanır ve tarama bekler. Hazır olmayan dosya öğrenciye sunulmaz.</p>
+                </section>
+            </aside>
+        </div>
+    </div>
 {% endblock %}

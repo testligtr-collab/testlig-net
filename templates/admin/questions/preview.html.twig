@@ -8,19 +8,30 @@
         <span aria-hidden="true">/</span>
         <span>Önizleme</span>
     </nav>
-    <h1 class="panel-greeting">Önizleme</h1>
-    {% for line in stem_lines %}
-        <p>{{ line }}</p>
-    {% endfor %}
-    <ol>
-        {% for line in option_lines %}
-            <li>{{ line }}</li>
-        {% endfor %}
-    </ol>
-    {% if explanation_lines is not empty %}
-        <h2>Çözüm</h2>
-        {% for line in explanation_lines %}
-            <p>{{ line }}</p>
-        {% endfor %}
-    {% endif %}
+    <div class="admin-user-page admin-question-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Önizleme</h1>
+                <p>Bu görünüm cevap anahtarını göstermez.</p>
+            </div>
+        </header>
+        <section class="admin-section admin-question-preview" aria-label="Soru önizlemesi">
+            <div class="admin-question-preview__body">
+                {% for line in stem_lines %}
+                    <p>{{ line }}</p>
+                {% endfor %}
+                <ol>
+                    {% for line in option_lines %}
+                        <li>{{ line }}</li>
+                    {% endfor %}
+                </ol>
+                {% if explanation_lines is not empty %}
+                    <h2>Çözüm</h2>
+                    {% for line in explanation_lines %}
+                        <p>{{ line }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+    </div>
 {% endblock %}

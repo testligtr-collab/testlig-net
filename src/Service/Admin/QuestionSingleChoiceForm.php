@@ -40,7 +40,7 @@ final class QuestionSingleChoiceForm
             default => throw QuestionException::invalidInput('Difficulty is required.'),
         };
 
-        $stem = $this->plainText($request->request->getString('stem'), 'Stem is required.');
+        $stem = $this->plainText($request->request->getString('stem'), 'Stem is required.', 'stem_markup');
         $texts = $this->optionTexts($request);
         $correct = $request->request->getInt('correct');
         if ($correct < 1 || $correct > \count($texts)) {
@@ -60,7 +60,7 @@ final class QuestionSingleChoiceForm
         $explanationRaw = trim($request->request->getString('explanation'));
         $explanation = null;
         if ('' !== $explanationRaw) {
-            $explanation = QuestionContentDocument::paragraph($this->plainText($explanationRaw, 'Explanation is invalid.'))->toArray();
+            $explanation = QuestionContentDocument::paragraph($this->plainText($explanationRaw, 'Explanation is invalid.', 'explanation_markup'))->toArray();
         }
 
         $outcomeId = strtolower($request->request->getString('outcome_id'));
@@ -94,7 +94,7 @@ final class QuestionSingleChoiceForm
             if ('' === $text) {
                 throw QuestionException::invalidInput('Option text is required.');
             }
-            $texts[] = $this->plainText($text, 'Option text is required.');
+            $texts[] = $this->plainText($text, 'Option text is required.', 'option_markup');
         }
         $count = \count($texts);
         if ($count < 2 || $count > 6) {
@@ -112,14 +112,14 @@ final class QuestionSingleChoiceForm
         return $texts;
     }
 
-    private function plainText(string $value, string $emptyMessage): string
+    private function plainText(string $value, string $emptyMessage, string $markupCode): string
     {
         $value = trim($value);
         if ('' === $value) {
             throw QuestionException::invalidInput($emptyMessage);
         }
         if (1 === preg_match('/[<>]/', $value) || str_contains(strtolower($value), 'javascript:')) {
-            throw QuestionException::contentInvalid('Markup is not allowed.');
+            throw QuestionException::contentInvalid($markupCode);
         }
 
         return $value;

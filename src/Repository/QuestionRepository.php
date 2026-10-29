@@ -15,6 +15,7 @@ use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -76,22 +77,95 @@ class QuestionRepository extends ServiceEntityRepository
      */
     public function findPlatformVisible(User $actor, bool $seeAll): array
     {
-        $qb = $this->createQueryBuilder('q')
-            ->andWhere('q.scope = :scope')
-            ->setParameter('scope', QuestionScope::Platform)
+        return $this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', false);
+    }
+
+    /**
+     * @return array{total: int, draft: int, in_review: int, published: int, archived: int}
+     */
+    public function countPlatformVisibleByStatus(User $actor, bool $seeAll): array
+    {
+        $counts = [
+            'total' => 0,
+            'draft' => 0,
+            'in_review' => 0,
+            'published' => 0,
+            'archived' => 0,
+        ];
+        $rows = $this->platformVisibleQuery($actor, $seeAll)
+            ->select('q.status AS status', 'COUNT(q.id) AS total')
+            ->groupBy('q.status')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($rows as $row) {
+            $status = $row['status'] ?? null;
+            $key = $status instanceof QuestionStatus ? $status->value : (is_string($status) ? $status : '');
+            if (!isset($counts[$key])) {
+                continue;
+            }
+            $counts[$key] = (int) $row['total'];
+            $counts['total'] += $counts[$key];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Newest visible platform questions. Subject is joined so the list does not query it per row.
+     *
+     * @return list<Question>
+     */
+    public function findPlatformVisibleFiltered(
+        User $actor,
+        bool $seeAll,
+        ?QuestionStatus $status,
+        ?GradeLevel $grade,
+        ?Uuid $subjectId,
+        string $text,
+        bool $blocked,
+    ): array {
+        if ($blocked) {
+            return [];
+        }
+        $qb = $this->platformVisibleQuery($actor, $seeAll)
+            ->innerJoin('q.subject', 'subject')
+            ->addSelect('subject')
             ->orderBy('q.updatedAt', 'DESC')
             ->addOrderBy('q.id', 'DESC')
             ->setMaxResults(100);
-        if (!$seeAll) {
-            $qb->andWhere('q.status = :published OR IDENTITY(q.createdBy) = :actor')
-                ->setParameter('published', QuestionStatus::Published)
-                ->setParameter('actor', $actor->getId(), 'uuid');
+        if ($status instanceof QuestionStatus) {
+            $qb->andWhere('q.status = :filterStatus')->setParameter('filterStatus', $status);
+        }
+        if ($grade instanceof GradeLevel) {
+            $qb->andWhere('q.gradeLevel = :filterGrade')->setParameter('filterGrade', $grade);
+        }
+        if ($subjectId instanceof Uuid) {
+            $qb->andWhere('q.subject = :filterSubject')->setParameter('filterSubject', $subjectId, 'uuid');
+        }
+        if ('' !== $text) {
+            $qb->andWhere(
+                'q.code LIKE :needle OR EXISTS (SELECT 1 FROM '.QuestionRevision::class.' revision WHERE revision.question = q AND revision.revisionNumber = q.currentRevisionNumber AND revision.stemContent LIKE :needle)'
+            )->setParameter('needle', '%'.$this->like($text).'%');
         }
 
         /** @var list<Question> $rows */
         $rows = $qb->getQuery()->getResult();
 
         return $rows;
+    }
+
+    private function platformVisibleQuery(User $actor, bool $seeAll): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('q')
+            ->andWhere('q.scope = :scope')
+            ->setParameter('scope', QuestionScope::Platform);
+        if (!$seeAll) {
+            $qb->andWhere('q.status = :published OR IDENTITY(q.createdBy) = :actor')
+                ->setParameter('published', QuestionStatus::Published)
+                ->setParameter('actor', $actor->getId(), 'uuid');
+        }
+
+        return $qb;
     }
 
     /**

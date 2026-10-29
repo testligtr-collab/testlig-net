@@ -1,47 +1,149 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Sorular — Testlig{% endblock %}
+{% block title %}Soru Havuzu — Testlig{% endblock %}
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
-        {% if workspace_shell|default(false) %}
-            {% include 'admin/_crumb_root.html.twig' %}
-            <span aria-hidden="true">/</span>
-        {% endif %}
-        <span>Sorular</span>
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Soru Havuzu</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Sorular</h1>
-        {% if can_author %}
-            <a class="btn btn--cta" href="{{ path('app_admin_question_new') }}">Yeni soru</a>
-            <a class="btn" href="{{ path('app_admin_question_import') }}">CSV ile içe aktar</a>
+    <div class="admin-user-page admin-question-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Soru Havuzu</h1>
+                <p>Platform sorularını buradan bulun.</p>
+            </div>
+            <div class="admin-question-head__actions">
+                {% if can_author %}
+                    <a class="btn admin-institution-primary" href="{{ path('app_admin_question_new') }}"><span aria-hidden="true">+ </span>Yeni soru</a>
+                    <a class="btn btn--ghost" href="{{ path('app_admin_question_import') }}">CSV ile içe aktar</a>
+                {% endif %}
+                {% if admin_filters_active(filters|default({})) %}
+                    <a class="admin-user-clear" href="{{ path('app_admin_questions') }}">Filtreleri temizle</a>
+                {% endif %}
+            </div>
+        </header>
+        <p class="admin-question-hint">Sayaçlar seçili filtreden bağımsızdır ve yalnız sizin görebileceğiniz soruları sayar. Soru yayını, teste eklenme ve öğrenciye sunulma ayrı kurallardır.</p>
+
+        <section class="admin-user-stats" aria-label="Soru özeti">
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'questions' } only %}</span>
+                <span><span class="admin-user-stat__label">Görünen</span><strong class="admin-user-stat__value" data-question-summary="total">{{ counts.total }}</strong></span>
+            </article>
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'learning_contents' } only %}</span>
+                <span><span class="admin-user-stat__label">Taslak</span><strong class="admin-user-stat__value" data-question-summary="draft">{{ counts.draft }}</strong></span>
+            </article>
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
+                <span><span class="admin-user-stat__label">İncelemede</span><strong class="admin-user-stat__value" data-question-summary="in_review">{{ counts.in_review }}</strong></span>
+            </article>
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span><span class="admin-user-stat__label">Yayında</span><strong class="admin-user-stat__value" data-question-summary="published">{{ counts.published }}</strong></span>
+            </article>
+            <article class="admin-user-stat">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'archive' } only %}</span>
+                <span><span class="admin-user-stat__label">Arşivlenmiş</span><strong class="admin-user-stat__value" data-question-summary="archived">{{ counts.archived }}</strong></span>
+            </article>
+        </section>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_questions') }}">
+            <h2>Soruları filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <div class="admin-question-filter">
+                    <label for="question-filter-q">Soru veya teknik kod</label>
+                    <div class="admin-user-search">
+                        <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                        <input id="question-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Soru metni veya teknik kod">
+                    </div>
+                </div>
+                <label for="question-filter-status">Durum
+                    <select id="question-filter-status" name="status">
+                        <option value="">Tümü</option>
+                        {% for s in ['draft', 'in_review', 'published', 'archived'] %}
+                            {% set status = admin_status(s) %}
+                            <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status.label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="question-filter-subject">Ders
+                    <select id="question-filter-subject" name="subject_id">
+                        <option value="">Tümü</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id.toRfc4122 }}" {% if filters.subject_id|default('') == subject.id.toRfc4122 %}selected{% endif %}>{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="question-filter-grade">Sınıf
+                    <select id="question-filter-grade" name="grade">
+                        <option value="">Tümü</option>
+                        {% for g in 1..12 %}
+                            <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
+                        {% endfor %}
+                    </select>
+                </label>
+            </div>
+            <div class="admin-user-filters__actions">
+                <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+            </div>
+        </form>
+
+        {% if counts.total == 0 %}
+            {% include 'components/empty_state.html.twig' with { title: 'Soru yok', body: 'Henüz görebildiğiniz bir soru yok.' } %}
+        {% elseif rows is empty %}
+            {% include 'components/empty_state.html.twig' with { title: 'Sonuç yok', body: 'Bu filtreye uyan soru yok.' } %}
+        {% else %}
+            {% if capped %}
+                <p class="admin-question-hint">Listede en yeni 100 kayıt görünüyor.</p>
+            {% endif %}
+            <div class="admin-table-wrap">
+                <table class="admin-table admin-question-table">
+                    <thead>
+                        <tr>
+                            <th>Soru</th>
+                            <th>Ders ve sınıf</th>
+                            <th>Tür</th>
+                            <th>Sürüm</th>
+                            <th>Durum</th>
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            {% set status = admin_status(row.status) %}
+                            <tr>
+                                <td class="admin-question__identity">
+                                    <div class="admin-question__head">
+                                        <span class="admin-question__name">{{ row.summary }}</span>
+                                        <span class="admin-status admin-question__card-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                    </div>
+                                    <p class="admin-question__meta">{{ row.type }} · {{ row.subject }} · {{ row.grade }} · Sürüm #{{ row.revision }}</p>
+                                    <div class="admin-question__foot">
+                                        <details class="admin-question-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-question-tech__panel">
+                                                <dl>
+                                                    <div><dt>Teknik kod</dt><dd><code>{{ row.code }}</code></dd></div>
+                                                    <div><dt>Kısa ref</dt><dd><code>{{ row.id|slice(0, 8) }}</code></dd></div>
+                                                    <div><dt>Kapsam</dt><dd>Platform</dd></div>
+                                                </dl>
+                                            </div>
+                                        </details>
+                                        <a class="admin-institution-detail admin-question__open" href="{{ path('app_admin_question_show', {id: row.id}) }}">İncele <span aria-hidden="true">→</span></a>
+                                    </div>
+                                </td>
+                                <td class="admin-question__relation">{{ row.subject }} · {{ row.grade }}</td>
+                                <td class="admin-question__type">{{ row.type }}</td>
+                                <td class="admin-question__revision">Sürüm #{{ row.revision }}</td>
+                                <td class="admin-question__status"><span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span></td>
+                                <td class="admin-question__action"><a class="admin-institution-detail" href="{{ path('app_admin_question_show', {id: row.id}) }}">İncele <span aria-hidden="true">→</span></a></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         {% endif %}
     </div>
-
-    {% if questions is empty %}
-        {% include 'components/empty_state.html.twig' with { title: 'Soru yok', body: 'Henüz görebildiğiniz bir soru yok.' } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Ders</th>
-                        <th>Sınıf</th>
-                        <th>Durum</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for question in questions %}
-                        <tr>
-                            <td>{{ question.subject.name }}</td>
-                            <td>{{ question.gradeLevel.value }}. sınıf</td>
-                            <td><span class="ws-badge">{{ status_labels[question.status.value] }}</span></td>
-                            <td><a href="{{ path('app_admin_question_show', {id: question.id.toRfc4122}) }}">Görüntüle</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
 {% endblock %}

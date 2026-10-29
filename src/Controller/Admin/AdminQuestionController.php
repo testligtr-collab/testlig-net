@@ -72,14 +72,53 @@ final class AdminQuestionController extends AdminBaseController
 
     #[Route('/yonetim/sorular', name: 'app_admin_questions', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_QUESTION_VIEW)]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $actor = $this->requireActorUser();
+        $seeAll = $this->canSeeAll($actor);
+        $subjects = $this->subjects->findActiveOrdered();
+        $filters = $this->listFilters($request, $subjects);
+        $questions = $this->questions->findPlatformVisibleFiltered(
+            $actor,
+            $seeAll,
+            $filters['status'],
+            $filters['grade'],
+            $filters['subject'],
+            $filters['text'],
+            $filters['blocked'],
+        );
+        $revisions = $this->revisions->findCurrentForQuestions($questions);
+        $rows = [];
+        foreach ($questions as $question) {
+            $revision = $revisions[$question->getId()->toRfc4122()] ?? null;
+            if (!$revision instanceof QuestionRevision) {
+                continue;
+            }
+            $lines = $this->plainLines($revision->getStemContent());
+            $rows[] = [
+                'id' => $question->getId()->toRfc4122(),
+                'code' => $question->getCode(),
+                'summary' => $lines[0] ?? 'Soru metni yok',
+                'subject' => $question->getSubject()->getName(),
+                'grade' => $question->getGradeLevel()->value.'. sınıf',
+                'type' => $this->typeLabel($revision->getType()),
+                'status' => $question->getStatus()->value,
+                'revision' => $question->getCurrentRevisionNumber(),
+            ];
+        }
 
         return $this->renderAdmin('admin/questions/list.html.twig', [
-            'questions' => $this->questions->findPlatformVisible($actor, $this->canSeeAll($actor)),
+            'rows' => $rows,
+            'counts' => $this->questions->countPlatformVisibleByStatus($actor, $seeAll),
+            'subjects' => $subjects,
+            'filters' => [
+                'q' => $filters['text'],
+                'status' => $filters['status'] instanceof QuestionStatus ? $filters['status']->value : '',
+                'subject_id' => $filters['subject'] instanceof \Symfony\Component\Uid\Uuid ? $filters['subject']->toRfc4122() : '',
+                'grade' => $filters['grade'] instanceof GradeLevel ? (string) $filters['grade']->value : '',
+            ],
             'can_author' => $this->adminAuthorization->canAuthorQuestions($actor),
-            'status_labels' => $this->statusLabels(),
+            'capped' => 100 === \count($rows),
         ]);
     }
 
@@ -111,19 +150,27 @@ final class AdminQuestionController extends AdminBaseController
         $canAnswer = $this->isGranted(QuestionPermission::ANSWER_KEY_VIEW, $question);
         $actor = $this->requireActorUser();
         $isAuthor = $revision->getCreatedBy()->getId()->equals($actor->getId());
+        $stemLines = $this->plainLines($revision->getStemContent());
+        $outcome = $this->primaryOutcome($revision);
 
         return $this->renderAdmin('admin/questions/detail.html.twig', [
             'question' => $question,
             'revision_number' => $revision->getRevisionNumber(),
-            'stem_lines' => $this->plainLines($revision->getStemContent()),
+            'heading' => $stemLines[0] ?? 'Soru',
+            'stem_lines' => $stemLines,
             'explanation_lines' => $this->plainLines($revision->getExplanationContent()),
             'option_lines' => $this->optionLines($optionRows),
             'correct_position' => $canAnswer ? $this->correctPosition($revision, $optionRows) : null,
-            'status_label' => $this->statusLabels()[$question->getStatus()->value] ?? '',
+            'status_label' => $this->statusLabels()[$question->getStatus()->value] ?? 'Bilinmiyor',
             'difficulty_label' => $this->difficultyLabel($revision->getDifficulty()),
+            'type_label' => $this->typeLabel($revision->getType()),
             'grade_label' => $question->getGradeLevel()->value.'. sınıf',
             'subject_name' => $question->getSubject()->getName(),
-            'outcome_label' => $this->outcomeLabel($revision),
+            'program_name' => $outcome['program'],
+            'outcome_code' => $outcome['code'],
+            'outcome_text' => $outcome['text'],
+            'published_label' => $question->getPublishedAt()?->format('d.m.Y H:i'),
+            'image_note' => $this->imageNote($question, $revision, $optionRows),
             'can_edit' => $this->canEdit($question),
             'progress' => $this->workflowProgress->summarize([
                 'status' => $question->getStatus()->value,
@@ -257,10 +304,7 @@ final class AdminQuestionController extends AdminBaseController
 
             return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
         } catch (QuestionException $e) {
-            return $this->redirectQuestionError('app_admin_question_new', [
-                'subject_id' => $request->request->getString('subject_id'),
-                'grade' => $request->request->getString('grade'),
-            ], $e);
+            return $this->renderQuestionError($request, null, $e);
         }
     }
 
@@ -301,7 +345,7 @@ final class AdminQuestionController extends AdminBaseController
             ));
             $this->addFlash('success', 'Taslak kaydedildi.');
         } catch (QuestionException $e) {
-            return $this->redirectQuestionError('app_admin_question_edit', ['id' => $question->getId()->toRfc4122()], $e);
+            return $this->renderQuestionError($request, $question, $e);
         }
 
         return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
@@ -341,12 +385,18 @@ final class AdminQuestionController extends AdminBaseController
         return $this->redirectToRoute('app_admin_question_show', ['id' => $question->getId()->toRfc4122()]);
     }
 
-    private function renderForm(Request $request, ?Question $question): Response
+    /**
+     * @param array{summary: string, fields: array<string, string>} $errors
+     */
+    private function renderForm(Request $request, ?Question $question, array $errors = ['summary' => '', 'fields' => []]): Response
     {
         $subjects = $this->subjects->findActiveOrdered();
         $subject = $this->selectedSubject($request, $subjects, $question);
         $grade = $this->selectedGrade($request, $question);
         $values = $this->formValues($question);
+        if ($request->isMethod('POST') && '' !== $errors['summary']) {
+            $values = $this->postedValues($request, $values);
+        }
         $outcomeChoices = null !== $subject ? $this->activeOutcomes($subject, $grade) : [];
 
         return $this->renderAdmin('admin/questions/form.html.twig', [
@@ -362,8 +412,25 @@ final class AdminQuestionController extends AdminBaseController
             ],
             'outcomes' => $outcomeChoices,
             'values' => $values,
+            'errors' => $errors,
+            'can_submit' => $question instanceof Question
+                && QuestionStatus::Draft === $question->getStatus()
+                && $this->isGranted(QuestionPermission::MANAGE, $question),
             'expected_revision' => $question?->getCurrentRevisionNumber() ?? 0,
-        ]);
+        ], '' !== $errors['summary'] ? new Response('', 422) : null);
+    }
+
+    private function renderQuestionError(Request $request, ?Question $question, QuestionException $exception): Response
+    {
+        if (QuestionFailureReason::Unauthorized === $exception->getReason()) {
+            throw $this->createAccessDeniedException();
+        }
+        $response = $this->renderForm($request, $question, $this->formErrors($exception));
+        if ($this->getParameter('kernel.debug')) {
+            $response->headers->set('X-Question-Failure', $exception->getMessage());
+        }
+
+        return $response;
     }
 
     private function canScanImage(User $actor, Question $question, QuestionRevision $revision): bool
@@ -649,17 +716,202 @@ final class AdminQuestionController extends AdminBaseController
         return $lines;
     }
 
-    private function outcomeLabel(QuestionRevision $revision): string
+    /**
+     * @return array{program: string, code: string, text: string}
+     */
+    private function primaryOutcome(QuestionRevision $revision): array
     {
+        $empty = ['program' => '', 'code' => '', 'text' => ''];
         foreach ($this->alignments->findByRevision($revision) as $alignment) {
-            if ($alignment->isPrimary()) {
-                $outcome = $alignment->getLearningOutcome();
+            if (!$alignment->isPrimary()) {
+                continue;
+            }
+            $outcome = $alignment->getLearningOutcome();
 
-                return $outcome->getCode().' — '.$outcome->getDescription();
+            return [
+                'program' => $outcome->getCurriculumProgram()->getName(),
+                'code' => $outcome->getCode(),
+                'text' => $outcome->getDescription(),
+            ];
+        }
+
+        return $empty;
+    }
+
+    /**
+     * @param list<Subject> $subjects
+     *
+     * @return array{status: ?QuestionStatus, grade: ?GradeLevel, subject: ?\Symfony\Component\Uid\Uuid, text: string, blocked: bool}
+     */
+    private function listFilters(Request $request, array $subjects): array
+    {
+        $status = QuestionStatus::tryFrom($request->query->getString('status'));
+        $grade = GradeLevel::tryFrom($request->query->getInt('grade'));
+        if (0 === $request->query->getInt('grade') && !$request->query->has('grade')) {
+            $grade = null;
+        }
+        $text = trim($request->query->getString('q'));
+        if (mb_strlen($text) > 100) {
+            $text = mb_substr($text, 0, 100);
+        }
+        if ($this->containsMarkup($text)) {
+            $text = '';
+        }
+        $subjectRaw = strtolower($request->query->getString('subject_id'));
+        $subject = null;
+        $blocked = false;
+        if ('' !== $subjectRaw) {
+            foreach ($subjects as $item) {
+                if ($item->getId()->toRfc4122() === $subjectRaw) {
+                    $subject = $item->getId();
+                    break;
+                }
+            }
+            $blocked = !$subject instanceof \Symfony\Component\Uid\Uuid;
+        }
+
+        return [
+            'status' => $status,
+            'grade' => $grade,
+            'subject' => $subject,
+            'text' => $text,
+            'blocked' => $blocked,
+        ];
+    }
+
+    private function typeLabel(QuestionType $type): string
+    {
+        return match ($type) {
+            QuestionType::SingleChoice => 'Tek doğru seçenekli',
+            QuestionType::MultipleChoice => 'Çoklu seçim',
+            QuestionType::TrueFalse => 'Doğru / yanlış',
+            QuestionType::Numeric => 'Sayısal',
+            QuestionType::ShortAnswer => 'Kısa cevap',
+        };
+    }
+
+    /**
+     * @param list<\App\Entity\QuestionRevisionOption> $optionRows
+     */
+    private function imageNote(Question $question, QuestionRevision $revision, array $optionRows): ?string
+    {
+        if (null !== $this->pendingImages->sole($question, $revision)) {
+            return 'Tarama bekliyor. Hazır olmayan görsel öğrenciye sunulmaz.';
+        }
+        $documents = [$revision->getStemContent(), $revision->getExplanationContent()];
+        foreach ($optionRows as $option) {
+            $documents[] = $option->getContent();
+        }
+        foreach ($documents as $document) {
+            if ($this->documentHasImage($document)) {
+                return 'Görsel kayıtlı. Yalnız hazır ve temiz dosya öğrenciye sunulur.';
             }
         }
 
-        return '';
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed>|null $document
+     */
+    private function documentHasImage(?array $document): bool
+    {
+        $blocks = $document['blocks'] ?? null;
+        if (!\is_array($blocks)) {
+            return false;
+        }
+        foreach ($blocks as $block) {
+            if (\is_array($block) && 'image_reference' === ($block['type'] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{summary: string, fields: array<string, string>}
+     */
+    private function formErrors(QuestionException $exception): array
+    {
+        [$field, $message] = match ($exception->getMessage()) {
+            'Stem is required.' => ['stem', 'Soru metni gerekli.'],
+            'stem_markup' => ['stem', 'Bu alanda HTML kullanılamaz.'],
+            'Option text is required.' => ['options', 'Seçenek metni gerekli.'],
+            'option_markup' => ['options', 'Seçenek metninde HTML kullanılamaz.'],
+            'Option count must be 2 to 6.' => ['options', 'En az iki, en çok altı seçenek gerekir.'],
+            'Duplicate option text.' => ['options', 'Seçenekler aynı olamaz.'],
+            'Exactly one correct option is required.' => ['correct', 'Bir doğru cevap seçin.'],
+            'Difficulty is required.' => ['difficulty', 'Zorluk seçin.'],
+            'Grade is required.' => ['grade', 'Sınıf seçin.'],
+            'Outcome is required.' => ['outcome_id', 'Kazanım seçin.'],
+            'Outcome is not active for this subject and grade.' => ['outcome_id', 'Kazanım bu ders ve sınıf için uygun değil.'],
+            'Subject is required.' => ['subject_id', 'Ders seçin.'],
+            'Subject cannot change.' => ['subject_id', 'Ders değiştirilemez.'],
+            'Explanation is invalid.' => ['explanation', 'Çözüm metni geçersiz.'],
+            'explanation_markup' => ['explanation', 'Çözüm metninde HTML kullanılamaz.'],
+            default => [null, QuestionFailureReason::ImageRejected === $exception->getReason()
+                ? $this->imageMessage($exception)
+                : 'Soru kaydedilemedi. Alanları kontrol edin.'],
+        };
+        if (null === $field && QuestionFailureReason::ImageRejected === $exception->getReason()) {
+            $field = 'question_image';
+        }
+
+        return [
+            'summary' => 'Soru kaydedilemedi. Alanları kontrol edin.',
+            'fields' => null === $field ? [] : [$field => $message],
+        ];
+    }
+
+    /**
+     * @param array{stem: string, explanation: string, options: list<string>, correct: int, difficulty: string, outcome_id: string} $values
+     *
+     * @return array{stem: string, explanation: string, options: list<string>, correct: int, difficulty: string, outcome_id: string}
+     */
+    private function postedValues(Request $request, array $values): array
+    {
+        $options = [];
+        foreach ($request->request->all('options') as $option) {
+            if (!\is_string($option)) {
+                continue;
+            }
+            $options[] = $this->safeText($option);
+        }
+        if (\count($options) < 2) {
+            $options = array_pad($options, 2, '');
+        }
+        $correct = $request->request->getInt('correct');
+        if ($correct < 1 || $correct > \count($options)) {
+            $correct = $values['correct'];
+        }
+        $difficulty = $request->request->getString('difficulty');
+        if (!\in_array($difficulty, [QuestionDifficulty::Easy->value, QuestionDifficulty::Medium->value, QuestionDifficulty::Hard->value], true)) {
+            $difficulty = $values['difficulty'];
+        }
+        $outcomeId = strtolower($request->request->getString('outcome_id'));
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $outcomeId)) {
+            $outcomeId = '';
+        }
+
+        return [
+            'stem' => $this->safeText($request->request->getString('stem')),
+            'explanation' => $this->safeText($request->request->getString('explanation')),
+            'options' => $options,
+            'correct' => $correct,
+            'difficulty' => $difficulty,
+            'outcome_id' => $outcomeId,
+        ];
+    }
+
+    private function safeText(string $value): string
+    {
+        return $this->containsMarkup($value) ? '' : $value;
+    }
+
+    private function containsMarkup(string $value): bool
+    {
+        return 1 === preg_match('/[<>]/', $value) || str_contains(strtolower($value), 'javascript:');
     }
 
     private function editorDifficulty(QuestionDifficulty $difficulty): string

@@ -25,6 +25,7 @@ type Manifest = {
     confirmDetail: string;
     questionEdit: string;
     questionReview: string;
+    questionPublished: string;
     questionSubjectCode: string;
     questionOutcomeCode: string;
     classroomName: string;

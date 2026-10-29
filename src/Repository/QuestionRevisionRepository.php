@@ -25,6 +25,37 @@ class QuestionRevisionRepository extends ServiceEntityRepository
         return $this->find($id);
     }
 
+    /**
+     * @param list<Question> $questions
+     *
+     * @return array<string, QuestionRevision>
+     */
+    public function findCurrentForQuestions(array $questions): array
+    {
+        if ([] === $questions) {
+            return [];
+        }
+        $qb = $this->createQueryBuilder('revision');
+        $or = $qb->expr()->orX();
+        foreach (array_values($questions) as $index => $question) {
+            $or->add($qb->expr()->andX(
+                'IDENTITY(revision.question) = :question'.$index,
+                'revision.revisionNumber = :number'.$index,
+            ));
+            $qb->setParameter('question'.$index, $question->getId(), 'uuid');
+            $qb->setParameter('number'.$index, $question->getCurrentRevisionNumber());
+        }
+
+        /** @var list<QuestionRevision> $rows */
+        $rows = $qb->innerJoin('revision.question', 'question')->addSelect('question')->andWhere($or)->getQuery()->getResult();
+        $map = [];
+        foreach ($rows as $revision) {
+            $map[$revision->getQuestion()->getId()->toRfc4122()] = $revision;
+        }
+
+        return $map;
+    }
+
     public function findForQuestionNumber(Question $question, int $revisionNumber): ?QuestionRevision
     {
         /** @var QuestionRevision|null $row */
