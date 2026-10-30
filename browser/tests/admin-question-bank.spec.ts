@@ -186,6 +186,23 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
       await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x < y' })).toBeVisible();
       await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x > y' })).toBeVisible();
     }
+    const solution = page.locator('section').filter({ has: page.getByRole('heading', { level: 2, name: 'Çözüm' }) });
+    await solution.scrollIntoViewIfNeeded();
+    await expect(solution.getByText('Çözüm görseli')).toBeVisible();
+    await expect(solution.locator('input[name="image_explanation"]')).toBeVisible();
+    const solutionFrame = solution.locator('[data-image-preview]');
+    const solutionBox = await solutionFrame.boundingBox();
+    expect(solutionBox).toBeTruthy();
+    expect(Math.abs(solutionBox!.width - solutionBox!.height)).toBeLessThan(8);
+    if (viewport.width < 1024) {
+      const solutionFile = await solution.locator('input[name="image_explanation"]').boundingBox();
+      expect(solutionFile).toBeTruthy();
+      expect(solutionFile!.height).toBeGreaterThanOrEqual(44);
+    }
+    const solutionName = `admin-soru-cozum-${viewport.name}.png`;
+    const solutionPath = path.join('artifacts', 'screenshots', solutionName);
+    await solution.screenshot({ path: solutionPath });
+    await info.attach(solutionName, { path: solutionPath, contentType: 'image/png' });
     await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
     await assertLayout(page);
     await capture(page, info, `admin-soru-editor-${viewport.name}.png`);
