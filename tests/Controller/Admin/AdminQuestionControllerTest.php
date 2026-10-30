@@ -7,6 +7,7 @@ namespace App\Tests\Controller\Admin;
 use App\Entity\Question;
 use App\Entity\QuestionAnswerKey;
 use App\Entity\QuestionRevision;
+use App\Entity\QuestionRevisionOption;
 use App\Entity\StoredMediaAsset;
 use App\Entity\User;
 use App\Enum\GradeLevel;
@@ -266,6 +267,91 @@ final class AdminQuestionControllerTest extends WebTestCase
         $client->followRedirect();
         self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $client->getResponse()->getContent());
         self::assertStringContainsString('Taslak', (string) $client->getResponse()->getContent());
+    }
+
+    public function testSeparateSlotImagesStayOnTheirOptionKeys(): void
+    {
+        if (!\function_exists('imagepng')) {
+            self::markTestSkipped('GD PNG support is required.');
+        }
+        $ids = $this->seedCurriculum('qbslots');
+        $this->createPrivileged('qb-teacher-slots@example.com', UserRole::HeadTeacher);
+        $client = $this->newClient();
+        $this->login($client, 'qb-teacher-slots@example.com');
+        $this->postNew($client, $ids, ['stem' => 'Ilk kok']);
+        $path = $this->openCreated($client);
+        $questionId = basename($path);
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '1',
+            'image_slots' => '1',
+            'stem' => 'Ikinci kok',
+            'explanation' => 'Cozum',
+            'options' => ['Bir', 'Iki'],
+            'option_keys' => ['opt_a', 'opt_b'],
+            'correct' => '1',
+        ]), [
+            'image_stem' => new UploadedFile($this->pngFile(), 'kok.png', 'image/png', null, true),
+            'image_explanation' => new UploadedFile($this->pngFile(), 'cozum.png', 'image/png', null, true),
+            'image_option' => [
+                new UploadedFile($this->pngFile(), 'bir.png', 'image/png', null, true),
+                new UploadedFile($this->pngFile(), 'iki.png', 'image/png', null, true),
+            ],
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $page = (string) $client->getResponse()->getContent();
+        $bundle = $this->revisionBundle($questionId);
+        self::assertCount(2, $bundle);
+        self::assertStringNotContainsString('image_reference', $bundle[0]['stem']);
+        $stemId = $this->onlyMediaId($bundle[1]['stem']);
+        $explanationId = $this->onlyMediaId($bundle[1]['explanation']);
+        $optionA = $this->onlyMediaId($bundle[1]['options']['opt_a']);
+        $optionB = $this->onlyMediaId($bundle[1]['options']['opt_b']);
+        self::assertSame(['opt_1', 'opt_a'], $this->answerKeys($questionId));
+        foreach ([$stemId, $explanationId, $optionA, $optionB] as $mediaId) {
+            self::assertStringNotContainsString($mediaId, $page);
+            self::assertSame(['pending', 'pending'], $this->assetFlags($mediaId));
+        }
+        self::assertNotContains($stemId, [$explanationId, $optionA, $optionB]);
+        self::assertNotContains($optionA, [$explanationId, $optionB]);
+        self::assertNotSame($explanationId, $optionB);
+        self::assertStringNotContainsString('storageKey', $page);
+        $client->request('GET', $path.'/gorunum');
+        $preview = (string) $client->getResponse()->getContent();
+        foreach ([$stemId, $explanationId, $optionA, $optionB] as $mediaId) {
+            self::assertStringNotContainsString($mediaId, $preview);
+        }
+        self::assertStringNotContainsString('storageKey', $preview);
+
+        $edit = $client->request('GET', $path.'/duzenle?grade=1&subject_id='.$ids['subject']);
+        $token = (string) $edit->filter('#question-editor input[name="_token"]')->attr('value');
+        $client->request('POST', $path.'/duzenle', $this->payload($ids, [
+            '_token' => $token,
+            'expected_revision' => '2',
+            'image_slots' => '1',
+            'stem' => 'Ikinci kok',
+            'explanation' => 'Cozum',
+            'options' => ['Iki', 'Bir'],
+            'option_keys' => ['opt_b', 'opt_a'],
+            'correct' => '2',
+            'keep_slot' => ['stem', 'opt_a'],
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $after = $this->revisionBundle($questionId);
+        self::assertCount(3, $after);
+        self::assertSame($bundle[1]['stem'], $after[1]['stem']);
+        self::assertSame($stemId, $this->onlyMediaId($after[2]['stem']));
+        self::assertSame($optionA, $this->onlyMediaId($after[2]['options']['opt_a']));
+        self::assertStringNotContainsString('image_reference', $after[2]['options']['opt_b']);
+        self::assertStringNotContainsString('image_reference', $after[2]['explanation']);
+        self::assertSame(['opt_1', 'opt_a', 'opt_a'], $this->answerKeys($questionId));
+        self::assertSame('opt_b', array_key_first($after[2]['options']));
+        $this->postAction($client, 'incelemeye-gonder');
+        self::assertStringContainsString('Bekleyen görsel incelenemez veya yayımlanamaz.', (string) $client->getResponse()->getContent());
     }
 
     public function testSuperAdminImageScanPostStaysOnTheQuestionAndDoesNotLeak(): void
@@ -908,6 +994,69 @@ final class AdminQuestionControllerTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return $keys;
+    }
+
+    /**
+     * @return list<array{stem: string, explanation: string, options: array<string, string>}>
+     */
+    private function revisionBundle(string $questionId): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $question = $em->find(Question::class, Uuid::fromString($questionId));
+        self::assertInstanceOf(Question::class, $question);
+        $revisions = $em->getRepository(QuestionRevision::class)->findBy(['question' => $question], ['revisionNumber' => 'ASC']);
+        $bundle = [];
+        foreach ($revisions as $revision) {
+            self::assertInstanceOf(QuestionRevision::class, $revision);
+            $options = [];
+            $rows = $em->getRepository(QuestionRevisionOption::class)->findBy(['revision' => $revision], ['position' => 'ASC']);
+            foreach ($rows as $row) {
+                self::assertInstanceOf(QuestionRevisionOption::class, $row);
+                $encoded = json_encode($row->getContent());
+                self::assertIsString($encoded);
+                $options[$row->getStableKey()] = $encoded;
+            }
+            $stem = json_encode($revision->getStemContent());
+            $explanation = json_encode($revision->getExplanationContent());
+            self::assertIsString($stem);
+            self::assertIsString($explanation);
+            $bundle[] = [
+                'stem' => $stem,
+                'explanation' => $explanation,
+                'options' => $options,
+            ];
+        }
+        self::ensureKernelShutdown();
+
+        return $bundle;
+    }
+
+    private function onlyMediaId(string $json): string
+    {
+        preg_match_all('/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/', $json, $matches);
+        self::assertCount(1, $matches[0]);
+
+        return $matches[0][0];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function assetFlags(string $id): array
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $asset = $em->find(StoredMediaAsset::class, Uuid::fromString($id));
+        self::assertInstanceOf(StoredMediaAsset::class, $asset);
+        $flags = [$asset->getStatus()->value, $asset->getScanStatus()->value];
+        self::ensureKernelShutdown();
+
+        return $flags;
     }
 
     private function mediaCount(): int

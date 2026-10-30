@@ -227,13 +227,10 @@ final class QuestionContentValidator
     {
         $lower = strtolower($text);
         if (
-            str_contains($lower, '<')
-            || str_contains($lower, '>')
-            || str_contains($lower, 'javascript:')
+            str_contains($lower, 'javascript:')
             || str_contains($lower, 'onerror=')
             || str_contains($lower, 'onload=')
-            || str_contains($lower, '<script')
-            || str_contains($lower, '<iframe')
+            || 1 === preg_match('/<\/?[a-z][^<>]*>/i', $text)
         ) {
             throw QuestionException::contentInvalid('Content must not contain HTML or executable markup.');
         }

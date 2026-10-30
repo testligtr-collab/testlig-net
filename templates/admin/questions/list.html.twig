@@ -132,7 +132,7 @@
                                     <p class="admin-question__meta">{{ row.type }} · {{ row.subject }} · {{ row.grade }} · {{ row.difficulty }} · Sürüm #{{ row.revision }}</p>
                                     <div class="admin-question__usage-mobile">
                                         {% if not can_view_tests %}
-                                            <p class="admin-question-usage__empty">Kullanım bu yetkiyle görüntülenmez.</p>
+                                            <p class="admin-question-usage__empty">Kullanım bilgisine erişiminiz yok</p>
                                         {% elseif row.usages is empty %}
                                             <p class="admin-question-usage__empty">Henüz kullanılmadı</p>
                                         {% else %}
@@ -163,7 +163,7 @@
                                 <td class="admin-question__status"><span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span></td>
                                 <td class="admin-question__usage">
                                     {% if not can_view_tests %}
-                                        <p class="admin-question-usage__empty">Kullanım bu yetkiyle görüntülenmez.</p>
+                                        <p class="admin-question-usage__empty">Kullanım bilgisine erişiminiz yok</p>
                                     {% elseif row.usages is empty %}
                                         <p class="admin-question-usage__empty">Henüz kullanılmadı</p>
                                     {% else %}

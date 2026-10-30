@@ -7,6 +7,7 @@ namespace App\Tests\Question\Content;
 use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
 use App\Question\Content\QuestionContentValidator;
+use App\Question\Content\QuestionContentView;
 use App\Question\Content\QuestionMathExpression;
 use App\Question\Content\QuestionPlainText;
 use PHPUnit\Framework\TestCase;
@@ -45,13 +46,16 @@ final class QuestionMathExpressionTest extends TestCase
             'CO_{2}',
             'a \times 10^{n}',
             '2 + 2 = 4',
+            'x < y',
+            'x > y',
+            '\frac{1}{\frac{2}{3}}',
         ] as $latex) {
             $view = QuestionMathExpression::view($latex);
             self::assertNotSame('', $view['kind'] ?? null, $latex);
         }
         $fraction = QuestionMathExpression::view('\frac{a}{b}');
         self::assertSame('frac', $fraction['kind']);
-        foreach (['\href{http://evil}', '\input{secret}', '\includegraphics{a}', '<script>', 'javascript:alert(1)'] as $unsafe) {
+        foreach (['\href{http://evil}', '\input{secret}', '\includegraphics{a}', '<script>', 'javascript:alert(1)', 'a<b>c', str_repeat('a', 401)] as $unsafe) {
             $accepted = false;
             try {
                 QuestionMathExpression::assertSafe($unsafe);
@@ -87,5 +91,40 @@ final class QuestionMathExpressionTest extends TestCase
         } catch (QuestionException $exception) {
             self::assertSame('Invalid math expression.', $exception->getMessage());
         }
+    }
+
+    public function testComparisonSignsStayReadableAndHostileNestingIsRejected(): void
+    {
+        $validator = new QuestionContentValidator();
+        $validator->validate(QuestionContentDocument::fromArray([
+            'schemaVersion' => 1,
+            'blocks' => [['type' => 'paragraph', 'text' => '3 < 5 ve 7 > 2']],
+        ]));
+        $nested = '1';
+        for ($depth = 0; $depth < 8; ++$depth) {
+            $nested = '\frac{'.$nested.'}{1}';
+        }
+        QuestionMathExpression::assertSafe($nested);
+        $tooDeep = '\frac{'.$nested.'}{1}';
+        try {
+            QuestionMathExpression::assertSafe($tooDeep);
+            self::fail('deep math was accepted');
+        } catch (\InvalidArgumentException) {
+            self::assertTrue(true);
+        }
+        $view = QuestionContentView::blocks([
+            'schemaVersion' => 1,
+            'blocks' => [
+                ['type' => 'paragraph', 'inlines' => [['type' => 'math', 'latex' => 'x < y']]],
+                ['type' => 'image_reference', 'mediaId' => '22222222-2222-4222-8222-222222222222'],
+            ],
+        ], false);
+        self::assertCount(1, $view);
+        self::assertSame('paragraph', $view[0]['kind']);
+        $encoded = json_encode($view);
+        self::assertIsString($encoded);
+        self::assertStringContainsString('<', $encoded);
+        self::assertStringNotContainsString('22222222-2222-4222-8222-222222222222', $encoded);
+        self::assertStringNotContainsString('image_reference', $encoded);
     }
 }

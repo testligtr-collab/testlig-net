@@ -6,11 +6,28 @@ export default class extends Controller {
     connect() {
         this.history = new WeakMap();
         this.syncing = false;
+        this.previewBound = new WeakSet();
         this.element.querySelectorAll('[data-editor-field]').forEach((field) => this.bind(field));
+        this.bindPreviews(this.element);
         this.element.addEventListener('submit', () => this.syncAll());
-        const file = this.element.querySelector('#question-image');
-        const frame = this.element.querySelector('[data-image-preview]');
-        file?.addEventListener('change', () => this.previewFile(file, frame));
+        this.element.addEventListener('question-editor:bind', (event) => {
+            const field = event.detail?.field;
+            if (field instanceof HTMLElement) {
+                this.bind(field);
+                this.bindPreviews(field);
+            }
+        });
+    }
+
+    bindPreviews(root) {
+        root.querySelectorAll('[data-image-file]').forEach((file) => {
+            if (this.previewBound.has(file)) {
+                return;
+            }
+            this.previewBound.add(file);
+            const frame = file.closest('.admin-question-image-box')?.querySelector('[data-image-preview]');
+            file.addEventListener('change', () => this.previewFile(file, frame));
+        });
     }
 
     bind(field) {
@@ -113,7 +130,7 @@ export default class extends Controller {
     syncAll() {
         this.element.querySelectorAll('[data-editor-field]').forEach((field) => {
             const surface = field.querySelector('[data-editor-surface]');
-            const hidden = field.querySelector('input[type="hidden"]');
+            const hidden = field.querySelector('[data-editor-document]');
             if (!surface || !hidden) {
                 return;
             }

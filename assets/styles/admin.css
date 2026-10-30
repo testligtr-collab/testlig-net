@@ -4254,6 +4254,7 @@ body.is-admin-panel {
     min-width: 0;
     max-width: 100%;
 }
+.is-admin-panel .admin-question-page .admin-question-stem-layout > .admin-question-hint { grid-column: 1 / -1; }
 .is-admin-panel .admin-question-page .q-field,
 .is-admin-panel .admin-question-page .admin-question-option,
 .is-admin-panel .admin-question-page .admin-question-image-box,
@@ -4346,6 +4347,10 @@ body.is-admin-panel {
 .is-admin-panel .admin-question-page .q-over { white-space: nowrap; }
 .is-admin-panel .admin-question-page .q-over { border-top: 1px solid currentColor; }
 .is-admin-panel .admin-question-page .admin-question-image-box { display: grid; gap: 0.45rem; align-content: start; }
+.is-admin-panel .admin-question-page .admin-question-image-box input[type="file"] {
+    min-height: 2.75rem;
+    max-width: 100%;
+}
 .is-admin-panel .admin-question-page .admin-question-image-frame {
     display: flex;
     align-items: center;

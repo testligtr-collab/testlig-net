@@ -9,8 +9,8 @@ use App\Question\Content\QuestionContentDocument;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Places the one revision image on the stem, an option, or the explanation.
- * The client cannot choose a media identifier.
+ * Places server-owned images on the stem, an option, or the explanation.
+ * Each slot is independent. The client cannot choose a media identifier.
  */
 final class QuestionImagePlacement
 {
@@ -91,6 +91,73 @@ final class QuestionImagePlacement
         }
 
         throw QuestionException::invalidInput('Image target is invalid.');
+    }
+
+    /**
+     * @param array<string, mixed>|null                                                       $explanation
+     * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options
+     * @param array<string, array{type: string, mediaId: string}>                             $blocksBySlot
+     *
+     * @return array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>}
+     */
+    public function place(
+        QuestionContentDocument $stem,
+        ?array $explanation,
+        array $options,
+        array $blocksBySlot,
+    ): array {
+        $stem = $this->withoutClientImages($stem);
+        $explanationDocument = null === $explanation ? null : $this->withoutClientImages(QuestionContentDocument::fromArray($explanation));
+        $cleanOptions = [];
+        foreach ($options as $option) {
+            $cleanOptions[] = [
+                'stableKey' => $option['stableKey'],
+                'content' => $this->withoutClientImages($option['content']),
+                'position' => $option['position'],
+            ];
+        }
+        foreach ($blocksBySlot as $slot => $block) {
+            $mediaId = $block['mediaId'];
+            if (!Uuid::isValid($mediaId)) {
+                throw QuestionException::imageRejected('question_image_scope');
+            }
+            $reference = ['type' => 'image_reference', 'mediaId' => $mediaId];
+            if ('stem' === $slot) {
+                $stem = $this->append($stem, $reference);
+                continue;
+            }
+            if ('explanation' === $slot) {
+                $base = $explanationDocument ?? new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, []);
+                $explanationDocument = $this->append($base, $reference);
+                continue;
+            }
+            if (!str_starts_with($slot, 'option:')) {
+                throw QuestionException::invalidInput('Image target is invalid.');
+            }
+            $key = substr($slot, 7);
+            $found = false;
+            foreach ($cleanOptions as $index => $option) {
+                if ($option['stableKey'] !== $key) {
+                    continue;
+                }
+                $cleanOptions[$index] = [
+                    'stableKey' => $option['stableKey'],
+                    'content' => $this->append($option['content'], $reference),
+                    'position' => $option['position'],
+                ];
+                $found = true;
+                break;
+            }
+            if (!$found) {
+                throw QuestionException::invalidInput('Image target is invalid.');
+            }
+        }
+
+        return [
+            'stem' => $stem,
+            'explanation' => $explanationDocument?->export(),
+            'options' => $cleanOptions,
+        ];
     }
 
     /**

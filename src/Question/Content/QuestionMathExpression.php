@@ -36,7 +36,7 @@ final class QuestionMathExpression
      */
     private static function parse(string $latex): array
     {
-        if (mb_strlen($latex) > self::MAX_LENGTH || 1 === preg_match('/[<>]/', $latex)) {
+        if (mb_strlen($latex) > self::MAX_LENGTH || self::containsHostileMarkup($latex)) {
             throw new \InvalidArgumentException('Unsafe math expression.');
         }
         $parser = new self($latex);
@@ -157,6 +157,11 @@ final class QuestionMathExpression
         }
         if ('\\' === $char) {
             return $this->command($depth);
+        }
+        if ('<' === $char || '>' === $char) {
+            ++$this->i;
+
+            return ['kind' => 'text', 'text' => $char];
         }
         if (1 === preg_match('/[A-Za-z0-9]/', $char)) {
             $start = $this->i;
@@ -310,5 +315,15 @@ final class QuestionMathExpression
     private function startsWith(string $needle): bool
     {
         return str_starts_with(substr($this->source, $this->i), $needle);
+    }
+
+    private static function containsHostileMarkup(string $latex): bool
+    {
+        $lower = strtolower($latex);
+
+        return str_contains($lower, 'javascript:')
+            || str_contains($lower, 'onerror=')
+            || str_contains($lower, 'onload=')
+            || 1 === preg_match('/<\/?[a-z][^<>]*>/i', $latex);
     }
 }

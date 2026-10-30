@@ -94,9 +94,34 @@ export default class extends Controller {
         if (radio) {
             radio.checked = false;
         }
+        const key = copy.querySelector('input[name="option_keys[]"]');
+        if (key) {
+            key.value = this.freshKey();
+        }
+        const file = copy.querySelector('[data-image-file]');
+        if (file) {
+            file.value = '';
+        }
+        copy.querySelector('input[name="keep_slot[]"]')?.closest('label')?.remove();
+        const frame = copy.querySelector('[data-image-preview]');
+        if (frame) {
+            frame.replaceChildren();
+            const note = document.createElement('p');
+            note.textContent = '250 × 250 önizleme. Görsel oranını korur.';
+            frame.appendChild(note);
+        }
         this.list.appendChild(copy);
+        this.element.dispatchEvent(new CustomEvent('question-editor:bind', { detail: { field: copy } }));
         this.dirty = true;
         this.renumber();
+    }
+
+    freshKey() {
+        const bytes = new Uint8Array(6);
+        crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+
+        return `opt_${hex}`;
     }
 
     remove(event) {

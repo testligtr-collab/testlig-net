@@ -56,11 +56,19 @@ final class QuestionSingleChoiceForm
         if ($correct < 1 || $correct > \count($texts)) {
             throw QuestionException::invalidInput('Exactly one correct option is required.');
         }
+        $postedKeys = $request->request->all('option_keys');
 
         /** @var list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options */
         $options = [];
+        $seenKeys = [];
         foreach ($texts as $index => $document) {
-            $options[] = $this->optionRow($document, $index + 1);
+            $rawKey = $postedKeys[$index] ?? null;
+            $row = $this->optionRow($document, $index + 1, \is_string($rawKey) ? $rawKey : null);
+            if (isset($seenKeys[$row['stableKey']])) {
+                throw QuestionException::invalidInput('Option identity is invalid.');
+            }
+            $seenKeys[$row['stableKey']] = true;
+            $options[] = $row;
         }
 
         $explanation = $this->fieldDocument(
@@ -76,13 +84,15 @@ final class QuestionSingleChoiceForm
             throw QuestionException::invalidInput('Outcome is required.');
         }
 
+        $answerKey = $options[$correct - 1]['stableKey'];
+
         return [
             'grade' => $grade,
             'difficulty' => $difficulty,
             'stem' => $stem,
             'explanation' => $explanation?->export(),
             'options' => $options,
-            'answerSpec' => $this->answerSpec($correct),
+            'answerSpec' => ['correctStableKey' => $answerKey],
             'outcomeId' => $this->plainString($outcomeId),
         ];
     }
@@ -104,21 +114,15 @@ final class QuestionSingleChoiceForm
     /**
      * @return array{stableKey: string, content: QuestionContentDocument, position: int}
      */
-    private function optionRow(QuestionContentDocument $content, int $position): array
+    private function optionRow(QuestionContentDocument $content, int $position, ?string $key): array
     {
+        $stable = \is_string($key) && 1 === preg_match('/^[a-z0-9_]{2,32}$/', $key) ? $key : 'opt_'.$position;
+
         return [
-            'stableKey' => $this->plainString('opt_'.$position),
+            'stableKey' => $this->plainString($stable),
             'content' => $content,
             'position' => $position,
         ];
-    }
-
-    /**
-     * @return array{correctStableKey: string}
-     */
-    private function answerSpec(int $correct): array
-    {
-        return ['correctStableKey' => $this->plainString('opt_'.$correct)];
     }
 
     private function plainString(string $value): string
@@ -179,7 +183,7 @@ final class QuestionSingleChoiceForm
             }
             throw QuestionException::invalidInput($emptyMessage);
         }
-        if (1 === preg_match('/[<>]/', $plain) || str_contains(strtolower($plain), 'javascript:')) {
+        if ($this->hasHostileMarkup($plain)) {
             throw QuestionException::contentInvalid($markupCode);
         }
         $document = QuestionContentDocument::paragraph($plain);
@@ -190,7 +194,7 @@ final class QuestionSingleChoiceForm
 
     private function structured(string $raw, string $emptyMessage, string $markupCode, bool $required): ?QuestionContentDocument
     {
-        if (\strlen($raw) > 30000 || str_contains(strtolower($raw), '<script') || str_contains($raw, '<')) {
+        if (\strlen($raw) > 30000 || $this->hasHostileMarkup($raw)) {
             throw QuestionException::contentInvalid($markupCode);
         }
         try {
@@ -220,5 +224,15 @@ final class QuestionSingleChoiceForm
         }
 
         return $document;
+    }
+
+    private function hasHostileMarkup(string $value): bool
+    {
+        $lower = strtolower($value);
+
+        return str_contains($lower, 'javascript:')
+            || str_contains($lower, 'onerror=')
+            || str_contains($lower, 'onload=')
+            || 1 === preg_match('/<\/?[a-z][^<>]*>/i', $value);
     }
 }

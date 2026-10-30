@@ -123,12 +123,16 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await capture(page, info, `admin-soru-taslak-${viewport.name}.png`);
   }
 
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto(`${data.paths.questionPublished}/gorunum`);
-  await expect(page.getByRole('heading', { level: 1, name: 'Önizleme' })).toBeVisible();
-  await expect(page.getByText('Doğru cevap')).toHaveCount(0);
-  await expect(page.getByText('Dort')).toBeVisible();
-  await expect(page.getByText('correctStableKey')).toHaveCount(0);
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto(`${data.paths.questionPublished}/gorunum`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Önizleme' })).toBeVisible();
+    await expect(page.getByText('Doğru cevap')).toHaveCount(0);
+    await expect(page.getByText('Dort')).toBeVisible();
+    await expect(page.getByText('correctStableKey')).toHaveCount(0);
+    await assertLayout(page);
+    await capture(page, info, `admin-soru-gorunum-${viewport.name}.png`);
+  }
 
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
@@ -148,7 +152,18 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await expect(page.getByRole('button', { name: 'Taslak kaydet' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'İncelemeye gönder' })).toBeVisible();
     await expect(page.locator('.option-row')).toHaveCount(2);
+    await expect(page.locator('#question-editor input[type="file"]')).toHaveCount(4);
+    await expect(page.getByText('Soru kökü görseli').first()).toBeVisible();
+    await expect(page.getByText('Seçenek görseli').first()).toBeVisible();
+    await expect(page.getByText('Çözüm görseli').first()).toBeVisible();
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
+    if (viewport.width < 1024) {
+      const tool = await page.getByRole('button', { name: 'Kalın' }).first().boundingBox();
+      const file = await page.locator('#question-editor input[type="file"]').first().boundingBox();
+      expect(tool && file).toBeTruthy();
+      expect(tool!.height).toBeGreaterThanOrEqual(44);
+      expect(file!.height).toBeGreaterThanOrEqual(44);
+    }
     if (viewport.name === '1440') {
       const stem = page.locator('.admin-question-stem-layout .q-surface');
       await stem.focus();
@@ -160,8 +175,16 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
       const before = await page.locator('.option-row').count();
       await page.locator('#add-option').click();
       await expect(page.locator('.option-row')).toHaveCount(before + 1);
+      await expect(page.locator('#question-editor input[type="file"]')).toHaveCount(5);
       await page.locator('[data-remove-option]').last().click();
       await expect(page.locator('.option-row')).toHaveCount(before);
+      await expect(page.locator('#question-editor input[type="file"]')).toHaveCount(4);
+      await page.getByRole('button', { name: 'Küçüktür' }).first().click();
+      await page.getByRole('button', { name: 'Büyüktür' }).first().click();
+      await page.getByRole('button', { name: 'Üçgen' }).first().click();
+      await page.getByRole('button', { name: 'Bilimsel gösterim' }).first().click();
+      await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x < y' })).toBeVisible();
+      await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x > y' })).toBeVisible();
     }
     await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
     await assertLayout(page);
@@ -172,6 +195,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/sorular/yeni');
     await expect(page.getByRole('heading', { level: 1, name: 'Yeni soru' })).toBeVisible();
+    await expect(page.locator('#question-editor input[type="file"]')).toHaveCount(4);
     await page.locator('#question-stem').evaluate((node) => node.removeAttribute('required'));
     await page.locator('#question-outcome').evaluate((node) => node.removeAttribute('required'));
     await page.locator('textarea[name="options[]"]').nth(0).fill('Bir');
@@ -181,6 +205,8 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
     await page.getByRole('button', { name: 'Taslak kaydet' }).click();
     await expect(page.getByText('Soru metni gerekli.')).toBeVisible();
     await expect(page.locator('#question-explanation')).toHaveValue('Korunan cozum');
+    await expect(page.locator('textarea[name="options[]"]').nth(0)).toHaveValue('Bir');
+    await expect(page.locator('textarea[name="options[]"]').nth(1)).toHaveValue('Iki');
     await assertLayout(page);
     await capture(page, info, `admin-soru-yeni-hata-${viewport.name}.png`);
   }
