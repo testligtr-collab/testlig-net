@@ -29,8 +29,8 @@ use App\Question\Content\QuestionPlainText;
 use App\Question\Image\QuestionImagePlacement;
 use App\Question\Image\QuestionImageRegistrar;
 use App\Question\Image\QuestionRevisionPendingImage;
-use App\Question\Image\StagedQuestionImage;
 use App\Question\Image\Scan\QuestionImageScanAction;
+use App\Question\Image\StagedQuestionImage;
 use App\Question\Usage\QuestionTestUsage;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
@@ -1221,7 +1221,7 @@ final class AdminQuestionController extends AdminBaseController
 
     /**
      * @param array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>} $parsed
-     * @param list<StagedQuestionImage>                                                                                                                                            $staged
+     * @param list<StagedQuestionImage>                                                                                                                                              $staged
      *
      * @return array{0: array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>}, 1: list<StagedQuestionImage>}
      */
