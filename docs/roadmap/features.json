@@ -494,7 +494,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/129",
         "https://github.com/testligtr-collab/testlig-net/pull/133",
         "https://github.com/testligtr-collab/testlig-net/pull/181",
-        "https://github.com/testligtr-collab/testlig-net/pull/182"
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/183"
       ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
@@ -1277,7 +1278,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/179",
         "https://github.com/testligtr-collab/testlig-net/pull/180",
         "https://github.com/testligtr-collab/testlig-net/pull/181",
-        "https://github.com/testligtr-collab/testlig-net/pull/182"
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/183"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null
