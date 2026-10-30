@@ -103,6 +103,24 @@ export default class extends Controller {
             file.value = '';
         }
         copy.querySelector('input[name="keep_slot[]"]')?.closest('label')?.remove();
+        const science = copy.querySelector('[data-editor-science]');
+        science?.removeAttribute('data-tabs-bound');
+        science?.querySelectorAll('[role="tab"]').forEach((tab) => {
+            const selected = tab.getAttribute('data-editor-tab') === 'math';
+            tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+            tab.tabIndex = selected ? 0 : -1;
+        });
+        science?.querySelectorAll('[data-editor-panel]').forEach((panel) => {
+            panel.hidden = panel.getAttribute('data-editor-panel') !== 'math';
+        });
+        const copiedName = copy.querySelector('[data-image-name]');
+        if (copiedName) {
+            copiedName.textContent = copiedName.getAttribute('data-empty-name') || 'Dosya seçilmedi';
+        }
+        const copiedBox = copy.querySelector('.admin-question-image-box');
+        if (copiedBox) {
+            copiedBox.dataset.imageState = 'empty';
+        }
         const frame = copy.querySelector('[data-image-preview]');
         if (frame) {
             frame.replaceChildren();

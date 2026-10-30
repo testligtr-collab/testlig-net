@@ -35,19 +35,19 @@
                             <p class="admin-question-field-error" id="question-error-stem">{{ errors.fields.stem }}</p>
                         {% endif %}
                         <div class="admin-question-stem-layout">
-                            <div class="q-field" data-editor-field data-initial-document="{{ values.stem_document|default('')|e('html_attr') }}">
+                            <div class="q-field admin-question-stem-field" data-editor-field data-initial-document="{{ values.stem_document|default('')|e('html_attr') }}">
                                 {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Soru kökü araçları' } only %}
                                 <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Soru kökü"></div>
                                 <textarea id="question-stem" name="stem" rows="8" required class="q-fallback" aria-invalid="{{ errors.fields.stem|default('') ? 'true' : 'false' }}" {% if errors.fields.stem|default('') %}aria-describedby="question-error-stem"{% endif %}>{{ values.stem }}</textarea>
                                 <input type="hidden" name="stem_document" value="" data-editor-document>
+                                {% include 'admin/questions/_image_slot.html.twig' with {
+                                    name: 'image_stem',
+                                    slot: 'stem',
+                                    label: 'Soru kökü görseli',
+                                    kept: 'stem' in values.kept_slots|default([]),
+                                    error: errors.fields.question_image|default('')
+                                } only %}
                             </div>
-                            {% include 'admin/questions/_image_slot.html.twig' with {
-                                name: 'image_stem',
-                                slot: 'stem',
-                                label: 'Soru kökü görseli',
-                                kept: 'stem' in values.kept_slots|default([]),
-                                error: errors.fields.question_image|default('')
-                            } only %}
                             <p class="admin-question-hint">Her alanın görseli kendi sürümüne ve kendi seçenek kimliğine bağlanır. Yeni dosya taslakta tarama bekler. Hazır olmayan dosya öğrenciye sunulmaz. Önizleme kutusu dosyayı küçültmez.</p>
                         </div>
                     </section>
@@ -65,18 +65,22 @@
                                 {% set option_key = values.option_keys[loop.index0]|default('opt_' ~ loop.index) %}
                                 <div class="option-row admin-question-option" data-editor-field data-initial-document="{{ values.option_documents[loop.index0]|default('')|e('html_attr') }}">
                                     <input type="hidden" name="option_keys[]" value="{{ option_key }}">
-                                    <span class="admin-question-option__letter" aria-hidden="true">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</span>
+                                    <div class="admin-question-option__head">
+                                        <span class="admin-question-option__letter" aria-hidden="true">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</span>
+                                        <div class="admin-question-option__actions">
+                                            <label class="admin-question-correct">
+                                                <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
+                                                Doğru cevap
+                                            </label>
+                                            <button class="btn btn--ghost" type="button" data-remove-option>Kaldır</button>
+                                        </div>
+                                    </div>
                                     {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Seçenek araçları' } only %}
                                     <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Seçenek {{ loop.index }}"></div>
                                     <label class="q-fallback-label">Seçenek
                                         <textarea name="options[]" rows="3" required class="q-fallback">{{ text }}</textarea>
                                     </label>
                                     <input type="hidden" name="options_document[]" value="" data-editor-document>
-                                    <label class="admin-question-correct">
-                                        <input type="radio" name="correct" value="{{ loop.index }}" {{ values.correct == loop.index ? 'checked' : '' }} required>
-                                        Doğru cevap
-                                    </label>
-                                    <button class="btn btn--ghost" type="button" data-remove-option>Kaldır</button>
                                     {% include 'admin/questions/_image_slot.html.twig' with {
                                         name: 'image_option[]',
                                         slot: option_key,
@@ -95,7 +99,7 @@
                         {% if errors.fields.explanation|default('') %}
                             <p class="admin-question-field-error" id="question-error-explanation">{{ errors.fields.explanation }}</p>
                         {% endif %}
-                        <div class="q-field" data-editor-field data-initial-document="{{ values.explanation_document|default('')|e('html_attr') }}">
+                        <div class="q-field admin-question-stem-field" data-editor-field data-initial-document="{{ values.explanation_document|default('')|e('html_attr') }}">
                             {% include 'admin/questions/_editor_tools.html.twig' with { label: 'Çözüm araçları' } only %}
                             <div class="q-surface" contenteditable="true" role="textbox" aria-multiline="true" data-editor-surface aria-label="Çözüm"></div>
                             <label class="q-fallback-label" for="question-explanation">Çözüm metni
@@ -173,9 +177,10 @@
                     <fieldset class="admin-question-difficulty">
                         <legend>Zorluk</legend>
                         {% for value, label in difficulties %}
-                            <label class="admin-question-pill">
+                            <label class="admin-question-pill admin-question-pill--{{ value }}">
                                 <input type="radio" name="difficulty" value="{{ value }}" form="question-editor" {{ values.difficulty == value ? 'checked' : '' }} {% if loop.first %}required{% endif %}>
-                                {{ label }}
+                                <span>{{ label }}</span>
+                                <span class="admin-question-pill__state">Seçili</span>
                             </label>
                         {% endfor %}
                     </fieldset>

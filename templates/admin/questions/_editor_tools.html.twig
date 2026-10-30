@@ -7,9 +7,14 @@
     <button type="button" data-editor-command="undo" aria-label="Geri al">Geri</button>
     <button type="button" data-editor-command="redo" aria-label="Yeniden yap">İleri</button>
 </div>
-<div class="q-palettes">
-    <div>
-        <span>Matematik</span>
+<div class="q-science" data-editor-science>
+    <div class="q-science-tabs" role="tablist" aria-label="Bilim araçları">
+        <button type="button" role="tab" data-editor-tab="math" aria-selected="true" tabindex="0">Matematik</button>
+        <button type="button" role="tab" data-editor-tab="geometry" aria-selected="false" tabindex="-1">Geometri</button>
+        <button type="button" role="tab" data-editor-tab="chemistry" aria-selected="false" tabindex="-1">Kimya</button>
+        <button type="button" role="tab" data-editor-tab="biology" aria-selected="false" tabindex="-1">Biyoloji</button>
+    </div>
+    <div class="q-science-panel" role="tabpanel" data-editor-panel="math">
         <button type="button" data-editor-math="\frac{a}{b}" aria-label="Kesir">a/b</button>
         <button type="button" data-editor-math="\sqrt{x}" aria-label="Kök">√</button>
         <button type="button" data-editor-math="x^{2}" aria-label="Üs">x²</button>
@@ -22,8 +27,7 @@
         <button type="button" data-editor-math="x > y" aria-label="Büyüktür">&gt;</button>
         <button type="button" data-editor-math="\pi" aria-label="Pi">π</button>
     </div>
-    <div>
-        <span>Geometri</span>
+    <div class="q-science-panel" role="tabpanel" data-editor-panel="geometry" hidden>
         <button type="button" data-editor-math="\angle ABC" aria-label="Açı">∠</button>
         <button type="button" data-editor-math="90^{\circ}" aria-label="Derece">°</button>
         <button type="button" data-editor-math="AB \parallel CD" aria-label="Paralellik">∥</button>
@@ -31,15 +35,13 @@
         <button type="button" data-editor-math="\overline{AB}" aria-label="Doğru parçası">AB</button>
         <button type="button" data-editor-math="\triangle ABC" aria-label="Üçgen">△</button>
     </div>
-    <div>
-        <span>Kimya</span>
+    <div class="q-science-panel" role="tabpanel" data-editor-panel="chemistry" hidden>
         <button type="button" data-editor-math="H_{2}O" aria-label="Su">H₂O</button>
         <button type="button" data-editor-math="Fe^{3+}" aria-label="İyon yükü">Fe³⁺</button>
         <button type="button" data-editor-math="A \rightarrow B" aria-label="Tepkime oku">→</button>
         <button type="button" data-editor-math="A \leftrightarrow B" aria-label="Çift yönlü ok">⇌</button>
     </div>
-    <div>
-        <span>Biyoloji</span>
+    <div class="q-science-panel" role="tabpanel" data-editor-panel="biology" hidden>
         <button type="button" data-editor-math="CO_{2}" aria-label="Karbondioksit">CO₂</button>
         <button type="button" data-editor-math="O_{2}" aria-label="Oksijen">O₂</button>
         <button type="button" data-editor-math="a \times 10^{n}" aria-label="Bilimsel gösterim">×10ⁿ</button>
