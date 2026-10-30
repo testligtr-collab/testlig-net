@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\AssessmentItem;
+use App\Entity\Question;
+use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -24,5 +26,42 @@ class AssessmentItemRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
+    }
+
+    /**
+     * Platform test rows for the given questions. Institution assessments are not loaded.
+     *
+     * @param list<Question> $questions
+     *
+     * @return list<AssessmentItem>
+     */
+    public function findPlatformUsages(array $questions): array
+    {
+        if ([] === $questions) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('item')
+            ->addSelect('assessmentRevision', 'assessment', 'questionRevision', 'question')
+            ->innerJoin('item.assessmentRevision', 'assessmentRevision')
+            ->innerJoin('assessmentRevision.assessment', 'assessment')
+            ->innerJoin('item.questionRevision', 'questionRevision')
+            ->innerJoin('item.question', 'question')
+            ->andWhere('assessment.scope = :scope')
+            ->andWhere('assessment.institution IS NULL')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->orderBy('assessment.code', 'ASC')
+            ->addOrderBy('assessmentRevision.revisionNumber', 'ASC')
+            ->addOrderBy('item.position', 'ASC');
+        $match = $qb->expr()->orX();
+        foreach ($questions as $index => $question) {
+            $match->add('IDENTITY(item.question) = :question'.$index);
+            $qb->setParameter('question'.$index, $question->getId(), 'uuid');
+        }
+
+        /** @var list<AssessmentItem> $rows */
+        $rows = $qb->andWhere($match)->getQuery()->getResult();
+
+        return $rows;
     }
 }

@@ -8,6 +8,8 @@ use App\Enum\GradeLevel;
 use App\Enum\QuestionDifficulty;
 use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
+use App\Question\Content\QuestionContentValidator;
+use App\Question\Content\QuestionPlainText;
 use Symfony\Component\HttpFoundation\Request;
 
 /**
@@ -15,6 +17,11 @@ use Symfony\Component\HttpFoundation\Request;
  */
 final class QuestionSingleChoiceForm
 {
+    public function __construct(
+        private readonly QuestionContentValidator $contentValidator,
+    ) {
+    }
+
     /**
      * @return array{
      *     grade: GradeLevel,
@@ -33,95 +40,199 @@ final class QuestionSingleChoiceForm
             throw QuestionException::invalidInput('Grade is required.');
         }
 
-        $difficulty = match ($request->request->getString('difficulty')) {
-            QuestionDifficulty::Easy->value => QuestionDifficulty::Easy,
-            QuestionDifficulty::Medium->value => QuestionDifficulty::Medium,
-            QuestionDifficulty::Hard->value => QuestionDifficulty::Hard,
-            default => throw QuestionException::invalidInput('Difficulty is required.'),
-        };
-
-        $stem = $this->plainText($request->request->getString('stem'), 'Stem is required.', 'stem_markup');
-        $texts = $this->optionTexts($request);
+        $difficulty = $this->difficulty($request->request->getString('difficulty'));
+        $stem = $this->fieldDocument(
+            $request->request->getString('stem_document'),
+            $request->request->getString('stem'),
+            'Stem is required.',
+            'stem_markup',
+            true,
+        );
+        if (!$stem instanceof QuestionContentDocument) {
+            throw QuestionException::invalidInput('Stem is required.');
+        }
+        $texts = $this->optionDocuments($request);
         $correct = $request->request->getInt('correct');
         if ($correct < 1 || $correct > \count($texts)) {
             throw QuestionException::invalidInput('Exactly one correct option is required.');
         }
+        $postedKeys = $request->request->all('option_keys');
 
+        /** @var list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options */
         $options = [];
-        foreach ($texts as $index => $text) {
-            $position = $index + 1;
-            $options[] = [
-                'stableKey' => 'opt_'.$position,
-                'content' => QuestionContentDocument::paragraph($text),
-                'position' => $position,
-            ];
+        $seenKeys = [];
+        foreach ($texts as $index => $document) {
+            $rawKey = $postedKeys[$index] ?? null;
+            $row = $this->optionRow($document, $index + 1, \is_string($rawKey) ? $rawKey : null);
+            if (isset($seenKeys[$row['stableKey']])) {
+                throw QuestionException::invalidInput('Option identity is invalid.');
+            }
+            $seenKeys[$row['stableKey']] = true;
+            $options[] = $row;
         }
 
-        $explanationRaw = trim($request->request->getString('explanation'));
-        $explanation = null;
-        if ('' !== $explanationRaw) {
-            $explanation = QuestionContentDocument::paragraph($this->plainText($explanationRaw, 'Explanation is invalid.', 'explanation_markup'))->toArray();
-        }
+        $explanation = $this->fieldDocument(
+            $request->request->getString('explanation_document'),
+            $request->request->getString('explanation'),
+            'Explanation is invalid.',
+            'explanation_markup',
+            false,
+        );
 
         $outcomeId = strtolower($request->request->getString('outcome_id'));
         if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $outcomeId)) {
             throw QuestionException::invalidInput('Outcome is required.');
         }
 
+        $answerKey = $options[$correct - 1]['stableKey'];
+
         return [
             'grade' => $grade,
             'difficulty' => $difficulty,
-            'stem' => QuestionContentDocument::paragraph($stem),
-            'explanation' => $explanation,
+            'stem' => $stem,
+            'explanation' => $explanation?->export(),
             'options' => $options,
-            'answerSpec' => ['correctStableKey' => 'opt_'.$correct],
-            'outcomeId' => $outcomeId,
+            'answerSpec' => ['correctStableKey' => $answerKey],
+            'outcomeId' => $this->plainString($outcomeId),
         ];
     }
 
+    private function difficulty(string $value): QuestionDifficulty
+    {
+        $difficulty = QuestionDifficulty::tryFrom($value);
+        if (!$difficulty instanceof QuestionDifficulty || !\in_array($difficulty->value, [
+            QuestionDifficulty::Easy->value,
+            QuestionDifficulty::Medium->value,
+            QuestionDifficulty::Hard->value,
+        ], true)) {
+            throw QuestionException::invalidInput('Difficulty is required.');
+        }
+
+        return $difficulty;
+    }
+
     /**
-     * @return list<string>
+     * @return array{stableKey: string, content: QuestionContentDocument, position: int}
      */
-    private function optionTexts(Request $request): array
+    private function optionRow(QuestionContentDocument $content, int $position, ?string $key): array
+    {
+        $stable = \is_string($key) && 1 === preg_match('/^[a-z0-9_]{2,32}$/', $key) ? $key : 'opt_'.$position;
+
+        return [
+            'stableKey' => $this->plainString($stable),
+            'content' => $content,
+            'position' => $position,
+        ];
+    }
+
+    private function plainString(string $value): string
+    {
+        return $value;
+    }
+
+    /**
+     * @return list<QuestionContentDocument>
+     */
+    private function optionDocuments(Request $request): array
     {
         $rawOptions = $request->request->all('options');
-        $texts = [];
-        foreach ($rawOptions as $raw) {
-            if (!\is_string($raw)) {
+        $rawDocuments = $request->request->all('options_document');
+        $documents = [];
+        $count = max(\count($rawOptions), \count($rawDocuments));
+        for ($index = 0; $index < $count; ++$index) {
+            $documentRaw = $rawDocuments[$index] ?? '';
+            $plain = $rawOptions[$index] ?? '';
+            if (!\is_string($documentRaw) || !\is_string($plain)) {
                 throw QuestionException::invalidInput('Option text is required.');
             }
-            $text = trim($raw);
-            if ('' === $text) {
+            if (!\array_key_exists($index, $rawOptions) && !\array_key_exists($index, $rawDocuments)) {
+                continue;
+            }
+            $document = $this->fieldDocument($documentRaw, $plain, 'Option text is required.', 'option_markup', true);
+            if (!$document instanceof QuestionContentDocument) {
                 throw QuestionException::invalidInput('Option text is required.');
             }
-            $texts[] = $this->plainText($text, 'Option text is required.', 'option_markup');
+            $documents[] = $document;
         }
-        $count = \count($texts);
-        if ($count < 2 || $count > 6) {
+        $total = \count($documents);
+        if ($total < 2 || $total > 6) {
             throw QuestionException::invalidInput('Option count must be 2 to 6.');
         }
         $seen = [];
-        foreach ($texts as $text) {
-            $key = mb_strtolower($text);
-            if (isset($seen[$key])) {
-                throw QuestionException::invalidInput('Duplicate option text.');
+        foreach ($documents as $document) {
+            $key = mb_strtolower(implode("\n", QuestionPlainText::lines($document->toArray())));
+            if ('' === $key || isset($seen[$key])) {
+                throw QuestionException::invalidInput('' === $key ? 'Option text is required.' : 'Duplicate option text.');
             }
             $seen[$key] = true;
         }
 
-        return $texts;
+        return $documents;
     }
 
-    private function plainText(string $value, string $emptyMessage, string $markupCode): string
+    private function fieldDocument(string $documentRaw, string $plain, string $emptyMessage, string $markupCode, bool $required): ?QuestionContentDocument
     {
-        $value = trim($value);
-        if ('' === $value) {
+        $documentRaw = trim($documentRaw);
+        if ('' !== $documentRaw) {
+            return $this->structured($documentRaw, $emptyMessage, $markupCode, $required);
+        }
+        $plain = trim($plain);
+        if ('' === $plain) {
+            if (!$required) {
+                return null;
+            }
             throw QuestionException::invalidInput($emptyMessage);
         }
-        if (1 === preg_match('/[<>]/', $value) || str_contains(strtolower($value), 'javascript:')) {
+        if ($this->hasHostileMarkup($plain)) {
             throw QuestionException::contentInvalid($markupCode);
         }
+        $document = QuestionContentDocument::paragraph($plain);
+        $this->contentValidator->validate($document);
 
-        return $value;
+        return $document;
+    }
+
+    private function structured(string $raw, string $emptyMessage, string $markupCode, bool $required): ?QuestionContentDocument
+    {
+        if (\strlen($raw) > 30000 || $this->hasHostileMarkup($raw)) {
+            throw QuestionException::contentInvalid($markupCode);
+        }
+        try {
+            $decoded = json_decode($raw, true, 16, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw QuestionException::contentInvalid($markupCode);
+        }
+        if (!\is_array($decoded)) {
+            throw QuestionException::contentInvalid($markupCode);
+        }
+        try {
+            $document = QuestionContentDocument::fromArray($decoded);
+            $this->contentValidator->validate($document);
+        } catch (\InvalidArgumentException) {
+            throw QuestionException::contentInvalid($markupCode);
+        } catch (QuestionException $exception) {
+            if ('Invalid math expression.' === $exception->getMessage()) {
+                throw QuestionException::contentInvalid(str_replace('markup', 'math', $markupCode));
+            }
+            throw QuestionException::contentInvalid($markupCode);
+        }
+        if ([] === QuestionPlainText::lines($document->toArray())) {
+            if (!$required) {
+                return null;
+            }
+            throw QuestionException::invalidInput($emptyMessage);
+        }
+
+        return $document;
+    }
+
+    private function hasHostileMarkup(string $value): bool
+    {
+        $lower = strtolower($value);
+
+        return str_contains($lower, 'javascript:')
+            || str_contains($lower, 'onerror=')
+            || str_contains($lower, 'onload=')
+            || 1 === preg_match('/<\/?[a-z][^<>]*>/i', $value);
     }
 }

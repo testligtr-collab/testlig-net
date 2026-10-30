@@ -77,7 +77,7 @@ class QuestionRepository extends ServiceEntityRepository
      */
     public function findPlatformVisible(User $actor, bool $seeAll): array
     {
-        return $this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', false);
+        return $this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', null, false);
     }
 
     /**
@@ -113,6 +113,8 @@ class QuestionRepository extends ServiceEntityRepository
     /**
      * Newest visible platform questions. Subject is joined so the list does not query it per row.
      *
+     * @param list<QuestionDifficulty>|null $difficulties
+     *
      * @return list<Question>
      */
     public function findPlatformVisibleFiltered(
@@ -122,6 +124,7 @@ class QuestionRepository extends ServiceEntityRepository
         ?GradeLevel $grade,
         ?Uuid $subjectId,
         string $text,
+        ?array $difficulties,
         bool $blocked,
     ): array {
         if ($blocked) {
@@ -146,6 +149,11 @@ class QuestionRepository extends ServiceEntityRepository
             $qb->andWhere(
                 'q.code LIKE :needle OR EXISTS (SELECT 1 FROM '.QuestionRevision::class.' revision WHERE revision.question = q AND revision.revisionNumber = q.currentRevisionNumber AND revision.stemContent LIKE :needle)'
             )->setParameter('needle', '%'.$this->like($text).'%');
+        }
+        if (null !== $difficulties && [] !== $difficulties) {
+            $qb->andWhere(
+                'EXISTS (SELECT 1 FROM '.QuestionRevision::class.' difficultyRevision WHERE difficultyRevision.question = q AND difficultyRevision.revisionNumber = q.currentRevisionNumber AND difficultyRevision.difficulty IN (:difficultyFilter))'
+            )->setParameter('difficultyFilter', $difficulties);
         }
 
         /** @var list<Question> $rows */

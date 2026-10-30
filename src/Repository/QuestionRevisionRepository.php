@@ -71,6 +71,20 @@ class QuestionRevisionRepository extends ServiceEntityRepository
         return $row;
     }
 
+    public function findLatestForQuestion(Question $question): ?QuestionRevision
+    {
+        /** @var QuestionRevision|null $row */
+        $row = $this->createQueryBuilder('r')
+            ->andWhere('r.question = :question')
+            ->setParameter('question', $question->getId(), 'uuid')
+            ->orderBy('r.revisionNumber', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return $row;
+    }
+
     public function save(QuestionRevision $revision, bool $flush = true): void
     {
         $this->getEntityManager()->persist($revision);

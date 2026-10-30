@@ -64,10 +64,25 @@ final class QuestionImageRegistrar
      */
     public function finish(?StagedQuestionImage $staged, callable $save): mixed
     {
+        return $this->finishAll($staged instanceof StagedQuestionImage ? [$staged] : [], $save);
+    }
+
+    /**
+     * @template T
+     *
+     * @param list<StagedQuestionImage> $staged
+     * @param callable(): T             $save
+     *
+     * @return T
+     */
+    public function finishAll(array $staged, callable $save): mixed
+    {
         try {
             return $save();
         } catch (\Throwable $error) {
-            $this->discard($staged);
+            foreach ($staged as $item) {
+                $this->discard($item);
+            }
             throw $error;
         }
     }

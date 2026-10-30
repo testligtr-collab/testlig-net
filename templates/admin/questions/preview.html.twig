@@ -17,15 +17,29 @@
         </header>
         <section class="admin-section admin-question-preview" aria-label="Soru önizlemesi">
             <div class="admin-question-preview__body">
-                {% for line in stem_lines %}
-                    <p>{{ line }}</p>
-                {% endfor %}
-                <ol>
+                {% if stem_blocks|default([]) is not empty %}
+                    {% include 'components/question_blocks.html.twig' with { blocks: stem_blocks } only %}
+                {% else %}
+                    {% for line in stem_lines %}
+                        <p>{{ line }}</p>
+                    {% endfor %}
+                {% endif %}
+                <ol class="admin-question-choices">
                     {% for line in option_lines %}
-                        <li>{{ line }}</li>
+                        <li>
+                            <span class="admin-question-option__letter" aria-hidden="true">{{ 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[loop.index0:1] }}</span>
+                            {% if option_blocks[loop.index0]|default([]) is not empty %}
+                                {% include 'components/question_blocks.html.twig' with { blocks: option_blocks[loop.index0] } only %}
+                            {% else %}
+                                {{ line }}
+                            {% endif %}
+                        </li>
                     {% endfor %}
                 </ol>
-                {% if explanation_lines is not empty %}
+                {% if explanation_blocks|default([]) is not empty %}
+                    <h2>Çözüm</h2>
+                    {% include 'components/question_blocks.html.twig' with { blocks: explanation_blocks } only %}
+                {% elseif explanation_lines is not empty %}
                     <h2>Çözüm</h2>
                     {% for line in explanation_lines %}
                         <p>{{ line }}</p>

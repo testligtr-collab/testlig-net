@@ -37,17 +37,25 @@
             {% for question in result.questions %}
                 <li class="student-review-item">
                     <h2>Soru {{ question.position }}</h2>
-                    {% for line in question.stem %}
-                        <p>{{ line }}</p>
-                    {% endfor %}
+                    {% if question.stem_blocks|default([]) is not empty %}
+                        {% include 'components/question_blocks.html.twig' with { blocks: question.stem_blocks } only %}
+                    {% else %}
+                        {% for line in question.stem %}
+                            <p>{{ line }}</p>
+                        {% endfor %}
+                    {% endif %}
                     <p>Cevabın: {% if question.student_answer %}{{ question.student_answer }}{% else %}Boş{% endif %}</p>
                     <p>Doğru cevap: {{ question.correct_answer }}</p>
                     <p>{{ question.label }}</p>
                     {% if question.explanation %}
                         <div class="student-test-explanation">
-                            {% for line in question.explanation %}
-                                <p>{{ line }}</p>
-                            {% endfor %}
+                            {% if question.explanation_blocks|default([]) is not empty %}
+                                {% include 'components/question_blocks.html.twig' with { blocks: question.explanation_blocks } only %}
+                            {% else %}
+                                {% for line in question.explanation %}
+                                    <p>{{ line }}</p>
+                                {% endfor %}
+                            {% endif %}
                         </div>
                     {% endif %}
                 </li>

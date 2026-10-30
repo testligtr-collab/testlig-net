@@ -84,6 +84,14 @@
                         {% endfor %}
                     </select>
                 </label>
+                <label for="question-filter-difficulty">Zorluk
+                    <select id="question-filter-difficulty" name="difficulty">
+                        <option value="">Tümü</option>
+                        <option value="kolay" {% if filters.difficulty|default('') == 'kolay' %}selected{% endif %}>Kolay</option>
+                        <option value="orta" {% if filters.difficulty|default('') == 'orta' %}selected{% endif %}>Orta</option>
+                        <option value="zor" {% if filters.difficulty|default('') == 'zor' %}selected{% endif %}>Zor</option>
+                    </select>
+                </label>
             </div>
             <div class="admin-user-filters__actions">
                 <button type="submit" class="btn admin-user-filters__submit">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
@@ -104,9 +112,11 @@
                         <tr>
                             <th>Soru</th>
                             <th>Ders ve sınıf</th>
+                            <th>Zorluk</th>
                             <th>Tür</th>
                             <th>Sürüm</th>
                             <th>Durum</th>
+                            <th>Kullanıldığı testler</th>
                             <th>İşlem</th>
                         </tr>
                     </thead>
@@ -119,7 +129,19 @@
                                         <span class="admin-question__name">{{ row.summary }}</span>
                                         <span class="admin-status admin-question__card-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
                                     </div>
-                                    <p class="admin-question__meta">{{ row.type }} · {{ row.subject }} · {{ row.grade }} · Sürüm #{{ row.revision }}</p>
+                                    <p class="admin-question__meta">{{ row.type }} · {{ row.subject }} · {{ row.grade }} · {{ row.difficulty }} · Sürüm #{{ row.revision }}</p>
+                                    <div class="admin-question__usage-mobile">
+                                        {% if not can_view_tests %}
+                                            <p class="admin-question-usage__empty">Kullanım bilgisine erişiminiz yok</p>
+                                        {% elseif row.usages is empty %}
+                                            <p class="admin-question-usage__empty">Henüz kullanılmadı</p>
+                                        {% else %}
+                                            <details class="admin-question-usage">
+                                                <summary role="button">{{ row.usages|first.title }}{% if row.usages|length > 1 %} +{{ row.usages|length - 1 }}{% endif %}</summary>
+                                                {% include 'admin/questions/_usages.html.twig' with { usages: row.usages, can_view_tests: true } only %}
+                                            </details>
+                                        {% endif %}
+                                    </div>
                                     <div class="admin-question__foot">
                                         <details class="admin-question-tech">
                                             <summary role="button">Teknik bilgiler</summary>
@@ -135,9 +157,22 @@
                                     </div>
                                 </td>
                                 <td class="admin-question__relation">{{ row.subject }} · {{ row.grade }}</td>
+                                <td class="admin-question__difficulty">{{ row.difficulty }}</td>
                                 <td class="admin-question__type">{{ row.type }}</td>
                                 <td class="admin-question__revision">Sürüm #{{ row.revision }}</td>
                                 <td class="admin-question__status"><span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span></td>
+                                <td class="admin-question__usage">
+                                    {% if not can_view_tests %}
+                                        <p class="admin-question-usage__empty">Kullanım bilgisine erişiminiz yok</p>
+                                    {% elseif row.usages is empty %}
+                                        <p class="admin-question-usage__empty">Henüz kullanılmadı</p>
+                                    {% else %}
+                                        <details class="admin-question-usage">
+                                            <summary role="button">{{ row.usages|first.title }}{% if row.usages|length > 1 %} +{{ row.usages|length - 1 }}{% endif %}</summary>
+                                            {% include 'admin/questions/_usages.html.twig' with { usages: row.usages, can_view_tests: true } only %}
+                                        </details>
+                                    {% endif %}
+                                </td>
                                 <td class="admin-question__action"><a class="admin-institution-detail" href="{{ path('app_admin_question_show', {id: row.id}) }}">İncele <span aria-hidden="true">→</span></a></td>
                             </tr>
                         {% endfor %}

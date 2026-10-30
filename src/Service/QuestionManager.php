@@ -113,6 +113,7 @@ final class QuestionManager
      * @param list<array{learningOutcome: CurriculumLearningOutcome, isPrimary: bool}>                             $alignments
      * @param QuestionContentDocument|array<string, mixed>                                                         $stem
      * @param array<string, mixed>|null                                                                            $explanation
+     * @param list<StagedQuestionImage>                                                                            $images
      */
     public function createDraftQuestion(
         User $actor,
@@ -133,6 +134,7 @@ final class QuestionManager
         ?string $sourceReference = null,
         ?Uuid $id = null,
         ?StagedQuestionImage $image = null,
+        array $images = [],
     ): Question {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $stemDoc = $stem instanceof QuestionContentDocument ? $stem : QuestionContentDocument::fromArray($stem);
@@ -165,6 +167,7 @@ final class QuestionManager
                 $reasonCode,
                 $id,
                 $image,
+                $images,
             ): Question {
                 // Lock order (create): Institution? → Subject → Curriculum → Actor → Question → revision bundle.
                 $lockedInstitution = null;
@@ -190,7 +193,9 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayCreate($freshActor, $scope, $lockedInstitution);
-                $this->registerStagedImage($freshActor, $scope, $lockedInstitution, $image);
+                foreach ($this->stagedImages($image, $images) as $stagedImage) {
+                    $this->registerStagedImage($freshActor, $scope, $lockedInstitution, $stagedImage);
+                }
                 $this->imageReferences->assertDraftReferences($scope, $lockedInstitution, $stemDoc, $explanationDoc, $options);
 
                 $now = \DateTimeImmutable::createFromInterface($this->clock->now());
@@ -266,6 +271,7 @@ final class QuestionManager
      * @param list<array{learningOutcome: CurriculumLearningOutcome, isPrimary: bool}>                             $alignments
      * @param QuestionContentDocument|array<string, mixed>                                                         $stem
      * @param array<string, mixed>|null                                                                            $explanation
+     * @param list<StagedQuestionImage>                                                                            $images
      */
     public function createRevision(
         Question $question,
@@ -282,6 +288,7 @@ final class QuestionManager
         QuestionSourceType $sourceType = QuestionSourceType::Original,
         ?string $sourceReference = null,
         ?StagedQuestionImage $image = null,
+        array $images = [],
     ): QuestionRevision {
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $stemDoc = $stem instanceof QuestionContentDocument ? $stem : QuestionContentDocument::fromArray($stem);
@@ -309,6 +316,7 @@ final class QuestionManager
                 $sourceReference,
                 $reasonCode,
                 $image,
+                $images,
             ): QuestionRevision {
                 // Curriculum locked before question when outcome IDs are known from the request.
                 $lockedQuestion = $this->lockQuestionWithScope($questionId, $outcomeIds);
@@ -321,7 +329,9 @@ final class QuestionManager
                     throw QuestionException::userNotFound();
                 }
                 $this->assertActorMayManageContent($freshActor, $lockedQuestion);
-                $this->registerStagedImage($freshActor, $lockedQuestion->getScope(), $lockedQuestion->getInstitution(), $image);
+                foreach ($this->stagedImages($image, $images) as $stagedImage) {
+                    $this->registerStagedImage($freshActor, $lockedQuestion->getScope(), $lockedQuestion->getInstitution(), $stagedImage);
+                }
                 $this->imageReferences->assertDraftReferences(
                     $lockedQuestion->getScope(),
                     $lockedQuestion->getInstitution(),
@@ -921,6 +931,26 @@ final class QuestionManager
         }
 
         return $specs;
+    }
+
+    /**
+     * @param list<StagedQuestionImage> $images
+     *
+     * @return list<StagedQuestionImage>
+     */
+    private function stagedImages(?StagedQuestionImage $image, array $images): array
+    {
+        $staged = [];
+        if ($image instanceof StagedQuestionImage) {
+            $staged[] = $image;
+        }
+        foreach ($images as $extra) {
+            if (!\in_array($extra, $staged, true)) {
+                $staged[] = $extra;
+            }
+        }
+
+        return $staged;
     }
 
     private function registerStagedImage(User $actor, QuestionScope $scope, ?Institution $institution, ?StagedQuestionImage $image): void

@@ -8,6 +8,7 @@ use App\Enum\QuestionType;
 use App\Exception\QuestionException;
 use App\Question\Content\QuestionContentDocument;
 use App\Question\Content\QuestionContentValidator;
+use App\Question\Content\QuestionPlainText;
 
 /**
  * Central answer-key policy for supported question types.
@@ -289,30 +290,7 @@ final class QuestionTypeAnswerValidator
      */
     private function visibleOptionText(array $content): string
     {
-        $blocks = $content['blocks'] ?? null;
-        if (!\is_array($blocks)) {
-            return '';
-        }
-        $parts = [];
-        foreach ($blocks as $block) {
-            if (!\is_array($block)) {
-                continue;
-            }
-            $text = $block['text'] ?? null;
-            if (\is_string($text) && '' !== trim($text)) {
-                $parts[] = trim($text);
-            }
-            $items = $block['items'] ?? null;
-            if (\is_array($items)) {
-                foreach ($items as $item) {
-                    if (\is_string($item) && '' !== trim($item)) {
-                        $parts[] = trim($item);
-                    }
-                }
-            }
-        }
-
-        return trim(implode(' ', $parts));
+        return trim(implode(' ', QuestionPlainText::lines($content)));
     }
 
     private function normalizeDecimal(string $raw): string

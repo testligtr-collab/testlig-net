@@ -22,10 +22,16 @@ use App\Exception\LearningContentException;
 use App\Exception\QuestionException;
 use App\Presentation\ContentWorkflowReason;
 use App\Presentation\QuestionWorkflowProgress;
+use App\Question\Content\QuestionAuthorDocument;
+use App\Question\Content\QuestionContentDocument;
+use App\Question\Content\QuestionContentView;
+use App\Question\Content\QuestionPlainText;
+use App\Question\Image\QuestionImagePlacement;
 use App\Question\Image\QuestionImageRegistrar;
-use App\Question\Image\QuestionImageStem;
 use App\Question\Image\QuestionRevisionPendingImage;
 use App\Question\Image\Scan\QuestionImageScanAction;
+use App\Question\Image\StagedQuestionImage;
+use App\Question\Usage\QuestionTestUsage;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\QuestionAnswerKeyRepository;
 use App\Repository\QuestionRepository;
@@ -45,6 +51,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Uuid;
 
 final class AdminQuestionController extends AdminBaseController
 {
@@ -63,8 +70,10 @@ final class AdminQuestionController extends AdminBaseController
         private readonly ContentWorkflowReason $workflowReason,
         private readonly QuestionWorkflowProgress $workflowProgress,
         private readonly QuestionImageRegistrar $images,
+        private readonly QuestionImagePlacement $imagePlacement,
         private readonly QuestionRevisionPendingImage $pendingImages,
         private readonly QuestionImageScanAction $imageScans,
+        private readonly QuestionTestUsage $testUsage,
         private readonly ActiveVerifiedUserPolicy $actors,
     ) {
         parent::__construct($adminNavBuilder);
@@ -85,9 +94,12 @@ final class AdminQuestionController extends AdminBaseController
             $filters['grade'],
             $filters['subject'],
             $filters['text'],
+            $filters['difficulties'],
             $filters['blocked'],
         );
         $revisions = $this->revisions->findCurrentForQuestions($questions);
+        $canViewTests = $this->adminAuthorization->canViewTestBank($actor);
+        $usages = $canViewTests ? $this->testUsage->forQuestions($questions) : [];
         $rows = [];
         foreach ($questions as $question) {
             $revision = $revisions[$question->getId()->toRfc4122()] ?? null;
@@ -95,15 +107,18 @@ final class AdminQuestionController extends AdminBaseController
                 continue;
             }
             $lines = $this->plainLines($revision->getStemContent());
+            $questionId = $question->getId()->toRfc4122();
             $rows[] = [
-                'id' => $question->getId()->toRfc4122(),
+                'id' => $questionId,
                 'code' => $question->getCode(),
                 'summary' => $lines[0] ?? 'Soru metni yok',
                 'subject' => $question->getSubject()->getName(),
                 'grade' => $question->getGradeLevel()->value.'. sınıf',
                 'type' => $this->typeLabel($revision->getType()),
+                'difficulty' => $this->difficultyLabel($revision->getDifficulty()),
                 'status' => $question->getStatus()->value,
                 'revision' => $question->getCurrentRevisionNumber(),
+                'usages' => $usages[$questionId] ?? [],
             ];
         }
 
@@ -114,10 +129,12 @@ final class AdminQuestionController extends AdminBaseController
             'filters' => [
                 'q' => $filters['text'],
                 'status' => $filters['status'] instanceof QuestionStatus ? $filters['status']->value : '',
-                'subject_id' => $filters['subject'] instanceof \Symfony\Component\Uid\Uuid ? $filters['subject']->toRfc4122() : '',
+                'subject_id' => $filters['subject'] instanceof Uuid ? $filters['subject']->toRfc4122() : '',
                 'grade' => $filters['grade'] instanceof GradeLevel ? (string) $filters['grade']->value : '',
+                'difficulty' => $filters['bucket'],
             ],
             'can_author' => $this->adminAuthorization->canAuthorQuestions($actor),
+            'can_view_tests' => $canViewTests,
             'capped' => 100 === \count($rows),
         ]);
     }
@@ -158,8 +175,13 @@ final class AdminQuestionController extends AdminBaseController
             'revision_number' => $revision->getRevisionNumber(),
             'heading' => $stemLines[0] ?? 'Soru',
             'stem_lines' => $stemLines,
+            'stem_blocks' => QuestionContentView::blocks($revision->getStemContent(), true),
             'explanation_lines' => $this->plainLines($revision->getExplanationContent()),
+            'explanation_blocks' => QuestionContentView::blocks($revision->getExplanationContent(), true),
             'option_lines' => $this->optionLines($optionRows),
+            'option_blocks' => $this->optionBlocks($optionRows, true),
+            'usages' => $this->adminAuthorization->canViewTestBank($actor) ? ($this->testUsage->forQuestions([$question])[$question->getId()->toRfc4122()] ?? []) : [],
+            'can_view_tests' => $this->adminAuthorization->canViewTestBank($actor),
             'correct_position' => $canAnswer ? $this->correctPosition($revision, $optionRows) : null,
             'status_label' => $this->statusLabels()[$question->getStatus()->value] ?? 'Bilinmiyor',
             'difficulty_label' => $this->difficultyLabel($revision->getDifficulty()),
@@ -235,12 +257,16 @@ final class AdminQuestionController extends AdminBaseController
     {
         $question = $this->visibleQuestion($id);
         $revision = $this->currentRevision($question);
+        $options = $this->options->findByRevision($revision);
 
         return $this->renderAdmin('admin/questions/preview.html.twig', [
             'question' => $question,
             'stem_lines' => $this->plainLines($revision->getStemContent()),
+            'stem_blocks' => QuestionContentView::blocks($revision->getStemContent(), true),
             'explanation_lines' => $this->plainLines($revision->getExplanationContent()),
-            'option_lines' => $this->optionLines($this->options->findByRevision($revision)),
+            'explanation_blocks' => QuestionContentView::blocks($revision->getExplanationContent(), true),
+            'option_lines' => $this->optionLines($options),
+            'option_blocks' => $this->optionBlocks($options, true),
         ]);
     }
 
@@ -278,27 +304,22 @@ final class AdminQuestionController extends AdminBaseController
             $parsed = $this->form->parse($request);
             $subject = $this->requireSubject($request->request->getString('subject_id'));
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $staged = null;
-            $bytes = $this->uploadedBytes($request);
-            if (null !== $bytes) {
-                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
-                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
-            }
-            $question = $this->images->finish($staged, fn (): Question => $this->questionManager->createDraftQuestion(
+            [$placed, $staged] = $this->bindImages($request, $actor, $parsed, null);
+            $question = $this->images->finishAll($staged, fn (): Question => $this->questionManager->createDraftQuestion(
                 $actor,
                 QuestionScope::Platform,
                 null,
                 $subject,
                 $parsed['grade'],
                 QuestionType::SingleChoice,
-                $parsed['stem'],
-                $parsed['explanation'],
-                $parsed['options'],
+                $placed['stem'],
+                $placed['explanation'],
+                $placed['options'],
                 $parsed['answerSpec'],
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_draft_saved',
-                image: $staged,
+                images: $staged,
             ));
             $this->addFlash('success', 'Taslak kaydedildi.');
 
@@ -324,24 +345,19 @@ final class AdminQuestionController extends AdminBaseController
                 throw QuestionException::invalidInput('Subject cannot change.');
             }
             $outcome = $this->requireOutcome($parsed['outcomeId'], $subject, $parsed['grade']);
-            $staged = null;
-            $bytes = $this->uploadedBytes($request);
-            if (null !== $bytes) {
-                $staged = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
-                $parsed['stem'] = QuestionImageStem::append($parsed['stem'], $staged->assetId);
-            }
-            $this->images->finish($staged, fn (): QuestionRevision => $this->questionManager->createRevision(
+            [$placed, $staged] = $this->bindImages($request, $actor, $parsed, $question);
+            $this->images->finishAll($staged, fn (): QuestionRevision => $this->questionManager->createRevision(
                 $question,
                 $actor,
                 QuestionType::SingleChoice,
-                $parsed['stem'],
-                $parsed['explanation'],
-                $parsed['options'],
+                $placed['stem'],
+                $placed['explanation'],
+                $placed['options'],
                 $parsed['answerSpec'],
                 [['learningOutcome' => $outcome, 'isPrimary' => true]],
                 $parsed['difficulty'],
                 'question_revision_saved',
-                image: $staged,
+                images: $staged,
             ));
             $this->addFlash('success', 'Taslak kaydedildi.');
         } catch (QuestionException $e) {
@@ -436,7 +452,7 @@ final class AdminQuestionController extends AdminBaseController
     private function canScanImage(User $actor, Question $question, QuestionRevision $revision): bool
     {
         return $this->actors->isActiveVerifiedSuperAdmin($actor)
-            && null !== $this->pendingImages->sole($question, $revision);
+            && [] !== $this->pendingImages->pending($question, $revision);
     }
 
     private function flashKind(string $message): string
@@ -447,7 +463,7 @@ final class AdminQuestionController extends AdminBaseController
     private function visibleQuestion(string $id): Question
     {
         try {
-            $questionId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $questionId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException();
         }
@@ -505,7 +521,7 @@ final class AdminQuestionController extends AdminBaseController
     private function requireSubject(string $id): Subject
     {
         try {
-            $subjectId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $subjectId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw QuestionException::invalidInput('Subject is required.');
         }
@@ -520,7 +536,7 @@ final class AdminQuestionController extends AdminBaseController
     private function requireOutcome(string $id, Subject $subject, GradeLevel $grade): CurriculumLearningOutcome
     {
         try {
-            $outcomeId = \Symfony\Component\Uid\Uuid::fromString($id);
+            $outcomeId = Uuid::fromString($id);
         } catch (\InvalidArgumentException) {
             throw QuestionException::alignmentInvalid('Outcome is required.');
         }
@@ -593,7 +609,7 @@ final class AdminQuestionController extends AdminBaseController
     }
 
     /**
-     * @return array{stem: string, explanation: string, options: list<string>, correct: int, difficulty: string, outcome_id: string}
+     * @return array<string, mixed>
      */
     private function formValues(?Question $question): array
     {
@@ -601,25 +617,52 @@ final class AdminQuestionController extends AdminBaseController
             'stem' => '',
             'explanation' => '',
             'options' => ['', ''],
+            'stem_document' => '',
+            'explanation_document' => '',
+            'option_documents' => ['', ''],
             'correct' => 1,
             'difficulty' => QuestionDifficulty::Medium->value,
             'outcome_id' => '',
+            'has_image' => false,
+            'image_slot' => 'stem',
+            'option_keys' => ['opt_1', 'opt_2'],
+            'kept_slots' => [],
         ];
         if (!$question instanceof Question) {
             return $blank;
         }
-        $revision = $this->currentRevision($question);
+        $revision = $this->revisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber())
+            ?? $this->revisions->findLatestForQuestion($question);
+        if (!$revision instanceof QuestionRevision) {
+            throw $this->createNotFoundException();
+        }
         if (QuestionType::SingleChoice !== $revision->getType()) {
             throw $this->createAccessDeniedException();
         }
         $optionRows = $this->options->findByRevision($revision);
         $options = [];
+        $optionDocuments = [];
+        $optionKeys = [];
+        $keptSlots = [];
+        if ($this->documentHasImage($revision->getStemContent())) {
+            $keptSlots[] = 'stem';
+        }
+        if ($this->documentHasImage($revision->getExplanationContent())) {
+            $keptSlots[] = 'explanation';
+        }
         foreach ($optionRows as $option) {
             $lines = $this->plainLines($option->getContent());
             $options[] = $lines[0] ?? '';
+            $optionDocuments[] = QuestionAuthorDocument::json($option->getContent());
+            $optionKeys[] = $option->getStableKey();
+            if ($this->documentHasImage($option->getContent())) {
+                $keptSlots[] = $option->getStableKey();
+            }
         }
         if (\count($options) < 2) {
             $options = ['', ''];
+            $optionDocuments = ['', ''];
+            $optionKeys = ['opt_1', 'opt_2'];
         }
         $primary = '';
         foreach ($this->alignments->findByRevision($revision) as $alignment) {
@@ -628,16 +671,24 @@ final class AdminQuestionController extends AdminBaseController
             }
         }
         $explanation = $this->plainLines($revision->getExplanationContent());
+        $image = $this->currentImageBlock($question);
 
         return [
             'stem' => $this->plainLines($revision->getStemContent())[0] ?? '',
             'explanation' => $explanation[0] ?? '',
             'options' => $options,
+            'stem_document' => QuestionAuthorDocument::json($revision->getStemContent()),
+            'explanation_document' => QuestionAuthorDocument::json($revision->getExplanationContent()),
+            'option_documents' => $optionDocuments,
             'correct' => $this->isGranted(QuestionPermission::ANSWER_KEY_VIEW, $question)
                 ? ($this->correctPosition($revision, $optionRows) ?? 1)
                 : 1,
             'difficulty' => $this->editorDifficulty($revision->getDifficulty()),
             'outcome_id' => $primary,
+            'has_image' => null !== $image,
+            'image_slot' => null !== $image ? $image['slot'] : 'stem',
+            'option_keys' => $optionKeys,
+            'kept_slots' => $keptSlots,
         ];
     }
 
@@ -687,33 +738,7 @@ final class AdminQuestionController extends AdminBaseController
      */
     private function plainLines(?array $document): array
     {
-        if (null === $document) {
-            return [];
-        }
-        $blocks = $document['blocks'] ?? null;
-        if (!\is_array($blocks)) {
-            return [];
-        }
-        $lines = [];
-        foreach ($blocks as $block) {
-            if (!\is_array($block)) {
-                continue;
-            }
-            $text = $block['text'] ?? null;
-            if (\is_string($text) && '' !== trim($text)) {
-                $lines[] = $text;
-            }
-            $items = $block['items'] ?? null;
-            if (\is_array($items)) {
-                foreach ($items as $item) {
-                    if (\is_string($item) && '' !== trim($item)) {
-                        $lines[] = $item;
-                    }
-                }
-            }
-        }
-
-        return $lines;
+        return QuestionPlainText::lines($document);
     }
 
     /**
@@ -741,7 +766,7 @@ final class AdminQuestionController extends AdminBaseController
     /**
      * @param list<Subject> $subjects
      *
-     * @return array{status: ?QuestionStatus, grade: ?GradeLevel, subject: ?\Symfony\Component\Uid\Uuid, text: string, blocked: bool}
+     * @return array{status: ?QuestionStatus, grade: ?GradeLevel, subject: ?Uuid, text: string, difficulties: ?list<QuestionDifficulty>, bucket: string, blocked: bool}
      */
     private function listFilters(Request $request, array $subjects): array
     {
@@ -767,7 +792,17 @@ final class AdminQuestionController extends AdminBaseController
                     break;
                 }
             }
-            $blocked = !$subject instanceof \Symfony\Component\Uid\Uuid;
+            $blocked = !$subject instanceof Uuid;
+        }
+        $bucket = $request->query->getString('difficulty');
+        $difficulties = match ($bucket) {
+            'kolay' => [QuestionDifficulty::VeryEasy, QuestionDifficulty::Easy],
+            'orta' => [QuestionDifficulty::Medium],
+            'zor' => [QuestionDifficulty::Hard, QuestionDifficulty::VeryHard],
+            default => null,
+        };
+        if (!\in_array($bucket, ['kolay', 'orta', 'zor'], true)) {
+            $bucket = '';
         }
 
         return [
@@ -775,6 +810,8 @@ final class AdminQuestionController extends AdminBaseController
             'grade' => $grade,
             'subject' => $subject,
             'text' => $text,
+            'difficulties' => $difficulties,
+            'bucket' => $bucket,
             'blocked' => $blocked,
         ];
     }
@@ -795,7 +832,7 @@ final class AdminQuestionController extends AdminBaseController
      */
     private function imageNote(Question $question, QuestionRevision $revision, array $optionRows): ?string
     {
-        if (null !== $this->pendingImages->sole($question, $revision)) {
+        if ([] !== $this->pendingImages->pending($question, $revision)) {
             return 'Tarama bekliyor. Hazır olmayan görsel öğrenciye sunulmaz.';
         }
         $documents = [$revision->getStemContent(), $revision->getExplanationContent()];
@@ -837,8 +874,10 @@ final class AdminQuestionController extends AdminBaseController
         [$field, $message] = match ($exception->getMessage()) {
             'Stem is required.' => ['stem', 'Soru metni gerekli.'],
             'stem_markup' => ['stem', 'Bu alanda HTML kullanılamaz.'],
+            'stem_math' => ['stem', 'Formül ifadesi kabul edilmiyor.'],
             'Option text is required.' => ['options', 'Seçenek metni gerekli.'],
             'option_markup' => ['options', 'Seçenek metninde HTML kullanılamaz.'],
+            'option_math' => ['options', 'Seçenek formülü kabul edilmiyor.'],
             'Option count must be 2 to 6.' => ['options', 'En az iki, en çok altı seçenek gerekir.'],
             'Duplicate option text.' => ['options', 'Seçenekler aynı olamaz.'],
             'Exactly one correct option is required.' => ['correct', 'Bir doğru cevap seçin.'],
@@ -850,6 +889,8 @@ final class AdminQuestionController extends AdminBaseController
             'Subject cannot change.' => ['subject_id', 'Ders değiştirilemez.'],
             'Explanation is invalid.' => ['explanation', 'Çözüm metni geçersiz.'],
             'explanation_markup' => ['explanation', 'Çözüm metninde HTML kullanılamaz.'],
+            'explanation_math' => ['explanation', 'Çözüm formülü kabul edilmiyor.'],
+            'Image target is invalid.' => ['question_image', 'Görselin yeri geçersiz.'],
             default => [null, QuestionFailureReason::ImageRejected === $exception->getReason()
                 ? $this->imageMessage($exception)
                 : 'Soru kaydedilemedi. Alanları kontrol edin.'],
@@ -865,9 +906,9 @@ final class AdminQuestionController extends AdminBaseController
     }
 
     /**
-     * @param array{stem: string, explanation: string, options: list<string>, correct: int, difficulty: string, outcome_id: string} $values
+     * @param array<string, mixed> $values
      *
-     * @return array{stem: string, explanation: string, options: list<string>, correct: int, difficulty: string, outcome_id: string}
+     * @return array<string, mixed>
      */
     private function postedValues(Request $request, array $values): array
     {
@@ -882,26 +923,122 @@ final class AdminQuestionController extends AdminBaseController
             $options = array_pad($options, 2, '');
         }
         $correct = $request->request->getInt('correct');
+        $fallbackCorrect = $values['correct'] ?? 1;
+        if (!\is_int($fallbackCorrect)) {
+            $fallbackCorrect = 1;
+        }
         if ($correct < 1 || $correct > \count($options)) {
-            $correct = $values['correct'];
+            $correct = $fallbackCorrect;
         }
         $difficulty = $request->request->getString('difficulty');
+        $fallbackDifficulty = $values['difficulty'] ?? QuestionDifficulty::Medium->value;
+        if (!\is_string($fallbackDifficulty)) {
+            $fallbackDifficulty = QuestionDifficulty::Medium->value;
+        }
         if (!\in_array($difficulty, [QuestionDifficulty::Easy->value, QuestionDifficulty::Medium->value, QuestionDifficulty::Hard->value], true)) {
-            $difficulty = $values['difficulty'];
+            $difficulty = $fallbackDifficulty;
         }
         $outcomeId = strtolower($request->request->getString('outcome_id'));
         if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $outcomeId)) {
             $outcomeId = '';
+        }
+        $optionDocuments = [];
+        foreach ($request->request->all('options_document') as $document) {
+            $optionDocuments[] = \is_string($document) ? $this->restoredDocument($document) : '';
+        }
+        if (\count($optionDocuments) < \count($options)) {
+            $optionDocuments = array_pad($optionDocuments, \count($options), '');
         }
 
         return [
             'stem' => $this->safeText($request->request->getString('stem')),
             'explanation' => $this->safeText($request->request->getString('explanation')),
             'options' => $options,
+            'stem_document' => $this->restoredDocument($request->request->getString('stem_document')),
+            'explanation_document' => $this->restoredDocument($request->request->getString('explanation_document')),
+            'option_documents' => $optionDocuments,
             'correct' => $correct,
             'difficulty' => $difficulty,
             'outcome_id' => $outcomeId,
+            'has_image' => true === ($values['has_image'] ?? false),
+            'image_slot' => \in_array($request->request->getString('image_target'), ['stem', 'explanation'], true) || 1 === preg_match('/^option:[1-6]$/', $request->request->getString('image_target'))
+                ? $request->request->getString('image_target')
+                : (\is_string($values['image_slot'] ?? null) ? $values['image_slot'] : 'stem'),
+            'option_keys' => $this->postedOptionKeys($request, $options, $values),
+            'kept_slots' => $this->postedKeptSlots($request),
         ];
+    }
+
+    private function restoredDocument(string $value): string
+    {
+        $value = trim($value);
+        if ('' === $value || \strlen($value) > 30000 || $this->containsMarkup($value) || str_contains($value, 'image_reference') || str_contains($value, 'mediaId')) {
+            return '';
+        }
+        try {
+            $decoded = json_decode($value, true, 16, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return '';
+        }
+
+        return \is_array($decoded) ? $value : '';
+    }
+
+    /**
+     * @param list<\App\Entity\QuestionRevisionOption> $optionRows
+     *
+     * @return list<list<array<string, mixed>>>
+     */
+    private function optionBlocks(array $optionRows, bool $imageNote): array
+    {
+        $blocks = [];
+        foreach ($optionRows as $option) {
+            $blocks[] = QuestionContentView::blocks($option->getContent(), $imageNote);
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * @return array{slot: string, block: array{type: string, mediaId: string}}|null
+     */
+    private function currentImageBlock(Question $question): ?array
+    {
+        $revision = $this->currentRevision($question);
+        $documents = [
+            'stem' => $revision->getStemContent(),
+            'explanation' => $revision->getExplanationContent(),
+        ];
+        $index = 1;
+        foreach ($this->options->findByRevision($revision) as $option) {
+            $documents['option:'.$index] = $option->getContent();
+            ++$index;
+        }
+        $found = null;
+        foreach ($documents as $slot => $document) {
+            $blocks = \is_array($document) ? ($document['blocks'] ?? null) : null;
+            if (!\is_array($blocks)) {
+                continue;
+            }
+            foreach ($blocks as $block) {
+                if (!\is_array($block) || 'image_reference' !== ($block['type'] ?? null)) {
+                    continue;
+                }
+                $mediaId = $block['mediaId'] ?? null;
+                if (!\is_string($mediaId) || !Uuid::isValid($mediaId)) {
+                    continue;
+                }
+                if (null !== $found) {
+                    return null;
+                }
+                $found = [
+                    'slot' => $slot,
+                    'block' => ['type' => 'image_reference', 'mediaId' => $mediaId],
+                ];
+            }
+        }
+
+        return $found;
     }
 
     private function safeText(string $value): string
@@ -911,7 +1048,12 @@ final class AdminQuestionController extends AdminBaseController
 
     private function containsMarkup(string $value): bool
     {
-        return 1 === preg_match('/[<>]/', $value) || str_contains(strtolower($value), 'javascript:');
+        $lower = strtolower($value);
+
+        return str_contains($lower, 'javascript:')
+            || str_contains($lower, 'onerror=')
+            || str_contains($lower, 'onload=')
+            || 1 === preg_match('/<\/?[a-z][^<>]*>/i', $value);
     }
 
     private function editorDifficulty(QuestionDifficulty $difficulty): string
@@ -1029,5 +1171,211 @@ final class AdminQuestionController extends AdminBaseController
         $file = $request->files->get('question_image');
 
         return $file instanceof UploadedFile ? $file->getClientMimeType() : null;
+    }
+
+    /**
+     * @param array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>} $parsed
+     *
+     * @return array{0: array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>}, 1: list<StagedQuestionImage>}
+     */
+    private function bindImages(Request $request, User $actor, array $parsed, ?Question $question): array
+    {
+        $staged = [];
+        try {
+            if ('1' === $request->request->getString('image_slots')) {
+                return $this->bindSlotImages($request, $actor, $parsed, $question, $staged);
+            }
+            $bytes = $this->uploadedBytes($request);
+            $one = null;
+            if (null !== $bytes) {
+                $one = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $this->declaredMime($request));
+                $staged[] = $one;
+            }
+            $existing = null;
+            if (!$one instanceof StagedQuestionImage && $question instanceof Question && '1' === $request->request->getString('keep_image')) {
+                $existing = $this->currentImageBlock($question);
+            }
+            $target = $request->request->getString('image_target');
+            if (null !== $existing && '' === $target) {
+                $target = $existing['slot'];
+            }
+
+            return [
+                $this->imagePlacement->apply(
+                    $parsed['stem'],
+                    $parsed['explanation'],
+                    $parsed['options'],
+                    null !== $existing ? $existing['block'] : null,
+                    $one?->assetId,
+                    $target,
+                ),
+                $staged,
+            ];
+        } catch (\Throwable $error) {
+            foreach ($staged as $item) {
+                $this->images->discard($item);
+            }
+            throw $error;
+        }
+    }
+
+    /**
+     * @param array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>} $parsed
+     * @param list<StagedQuestionImage>                                                                                                                                              $staged
+     *
+     * @return array{0: array{stem: QuestionContentDocument, explanation: array<string, mixed>|null, options: list<array{stableKey: string, content: QuestionContentDocument, position: int}>}, 1: list<StagedQuestionImage>}
+     */
+    private function bindSlotImages(Request $request, User $actor, array $parsed, ?Question $question, array &$staged): array
+    {
+        $existing = $question instanceof Question ? $this->imageBlocksBySlot($question) : [];
+        $keep = [];
+        foreach ($request->request->all('keep_slot') as $slot) {
+            if (\is_string($slot)) {
+                $keep[$slot] = true;
+            }
+        }
+        /** @var array<string, array{type: string, mediaId: string}> $blocks */
+        $blocks = [];
+        foreach (['stem' => 'image_stem', 'explanation' => 'image_explanation'] as $slot => $field) {
+            $file = $request->files->get($field);
+            if ($file instanceof UploadedFile && null !== ($bytes = $this->uploadBytes($file))) {
+                $image = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $file->getClientMimeType());
+                $staged[] = $image;
+                $blocks[$slot] = ['type' => 'image_reference', 'mediaId' => $image->assetId->toRfc4122()];
+            } elseif (isset($keep[$slot], $existing[$slot])) {
+                $blocks[$slot] = $existing[$slot];
+            }
+        }
+        $optionFiles = $request->files->all('image_option');
+        foreach ($parsed['options'] as $index => $option) {
+            $file = $optionFiles[$index] ?? null;
+            $slot = 'option:'.$option['stableKey'];
+            if ($file instanceof UploadedFile && null !== ($bytes = $this->uploadBytes($file))) {
+                $image = $this->images->stage($actor, QuestionScope::Platform, null, $bytes, $file->getClientMimeType());
+                $staged[] = $image;
+                $blocks[$slot] = ['type' => 'image_reference', 'mediaId' => $image->assetId->toRfc4122()];
+            } elseif (isset($keep[$option['stableKey']], $existing[$slot])) {
+                $blocks[$slot] = $existing[$slot];
+            }
+        }
+
+        return [
+            $this->imagePlacement->place($parsed['stem'], $parsed['explanation'], $parsed['options'], $blocks),
+            $staged,
+        ];
+    }
+
+    /**
+     * @return array<string, array{type: string, mediaId: string}>
+     */
+    private function imageBlocksBySlot(Question $question): array
+    {
+        $revision = $this->currentRevision($question);
+        $blocks = [];
+        $stem = $this->firstImageBlock($revision->getStemContent());
+        if (null !== $stem) {
+            $blocks['stem'] = $stem;
+        }
+        $explanation = $this->firstImageBlock($revision->getExplanationContent());
+        if (null !== $explanation) {
+            $blocks['explanation'] = $explanation;
+        }
+        foreach ($this->options->findByRevision($revision) as $option) {
+            $block = $this->firstImageBlock($option->getContent());
+            if (null !== $block) {
+                $blocks['option:'.$option->getStableKey()] = $block;
+            }
+        }
+
+        return $blocks;
+    }
+
+    /**
+     * @param array<string, mixed>|null $document
+     *
+     * @return array{type: string, mediaId: string}|null
+     */
+    private function firstImageBlock(?array $document): ?array
+    {
+        $blocks = $document['blocks'] ?? null;
+        if (!\is_array($blocks)) {
+            return null;
+        }
+        foreach ($blocks as $block) {
+            if (!\is_array($block) || 'image_reference' !== ($block['type'] ?? null)) {
+                continue;
+            }
+            $mediaId = $block['mediaId'] ?? null;
+            if (!\is_string($mediaId) || !Uuid::isValid($mediaId)) {
+                continue;
+            }
+
+            return ['type' => 'image_reference', 'mediaId' => $mediaId];
+        }
+
+        return null;
+    }
+
+    private function uploadBytes(mixed $file): ?string
+    {
+        if (!$file instanceof UploadedFile || \UPLOAD_ERR_NO_FILE === $file->getError()) {
+            return null;
+        }
+        if (!$file->isValid()) {
+            throw QuestionException::imageRejected(\in_array($file->getError(), [\UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE], true) ? 'question_image_limit' : 'question_image_decode');
+        }
+        $bytes = file_get_contents($file->getPathname());
+        if (!\is_string($bytes) || '' === $bytes) {
+            throw QuestionException::imageRejected('question_image_decode');
+        }
+
+        return $bytes;
+    }
+
+    /**
+     * @param list<string>         $options
+     * @param array<string, mixed> $values
+     *
+     * @return list<string>
+     */
+    private function postedOptionKeys(Request $request, array $options, array $values): array
+    {
+        $keys = [];
+        foreach ($request->request->all('option_keys') as $key) {
+            $keys[] = \is_string($key) && 1 === preg_match('/^[a-z0-9_]{2,32}$/', $key) ? $key : '';
+        }
+        $fallback = $values['option_keys'] ?? [];
+        if (!\is_array($fallback)) {
+            $fallback = [];
+        }
+        $resolved = [];
+        foreach (array_keys($options) as $index) {
+            $posted = $keys[$index] ?? '';
+            $previous = $fallback[$index] ?? '';
+            if ('' !== $posted) {
+                $resolved[] = $posted;
+            } elseif (\is_string($previous) && 1 === preg_match('/^[a-z0-9_]{2,32}$/', $previous)) {
+                $resolved[] = $previous;
+            } else {
+                $resolved[] = 'opt_'.($index + 1);
+            }
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function postedKeptSlots(Request $request): array
+    {
+        $kept = [];
+        foreach ($request->request->all('keep_slot') as $slot) {
+            if (\is_string($slot) && (1 === preg_match('/^[a-z0-9_]{2,32}$/', $slot) || \in_array($slot, ['stem', 'explanation'], true))) {
+                $kept[] = $slot;
+            }
+        }
+
+        return $kept;
     }
 }
