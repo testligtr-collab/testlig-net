@@ -106,12 +106,13 @@ final class QuestionMathExpressionTest extends TestCase
         }
         QuestionMathExpression::assertSafe($nested);
         $tooDeep = '\frac{'.$nested.'}{1}';
+        $rejected = false;
         try {
             QuestionMathExpression::assertSafe($tooDeep);
-            self::fail('deep math was accepted');
         } catch (\InvalidArgumentException) {
-            self::assertTrue(true);
+            $rejected = true;
         }
+        self::assertTrue($rejected);
         $view = QuestionContentView::blocks([
             'schemaVersion' => 1,
             'blocks' => [

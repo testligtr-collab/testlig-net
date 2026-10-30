@@ -945,7 +945,7 @@ final class QuestionManager
             $staged[] = $image;
         }
         foreach ($images as $extra) {
-            if ($extra instanceof StagedQuestionImage && !\in_array($extra, $staged, true)) {
+            if (!\in_array($extra, $staged, true)) {
                 $staged[] = $extra;
             }
         }
