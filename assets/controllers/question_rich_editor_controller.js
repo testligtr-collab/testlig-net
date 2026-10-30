@@ -169,10 +169,17 @@ export default class extends Controller {
             frame.appendChild(note);
             return;
         }
-        const image = document.createElement('img');
-        image.alt = '';
-        image.src = URL.createObjectURL(file);
-        frame.appendChild(image);
+        const reader = new FileReader();
+        reader.addEventListener('load', () => {
+            if (!input.files || input.files[0] !== file || typeof reader.result !== 'string' || !reader.result.startsWith('data:image/')) {
+                return;
+            }
+            const image = document.createElement('img');
+            image.alt = '';
+            image.src = reader.result;
+            frame.replaceChildren(image);
+        });
+        reader.readAsDataURL(file);
     }
 
     renderPlain(surface, text) {

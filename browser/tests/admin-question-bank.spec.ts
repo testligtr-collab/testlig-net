@@ -215,6 +215,7 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
         buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
       });
       await expect(stemField.locator('[data-image-name]')).toContainText('cok-uzun-soru-koku-gorsel-dosyasi');
+      await expect(stemField.locator('[data-image-preview] img')).toBeVisible();
       await expect(page.getByRole('radio', { name: /Kolay/ })).toBeChecked();
       await page.getByRole('radio', { name: /Orta/ }).check();
       await expect(page.locator('.admin-question-pill--medium')).toContainText('Seçili');
