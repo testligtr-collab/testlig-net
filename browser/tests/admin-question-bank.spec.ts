@@ -179,12 +179,45 @@ test('question bank list, detail, editor, and form error', async ({ page, browse
       await page.locator('[data-remove-option]').last().click();
       await expect(page.locator('.option-row')).toHaveCount(before);
       await expect(page.locator('#question-editor input[type="file"]')).toHaveCount(4);
-      await page.getByRole('button', { name: 'Küçüktür' }).first().click();
-      await page.getByRole('button', { name: 'Büyüktür' }).first().click();
-      await page.getByRole('button', { name: 'Üçgen' }).first().click();
-      await page.getByRole('button', { name: 'Bilimsel gösterim' }).first().click();
+      const stemField = page.locator('.admin-question-stem-layout');
+      await expect(stemField.locator('[data-editor-panel]:not([hidden])')).toHaveCount(1);
+      await stem.focus();
+      await stem.evaluate((node) => {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      });
+      await stemField.getByRole('tab', { name: 'Geometri' }).click();
+      await expect(stemField.getByRole('tab', { name: 'Geometri' })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.locator('.option-row').first().getByRole('tab', { name: 'Matematik' })).toHaveAttribute('aria-selected', 'true');
+      const caretKept = await stem.evaluate((node) => {
+        const selection = window.getSelection();
+        return Boolean(selection && selection.rangeCount > 0 && node.contains(selection.anchorNode));
+      });
+      expect(caretKept).toBe(true);
+      await stemField.getByRole('button', { name: 'Üçgen' }).click();
+      await stemField.getByRole('tab', { name: 'Matematik' }).click();
+      await stemField.getByRole('button', { name: 'Küçüktür' }).click();
+      await stemField.getByRole('button', { name: 'Büyüktür' }).click();
+      await page.locator('.option-row').first().getByRole('tab', { name: 'Biyoloji' }).click();
+      await page.locator('.option-row').first().getByRole('button', { name: 'Bilimsel gösterim' }).click();
+      await expect(stemField.getByRole('tab', { name: 'Matematik' })).toHaveAttribute('aria-selected', 'true');
       await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x < y' })).toBeVisible();
       await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: 'x > y' })).toBeVisible();
+      await expect(page.locator('.admin-question-stem-layout .q-chip').filter({ hasText: '△' })).toBeVisible();
+      await expect(page.locator('.option-row').first().locator('.q-chip').filter({ hasText: '10n' })).toBeVisible();
+      await page.locator('input[name="image_stem"]').setInputFiles({
+        name: 'cok-uzun-soru-koku-gorsel-dosyasi-geometri-oncesi-ucgen-cizimi.png',
+        mimeType: 'image/png',
+        buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'),
+      });
+      await expect(stemField.locator('[data-image-name]')).toContainText('cok-uzun-soru-koku-gorsel-dosyasi');
+      await expect(page.getByRole('radio', { name: /Kolay/ })).toBeChecked();
+      await page.getByRole('radio', { name: /Orta/ }).check();
+      await expect(page.locator('.admin-question-pill--medium')).toContainText('Seçili');
     }
     const solution = page.locator('section').filter({ has: page.getByRole('heading', { level: 2, name: 'Çözüm' }) });
     await solution.scrollIntoViewIfNeeded();

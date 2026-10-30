@@ -47,6 +47,8 @@ export default class extends Controller {
             this.renderPlain(surface, fallback?.value || '');
         }
         this.remember(field);
+        this.wireTabs(field);
+        surface.addEventListener('focusout', () => this.keepRange(surface));
         surface.addEventListener('beforeinput', (event) => {
             if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
                 event.preventDefault();
@@ -64,8 +66,9 @@ export default class extends Controller {
                 event.preventDefault();
             }
         });
-        field.querySelector('.q-palettes')?.addEventListener('mousedown', (event) => {
+        field.querySelector('[data-editor-science]')?.addEventListener('mousedown', (event) => {
             if (event.target.closest('button')) {
+                this.keepRange(surface);
                 event.preventDefault();
             }
         });
@@ -85,10 +88,16 @@ export default class extends Controller {
             return;
         }
         const surface = field.querySelector('[data-editor-surface]');
-        if (!surface) {
+        if (!surface || button.hasAttribute('data-editor-tab')) {
             return;
         }
+        const outside = document.activeElement !== surface;
         surface.focus();
+        if (outside && surface.savedRange && surface.contains(surface.savedRange.startContainer)) {
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(surface.savedRange);
+        }
         const math = button.getAttribute('data-editor-math');
         const name = button.getAttribute('data-editor-command');
         if (math) {
@@ -145,7 +154,15 @@ export default class extends Controller {
             return;
         }
         frame.replaceChildren();
+        const box = input.closest('.admin-question-image-box');
+        const name = box?.querySelector('[data-image-name]');
         const file = input.files && input.files[0];
+        if (name) {
+            name.textContent = file ? file.name : (name.getAttribute('data-empty-name') || 'Dosya seçilmedi');
+        }
+        if (box) {
+            box.dataset.imageState = file ? 'selected' : (name?.getAttribute('data-empty-name') === 'Kayıtlı görsel duruyor' ? 'kept' : 'empty');
+        }
         if (!file) {
             const note = document.createElement('p');
             note.textContent = '250 × 250 önizleme. Görsel oranını korur.';
@@ -259,8 +276,75 @@ export default class extends Controller {
         this.insertNode(surface, node);
     }
 
+    keepRange(surface) {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount || !surface.contains(selection.anchorNode)) {
+            return;
+        }
+        surface.savedRange = selection.getRangeAt(0).cloneRange();
+    }
+
+    wireTabs(field) {
+        const root = field.querySelector('[data-editor-science]');
+        if (!root || root.getAttribute('data-tabs-bound') === '1') {
+            return;
+        }
+        root.setAttribute('data-tabs-bound', '1');
+        const tabs = Array.from(root.querySelectorAll('[role="tab"]'));
+        const panels = Array.from(root.querySelectorAll('[data-editor-panel]'));
+        const uid = Math.random().toString(36).slice(2, 10);
+        tabs.forEach((tab, index) => {
+            const key = tab.getAttribute('data-editor-tab');
+            const panel = panels.find((item) => item.getAttribute('data-editor-panel') === key);
+            const tabId = `q-tab-${uid}-${key}`;
+            const panelId = `q-panel-${uid}-${key}`;
+            tab.id = tabId;
+            tab.setAttribute('aria-controls', panelId);
+            if (panel) {
+                panel.id = panelId;
+                panel.setAttribute('aria-labelledby', tabId);
+            }
+            tab.addEventListener('keydown', (event) => {
+                let next = index;
+                if (event.key === 'ArrowRight') {
+                    next = (index + 1) % tabs.length;
+                } else if (event.key === 'ArrowLeft') {
+                    next = (index + tabs.length - 1) % tabs.length;
+                } else if (event.key === 'Home') {
+                    next = 0;
+                } else if (event.key === 'End') {
+                    next = tabs.length - 1;
+                } else {
+                    return;
+                }
+                event.preventDefault();
+                this.selectTab(tabs, panels, tabs[next], true);
+            });
+            tab.addEventListener('click', () => this.selectTab(tabs, panels, tab, false));
+        });
+    }
+
+    selectTab(tabs, panels, tab, focusTab) {
+        const key = tab.getAttribute('data-editor-tab');
+        tabs.forEach((item) => {
+            const selected = item === tab;
+            item.setAttribute('aria-selected', selected ? 'true' : 'false');
+            item.tabIndex = selected ? 0 : -1;
+        });
+        panels.forEach((panel) => {
+            panel.hidden = panel.getAttribute('data-editor-panel') !== key;
+        });
+        if (focusTab) {
+            tab.focus();
+        }
+    }
+
     insertNode(surface, node) {
         const selection = window.getSelection();
+        if (selection && (!selection.rangeCount || !surface.contains(selection.anchorNode)) && surface.savedRange && surface.contains(surface.savedRange.startContainer)) {
+            selection.removeAllRanges();
+            selection.addRange(surface.savedRange);
+        }
         if (!selection || !selection.rangeCount || !surface.contains(selection.anchorNode)) {
             surface.appendChild(node);
             return;

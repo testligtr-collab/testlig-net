@@ -1,13 +1,18 @@
-<div class="admin-question-image-box">
+<div class="admin-question-image-box" data-image-state="{{ error ? 'error' : (kept ? 'kept' : 'empty') }}">
     <div class="admin-question-image-frame" data-image-preview>
         <p>250 × 250 önizleme. Görsel oranını korur.</p>
     </div>
     {% if error %}
         <p class="admin-question-field-error" id="question-error-image">{{ error }}</p>
     {% endif %}
-    <label>{{ label }}
-        <input type="file" name="{{ name }}" accept="image/jpeg,image/png,image/webp" data-image-file{% if error %} aria-invalid="true" aria-describedby="question-error-image"{% endif %}>
-    </label>
+    <div class="admin-question-file">
+        <span class="admin-question-file__pick">
+            <span>Görsel seç</span>
+            <input type="file" name="{{ name }}" accept="image/jpeg,image/png,image/webp" data-image-file aria-label="{{ label }}"{% if error %} aria-invalid="true" aria-describedby="question-error-image"{% endif %}>
+        </span>
+        <span class="admin-question-file__name" data-image-name data-empty-name="{{ kept ? 'Kayıtlı görsel duruyor' : 'Dosya seçilmedi' }}">{{ kept ? 'Kayıtlı görsel duruyor' : 'Dosya seçilmedi' }}</span>
+    </div>
+    <p class="admin-question-image-caption">{{ label }}</p>
     {% if kept %}
         <label class="admin-question-keep">
             <input type="checkbox" name="keep_slot[]" value="{{ slot }}" checked>
