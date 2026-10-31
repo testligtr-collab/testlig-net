@@ -376,7 +376,7 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertStringNotContainsString('Toplama alfa & uzunbaslik', $html);
         $row = $client->getCrawler()->filterXPath('//tr[contains(., "Toplama alfa")]');
         self::assertSame('1', trim($row->filter('.admin-test__count')->text()));
-        self::assertGreaterThan(20, strlen(trim($row->filter('code')->text())));
+        self::assertGreaterThan(20, \strlen(trim($row->filter('code')->text())));
         self::assertSelectorExists('summary[role="button"]');
 
         $client->request('GET', '/yonetim/testler?q=alfa&subject_id='.$seed['subject'].'&grade=1&status=draft');

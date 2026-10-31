@@ -34,7 +34,10 @@ test('admin test list, filters, counters, and technical details', async ({ page,
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/testler');
     await expect(page.getByRole('heading', { level: 1, name: 'Testler' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Test ve sınavlar' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Test ve sınavlar' })).toHaveCount(1);
+    if (viewport.width >= 1024) {
+      await expect(page.getByRole('link', { name: 'Test ve sınavlar' })).toBeVisible();
+    }
     await expect(page.getByRole('link', { name: 'Yeni test', exact: true })).toBeVisible();
     await expect(page.getByText('Sayaçlar filtrelerden bağımsızdır.')).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Test listesi' })).toBeVisible();
