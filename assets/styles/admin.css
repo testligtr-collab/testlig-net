@@ -4863,6 +4863,7 @@ body.is-admin-panel {
     color: #16324f;
     font-weight: 650;
 }
+.is-admin-panel .admin-test-pick__stem { flex: 1 1 auto; }
 .is-admin-panel .admin-test-item__controls {
     display: flex;
     flex-wrap: wrap;
@@ -4878,7 +4879,7 @@ body.is-admin-panel {
     color: #16324f;
     min-height: 2.75rem;
 }
-.is-admin-panel .admin-test-pick__choice {
+.is-admin-panel .admin-test-editor label.admin-test-pick__choice {
     display: flex;
     align-items: flex-start;
     gap: 0.65rem;
