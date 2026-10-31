@@ -85,6 +85,8 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
         self::assertResponseRedirects($path);
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'Katalog testi');
+        self::assertSelectorTextContains('.admin-test-detail__status', 'Yayında');
+        self::assertSelectorTextContains('.admin-test-detail__placement-status', 'Taslak');
 
         $crawler = $client->request('GET', $path);
         $publishForm = $crawler->filter('form[action*="/yerlesim/"][action$="/yayimla"]')->first();

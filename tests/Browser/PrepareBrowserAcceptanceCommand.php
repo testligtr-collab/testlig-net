@@ -6,8 +6,10 @@ namespace App\Tests\Browser;
 
 use App\Dto\StudentProfileRequest;
 use App\Dto\TeacherProfessionalProfileRequest;
+use App\Entity\CurriculumLearningOutcome;
 use App\Entity\LearningDocumentAsset;
 use App\Entity\Location;
+use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
@@ -37,6 +39,7 @@ use App\Repository\UserRepository;
 use App\Service\AcademicYearManager;
 use App\Service\AccessPackageManager;
 use App\Service\AssessmentManager;
+use App\Service\CatalogTopicAssessmentManager;
 use App\Service\CatalogTopicLessonManager;
 use App\Service\CatalogWriteService;
 use App\Service\ClassroomManager;
@@ -99,6 +102,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly CatalogTopicLessonManager $placements,
         private readonly QuestionManager $questions,
         private readonly AssessmentManager $assessments,
+        private readonly CatalogTopicAssessmentManager $assessmentPlacements,
         private readonly QuestionRevisionRepository $questionRevisions,
         private readonly InstitutionCreator $institutions,
         private readonly InstitutionStatusManager $institutionStatus,
@@ -388,6 +392,90 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_test_long',
             $subject,
         );
+        $detailItems = [];
+        for ($index = 1; $index <= 10; ++$index) {
+            $stem = 'Detay sorusu '.$index.' Uzun soru satiri sag kartin yuksekligine karismaz ve kendi alaninda sarilir.';
+            $item = $this->detailItem($teacher, $admin, $subject, $outcome, $stem, $index);
+            if (null === $item) {
+                $output->writeln('Detail question revision was not found.');
+
+                return Command::FAILURE;
+            }
+            $detailItems[] = $item;
+        }
+        $detailTitle = 'Uzun detay testi basligi soru listesi uzarken sag kartlar kendi yuksekliginde kalir ve teknik kod satir kirarak sarilir.';
+        $detailAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            $detailTitle,
+            null,
+            'Her soru icin bir secenek isaretleyin.',
+            900,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => $detailItems,
+            ]],
+            'browser_test_detail',
+            $subject,
+        );
+        $this->assessments->submitForReview($detailAssessment, $teacher, 'browser_submit_detail');
+        $this->assessments->publish($detailAssessment, $admin, 'browser_publish_detail');
+        $this->assessmentPlacements->create(
+            $admin,
+            $topic->getId(),
+            $detailAssessment->getId(),
+            'Toplama',
+            null,
+            0,
+            'browser_place',
+            'toplama-test-detay',
+        );
+        $reviewAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Inceleme testi',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $publishedQuestion->getId(),
+                    'questionRevisionId' => $questionRevision->getId(),
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_review',
+            $subject,
+        );
+        $this->assessments->submitForReview($reviewAssessment, $teacher, 'browser_submit_review');
 
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,
@@ -577,6 +665,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'contentTitle' => 'Toplama anlatimi',
                 'testTitle' => 'Toplama testi',
                 'testDraftEdit' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122().'/duzenle',
+                'testDraft' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122(),
+                'testPublishedDetail' => '/yonetim/testler/'.$detailAssessment->getId()->toRfc4122(),
+                'testReview' => '/yonetim/testler/'.$reviewAssessment->getId()->toRfc4122(),
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
                 'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
@@ -640,6 +731,46 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->users->save($user);
 
         return $user;
+    }
+
+    /**
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
+     */
+    private function detailItem(User $teacher, User $admin, Subject $subject, CurriculumLearningOutcome $outcome, string $stem, int $position): ?array
+    {
+        $question = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph($stem),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_detail_'.$position,
+        );
+        $this->questions->submitForReview($question, $teacher, 'browser_submit_detail');
+        $this->questions->publish($question, $admin, 'browser_publish_detail');
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (null === $revision) {
+            return null;
+        }
+
+        return [
+            'questionId' => $question->getId(),
+            'questionRevisionId' => $revision->getId(),
+            'position' => $position,
+            'points' => '1.00',
+            'penaltyPoints' => '0.00',
+            'required' => true,
+        ];
     }
 
     private function profile(GradeLevel $grade): StudentProfileRequest
