@@ -99,7 +99,7 @@ final class AdminTestController extends AdminBaseController
         $seeAll = $this->canSeeAll($actor);
         $subjects = $this->subjects->findActiveOrdered();
         $filters = $this->listFilters($request, $subjects);
-        $assessments = $this->assessments->findPlatformVisibleFiltered(
+        $loaded = $this->assessments->findPlatformVisibleFiltered(
             $actor,
             $seeAll,
             $filters['status'],
@@ -108,18 +108,10 @@ final class AdminTestController extends AdminBaseController
             $filters['text'],
             $filters['blocked'],
         );
-        $revisions = [];
-        foreach ($assessments as $assessment) {
-            $revision = $assessment->getCurrentRevision();
-            if ($revision instanceof AssessmentRevision) {
-                $revisions[] = $revision;
-            }
-        }
-        $itemCounts = $this->items->countByRevisions($revisions);
         $rows = [];
-        foreach ($assessments as $assessment) {
+        foreach ($loaded as $loadedRow) {
+            $assessment = $loadedRow['assessment'];
             $revision = $assessment->getCurrentRevision();
-            $revisionId = $revision?->getId()->toRfc4122();
             $rows[] = [
                 'id' => $assessment->getId()->toRfc4122(),
                 'title' => $revision?->getTitle() ?? 'Adsız test',
@@ -127,7 +119,7 @@ final class AdminTestController extends AdminBaseController
                 'subject' => $assessment->getSubject()?->getName() ?? '—',
                 'grade' => $assessment->getGradeLevel()->value.'. sınıf',
                 'status' => $assessment->getStatus()->value,
-                'questions' => null === $revisionId ? 0 : ($itemCounts[$revisionId] ?? 0),
+                'questions' => $loadedRow['questions'],
             ];
         }
 

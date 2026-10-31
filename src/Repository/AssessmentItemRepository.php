@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\AssessmentItem;
-use App\Entity\AssessmentRevision;
 use App\Entity\Question;
 use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -19,36 +18,6 @@ class AssessmentItemRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, AssessmentItem::class);
-    }
-
-    /**
-     * Item totals for the revisions shown on the list. Older revisions are not included.
-     *
-     * @param list<AssessmentRevision> $revisions
-     *
-     * @return array<string, int>
-     */
-    public function countByRevisions(array $revisions): array
-    {
-        if ([] === $revisions) {
-            return [];
-        }
-
-        /** @var list<AssessmentItem> $items */
-        $items = $this->createQueryBuilder('i')
-            ->addSelect('rev')
-            ->join('i.assessmentRevision', 'rev')
-            ->andWhere('rev IN (:revisions)')
-            ->setParameter('revisions', $revisions)
-            ->getQuery()
-            ->getResult();
-        $counts = [];
-        foreach ($items as $item) {
-            $key = $item->getAssessmentRevision()->getId()->toRfc4122();
-            $counts[$key] = ($counts[$key] ?? 0) + 1;
-        }
-
-        return $counts;
     }
 
     public function save(AssessmentItem $item, bool $flush = true): void

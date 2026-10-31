@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Assessment;
+use App\Entity\AssessmentItem;
 use App\Entity\AssessmentRevision;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
@@ -35,7 +36,12 @@ class AssessmentRepository extends ServiceEntityRepository
      */
     public function findPlatformVisible(User $actor, bool $seeAll): array
     {
-        return $this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', false);
+        $rows = [];
+        foreach ($this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', false) as $row) {
+            $rows[] = $row['assessment'];
+        }
+
+        return $rows;
     }
 
     /**
@@ -71,9 +77,9 @@ class AssessmentRepository extends ServiceEntityRepository
     }
 
     /**
-     * Newest visible platform tests. Subject and the current revision are joined for the row.
+     * Newest visible platform tests. The question total counts only the current revision.
      *
-     * @return list<Assessment>
+     * @return list<array{assessment: Assessment, questions: int}>
      */
     public function findPlatformVisibleFiltered(
         User $actor,
@@ -92,12 +98,21 @@ class AssessmentRepository extends ServiceEntityRepository
             ->addSelect('subject')
             ->leftJoin('a.currentRevision', 'currentRevision')
             ->addSelect('currentRevision')
+            ->addSelect('(SELECT COUNT(item.id) FROM '.AssessmentItem::class.' item JOIN item.assessmentRevision itemRevision WHERE itemRevision.assessment = a AND itemRevision.revisionNumber = a.currentRevisionNumber) AS questionCount')
             ->orderBy('a.updatedAt', 'DESC')
             ->addOrderBy('a.id', 'DESC')
             ->setMaxResults(100);
 
-        /** @var list<Assessment> $rows */
-        $rows = $qb->getQuery()->getResult();
+        $rows = [];
+        foreach ($qb->getQuery()->getResult() as $row) {
+            if (!\is_array($row) || !isset($row[0]) || !$row[0] instanceof Assessment) {
+                continue;
+            }
+            $rows[] = [
+                'assessment' => $row[0],
+                'questions' => (int) ($row['questionCount'] ?? 0),
+            ];
+        }
 
         return $rows;
     }
