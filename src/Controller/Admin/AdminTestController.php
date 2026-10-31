@@ -108,14 +108,14 @@ final class AdminTestController extends AdminBaseController
             $filters['text'],
             $filters['blocked'],
         );
-        $revisionIds = [];
+        $revisions = [];
         foreach ($assessments as $assessment) {
-            $revisionId = $assessment->getCurrentRevision()?->getId();
-            if ($revisionId instanceof Uuid) {
-                $revisionIds[] = $revisionId;
+            $revision = $assessment->getCurrentRevision();
+            if ($revision instanceof AssessmentRevision) {
+                $revisions[] = $revision;
             }
         }
-        $itemCounts = $this->items->countByRevisionIds($revisionIds);
+        $itemCounts = $this->items->countByRevisions($revisions);
         $rows = [];
         foreach ($assessments as $assessment) {
             $revision = $assessment->getCurrentRevision();

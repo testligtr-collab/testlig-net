@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\AssessmentItem;
+use App\Entity\AssessmentRevision;
 use App\Entity\Question;
 use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<AssessmentItem>
@@ -24,13 +24,13 @@ class AssessmentItemRepository extends ServiceEntityRepository
     /**
      * Item totals for the revisions shown on the list. Older revisions are not included.
      *
-     * @param list<Uuid> $revisionIds
+     * @param list<AssessmentRevision> $revisions
      *
      * @return array<string, int>
      */
-    public function countByRevisionIds(array $revisionIds): array
+    public function countByRevisions(array $revisions): array
     {
-        if ([] === $revisionIds) {
+        if ([] === $revisions) {
             return [];
         }
 
@@ -38,8 +38,8 @@ class AssessmentItemRepository extends ServiceEntityRepository
         $items = $this->createQueryBuilder('i')
             ->addSelect('rev')
             ->join('i.assessmentRevision', 'rev')
-            ->andWhere('rev.id IN (:ids)')
-            ->setParameter('ids', $revisionIds)
+            ->andWhere('rev IN (:revisions)')
+            ->setParameter('revisions', $revisions)
             ->getQuery()
             ->getResult();
         $counts = [];

@@ -4676,11 +4676,11 @@ body.is-admin-panel {
         border-bottom: 1px solid #e2eaf4;
     }
     .is-admin-panel .admin-test-page .admin-test-table td { padding: 0; border: 0; }
-    .is-admin-panel .admin-test-page .admin-test__subject,
-    .is-admin-panel .admin-test-page .admin-test__grade,
-    .is-admin-panel .admin-test-page .admin-test__status,
-    .is-admin-panel .admin-test-page .admin-test__count,
-    .is-admin-panel .admin-test-page .admin-test__action { display: none; }
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__subject,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__grade,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__status,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__count,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__action { display: none; }
     .is-admin-panel .admin-test-page .admin-test__head {
         display: flex;
         flex-wrap: wrap;
