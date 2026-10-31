@@ -1098,7 +1098,6 @@ final class AdminTestController extends AdminBaseController
         }
         $this->addFlash('error', $this->failureMessage($exception));
         $response = $this->renderForm($request, $assessment, $this->editorReplay($request, $assessment));
-        $response->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
         if ($this->getParameter('kernel.debug')) {
             $response->headers->set('X-Test-Failure', $exception->getMessage());
         }

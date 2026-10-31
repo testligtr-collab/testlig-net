@@ -64,7 +64,7 @@
                             </label>
                             <label for="test-subject">Ders
                                 <select id="test-subject" name="subject_id" form="test-search">
-                                    <option value="">Seçin</option>
+                                    <option value="" {{ subject ? '' : 'selected' }}>Seçin</option>
                                     {% for item in subjects %}
                                         <option value="{{ item.id.toRfc4122 }}" {{ subject and subject.id.equals(item.id) ? 'selected' : '' }}>{{ item.name }}</option>
                                     {% endfor %}

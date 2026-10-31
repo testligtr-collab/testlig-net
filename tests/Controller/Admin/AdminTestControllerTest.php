@@ -66,7 +66,7 @@ final class AdminTestControllerTest extends WebTestCase
             '_token' => $token,
             'items' => [],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $empty = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('En az bir soru ekleyin', $empty);
         self::assertSame('Deneme testi', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
@@ -77,7 +77,7 @@ final class AdminTestControllerTest extends WebTestCase
             '_token' => $token,
             'title' => '<script>alert(1)</script>',
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $markup = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('<script>', $markup);
         self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $markup);
@@ -92,7 +92,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '0',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Puan 0', (string) $client->getResponse()->getContent());
         self::assertSame('0', (string) $client->getCrawler()->filter('#test-item-points-0')->attr('value'));
         self::assertStringContainsString('Uc nedir?', (string) $client->getResponse()->getContent());
@@ -131,7 +131,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Yalnız yayımlanmış sorular eklenebilir.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -142,7 +142,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Yalnız yayımlanmış sorular eklenebilir.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -153,7 +153,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Soru sınıfı testin sınıfıyla aynı olmalı.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -164,7 +164,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Soru dersi testin dersiyle aynı olmalı.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -174,7 +174,7 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $seed['question'], 'position' => '2', 'points' => '1'],
             ],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('zaten ekli', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -184,7 +184,7 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $seed['second_question'], 'position' => '1', 'points' => '2'],
             ],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         self::assertStringContainsString('Aynı sıra', (string) $client->getResponse()->getContent());
     }
 
@@ -583,7 +583,7 @@ final class AdminTestControllerTest extends WebTestCase
             'search_difficulty' => 'easy',
             'search_page' => '2',
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $kept = $client->getCrawler();
         $keptHtml = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('En az bir soru ekleyin', $keptHtml);
@@ -613,7 +613,7 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $foreign, 'position' => '5', 'points' => '1'],
             ],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $foreignHtml = (string) $client->getResponse()->getContent();
         self::assertSame('Yabanci deneme', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
         self::assertStringNotContainsString('Taslak soru', $foreignHtml);
@@ -644,7 +644,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '0',
             ]],
         ]));
-        self::assertResponseStatusCodeSame(422);
+        self::assertResponseIsSuccessful();
         $broken = $client->getCrawler();
         $brokenHtml = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('Sıra 1 veya daha büyük olmalıdır.', $brokenHtml);
