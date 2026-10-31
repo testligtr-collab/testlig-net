@@ -109,7 +109,10 @@
                     {% if assessment.status.value == 'published' %}
                         <p>Yayımlanmış sürüm korunur.</p>
                     {% endif %}
-                    <p><strong>{{ progress.next.label }}</strong> {{ progress.next.hint }}</p>
+                    <p><strong>{{ progress.next.label }}</strong></p>
+                    {% if progress.next.hint %}
+                        <p>{{ progress.next.hint }}</p>
+                    {% endif %}
                     {% if progress.next.kind == 'submit' or progress.next.kind == 'return' or progress.next.kind == 'publish' or progress.next.kind == 'archive' %}
                         <details class="admin-test-detail__ops">
                             <summary role="button">İşlemler</summary>

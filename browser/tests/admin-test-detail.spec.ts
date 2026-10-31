@@ -167,7 +167,7 @@ async function capture(page: Page, info: TestInfo, name: string): Promise<void> 
   expect(name).not.toMatch(/@|[0-9a-f]{8}-[0-9a-f]{4}-/i);
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   const width = page.viewportSize()?.width ?? 1440;
-  await page.setViewportSize({ width, height: Math.max(900, Math.min(height, 2400)) });
+  await page.setViewportSize({ width, height: Math.max(900, Math.min(height, 6400)) });
   const file = path.join('artifacts', 'screenshots', name);
   await page.screenshot({ path: file, fullPage: false });
   await info.attach(name, { path: file, contentType: 'image/png' });
