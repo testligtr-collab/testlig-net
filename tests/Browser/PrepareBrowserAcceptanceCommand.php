@@ -442,6 +442,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_place',
             'toplama-test-detay',
         );
+        $reviewItem = $this->detailItem($teacher, $admin, $subject, $outcome, 'Inceleme sorusu kok', 11);
+        if (null === $reviewItem) {
+            $output->writeln('Review question revision was not found.');
+
+            return Command::FAILURE;
+        }
         $reviewAssessment = $this->assessments->createDraftAssessment(
             $teacher,
             AssessmentScope::Platform,
@@ -464,8 +470,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'durationSeconds' => null,
                 'questionOrderMode' => QuestionOrderMode::Fixed,
                 'items' => [[
-                    'questionId' => $publishedQuestion->getId(),
-                    'questionRevisionId' => $questionRevision->getId(),
+                    'questionId' => $reviewItem['questionId'],
+                    'questionRevisionId' => $reviewItem['questionRevisionId'],
                     'position' => 1,
                     'points' => '1.00',
                     'penaltyPoints' => '0.00',

@@ -46,8 +46,14 @@ test('admin test detail keeps publication, access, and catalog apart', async ({ 
     } else {
       await expectStacked(page);
     }
-    const preview = await page.getByRole('link', { name: 'Önizleme', exact: true }).boundingBox();
-    expect(preview?.height).toBeGreaterThanOrEqual(44);
+    const preview = page.getByRole('link', { name: 'Önizleme', exact: true });
+    if (viewport.name === '1440') {
+      await preview.focus();
+      expect(await preview.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+      await page.evaluate(() => window.scrollTo(0, 0));
+    }
+    const previewBox = await preview.boundingBox();
+    expect(previewBox?.height).toBeGreaterThanOrEqual(44);
     await assertLayout(page);
     await capture(page, info, `admin-test-detay-yayin-${viewport.name}.png`);
   }
@@ -80,11 +86,7 @@ test('admin test detail keeps publication, access, and catalog apart', async ({ 
     await expect(page.locator('form[action$="/yayinla"] input[name="expected_revision"]')).toHaveCount(1);
     await expect(page.getByRole('button', { name: 'Arşivle', exact: true })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'Düzenle', exact: true })).toHaveCount(0);
-    if (viewport.name === '1440') {
-      await page.getByRole('button', { name: 'Yayınla', exact: true }).focus();
-      expect(await page.getByRole('button', { name: 'Yayınla', exact: true }).evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
-      await page.evaluate(() => window.scrollTo(0, 0));
-    }
+    await page.evaluate(() => window.scrollTo(0, 0));
     const publish = await page.getByRole('button', { name: 'Yayınla', exact: true }).boundingBox();
     expect(publish?.height).toBeGreaterThanOrEqual(44);
     await assertLayout(page);
