@@ -430,12 +430,17 @@ final class AdminTestControllerTest extends WebTestCase
         $em->persist(Assessment::createDraft(AssessmentScope::Institution, $institution, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00')));
         $em->flush();
         $before = $em->getConnection()->fetchFirstColumn('SELECT updated_at FROM assessments WHERE scope = ? ORDER BY code', ['platform']);
-        $audits = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM security_audit_events');
         self::ensureKernelShutdown();
 
         try {
             $client = $this->newClient();
             $this->login($client, 'iso-editor@example.com');
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $auditEm = static::getContainer()->get(EntityManagerInterface::class);
+            self::assertInstanceOf(EntityManagerInterface::class, $auditEm);
+            $audits = (int) $auditEm->getConnection()->fetchOne('SELECT COUNT(*) FROM security_audit_events');
+            self::ensureKernelShutdown();
             $client->request('GET', '/yonetim/testler');
             self::assertResponseIsSuccessful();
             self::assertSelectorTextContains('body', 'Platform gorunen');
