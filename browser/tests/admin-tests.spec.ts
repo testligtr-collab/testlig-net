@@ -76,6 +76,7 @@ test('admin test list, filters, counters, and technical details', async ({ page,
       expect(await summary.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
     }
     await summary.click();
+    await page.evaluate(() => window.scrollTo(0, 0));
     const code = row.locator('code').first();
     await expect(code).toBeVisible();
     const box = await code.boundingBox();
