@@ -490,6 +490,52 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Filtreye uyan kayıt sayısı 101.');
     }
 
+    public function testEditorLayoutKeepsSearchAndDoesNotWrite(): void
+    {
+        $seed = $this->seed('tbedit');
+        $this->createPrivileged('tb-teacher-edit@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'tb-teacher-edit@example.com');
+        $before = $this->assessmentCount();
+        $crawler = $client->request('GET', '/yonetim/testler/yeni?grade=1&subject_id='.$seed['subject'].'&q=Uc&page=2');
+        self::assertResponseIsSuccessful();
+        self::assertSame($before, $this->assessmentCount());
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Yeni test', $html);
+        self::assertStringContainsString('Kaydetme taslak sürüm oluşturur', $html);
+        self::assertStringContainsString('Soru havuzundan seç', $html);
+        self::assertStringContainsString('Sınıflandırma', $html);
+        self::assertStringContainsString('Bu filtrede yayımlanmış soru yok', $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('opt_b', $html);
+        self::assertStringNotContainsString('Taslak soru', $html);
+        self::assertSame('Uc', (string) $crawler->filter('#test-q')->attr('value'));
+        $previous = (string) $crawler->selectLink('Önceki')->attr('href');
+        self::assertStringContainsString('q=Uc', $previous);
+        self::assertStringContainsString('grade=1', $previous);
+        self::assertStringContainsString('subject_id='.$seed['subject'], $previous);
+
+        $path = $this->createDraft($client, $seed, 'Duzen duzeni');
+        $edit = $client->request('GET', $path.'/duzenle');
+        self::assertResponseIsSuccessful();
+        $editHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Testi düzenle', $editHtml);
+        self::assertStringContainsString('formu gönderir', $editHtml);
+        self::assertStringContainsString('1. sınıf', $editHtml);
+        self::assertStringNotContainsString('correctStableKey', $editHtml);
+        self::assertSame(0, $edit->filter('#test-grade')->count());
+        self::assertSame('submit', (string) $edit->filter('button[name="move_up_0"]')->attr('type'));
+        self::assertGreaterThan(0, $edit->filter('#test-editor input[name="expected_revision"]')->count());
+    }
+
+    private function assessmentCount(): int
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return (int) $em->createQuery('SELECT COUNT(a.id) FROM '.Assessment::class.' a')->getSingleScalarResult();
+    }
+
     /**
      * @param array{subject: string, question: string, second_question?: string}      $seed
      * @param list<array{question_id: string, position: string, points: string}>|null $items
