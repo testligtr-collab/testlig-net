@@ -54,6 +54,9 @@
                         <div class="admin-test-editor__fields">
                             <label for="test-grade">Sınıf
                                 <select id="test-grade" name="grade" form="test-search">
+                                    {% if not grade %}
+                                        <option value="{{ grade_raw }}" selected>{{ grade_raw != '' ? grade_raw : 'Seçilmedi' }}</option>
+                                    {% endif %}
                                     {% for level in 1..12 %}
                                         <option value="{{ level }}" {{ grade and grade.value == level ? 'selected' : '' }}>{{ level }}. sınıf</option>
                                     {% endfor %}
@@ -75,11 +78,11 @@
                 <section class="admin-test-editor__card" aria-labelledby="test-summary-heading">
                     <h2 id="test-summary-heading">Özet</h2>
                     <dl class="admin-test-editor__facts">
-                        <div><dt>Başlık</dt><dd>{{ revision and revision.title ? revision.title : 'Henüz yok' }}</dd></div>
-                        <div><dt>Sınıf</dt><dd>{{ grade ? grade.value ~ '. sınıf' : 'Seçilmedi' }}</dd></div>
+                        <div><dt>Başlık</dt><dd>{{ values.title != '' ? values.title : 'Henüz yok' }}</dd></div>
+                        <div><dt>Sınıf</dt><dd>{{ grade ? grade.value ~ '. sınıf' : (grade_raw != '' ? grade_raw : 'Seçilmedi') }}</dd></div>
                         <div><dt>Ders</dt><dd>{{ subject ? subject.name : 'Seçilmedi' }}</dd></div>
                         <div><dt>Seçili soru</dt><dd>{{ selected|length }}</dd></div>
-                        <div><dt>Süre</dt><dd>{% if revision and revision.durationSeconds %}{{ (revision.durationSeconds / 60)|round(0, 'ceil') }} dakika{% else %}Belirtilmedi{% endif %}</dd></div>
+                        <div><dt>Süre</dt><dd>{% if values.duration != '' %}{{ values.duration }}{% if values.duration matches '/^[0-9]+$/' %} dakika{% endif %}{% else %}Belirtilmedi{% endif %}</dd></div>
                     </dl>
                     <p class="admin-test-editor__hint" id="test-move-note">Yukarı ve Aşağı formu gönderir ve taslak sürüm kaydeder.</p>
                 </section>
@@ -89,20 +92,25 @@
                 <form id="test-editor" method="post" action="{{ path(route_name, route_params) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
                     <input type="hidden" name="expected_revision" value="{{ revision ? revision.revisionNumber : 0 }}">
-                    <input type="hidden" name="grade" value="{{ grade ? grade.value : '' }}">
+                    <input type="hidden" name="grade" value="{{ grade ? grade.value : grade_raw }}">
                     <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
+                    <input type="hidden" name="search_q" value="{{ filters.q }}">
+                    <input type="hidden" name="search_code" value="{{ filters.code }}">
+                    <input type="hidden" name="search_outcome" value="{{ filters.outcome }}">
+                    <input type="hidden" name="search_difficulty" value="{{ filters.difficulty }}">
+                    <input type="hidden" name="search_page" value="{{ page }}">
 
                     <section class="admin-test-editor__card" aria-labelledby="test-info-heading">
                         <h2 id="test-info-heading">Test bilgileri</h2>
                         <div class="admin-test-editor__fields">
                             <label for="test-title">Başlık
-                                <input id="test-title" type="text" name="title" required maxlength="200" value="{{ revision ? revision.title : '' }}">
+                                <input id="test-title" type="text" name="title" required maxlength="200" value="{{ values.title }}">
                             </label>
                             <label for="test-instructions">Yönerge
-                                <textarea id="test-instructions" name="instructions" maxlength="10000" rows="4">{{ revision ? revision.instructions : '' }}</textarea>
+                                <textarea id="test-instructions" name="instructions" maxlength="10000" rows="4">{{ values.instructions }}</textarea>
                             </label>
                             <label for="test-duration">Süre (dakika, isteğe bağlı)
-                                <input id="test-duration" type="number" name="duration_minutes" min="1" max="360" inputmode="numeric" value="{{ revision and revision.durationSeconds ? (revision.durationSeconds / 60)|round(0, 'ceil') : '' }}">
+                                <input id="test-duration" type="text" name="duration_minutes" inputmode="numeric" maxlength="4" value="{{ values.duration }}">
                             </label>
                         </div>
                     </section>

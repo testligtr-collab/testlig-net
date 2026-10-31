@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller\Admin;
 
 use App\Entity\Assessment;
+use App\Entity\AssessmentRevision;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\Institution;
 use App\Entity\Question;
@@ -65,15 +66,23 @@ final class AdminTestControllerTest extends WebTestCase
             '_token' => $token,
             'items' => [],
         ]));
-        $client->followRedirect();
-        self::assertStringContainsString('En az bir soru ekleyin', (string) $client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(422);
+        $empty = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('En az bir soru ekleyin', $empty);
+        self::assertSame('Deneme testi', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
+        self::assertStringContainsString('Yonerge metni', $empty);
+        self::assertSame('20', (string) $client->getCrawler()->filter('#test-duration')->attr('value'));
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
             '_token' => $token,
             'title' => '<script>alert(1)</script>',
         ]));
-        $client->followRedirect();
-        self::assertStringNotContainsString('alert(1)', (string) $client->getResponse()->getContent());
+        self::assertResponseStatusCodeSame(422);
+        $markup = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('<script>', $markup);
+        self::assertStringContainsString('&lt;script&gt;alert(1)&lt;/script&gt;', $markup);
+        self::assertStringContainsString('Başlık ve yönerge düz metin olmalıdır.', $markup);
+        self::assertSame('<script>alert(1)</script>', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
             '_token' => $token,
@@ -83,8 +92,10 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '0',
             ]],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Puan 0', (string) $client->getResponse()->getContent());
+        self::assertSame('0', (string) $client->getCrawler()->filter('#test-item-points-0')->attr('value'));
+        self::assertStringContainsString('Uc nedir?', (string) $client->getResponse()->getContent());
     }
 
     public function testTeacherSavesOwnDraftAndOtherTeacherCannotOpenIt(): void
@@ -120,7 +131,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Yalnız yayımlanmış sorular eklenebilir.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -131,7 +142,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Yalnız yayımlanmış sorular eklenebilir.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -142,7 +153,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Soru sınıfı testin sınıfıyla aynı olmalı.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -153,7 +164,7 @@ final class AdminTestControllerTest extends WebTestCase
                 'points' => '1',
             ]],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Soru dersi testin dersiyle aynı olmalı.', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -163,7 +174,7 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $seed['question'], 'position' => '2', 'points' => '1'],
             ],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('zaten ekli', (string) $client->getResponse()->getContent());
 
         $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
@@ -173,7 +184,7 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $seed['second_question'], 'position' => '1', 'points' => '2'],
             ],
         ]));
-        $client->followRedirect();
+        self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('Aynı sıra', (string) $client->getResponse()->getContent());
     }
 
@@ -223,8 +234,11 @@ final class AdminTestControllerTest extends WebTestCase
                 ['question_id' => $seed['question'], 'position' => '1', 'points' => '1'],
             ],
         ]);
+        self::assertResponseRedirects();
         $client->followRedirect();
         self::assertStringContainsString('güncellendi', (string) $client->getResponse()->getContent());
+        self::assertSame('Siralama testi', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
+        self::assertSame('2', (string) $client->getCrawler()->filter('#test-editor input[name="expected_revision"]')->attr('value'));
 
         $client->request('GET', $path.'/gorunum');
         $preview = (string) $client->getResponse()->getContent();
@@ -528,12 +542,159 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertGreaterThan(0, $edit->filter('#test-editor input[name="expected_revision"]')->count());
     }
 
+    public function testInvalidEditorKeepsSafeInputAndMatchesGradeSummary(): void
+    {
+        $seed = $this->seed('tbkeep');
+        $this->createPrivileged('tb-teacher-keep@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'tb-teacher-keep@example.com');
+
+        $open = $client->request('GET', '/yonetim/testler/yeni');
+        self::assertResponseIsSuccessful();
+        self::assertSame('1', (string) $open->filter('#test-grade option[selected]')->attr('value'));
+        $openHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<dt>Sınıf</dt><dd>1. sınıf</dd>', $openHtml);
+        self::assertStringContainsString('<dt>Ders</dt><dd>Seçilmedi</dd>', $openHtml);
+        self::assertSame('', (string) $open->filter('#test-subject option[selected]')->attr('value'));
+
+        $listed = $client->request('GET', '/yonetim/testler/yeni?grade=1&subject_id='.$seed['subject'].'&q=Uc');
+        self::assertSame('1', (string) $listed->filter('#test-grade option[selected]')->attr('value'));
+        self::assertSame($seed['subject'], (string) $listed->filter('#test-subject option[selected]')->attr('value'));
+        $listedHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<dt>Sınıf</dt><dd>1. sınıf</dd>', $listedHtml);
+        self::assertStringContainsString('<dt>Ders</dt><dd>Ders tbkeep</dd>', $listedHtml);
+        self::assertSame('Uc', (string) $listed->filter('#test-q')->attr('value'));
+
+        $invalidGrade = $client->request('GET', '/yonetim/testler/yeni?grade=99&subject_id='.$seed['subject']);
+        self::assertSame('99', (string) $invalidGrade->filter('#test-grade option[selected]')->attr('value'));
+        $invalidHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('<dt>Sınıf</dt><dd>99</dd>', $invalidHtml);
+        self::assertStringNotContainsString('Uc nedir?', $invalidHtml);
+
+        $beforeAssessments = $this->assessmentCount();
+        $beforeRevisions = $this->revisionCount();
+        $beforeAudits = $this->successAuditCount();
+        $token = $this->token($client, $seed);
+        $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
+            '_token' => $token,
+            'items' => [],
+            'search_q' => 'Uc',
+            'search_outcome' => 'kazanim-1',
+            'search_difficulty' => 'easy',
+            'search_page' => '2',
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        $kept = $client->getCrawler();
+        $keptHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('En az bir soru ekleyin', $keptHtml);
+        self::assertSame('Deneme testi', (string) $kept->filter('#test-title')->attr('value'));
+        self::assertStringContainsString('Yonerge metni', $keptHtml);
+        self::assertSame('20', (string) $kept->filter('#test-duration')->attr('value'));
+        self::assertSame('1', (string) $kept->filter('#test-grade option[selected]')->attr('value'));
+        self::assertSame($seed['subject'], (string) $kept->filter('#test-subject option[selected]')->attr('value'));
+        self::assertStringContainsString('<dt>Sınıf</dt><dd>1. sınıf</dd>', $keptHtml);
+        self::assertStringContainsString('<dt>Ders</dt><dd>Ders tbkeep</dd>', $keptHtml);
+        self::assertSame('Uc', (string) $kept->filter('#test-q')->attr('value'));
+        self::assertSame('kazanim-1', (string) $kept->filter('#test-outcome')->attr('value'));
+        self::assertSame('easy', (string) $kept->filter('#test-difficulty option[selected]')->attr('value'));
+        self::assertSame($beforeAssessments, $this->assessmentCount());
+        self::assertSame($beforeRevisions, $this->revisionCount());
+        self::assertSame($beforeAudits, $this->successAuditCount());
+
+        $foreign = '00000000-0000-4000-8000-000000000099';
+        $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
+            '_token' => $token,
+            'title' => 'Yabanci deneme',
+            'items' => [
+                ['question_id' => $seed['draft_question'], 'position' => '1', 'points' => '1'],
+                ['question_id' => $seed['archived_question'], 'position' => '2', 'points' => '1'],
+                ['question_id' => $seed['other_grade_question'], 'position' => '3', 'points' => '1'],
+                ['question_id' => $seed['other_subject_question'], 'position' => '4', 'points' => '1'],
+                ['question_id' => $foreign, 'position' => '5', 'points' => '1'],
+            ],
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        $foreignHtml = (string) $client->getResponse()->getContent();
+        self::assertSame('Yabanci deneme', (string) $client->getCrawler()->filter('#test-title')->attr('value'));
+        self::assertStringNotContainsString('Taslak soru', $foreignHtml);
+        self::assertStringNotContainsString('Arsiv soru', $foreignHtml);
+        self::assertStringNotContainsString('Baska sinif', $foreignHtml);
+        self::assertStringNotContainsString('Baska ders', $foreignHtml);
+        self::assertStringNotContainsString($foreign, $foreignHtml);
+        self::assertStringNotContainsString('opt_a', $foreignHtml);
+        self::assertStringNotContainsString('correctStableKey', $foreignHtml);
+        self::assertSame($beforeAssessments, $this->assessmentCount());
+        self::assertSame($beforeRevisions, $this->revisionCount());
+        self::assertSame($beforeAudits, $this->successAuditCount());
+
+        $path = $this->createDraft($client, $seed, 'Duzen duzeni');
+        $savedAssessments = $this->assessmentCount();
+        $savedRevisions = $this->revisionCount();
+        $savedAudits = $this->successAuditCount();
+        $edit = $client->request('GET', $path.'/duzenle');
+        $client->request('POST', $path.'/duzenle', $this->payload($seed, [
+            '_token' => (string) $edit->filter('#test-editor input[name="_token"]')->attr('value'),
+            'expected_revision' => '1',
+            'title' => 'Bozuk baslik',
+            'grade' => '2',
+            'subject_id' => $seed['other_subject'],
+            'items' => [[
+                'question_id' => $seed['question'],
+                'position' => '0',
+                'points' => '0',
+            ]],
+        ]));
+        self::assertResponseStatusCodeSame(422);
+        $broken = $client->getCrawler();
+        $brokenHtml = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Sıra 1 veya daha büyük olmalıdır.', $brokenHtml);
+        self::assertSame('Bozuk baslik', (string) $broken->filter('#test-title')->attr('value'));
+        self::assertStringContainsString('Yonerge metni', $brokenHtml);
+        self::assertSame('20', (string) $broken->filter('#test-duration')->attr('value'));
+        self::assertSame('0', (string) $broken->filter('#test-item-position-0')->attr('value'));
+        self::assertSame('0', (string) $broken->filter('#test-item-points-0')->attr('value'));
+        self::assertStringContainsString('Uc nedir?', $brokenHtml);
+        self::assertStringContainsString('1. sınıf', $brokenHtml);
+        self::assertStringNotContainsString('2. sınıf', $brokenHtml);
+        self::assertStringContainsString('Ders tbkeep', $brokenHtml);
+        self::assertStringNotContainsString('Diger tbkeep', $brokenHtml);
+        self::assertSame('1', (string) $broken->filter('#test-editor input[name="grade"]')->attr('value'));
+        self::assertSame($seed['subject'], (string) $broken->filter('#test-editor input[name="subject_id"]')->attr('value'));
+        self::assertSame($savedAssessments, $this->assessmentCount());
+        self::assertSame($savedRevisions, $this->revisionCount());
+        self::assertSame($savedAudits, $this->successAuditCount());
+
+        $fresh = $client->request('GET', $path.'/duzenle');
+        self::assertSame('Duzen duzeni', (string) $fresh->filter('#test-title')->attr('value'));
+        self::assertSame('1', (string) $fresh->filter('#test-editor input[name="expected_revision"]')->attr('value'));
+        self::assertSame('1', (string) $fresh->filter('#test-item-position-0')->attr('value'));
+        self::assertNotSame('0', (string) $fresh->filter('#test-item-points-0')->attr('value'));
+    }
+
     private function assessmentCount(): int
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
 
         return (int) $em->createQuery('SELECT COUNT(a.id) FROM '.Assessment::class.' a')->getSingleScalarResult();
+    }
+
+    private function revisionCount(): int
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return (int) $em->createQuery('SELECT COUNT(r.id) FROM '.AssessmentRevision::class.' r')->getSingleScalarResult();
+    }
+
+    private function successAuditCount(): int
+    {
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return (int) $em->getConnection()->fetchOne(
+            "SELECT COUNT(*) FROM security_audit_events WHERE action IN ('assessment_created', 'assessment_revision_created')",
+        );
     }
 
     /**

@@ -32,6 +32,10 @@ test('admin test create and edit screens stay in the list layout', async ({ page
     await expect(page.getByLabel('Soru kodu')).toBeVisible();
     await expect(page.getByLabel('Metin')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Taslak kaydet' })).toBeVisible();
+    await expect(page.locator('#test-grade')).toHaveValue('1');
+    await expect(page.locator('#test-subject')).toHaveValue('');
+    await expect(page.locator('.admin-test-editor__facts')).toContainText('1. sınıf');
+    await expect(page.locator('.admin-test-editor__facts')).toContainText('Seçilmedi');
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
     if (viewport.width >= 1024) {
       await expectColumns(page, false);
@@ -107,8 +111,15 @@ test('admin test create and edit screens stay in the list layout', async ({ page
     await page.setViewportSize(viewport);
     await page.goto(`/yonetim/testler/yeni?grade=1&subject_id=${subjectId}`);
     await page.locator('#test-title').fill('Hatali taslak');
+    await page.locator('#test-instructions').fill('Korunan yonerge');
+    await page.locator('#test-duration').fill('25');
     await page.getByRole('button', { name: 'Taslak kaydet' }).click();
     await expect(page.getByText('En az bir soru ekleyin.')).toBeVisible();
+    await expect(page.locator('#test-title')).toHaveValue('Hatali taslak');
+    await expect(page.locator('#test-instructions')).toHaveValue('Korunan yonerge');
+    await expect(page.locator('#test-duration')).toHaveValue('25');
+    await expect(page.locator('#test-grade')).toHaveValue('1');
+    await expect(page.locator('.admin-test-editor__facts')).toContainText('1. sınıf');
     await expect(page).toHaveURL(/\/yonetim\/testler\/yeni$/);
     await assertLayout(page);
     await capture(page, info, `admin-test-hata-${viewport.name}.png`);
