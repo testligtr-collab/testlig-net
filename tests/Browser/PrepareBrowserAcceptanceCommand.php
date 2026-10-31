@@ -329,6 +329,65 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->assessments->submitForReview($assessment, $teacher, 'browser_submit');
         $this->assessments->publish($assessment, $admin, 'browser_publish');
         $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
+        $longQuestion = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Uzun test sorusu'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_long',
+        );
+        $this->questions->submitForReview($longQuestion, $teacher, 'browser_submit_long');
+        $this->questions->publish($longQuestion, $admin, 'browser_publish_long');
+        $longRevision = $this->questionRevisions->findForQuestionNumber($longQuestion, $longQuestion->getCurrentRevisionNumber());
+        if (null === $longRevision) {
+            $output->writeln('Long test question revision was not found.');
+
+            return Command::FAILURE;
+        }
+        $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Uzun platform testi basligi dar ekranda kartta ve masaustunde teknik kodun yaninda sarilir ve tasmadan devam eder.',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $longQuestion->getId(),
+                    'questionRevisionId' => $longRevision->getId(),
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_long',
+            $subject,
+        );
 
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,

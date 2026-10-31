@@ -93,15 +93,56 @@ final class AdminTestController extends AdminBaseController
 
     #[Route('/yonetim/testler', name: 'app_admin_tests', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $actor = $this->requireActorUser();
+        $seeAll = $this->canSeeAll($actor);
+        $subjects = $this->subjects->findActiveOrdered();
+        $filters = $this->listFilters($request, $subjects);
+        $loaded = $this->assessments->findPlatformVisibleFiltered(
+            $actor,
+            $seeAll,
+            $filters['status'],
+            $filters['grade'],
+            $filters['subject'],
+            $filters['text'],
+            $filters['blocked'],
+        );
+        $rows = [];
+        foreach ($loaded as $loadedRow) {
+            $assessment = $loadedRow['assessment'];
+            $revision = $assessment->getCurrentRevision();
+            $rows[] = [
+                'id' => $assessment->getId()->toRfc4122(),
+                'title' => $revision?->getTitle() ?? 'Adsız test',
+                'code' => $assessment->getCode(),
+                'subject' => $assessment->getSubject()?->getName() ?? '—',
+                'grade' => $assessment->getGradeLevel()->value.'. sınıf',
+                'status' => $assessment->getStatus()->value,
+                'questions' => $loadedRow['questions'],
+            ];
+        }
 
         return $this->renderAdmin('admin/tests/list.html.twig', [
-            'assessments' => $this->assessments->findPlatformVisible($actor, $this->canSeeAll($actor)),
+            'rows' => $rows,
+            'counts' => $this->assessments->countPlatformVisibleByStatus($actor, $seeAll),
+            'matched' => $this->assessments->countPlatformVisibleFiltered(
+                $actor,
+                $seeAll,
+                $filters['status'],
+                $filters['grade'],
+                $filters['subject'],
+                $filters['text'],
+                $filters['blocked'],
+            ),
+            'subjects' => $subjects,
+            'filters' => [
+                'q' => $filters['text'],
+                'status' => $filters['status'] instanceof AssessmentStatus ? $filters['status']->value : '',
+                'subject_id' => $filters['subject'] instanceof Uuid ? $filters['subject']->toRfc4122() : '',
+                'grade' => $filters['grade'] instanceof GradeLevel ? (string) $filters['grade']->value : '',
+            ],
             'can_author' => $this->adminAuthorization->canAuthorTests($actor),
-            'status_labels' => $this->statusLabels(),
-            'type_labels' => $this->typeLabels(),
         ]);
     }
 
@@ -913,6 +954,47 @@ final class AdminTestController extends AdminBaseController
             ResourceAccessClass::EntitlementRequired => 'Lisans gerekli',
             null => 'Politika tanımlanmamış',
         };
+    }
+
+    /**
+     * @param list<Subject> $subjects
+     *
+     * @return array{status: ?AssessmentStatus, grade: ?GradeLevel, subject: ?Uuid, text: string, blocked: bool}
+     */
+    private function listFilters(Request $request, array $subjects): array
+    {
+        $status = AssessmentStatus::tryFrom($request->query->getString('status'));
+        $grade = GradeLevel::tryFrom($request->query->getInt('grade'));
+        if (0 === $request->query->getInt('grade') && !$request->query->has('grade')) {
+            $grade = null;
+        }
+        $text = trim($request->query->getString('q'));
+        if (mb_strlen($text) > 100) {
+            $text = mb_substr($text, 0, 100);
+        }
+        if ($this->hasMarkup($text)) {
+            $text = '';
+        }
+        $subjectRaw = strtolower($request->query->getString('subject_id'));
+        $subject = null;
+        $blocked = false;
+        if ('' !== $subjectRaw) {
+            foreach ($subjects as $item) {
+                if ($item->getId()->toRfc4122() === $subjectRaw) {
+                    $subject = $item->getId();
+                    break;
+                }
+            }
+            $blocked = !$subject instanceof Uuid;
+        }
+
+        return [
+            'status' => $status,
+            'grade' => $grade,
+            'subject' => $subject,
+            'text' => $text,
+            'blocked' => $blocked,
+        ];
     }
 
     private function canSeeAll(User $actor): bool

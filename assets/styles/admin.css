@@ -4505,3 +4505,204 @@ body.is-admin-panel {
     .is-admin-panel .admin-question-page .admin-question-stem-field > .q-surface { min-height: 10rem; }
 }
 
+.is-admin-panel .admin-test-page .admin-user-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.is-admin-panel .admin-test-page .admin-user-head p {
+    margin: 0.25rem 0 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-page .admin-test-primary {
+    border: 0;
+    background: #079dbf;
+    color: #fff;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-primary:hover,
+.is-admin-panel .admin-test-page .admin-test-primary:focus-visible {
+    background: #067f9b;
+    color: #fff;
+}
+.is-admin-panel .admin-test-page .admin-test-stat--draft .admin-user-stat__icon { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-test-page .admin-test-stat--review .admin-user-stat__icon { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-test-page .admin-test-stat--published .admin-user-stat__icon { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-test-page .admin-test-stat--archived .admin-user-stat__icon { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-test-page .admin-test-note {
+    margin: 0.75rem 0 0;
+    color: #52667d;
+    font-size: 0.92rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+    align-items: end;
+}
+.is-admin-panel .admin-test-page .admin-test-filter label,
+.is-admin-panel .admin-test-page .admin-test-filters > label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-page .admin-test-filters__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters__actions .admin-user-clear {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters select,
+.is-admin-panel .admin-test-page .admin-test-filters input[type="search"] { width: 100%; }
+.is-admin-panel .admin-test-page .admin-test-list {
+    margin-top: 0.85rem;
+    padding: 1rem 1.05rem 0.4rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-page .admin-test-list .admin-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.is-admin-panel .admin-test-page .admin-test-list h2 {
+    margin: 0 0 0.75rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-test-page .admin-test__name {
+    min-width: 0;
+    color: #16324f;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-page .admin-test__meta,
+.is-admin-panel .admin-test-page .admin-test__card-status,
+.is-admin-panel .admin-test-page .admin-test__open { display: none; }
+.is-admin-panel .admin-test-page .admin-test-tech { min-width: 0; margin-top: 0.35rem; }
+.is-admin-panel .admin-test-page .admin-test-tech > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel { display: none; }
+.is-admin-panel .admin-test-page .admin-test-tech[open] .admin-test-tech__panel {
+    display: block;
+    margin-top: 0.35rem;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel {
+    max-width: min(16rem, 100%);
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel dl {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel dt { color: #52667d; }
+.is-admin-panel .admin-test-page .admin-test-tech__panel dd { min-width: 0; margin: 0; }
+.is-admin-panel .admin-test-page .admin-test-tech__panel code {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-test-page .admin-test-status--draft { background: #e7f1ff; color: #1f4f93; }
+.is-admin-panel .admin-test-page .admin-test-status--in_review { background: #fff4e5; color: #9a4d00; }
+.is-admin-panel .admin-test-page .admin-test-status--published { background: #e5f6ec; color: #146c43; }
+.is-admin-panel .admin-test-page .admin-test-status--archived { background: #f3eaff; color: #7136db; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-page .admin-test-filters {
+        grid-template-columns: minmax(14rem, 1.6fr) repeat(3, minmax(8rem, 1fr)) auto;
+    }
+    .is-admin-panel .admin-test-page .admin-test-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(1),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__identity { width: 42%; min-width: 0; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(2),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject { width: 16%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(3),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade { width: 10%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(4),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__status { width: 14%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(5),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__count { width: 7%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(6),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__action { width: 11%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(n+2),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__status,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__count,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__action {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .is-admin-panel .admin-test-page .admin-test-tech > summary { min-height: 2rem; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-test-page .admin-user-head { flex-direction: column; }
+    .is-admin-panel .admin-test-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-page .admin-test-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-test-page .admin-test-table,
+    .is-admin-panel .admin-test-page .admin-test-table tbody,
+    .is-admin-panel .admin-test-page .admin-test-table tr,
+    .is-admin-panel .admin-test-page .admin-test-table td { display: block; width: auto; }
+    .is-admin-panel .admin-test-page .admin-test-table tr {
+        padding: 0.85rem 0.15rem 0.75rem;
+        border-bottom: 1px solid #e2eaf4;
+    }
+    .is-admin-panel .admin-test-page .admin-test-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__subject,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__grade,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__status,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__count,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__action { display: none; }
+    .is-admin-panel .admin-test-page .admin-test__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .is-admin-panel .admin-test-page .admin-test__name { flex: 1 1 12rem; }
+    .is-admin-panel .admin-test-page .admin-test__card-status { display: inline-flex; }
+    .is-admin-panel .admin-test-page .admin-test__meta {
+        display: block;
+        margin: 0.35rem 0;
+        color: #52667d;
+    }
+    .is-admin-panel .admin-test-page .admin-test__open {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+        margin-top: 0.35rem;
+    }
+}
+@media (max-width: 640px) {
+    .is-admin-panel .admin-test-page .admin-user-stats { grid-template-columns: 1fr; }
+}
+

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-30",
+  "updated_at": "2026-10-31",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
     "X10-admin-navigation"
@@ -565,10 +565,12 @@
       "depends_on": [],
       "evidence": [
         "src/Controller/StudentAssessmentController.php",
-        "Öğrenci çözme ve sonuç sayfası izinli biçimlendirme ve formülü kaçıksız gösterir. Karşılaştırma işaretleri aynı kaçışlı bloklarda kalır. Taraması kabul edilmemiş soru görseli öğrenciye basılmaz. Cevap anahtarı ve çözüm görünürlüğü mevcut sonuç okuyucusunda kalır. Yayımlanmış test revision’ı ve öğrenci denemesi yerinde değişmez. Kurum testi platform kullanım listesine ad veya sayı olarak girmez."
+        "Öğrenci çözme ve sonuç sayfası izinli biçimlendirme ve formülü kaçıksız gösterir. Karşılaştırma işaretleri aynı kaçışlı bloklarda kalır. Taraması kabul edilmemiş soru görseli öğrenciye basılmaz. Cevap anahtarı ve çözüm görünürlüğü mevcut sonuç okuyucusunda kalır. Yayımlanmış test revision’ı ve öğrenci denemesi yerinde değişmez. Kurum testi platform kullanım listesine ad veya sayı olarak girmez.",
+        "Yönetim test listesi /yonetim/testler mevcut Assessment kaydını okur. Başlık ve soru sayısı güncel revision ile o revision’ın maddelerinden gelir. Sayaçlar aktörün görebildiği bütün platform kapsamını sayar; filtre ve 100 satırlık sayfa sayacı değiştirmez. Kurum testi ve başka kullanıcının görünmez taslağı listeye girmez. GET kayıt, revision, durum veya audit yazmaz. Oluşturma, detay, yayın ve erişim bu listede değişmedi. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/182"
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/184"
       ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
@@ -1250,7 +1252,8 @@
         "Öğrenme içeriği önizlemesinde bilgi kutusu etiketleri mevcut katalogla Bilgi, Uyarı, İpucu ve Not olarak kalır ve harf harf kırılmaz. Yayın ve erişim kartı uzun önizlemeyle uzamaz. Liste satırı masaüstünde kısalır; sayaç notu, yayın ikonu ve arşiv ikonu aynı sayfada kalır. Adres, yetki, yayın ve erişim aynıdır. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
         "Soru Havuzu listesi, detayı ve düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/sorular ve alt yolları aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Soru ürünü tamamlanmış sayılmaz.",
         "Soru düzenleyici kök, her seçenek ve çözüm için aynı araç çubuğunu ve ayrı görsel yuvasını kullanır. Liste gerçek Kolay, Orta ve Zor değerini ve platform test kullanımını gösterir. Kullanım yetkisi yokken kullanım bilgisine erişilemediği yazılır; yetkili boş kapsamda henüz kullanılmadığı yazılır. Kurum testinin adı veya sayısı yazılmaz. Etkileşimli geometri çizim motoru yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Soru ürünü tamamlanmış sayılmaz.",
-        "Soru düzenleyicide Matematik, Geometri, Kimya ve Biyoloji aynı anda yalnız seçilen sekmede görünür. Soru metni ile 250 önizleme yan yanadır. Zorluk üç radio seçeneğidir. Sağ sınıflandırma kartı içeriği kadar yüksektir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Etkileşimli geometri, öğrenci görsel baytı ve canlı tarama kabulü açıktır."
+        "Soru düzenleyicide Matematik, Geometri, Kimya ve Biyoloji aynı anda yalnız seçilen sekmede görünür. Soru metni ile 250 önizleme yan yanadır. Zorluk üç radio seçeneğidir. Sağ sınıflandırma kartı içeriği kadar yüksektir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Etkileşimli geometri, öğrenci görsel baytı ve canlı tarama kabulü açıktır.",
+        "Testler listesi aynı yönetim kabuğunda başlık, dört sayaç, tek filtre paneli ve Test listesi kartıyla düzenlendi. Sayfa başlığı Testler, menü adı Test ve sınavlar kaldı. Adres /yonetim/testler aynıdır. Yeni test yalnız mevcut oluşturma yetkisiyle görünür. Filtre ve sayaç okuması bu görsel düzenle birlikte geldi. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1279,7 +1282,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/180",
         "https://github.com/testligtr-collab/testlig-net/pull/181",
         "https://github.com/testligtr-collab/testlig-net/pull/182",
-        "https://github.com/testligtr-collab/testlig-net/pull/183"
+        "https://github.com/testligtr-collab/testlig-net/pull/183",
+        "https://github.com/testligtr-collab/testlig-net/pull/184"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
       "scope_decision": null
