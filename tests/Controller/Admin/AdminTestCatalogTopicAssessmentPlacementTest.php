@@ -143,7 +143,7 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
         $client = $this->newClient();
         $this->login($client, 'atp-admin@example.com');
         $crawler = $client->request('GET', $path);
-        $archiveForm = $crawler->filter('form[action$="/arsivle"]')->first();
+        $archiveForm = $crawler->filter('form[action*="/yerlesim/"][action$="/arsivle"]')->first();
         $archiveAction = (string) $archiveForm->attr('action');
         $archiveToken = (string) $archiveForm->filter('input[name="_token"]')->attr('value');
         $beforeArchiveAudit = $this->placementAuditCount(SecurityAuditAction::CatalogTopicAssessmentArchived);
@@ -243,7 +243,7 @@ final class AdminTestCatalogTopicAssessmentPlacementTest extends WebTestCase
         self::assertTrue($this->placementIsPublished($placementId));
 
         $crawler = $client->request('GET', $path);
-        $archiveForm = $crawler->filter('form[action$="/arsivle"]')->first();
+        $archiveForm = $crawler->filter('form[action*="/yerlesim/"][action$="/arsivle"]')->first();
         $archiveAction = (string) $archiveForm->attr('action');
         $archiveToken = $this->mintCsrfToken($client, 'test_placement_archive_'.$placementId);
         $beforeArchiveAudit = $this->placementAuditCount(SecurityAuditAction::CatalogTopicAssessmentArchived);

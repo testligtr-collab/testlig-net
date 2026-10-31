@@ -754,7 +754,7 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertResponseRedirects();
         $client->followRedirect();
         $author = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('yayımlayamazsınız', $author);
+        self::assertStringContainsString('Kendi hazırladığınız testi yayınlayamazsınız.', $author);
         self::assertStringNotContainsString('/yayinla', $author);
         self::assertSelectorNotExists('a[href$="/duzenle"]');
 
