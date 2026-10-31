@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller\Admin;
 
+use App\Entity\Assessment;
 use App\Entity\CurriculumLearningOutcome;
+use App\Entity\Institution;
 use App\Entity\Question;
 use App\Entity\Subject;
 use App\Entity\User;
+use App\Enum\AssessmentScope;
+use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
+use App\Enum\InstitutionType;
 use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionType;
@@ -319,6 +324,161 @@ final class AdminTestControllerTest extends WebTestCase
         $this->submitVisible($client, '/yayinla');
         self::assertStringContainsString('Yalnız yayımlanmış sorular', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString('Test yayınlandı', (string) $client->getResponse()->getContent());
+    }
+
+    public function testListVisibilityFiltersCountersAndCurrentRevisionCount(): void
+    {
+        $seed = $this->seed('tb');
+        $this->createPrivileged('tb-author@example.com', UserRole::Teacher);
+        $this->createPrivileged('tb-other@example.com', UserRole::Teacher);
+        $this->createPrivileged('tb-mod@example.com', UserRole::Moderator);
+        $client = $this->newClient();
+        $this->login($client, 'tb-author@example.com');
+        $title = 'Toplama alfa & '.str_repeat('uzunbaslik ', 8);
+        $path = $this->createDraft($client, $seed, $title, [
+            ['question_id' => $seed['question'], 'position' => '1', 'points' => '2'],
+            ['question_id' => $seed['second_question'], 'position' => '2', 'points' => '3'],
+        ]);
+        $edit = $client->request('GET', $path.'/duzenle');
+        self::assertResponseIsSuccessful();
+        $client->request('POST', $path.'/duzenle', $this->payload($seed, [
+            '_token' => (string) $edit->filter('#test-editor input[name="_token"]')->attr('value'),
+            'expected_revision' => (string) $edit->filter('#test-editor input[name="expected_revision"]')->attr('value'),
+            'title' => $title,
+            'items' => [[
+                'question_id' => $seed['question'],
+                'position' => '1',
+                'points' => '2',
+            ]],
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
+            '_token' => $this->token($client, $seed),
+            'title' => 'Cikarma beta',
+            'subject_id' => $seed['other_subject'],
+            'items' => [[
+                'question_id' => $seed['other_subject_question'],
+                'position' => '1',
+                'points' => '1',
+            ]],
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+
+        $client->request('GET', '/yonetim/testler');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'Sayaçlar filtrelerden bağımsızdır.');
+        self::assertSame('2', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+        self::assertSelectorExists('a[href="/yonetim/testler/yeni"]');
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Toplama alfa &amp;', $html);
+        self::assertStringNotContainsString('Toplama alfa & uzunbaslik', $html);
+        $row = $client->getCrawler()->filterXPath('//tr[contains(., "Toplama alfa")]');
+        self::assertSame('1', trim($row->filter('.admin-test__count')->text()));
+        self::assertGreaterThan(20, strlen(trim($row->filter('code')->text())));
+        self::assertSelectorExists('summary[role="button"]');
+
+        $client->request('GET', '/yonetim/testler?q=alfa&subject_id='.$seed['subject'].'&grade=1&status=draft');
+        self::assertSelectorTextContains('body', 'Toplama alfa');
+        self::assertSelectorTextNotContains('body', 'Cikarma beta');
+        self::assertSame('2', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+        self::assertSame('/yonetim/testler', $client->getCrawler()->filter('.admin-user-clear')->attr('href'));
+        self::assertSelectorExists('option[value="draft"][selected]');
+
+        $client->request('GET', '/yonetim/testler?grade=2');
+        self::assertSelectorTextContains('body', 'Bu filtreye uyan test yok.');
+        self::assertSame('2', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+
+        $client->request('GET', '/yonetim/testler?subject_id=not-a-subject&q='.rawurlencode('Toplama <script>'));
+        self::assertSelectorTextContains('body', 'Bu filtreye uyan test yok.');
+        self::assertStringNotContainsString('<script>', (string) $client->getResponse()->getContent());
+        self::assertSame('2', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+
+        $client = $this->newClient();
+        $this->login($client, 'tb-other@example.com');
+        $client->request('GET', '/yonetim/testler');
+        self::assertSelectorTextContains('body', 'Henüz görebildiğiniz bir test yok.');
+        self::assertSelectorTextNotContains('body', 'Toplama alfa');
+        self::assertSame('0', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+        self::assertSelectorExists('a[href="/yonetim/testler/yeni"]');
+
+        $client = $this->newClient();
+        $this->login($client, 'tb-mod@example.com');
+        $client->request('GET', '/yonetim/testler');
+        self::assertSelectorTextContains('body', 'Toplama alfa');
+        self::assertSelectorNotExists('a[href="/yonetim/testler/yeni"]');
+    }
+
+    public function testListStaysPlatformScopedAndReadOnly(): void
+    {
+        $seed = $this->seed('iso');
+        $this->createPrivileged('iso-author@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'iso-author@example.com');
+        $this->createDraft($client, $seed, 'Platform gorunen');
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $owner = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'iso-author@example.com']);
+        self::assertInstanceOf(User::class, $owner);
+        $institution = Institution::create('Kurum Liste', 'kurum liste', 'kurum-liste-iso', InstitutionType::School, new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $em->persist($institution);
+        $em->persist(Assessment::createDraft(AssessmentScope::Institution, $institution, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00')));
+        $em->flush();
+        $before = $em->getConnection()->fetchFirstColumn('SELECT updated_at FROM assessments WHERE scope = ? ORDER BY code', ['platform']);
+        $audits = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM security_audit_events');
+        self::ensureKernelShutdown();
+
+        try {
+            $client = $this->newClient();
+            $this->login($client, 'iso-editor@example.com');
+            $client->request('GET', '/yonetim/testler');
+            self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('body', 'Platform gorunen');
+            self::assertSame(1, $client->getCrawler()->filter('.admin-test-table tbody tr')->count());
+            self::assertStringNotContainsString('Kurum Liste', (string) $client->getResponse()->getContent());
+            self::assertStringNotContainsString('correctStableKey', (string) $client->getResponse()->getContent());
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $connection = static::getContainer()->get(EntityManagerInterface::class);
+            self::assertInstanceOf(EntityManagerInterface::class, $connection);
+            self::assertSame($before, $connection->getConnection()->fetchFirstColumn('SELECT updated_at FROM assessments WHERE scope = ? ORDER BY code', ['platform']));
+            self::assertSame($audits, (int) $connection->getConnection()->fetchOne('SELECT COUNT(*) FROM security_audit_events'));
+        } finally {
+            self::ensureKernelShutdown();
+            self::bootKernel();
+            $cleanup = static::getContainer()->get(EntityManagerInterface::class);
+            self::assertInstanceOf(EntityManagerInterface::class, $cleanup);
+            $cleanup->getConnection()->executeStatement('DELETE FROM assessments WHERE scope = ?', ['institution']);
+            $cleanup->getConnection()->executeStatement('DELETE FROM institutions WHERE slug = ?', ['kurum-liste-iso']);
+            self::ensureKernelShutdown();
+        }
+    }
+
+    public function testCountersIgnoreTheHundredRowPage(): void
+    {
+        $this->createPrivileged('cap-admin@example.com', UserRole::Admin);
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $owner = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'cap-admin@example.com']);
+        self::assertInstanceOf(User::class, $owner);
+        for ($i = 0; $i < 101; ++$i) {
+            $em->persist(Assessment::createDraft(AssessmentScope::Platform, null, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00')));
+        }
+        $em->flush();
+        self::ensureKernelShutdown();
+
+        $client = $this->newClient();
+        $this->login($client, 'cap-admin@example.com');
+        $client->request('GET', '/yonetim/testler');
+        self::assertResponseIsSuccessful();
+        self::assertSame('101', trim($client->getCrawler()->filter('[data-test-summary="draft"]')->text()));
+        self::assertSame(100, $client->getCrawler()->filter('.admin-test-table tbody tr')->count());
+        self::assertSelectorTextContains('body', 'Listede en yeni 100 kayıt görünüyor.');
+        self::assertSelectorTextContains('body', 'Filtreye uyan kayıt sayısı 101.');
     }
 
     /**

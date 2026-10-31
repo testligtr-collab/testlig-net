@@ -329,6 +329,39 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->assessments->submitForReview($assessment, $teacher, 'browser_submit');
         $this->assessments->publish($assessment, $admin, 'browser_publish');
         $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
+        $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Uzun platform testi basligi dar ekranda kartta ve masaustunde teknik kodun yaninda sarilir ve tasmadan devam eder.',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $publishedQuestion->getId(),
+                    'questionRevisionId' => $questionRevision->getId(),
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_long',
+            $subject,
+        );
 
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,

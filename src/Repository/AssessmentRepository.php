@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Assessment;
+use App\Entity\AssessmentRevision;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentStatus;
 use App\Enum\GradeLevel;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -33,22 +35,90 @@ class AssessmentRepository extends ServiceEntityRepository
      */
     public function findPlatformVisible(User $actor, bool $seeAll): array
     {
-        $qb = $this->createQueryBuilder('a')
-            ->andWhere('a.scope = :scope')
-            ->setParameter('scope', AssessmentScope::Platform)
+        return $this->findPlatformVisibleFiltered($actor, $seeAll, null, null, null, '', false);
+    }
+
+    /**
+     * Counts the actor's whole visible platform set. Filters and the 100-row page are not applied.
+     *
+     * @return array{total: int, draft: int, in_review: int, published: int, archived: int}
+     */
+    public function countPlatformVisibleByStatus(User $actor, bool $seeAll): array
+    {
+        $counts = [
+            'total' => 0,
+            'draft' => 0,
+            'in_review' => 0,
+            'published' => 0,
+            'archived' => 0,
+        ];
+        $rows = $this->platformVisibleQuery($actor, $seeAll)
+            ->select('a.status AS status', 'COUNT(a.id) AS total')
+            ->groupBy('a.status')
+            ->getQuery()
+            ->getArrayResult();
+        foreach ($rows as $row) {
+            $status = $row['status'] ?? null;
+            $key = $status instanceof AssessmentStatus ? $status->value : (\is_string($status) ? $status : '');
+            if (!isset($counts[$key])) {
+                continue;
+            }
+            $counts[$key] = (int) $row['total'];
+            $counts['total'] += $counts[$key];
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Newest visible platform tests. Subject and the current revision are joined for the row.
+     *
+     * @return list<Assessment>
+     */
+    public function findPlatformVisibleFiltered(
+        User $actor,
+        bool $seeAll,
+        ?AssessmentStatus $status,
+        ?GradeLevel $grade,
+        ?Uuid $subjectId,
+        string $text,
+        bool $blocked,
+    ): array {
+        if ($blocked) {
+            return [];
+        }
+        $qb = $this->filteredQuery($actor, $seeAll, $status, $grade, $subjectId, $text)
+            ->leftJoin('a.subject', 'subject')
+            ->addSelect('subject')
+            ->leftJoin('a.currentRevision', 'currentRevision')
+            ->addSelect('currentRevision')
             ->orderBy('a.updatedAt', 'DESC')
             ->addOrderBy('a.id', 'DESC')
             ->setMaxResults(100);
-        if (!$seeAll) {
-            $qb->andWhere('a.status = :published OR IDENTITY(a.createdBy) = :actor')
-                ->setParameter('published', AssessmentStatus::Published)
-                ->setParameter('actor', $actor->getId(), 'uuid');
-        }
 
         /** @var list<Assessment> $rows */
         $rows = $qb->getQuery()->getResult();
 
         return $rows;
+    }
+
+    public function countPlatformVisibleFiltered(
+        User $actor,
+        bool $seeAll,
+        ?AssessmentStatus $status,
+        ?GradeLevel $grade,
+        ?Uuid $subjectId,
+        string $text,
+        bool $blocked,
+    ): int {
+        if ($blocked) {
+            return 0;
+        }
+
+        return (int) $this->filteredQuery($actor, $seeAll, $status, $grade, $subjectId, $text)
+            ->select('COUNT(a.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     public function countCreatedBy(User $actor): int
@@ -109,5 +179,51 @@ class AssessmentRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
+    }
+
+    private function platformVisibleQuery(User $actor, bool $seeAll): QueryBuilder
+    {
+        $qb = $this->createQueryBuilder('a')
+            ->andWhere('a.scope = :scope')
+            ->setParameter('scope', AssessmentScope::Platform);
+        if (!$seeAll) {
+            $qb->andWhere('a.status = :published OR IDENTITY(a.createdBy) = :actor')
+                ->setParameter('published', AssessmentStatus::Published)
+                ->setParameter('actor', $actor->getId(), 'uuid');
+        }
+
+        return $qb;
+    }
+
+    private function filteredQuery(
+        User $actor,
+        bool $seeAll,
+        ?AssessmentStatus $status,
+        ?GradeLevel $grade,
+        ?Uuid $subjectId,
+        string $text,
+    ): QueryBuilder {
+        $qb = $this->platformVisibleQuery($actor, $seeAll);
+        if ($status instanceof AssessmentStatus) {
+            $qb->andWhere('a.status = :filterStatus')->setParameter('filterStatus', $status);
+        }
+        if ($grade instanceof GradeLevel) {
+            $qb->andWhere('a.gradeLevel = :filterGrade')->setParameter('filterGrade', $grade);
+        }
+        if ($subjectId instanceof Uuid) {
+            $qb->andWhere('a.subject = :filterSubject')->setParameter('filterSubject', $subjectId, 'uuid');
+        }
+        if ('' !== $text) {
+            $qb->andWhere(
+                'a.code LIKE :needle OR EXISTS (SELECT 1 FROM '.AssessmentRevision::class.' revision WHERE revision.assessment = a AND revision.revisionNumber = a.currentRevisionNumber AND revision.title LIKE :needle)'
+            )->setParameter('needle', '%'.$this->like($text).'%');
+        }
+
+        return $qb;
+    }
+
+    private function like(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 }

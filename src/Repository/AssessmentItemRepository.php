@@ -9,6 +9,7 @@ use App\Entity\Question;
 use App\Enum\AssessmentScope;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @extends ServiceEntityRepository<AssessmentItem>
@@ -18,6 +19,45 @@ class AssessmentItemRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, AssessmentItem::class);
+    }
+
+    /**
+     * Item totals for the revisions shown on the list. Older revisions are not included.
+     *
+     * @param list<Uuid> $revisionIds
+     *
+     * @return array<string, int>
+     */
+    public function countByRevisionIds(array $revisionIds): array
+    {
+        if ([] === $revisionIds) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('i')
+            ->select('rev.id AS revisionId', 'COUNT(i.id) AS total')
+            ->join('i.assessmentRevision', 'rev')
+            ->andWhere('rev.id IN (:ids)')
+            ->setParameter('ids', $revisionIds)
+            ->groupBy('rev.id')
+            ->getQuery()
+            ->getArrayResult();
+        $counts = [];
+        foreach ($rows as $row) {
+            $id = $row['revisionId'] ?? '';
+            $raw = $id instanceof Uuid ? $id->toRfc4122() : (string) $id;
+            try {
+                $key = Uuid::fromString($raw)->toRfc4122();
+            } catch (\InvalidArgumentException) {
+                $key = $raw;
+            }
+            if ('' === $key) {
+                continue;
+            }
+            $counts[$key] = (int) $row['total'];
+        }
+
+        return $counts;
     }
 
     public function save(AssessmentItem $item, bool $flush = true): void
