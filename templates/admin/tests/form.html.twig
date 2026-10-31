@@ -3,116 +3,222 @@
 {% block title %}{{ assessment ? 'Testi düzenle' : 'Yeni test' }} — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set route_name = assessment ? 'app_admin_test_edit' : 'app_admin_test_new' %}
+    {% set route_params = assessment ? {id: assessment.id.toRfc4122} : {} %}
+    {% set pager = {} %}
+    {% if grade %}{% set pager = pager|merge({grade: grade.value}) %}{% endif %}
+    {% if subject %}{% set pager = pager|merge({subject_id: subject.id.toRfc4122}) %}{% endif %}
+    {% if filters.outcome %}{% set pager = pager|merge({outcome: filters.outcome}) %}{% endif %}
+    {% if filters.difficulty %}{% set pager = pager|merge({difficulty: filters.difficulty}) %}{% endif %}
+    {% if filters.code %}{% set pager = pager|merge({code: filters.code}) %}{% endif %}
+    {% if filters.q %}{% set pager = pager|merge({q: filters.q}) %}{% endif %}
+
     <nav class="admin-breadcrumb" aria-label="Konum">
         <a href="{{ path('app_admin_tests') }}">Testler</a>
         <span aria-hidden="true">/</span>
         <span>{{ assessment ? 'Düzenle' : 'Yeni' }}</span>
     </nav>
-    <h1 class="panel-greeting">{{ assessment ? 'Testi düzenle' : 'Yeni test' }}</h1>
 
-    <form method="get" class="stack-sm" action="{{ assessment ? path('app_admin_test_edit', {id: assessment.id.toRfc4122}) : path('app_admin_test_new') }}">
-        {% if assessment %}
-            <input type="hidden" name="grade" value="{{ assessment.gradeLevel.value }}">
-            <input type="hidden" name="subject_id" value="{{ assessment.subject ? assessment.subject.id.toRfc4122 : '' }}">
-        {% else %}
-            <label>Sınıf
-                <select name="grade">
-                    {% for level in 1..12 %}
-                        <option value="{{ level }}" {{ grade and grade.value == level ? 'selected' : '' }}>{{ level }}. sınıf</option>
-                    {% endfor %}
-                </select>
-            </label>
-            <label>Ders
-                <select name="subject_id">
-                    <option value="">Seçin</option>
-                    {% for item in subjects %}
-                        <option value="{{ item.id.toRfc4122 }}" {{ subject and subject.id.equals(item.id) ? 'selected' : '' }}>{{ item.name }}</option>
-                    {% endfor %}
-                </select>
-            </label>
-        {% endif %}
-        <label>Kazanım kodu
-            <input type="text" name="outcome" value="{{ filters.outcome }}" maxlength="64">
-        </label>
-        <label>Zorluk
-            <select name="difficulty">
-                <option value="">Tümü</option>
-                {% for value, label in difficulty_labels %}
-                    <option value="{{ value }}" {{ filters.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Soru kodu
-            <input type="text" name="code" value="{{ filters.code }}" maxlength="32">
-        </label>
-        <label>Metin
-            <input type="search" name="q" value="{{ filters.q }}" maxlength="200">
-        </label>
-        <button class="btn" type="submit">Soruları listele</button>
-    </form>
+    <div class="admin-test-editor">
+        <header class="admin-test-editor__intro">
+            <a class="admin-test-editor__back" href="{{ path('app_admin_tests') }}">Listeye dön</a>
+            <h1 class="panel-greeting">{{ assessment ? 'Testi düzenle' : 'Yeni test' }}</h1>
+            <p>Kaydetme taslak sürüm oluşturur. Yayın ayrı işlemdir.</p>
+        </header>
 
-    <form id="test-editor" method="post" class="stack-sm" action="{{ assessment ? path('app_admin_test_edit', {id: assessment.id.toRfc4122}) : path('app_admin_test_new') }}">
-        <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
-        <input type="hidden" name="expected_revision" value="{{ revision ? revision.revisionNumber : 0 }}">
-        <label>Başlık
-            <input type="text" name="title" required maxlength="200" value="{{ revision ? revision.title : '' }}">
-        </label>
-        <label>Açıklama / yönerge
-            <textarea name="instructions" maxlength="10000" rows="4">{{ revision ? revision.instructions : '' }}</textarea>
-        </label>
-        {% if assessment %}
-            <p>Sınıf: {{ assessment.gradeLevel.value }}. sınıf</p>
-            <p>Ders: {{ subject ? subject.name : '' }}</p>
-            <input type="hidden" name="grade" value="{{ assessment.gradeLevel.value }}">
-            <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
-        {% else %}
-            <input type="hidden" name="grade" value="{{ grade ? grade.value : '' }}">
-            <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
-        {% endif %}
-        <label>Süre (dakika, isteğe bağlı)
-            <input type="number" name="duration_minutes" min="1" max="360" value="{{ revision and revision.durationSeconds ? (revision.durationSeconds / 60)|round(0, 'ceil') : '' }}">
-        </label>
+        <form id="test-search" method="get" action="{{ path(route_name, route_params) }}" aria-label="Yayımlanmış soru ara"></form>
 
-        <h2>Seçili sorular</h2>
-        {% if selected is empty %}
-            <p>Henüz soru seçilmedi.</p>
-        {% endif %}
-        {% for row in selected %}
-            <fieldset>
-                <legend>{{ row.position }}. {{ row.code }}</legend>
-                <p>{{ row.stem }}</p>
-                <input type="hidden" name="items[{{ loop.index0 }}][question_id]" value="{{ row.question_id }}">
-                <label>Sıra
-                    <input type="number" name="items[{{ loop.index0 }}][position]" min="1" value="{{ row.position }}" required>
-                </label>
-                <label>Puan
-                    <input type="text" name="items[{{ loop.index0 }}][points]" value="{{ row.points }}" required>
-                </label>
-                <button class="btn" type="submit" name="move_up_{{ loop.index0 }}" value="1">Yukarı</button>
-                <button class="btn" type="submit" name="move_down_{{ loop.index0 }}" value="1">Aşağı</button>
-            </fieldset>
-        {% endfor %}
+        <div class="admin-test-editor__layout">
+            <aside class="admin-test-editor__side">
+                <section class="admin-test-editor__card" aria-labelledby="test-class-heading">
+                    <h2 id="test-class-heading">Sınıflandırma</h2>
+                    {% if assessment %}
+                        <dl class="admin-test-editor__facts">
+                            <div><dt>Sınıf</dt><dd>{{ assessment.gradeLevel.value }}. sınıf</dd></div>
+                            <div><dt>Ders</dt><dd>{{ subject ? subject.name : '—' }}</dd></div>
+                        </dl>
+                        <p class="admin-test-editor__hint">Ders ve sınıf bu taslakta değiştirilemez.</p>
+                        <input type="hidden" name="grade" value="{{ assessment.gradeLevel.value }}" form="test-search">
+                        <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}" form="test-search">
+                        {% if assessment.code %}
+                            <details class="admin-test-tech">
+                                <summary role="button">Teknik bilgiler</summary>
+                                <div class="admin-test-tech__panel">
+                                    <dl>
+                                        <div><dt>Teknik kod</dt><dd><code>{{ assessment.code }}</code></dd></div>
+                                    </dl>
+                                </div>
+                            </details>
+                        {% endif %}
+                    {% else %}
+                        <div class="admin-test-editor__fields">
+                            <label for="test-grade">Sınıf
+                                <select id="test-grade" name="grade" form="test-search">
+                                    {% if not grade %}
+                                        <option value="{{ grade_raw }}" selected>{{ grade_raw != '' ? grade_raw : 'Seçilmedi' }}</option>
+                                    {% endif %}
+                                    {% for level in 1..12 %}
+                                        <option value="{{ level }}" {{ grade and grade.value == level ? 'selected' : '' }}>{{ level }}. sınıf</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label for="test-subject">Ders
+                                <select id="test-subject" name="subject_id" form="test-search">
+                                    <option value="" {{ subject ? '' : 'selected' }}>Seçin</option>
+                                    {% for item in subjects %}
+                                        <option value="{{ item.id.toRfc4122 }}" {{ subject and subject.id.equals(item.id) ? 'selected' : '' }}>{{ item.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        </div>
+                        <p class="admin-test-editor__hint">Sınıf ve ders, soru listesini belirler. Değişiklik soruları listeleyince uygulanır.</p>
+                    {% endif %}
+                </section>
 
-        <h2>Yayımlanmış sorular</h2>
-        {% if subject is null or grade is null %}
-            <p>Soru listesi için sınıf ve ders seçin.</p>
-        {% elseif picker is empty %}
-            <p>Bu filtrede yayımlanmış soru yok.</p>
-        {% else %}
-            {% for row in picker %}
-                <label>
-                    <input type="checkbox" name="add_ids[]" value="{{ row.id }}">
-                    {{ row.code }} — {{ row.stem }}
-                </label>
-            {% endfor %}
-            {% if page > 1 %}
-                <a href="{{ path(assessment ? 'app_admin_test_edit' : 'app_admin_test_new', assessment ? {id: assessment.id.toRfc4122, page: page - 1} : {page: page - 1}) }}">Önceki</a>
-            {% endif %}
-            {% if picker|length == 10 %}
-                <a href="{{ path(assessment ? 'app_admin_test_edit' : 'app_admin_test_new', assessment ? {id: assessment.id.toRfc4122, page: page + 1} : {page: page + 1}) }}">Sonraki</a>
-            {% endif %}
-        {% endif %}
+                <section class="admin-test-editor__card" aria-labelledby="test-summary-heading">
+                    <h2 id="test-summary-heading">Özet</h2>
+                    <dl class="admin-test-editor__facts">
+                        <div><dt>Başlık</dt><dd>{{ values.title != '' ? values.title : 'Henüz yok' }}</dd></div>
+                        <div><dt>Sınıf</dt><dd>{{ grade ? grade.value ~ '. sınıf' : (grade_raw != '' ? grade_raw : 'Seçilmedi') }}</dd></div>
+                        <div><dt>Ders</dt><dd>{{ subject ? subject.name : 'Seçilmedi' }}</dd></div>
+                        <div><dt>Seçili soru</dt><dd>{{ selected|length }}</dd></div>
+                        <div><dt>Süre</dt><dd>{% if values.duration != '' %}{{ values.duration }}{% if values.duration matches '/^[0-9]+$/' %} dakika{% endif %}{% else %}Belirtilmedi{% endif %}</dd></div>
+                    </dl>
+                    <p class="admin-test-editor__hint" id="test-move-note">Yukarı ve Aşağı formu gönderir ve taslak sürüm kaydeder.</p>
+                </section>
+            </aside>
 
-        <button class="btn btn--primary" type="submit">Taslak kaydet</button>
-    </form>
+            <div class="admin-test-editor__main">
+                <form id="test-editor" method="post" action="{{ path(route_name, route_params) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('test_editor') }}">
+                    <input type="hidden" name="expected_revision" value="{{ revision ? revision.revisionNumber : 0 }}">
+                    <input type="hidden" name="grade" value="{{ grade ? grade.value : grade_raw }}">
+                    <input type="hidden" name="subject_id" value="{{ subject ? subject.id.toRfc4122 : '' }}">
+                    <input type="hidden" name="search_q" value="{{ filters.q }}">
+                    <input type="hidden" name="search_code" value="{{ filters.code }}">
+                    <input type="hidden" name="search_outcome" value="{{ filters.outcome }}">
+                    <input type="hidden" name="search_difficulty" value="{{ filters.difficulty }}">
+                    <input type="hidden" name="search_page" value="{{ page }}">
+
+                    <section class="admin-test-editor__card" aria-labelledby="test-info-heading">
+                        <h2 id="test-info-heading">Test bilgileri</h2>
+                        <div class="admin-test-editor__fields">
+                            <label for="test-title">Başlık
+                                <input id="test-title" type="text" name="title" required maxlength="200" value="{{ values.title }}">
+                            </label>
+                            <label for="test-instructions">Yönerge
+                                <textarea id="test-instructions" name="instructions" maxlength="10000" rows="4">{{ values.instructions }}</textarea>
+                            </label>
+                            <label for="test-duration">Süre (dakika, isteğe bağlı)
+                                <input id="test-duration" type="text" name="duration_minutes" inputmode="numeric" maxlength="4" value="{{ values.duration }}">
+                            </label>
+                        </div>
+                    </section>
+
+                    <section class="admin-test-editor__card" aria-labelledby="test-selected-heading">
+                        <div class="admin-test-editor__card-head">
+                            <h2 id="test-selected-heading">Seçilen sorular</h2>
+                            <p>{{ selected|length }} soru seçili</p>
+                        </div>
+                        {% if selected is empty %}
+                            <p class="admin-test-editor__hint">Henüz soru seçilmedi.</p>
+                        {% else %}
+                            <ol class="admin-test-editor__items">
+                                {% for row in selected %}
+                                    <li class="admin-test-item">
+                                        <p class="admin-test-item__stem">{{ row.stem }}</p>
+                                        <details class="admin-test-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-test-tech__panel">
+                                                <dl>
+                                                    <div><dt>Soru kodu</dt><dd><code>{{ row.code }}</code></dd></div>
+                                                </dl>
+                                            </div>
+                                        </details>
+                                        <input type="hidden" name="items[{{ loop.index0 }}][question_id]" value="{{ row.question_id }}">
+                                        <div class="admin-test-item__controls">
+                                            <label for="test-item-position-{{ loop.index0 }}">Sıra
+                                                <input id="test-item-position-{{ loop.index0 }}" type="number" name="items[{{ loop.index0 }}][position]" min="1" value="{{ row.position }}" required>
+                                            </label>
+                                            <label for="test-item-points-{{ loop.index0 }}">Puan
+                                                <input id="test-item-points-{{ loop.index0 }}" type="text" name="items[{{ loop.index0 }}][points]" value="{{ row.points }}" required inputmode="decimal">
+                                            </label>
+                                            <button class="btn admin-test-editor__move" type="submit" name="move_up_{{ loop.index0 }}" value="1" aria-describedby="test-move-note">Yukarı</button>
+                                            <button class="btn admin-test-editor__move" type="submit" name="move_down_{{ loop.index0 }}" value="1" aria-describedby="test-move-note">Aşağı</button>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        {% endif %}
+                    </section>
+
+                    <section class="admin-test-editor__card" aria-labelledby="test-pool-heading">
+                        <h2 id="test-pool-heading">Soru havuzundan seç</h2>
+                        <div class="admin-test-editor__filters">
+                            <label for="test-outcome">Kazanım kodu
+                                <input id="test-outcome" type="text" name="outcome" value="{{ filters.outcome }}" maxlength="64" form="test-search">
+                            </label>
+                            <label for="test-difficulty">Zorluk
+                                <select id="test-difficulty" name="difficulty" form="test-search">
+                                    <option value="">Tümü</option>
+                                    {% for value, label in difficulty_labels %}
+                                        <option value="{{ value }}" {{ filters.difficulty == value ? 'selected' : '' }}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                            <label for="test-code">Soru kodu
+                                <input id="test-code" type="text" name="code" value="{{ filters.code }}" maxlength="32" form="test-search">
+                            </label>
+                            <label for="test-q">Metin
+                                <input id="test-q" type="search" name="q" value="{{ filters.q }}" maxlength="200" form="test-search">
+                            </label>
+                            <div class="admin-test-editor__search-actions">
+                                <button class="btn admin-test-primary" type="submit" form="test-search">Soruları listele</button>
+                            </div>
+                        </div>
+
+                        {% if subject is null or grade is null %}
+                            <p class="admin-test-editor__hint">Soru listesi için sınıf ve ders seçin.</p>
+                        {% elseif picker is empty %}
+                            <p class="admin-test-editor__empty">Bu filtrede yayımlanmış soru yok.</p>
+                        {% else %}
+                            <ul class="admin-test-editor__picks">
+                                {% for row in picker %}
+                                    <li class="admin-test-pick">
+                                        <label class="admin-test-pick__choice" for="test-add-{{ loop.index0 }}">
+                                            <input id="test-add-{{ loop.index0 }}" type="checkbox" name="add_ids[]" value="{{ row.id }}">
+                                            <span class="admin-test-pick__stem">{{ row.stem }}</span>
+                                        </label>
+                                        <details class="admin-test-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-test-tech__panel">
+                                                <dl>
+                                                    <div><dt>Soru kodu</dt><dd><code>{{ row.code }}</code></dd></div>
+                                                </dl>
+                                            </div>
+                                        </details>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                        {% if page > 1 or picker|length == 10 %}
+                            <nav class="admin-test-editor__pager" aria-label="Soru sayfaları">
+                                {% if page > 1 %}
+                                    <a href="{{ path(route_name, route_params|merge(pager)|merge({page: page - 1})) }}">Önceki</a>
+                                {% endif %}
+                                {% if picker|length == 10 %}
+                                    <a href="{{ path(route_name, route_params|merge(pager)|merge({page: page + 1})) }}">Sonraki</a>
+                                {% endif %}
+                            </nav>
+                        {% endif %}
+                    </section>
+
+                    <div class="admin-test-editor__actions">
+                        <button class="btn admin-test-primary" type="submit">Taslak kaydet</button>
+                        <a class="admin-test-editor__back" href="{{ path('app_admin_tests') }}">Listeye dön</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 {% endblock %}

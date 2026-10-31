@@ -4706,3 +4706,222 @@ body.is-admin-panel {
     .is-admin-panel .admin-test-page .admin-user-stats { grid-template-columns: 1fr; }
 }
 
+.is-admin-panel .admin-test-editor__intro { margin-bottom: 1rem; }
+.is-admin-panel .admin-test-editor__intro p {
+    margin: 0.35rem 0 0;
+    max-width: 40rem;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-editor__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-editor__layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-test-editor__side,
+.is-admin-panel .admin-test-editor__main {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-editor__card {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-editor__card h2,
+.is-admin-panel .admin-test-editor__card-head h2 {
+    margin: 0;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-test-editor__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-editor__card-head p,
+.is-admin-panel .admin-test-editor__hint {
+    margin: 0.75rem 0 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-editor__card-head p { margin: 0; }
+.is-admin-panel .admin-test-editor__fields,
+.is-admin-panel .admin-test-editor__filters {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-test-editor label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-editor input,
+.is-admin-panel .admin-test-editor select,
+.is-admin-panel .admin-test-editor textarea {
+    width: 100%;
+    min-width: 0;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-editor select:focus-visible,
+.is-admin-panel .admin-test-editor textarea:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-editor .admin-test-primary {
+    border: 0;
+    background: #079dbf;
+    color: #fff;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor .admin-test-primary:hover,
+.is-admin-panel .admin-test-editor .admin-test-primary:focus-visible {
+    background: #067f9b;
+    color: #fff;
+}
+.is-admin-panel .admin-test-editor__facts {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0.85rem 0 0;
+}
+.is-admin-panel .admin-test-editor__facts div {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-editor__facts dt { color: #52667d; }
+.is-admin-panel .admin-test-editor__facts dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech { min-width: 0; margin-top: 0.75rem; }
+.is-admin-panel .admin-test-editor .admin-test-tech > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech__panel {
+    display: none;
+    max-width: min(16rem, 100%);
+    margin-top: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech[open] .admin-test-tech__panel { display: block; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dl {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dt { color: #52667d; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dd { min-width: 0; margin: 0; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel code {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-test-editor__items,
+.is-admin-panel .admin-test-editor__picks {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-item,
+.is-admin-panel .admin-test-pick {
+    min-width: 0;
+    padding: 0.85rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-item__stem,
+.is-admin-panel .admin-test-pick__stem {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-pick__stem { flex: 1 1 auto; }
+.is-admin-panel .admin-test-item__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.is-admin-panel .admin-test-item__controls label { flex: 1 1 7rem; }
+.is-admin-panel .admin-test-editor__move {
+    flex: 1 1 7rem;
+    border: 1px solid #d7e4ef;
+    background: #fff;
+    color: #16324f;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor label.admin-test-pick__choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-height: 2.75rem;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-pick__choice input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.15rem;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-test-editor__empty {
+    margin: 0.85rem 0 0;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-editor__pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-test-editor__pager a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+@media (min-width: 768px) {
+    .is-admin-panel .admin-test-editor__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-editor__search-actions { grid-column: 1 / -1; }
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-editor__layout { grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem); }
+    .is-admin-panel .admin-test-editor__main { grid-column: 1; grid-row: 1; }
+    .is-admin-panel .admin-test-editor__side { grid-column: 2; grid-row: 1; }
+    .is-admin-panel .admin-test-editor__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-editor .admin-test-tech > summary { min-height: 2rem; }
+}
+

@@ -355,7 +355,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
 
             return Command::FAILURE;
         }
-        $this->assessments->createDraftAssessment(
+        $longDraft = $this->assessments->createDraftAssessment(
             $teacher,
             AssessmentScope::Platform,
             null,
@@ -576,6 +576,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'classroomName' => 'Sinif A',
                 'contentTitle' => 'Toplama anlatimi',
                 'testTitle' => 'Toplama testi',
+                'testDraftEdit' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122().'/duzenle',
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
                 'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
