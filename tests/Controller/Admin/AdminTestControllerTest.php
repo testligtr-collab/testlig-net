@@ -421,7 +421,9 @@ final class AdminTestControllerTest extends WebTestCase
         self::bootKernel();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $owner = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'iso-author@example.com']);
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $owner = $users->findOneBy(['email' => 'iso-author@example.com']);
         self::assertInstanceOf(User::class, $owner);
         $institution = Institution::create('Kurum Liste', 'kurum liste', 'kurum-liste-iso', InstitutionType::School, new \DateTimeImmutable('2026-01-01 00:00:00'));
         $em->persist($institution);
@@ -463,7 +465,9 @@ final class AdminTestControllerTest extends WebTestCase
         self::bootKernel();
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $owner = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'cap-admin@example.com']);
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $owner = $users->findOneBy(['email' => 'cap-admin@example.com']);
         self::assertInstanceOf(User::class, $owner);
         for ($i = 0; $i < 101; ++$i) {
             $em->persist(Assessment::createDraft(AssessmentScope::Platform, null, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00')));

@@ -4633,16 +4633,28 @@ body.is-admin-panel {
     .is-admin-panel .admin-test-page .admin-test-filters {
         grid-template-columns: minmax(14rem, 1.6fr) repeat(3, minmax(8rem, 1fr)) auto;
     }
+    .is-admin-panel .admin-test-page .admin-test-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(1),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__identity { width: 42%; min-width: 0; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(2),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject { width: 16%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(3),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade { width: 10%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(4),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__status { width: 14%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(5),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__count { width: 7%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(6),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__action { width: 11%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(n+2),
     .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject,
     .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade,
     .is-admin-panel .admin-test-page .admin-test-table .admin-test__status,
     .is-admin-panel .admin-test-page .admin-test-table .admin-test__count,
     .is-admin-panel .admin-test-page .admin-test-table .admin-test__action {
-        width: 1%;
         white-space: nowrap;
         vertical-align: middle;
     }
-    .is-admin-panel .admin-test-page .admin-test__identity { width: 42%; min-width: 16rem; }
     .is-admin-panel .admin-test-page .admin-test-tech > summary { min-height: 2rem; }
 }
 @media (max-width: 1023px) {

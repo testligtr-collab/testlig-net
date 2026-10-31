@@ -34,27 +34,18 @@ class AssessmentItemRepository extends ServiceEntityRepository
             return [];
         }
 
-        $rows = $this->createQueryBuilder('i')
-            ->select('rev.id AS revisionId', 'COUNT(i.id) AS total')
+        /** @var list<AssessmentItem> $items */
+        $items = $this->createQueryBuilder('i')
+            ->addSelect('rev')
             ->join('i.assessmentRevision', 'rev')
             ->andWhere('rev.id IN (:ids)')
             ->setParameter('ids', $revisionIds)
-            ->groupBy('rev.id')
             ->getQuery()
-            ->getArrayResult();
+            ->getResult();
         $counts = [];
-        foreach ($rows as $row) {
-            $id = $row['revisionId'] ?? '';
-            $raw = $id instanceof Uuid ? $id->toRfc4122() : (string) $id;
-            try {
-                $key = Uuid::fromString($raw)->toRfc4122();
-            } catch (\InvalidArgumentException) {
-                $key = $raw;
-            }
-            if ('' === $key) {
-                continue;
-            }
-            $counts[$key] = (int) $row['total'];
+        foreach ($items as $item) {
+            $key = $item->getAssessmentRevision()->getId()->toRfc4122();
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
         }
 
         return $counts;
