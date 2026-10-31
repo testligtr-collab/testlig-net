@@ -671,6 +671,133 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertNotSame('0', (string) $fresh->filter('#test-item-points-0')->attr('value'));
     }
 
+    public function testDetailShowsCurrentRevisionAndKeepsWorkflowSeparate(): void
+    {
+        $seed = $this->seed('tbdet');
+        $this->createPrivileged('tbdet-teacher@example.com', UserRole::Teacher);
+        $this->createPrivileged('tbdet-moderator@example.com', UserRole::Moderator);
+        $this->createPrivileged('tbdet-admin@example.com', UserRole::Admin);
+        $client = $this->newClient();
+        $this->login($client, 'tbdet-teacher@example.com');
+        $path = $this->createDraft($client, $seed, 'Detay ilk', [
+            ['question_id' => $seed['question'], 'position' => '1', 'points' => '2'],
+            ['question_id' => $seed['second_question'], 'position' => '2', 'points' => '3'],
+        ]);
+        $assessments = $this->assessmentCount();
+        $revisions = $this->revisionCount();
+        $audits = $this->successAuditCount();
+        $page = $client->request('GET', $path);
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertSame($assessments, $this->assessmentCount());
+        self::assertSame($revisions, $this->revisionCount());
+        self::assertSame($audits, $this->successAuditCount());
+        self::assertSelectorTextContains('h1', 'Detay ilk');
+        self::assertSelectorTextContains('.admin-test-detail__count', '2');
+        self::assertSelectorTextContains('.admin-test-detail__points', '5');
+        self::assertSelectorTextContains('.admin-test-detail__duration', '20 dk');
+        self::assertStringContainsString('Yonerge metni', $html);
+        self::assertStringContainsString('Uc nedir?', $html);
+        self::assertStringContainsString('Dort nedir?', $html);
+        self::assertStringContainsString('1. sınıf', $html);
+        self::assertStringContainsString('Kısa test', $html);
+        self::assertSelectorExists('a[href$="/duzenle"]');
+        self::assertSelectorExists('form[action$="/incelemeye-gonder"]');
+        self::assertSelectorNotExists('form[action$="/yayinla"]');
+        self::assertSelectorNotExists('form[action$="/arsivle"]');
+        self::assertStringNotContainsString('/sonuclar', $html);
+        self::assertStringNotContainsString('Yeni sürüm', $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('opt_a', $html);
+        self::assertStringNotContainsString('Doğru cevap', $html);
+        self::assertStringNotContainsString('Taslak soru', $html);
+        self::assertStringNotContainsString('Baska ders', $html);
+        self::assertStringNotContainsString($seed['question_revision'], $html);
+        self::assertSelectorTextContains('.admin-test-detail__policy', 'Politika tanımlanmamış');
+
+        $token = (string) $page->filter('form[action$="/incelemeye-gonder"] input[name="_token"]')->attr('value');
+        $edit = $client->request('GET', $path.'/duzenle');
+        $client->request('POST', $path.'/duzenle', $this->payload($seed, [
+            '_token' => (string) $edit->filter('#test-editor input[name="_token"]')->attr('value'),
+            'expected_revision' => '1',
+            'title' => 'Detay guncel',
+            'instructions' => '',
+            'items' => [[
+                'question_id' => $seed['question'],
+                'position' => '1',
+                'points' => '2',
+            ]],
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $assessments = $this->assessmentCount();
+        $revisions = $this->revisionCount();
+        $audits = $this->successAuditCount();
+        $client->request('GET', $path);
+        self::assertResponseIsSuccessful();
+        self::assertSame($assessments, $this->assessmentCount());
+        self::assertSame($revisions, $this->revisionCount());
+        self::assertSame($audits, $this->successAuditCount());
+        $current = (string) $client->getResponse()->getContent();
+        self::assertSelectorTextContains('h1', 'Detay guncel');
+        self::assertStringNotContainsString('Detay ilk', $current);
+        self::assertStringContainsString('Uc nedir?', $current);
+        self::assertStringNotContainsString('Dort nedir?', $current);
+        self::assertSelectorTextContains('.admin-test-detail__count', '1');
+        self::assertSelectorTextContains('.admin-test-detail__points', '2');
+        self::assertStringContainsString('Yönerge yok.', $current);
+
+        $client->request('POST', $path.'/incelemeye-gonder', [
+            '_token' => $token,
+            'expected_revision' => '2',
+        ]);
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $author = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Kendi hazırladığınız testi yayınlayamazsınız.', $author);
+        self::assertStringNotContainsString('/yayinla', $author);
+        self::assertSelectorNotExists('a[href$="/duzenle"]');
+
+        $client = $this->newClient();
+        $this->login($client, 'tbdet-moderator@example.com');
+        $client->request('GET', $path);
+        $moderator = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('/taslaga-dondur', $moderator);
+        self::assertStringNotContainsString('/yayinla', $moderator);
+        self::assertStringNotContainsString('/duzenle', $moderator);
+        self::assertStringNotContainsString('/sonuclar', $moderator);
+
+        $client = $this->newClient();
+        $this->login($client, 'tbdet-admin@example.com');
+        $client->request('GET', $path);
+        $review = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('/yayinla', $review);
+        self::assertSelectorExists('form[action$="/yayinla"] input[name="expected_revision"]');
+        self::assertSelectorExists('form[action$="/yayinla"] textarea[name="operator_note"]');
+        self::assertStringNotContainsString('/duzenle', $review);
+        self::assertStringNotContainsString('Yeni sürüm', $review);
+        self::assertStringContainsString('/sonuclar', $review);
+        $this->submitVisible($client, '/yayinla');
+        self::assertStringContainsString('Test yayınlandı', (string) $client->getResponse()->getContent());
+        $client->request('GET', $path);
+        self::assertSelectorTextContains('.admin-test-detail__status', 'Yayında');
+        self::assertSelectorExists('form[action$="/arsivle"] input[name="expected_revision"]');
+        self::assertSelectorExists('form[action$="/arsivle"] input[name="_token"]');
+        self::assertSelectorExists('form[action$="/arsivle"] textarea[name="operator_note"]');
+        $published = (string) $client->getResponse()->getContent();
+        self::assertStringNotContainsString('/duzenle', $published);
+        self::assertStringNotContainsString('Yeni sürüm', $published);
+        self::assertSelectorTextContains('.admin-test-detail__policy', 'Politika tanımlanmamış');
+        $this->submitVisible($client, '/arsivle');
+        $archived = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Arşivlenmiş', $archived);
+        self::assertStringNotContainsString('/arsivle', $archived);
+        self::assertStringNotContainsString('/yayinla', $archived);
+        self::assertStringNotContainsString('/taslaga-dondur', $archived);
+        self::assertStringNotContainsString('/duzenle', $archived);
+        self::assertStringNotContainsString('Yeni sürüm', $archived);
+    }
+
     private function assessmentCount(): int
     {
         $em = static::getContainer()->get(EntityManagerInterface::class);

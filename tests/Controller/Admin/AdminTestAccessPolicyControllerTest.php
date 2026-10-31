@@ -64,7 +64,8 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
 
         $crawler = $client->request('GET', $seed['path']);
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('#access-policy-heading', 'Erişim politikası');
+        self::assertSelectorTextContains('#access-policy-heading', 'Öğrenci erişimi');
+        self::assertSelectorTextContains('.admin-test-detail__policy', 'Politika tanımlanmamış');
         self::assertSelectorTextContains('body', 'Politika tanımlanmamış');
         self::assertSelectorTextContains('body', 'platform öğrenci keşfi ve yeni deneme başlangıcına uygulanır');
         self::assertSelectorTextContains('body', 'Ücretsiz seçimi açık onay gerektirir.');
@@ -81,6 +82,7 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         self::assertResponseRedirects($seed['path']);
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'Erişim politikası güncellendi.');
+        self::assertSelectorTextContains('.admin-test-detail__policy', 'Lisans gerekli');
         self::assertSelectorTextContains('body', 'Lisans gerekli');
         self::assertSelectorTextNotContains('body', 'Politika tanımlanmamış');
         self::assertSame(ResourceAccessClass::EntitlementRequired, $this->policyClass($seed['id']));
@@ -101,6 +103,7 @@ final class AdminTestAccessPolicyControllerTest extends WebTestCase
         ]);
         self::assertResponseRedirects($seed['path']);
         $client->followRedirect();
+        self::assertSelectorTextContains('.admin-test-detail__policy', 'Ücretsiz');
         self::assertSelectorTextContains('body', 'Ücretsiz');
         self::assertSame(ResourceAccessClass::Free, $this->policyClass($seed['id']));
         self::assertSame($before + 2, $this->auditCount());
