@@ -12,6 +12,7 @@ use App\Entity\User;
 use App\Enum\AssessmentAttemptStatus;
 use App\Tests\Support\AssessmentAttemptTestFixtures;
 use App\Time\UtcInstant;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
@@ -272,20 +273,33 @@ final class UtcTimezoneContractTest extends KernelTestCase
         self::assertSame($startedLa, $startedAkl);
     }
 
-    public function testDstTransitionTimezonePreservesInstant(): void
+    /**
+     * @return iterable<string, array{string, string, int}>
+     */
+    public static function newYorkStandardAndDaylightInstants(): iterable
     {
-        // September is EDT (UTC-4) for America/New_York — DST-observing zone with known offset.
-        $fx = $this->activatedClassroomDelivery('utc_dst');
-        $baseUtc = $this->utcSecondPrecisionNow();
+        yield 'winter EST' => ['utc_dst_w', '2026-01-15 15:00:00', -5 * 3600];
+        yield 'summer EDT' => ['utc_dst_s', '2026-07-15 15:00:00', -4 * 3600];
+    }
+
+    #[DataProvider('newYorkStandardAndDaylightInstants')]
+    public function testDstTransitionTimezonePreservesInstant(string $prefix, string $utcText, int $expectedOffset): void
+    {
+        $baseUtc = new \DateTimeImmutable($utcText, new \DateTimeZone('UTC'));
         $newYork = $baseUtc->setTimezone(new \DateTimeZone('America/New_York'));
         self::assertSame('America/New_York', $newYork->getTimezone()->getName());
-        self::assertSame(-4 * 3600, $newYork->getOffset(), 'Expected EDT offset in September.');
+        self::assertSame($expectedOffset, $newYork->getOffset());
+        self::assertSame($baseUtc->getTimestamp(), $newYork->getTimestamp());
 
         Clock::set(new MockClock($newYork));
+        $fx = $this->activatedClassroomDelivery($prefix, 2, [
+            $baseUtc->modify('-1 hour'),
+            $baseUtc->modify('+7 days'),
+        ]);
         $attempt = $this->attempts()->startAttempt(
             $this->reloadDelivery($fx['delivery']->getId()),
             $this->reloadUser($fx['student']->getId()),
-            'start_utc_dst',
+            'start_'.$prefix,
         );
 
         $expectedUtc = $baseUtc->format('Y-m-d H:i:s');
@@ -295,6 +309,8 @@ final class UtcTimezoneContractTest extends KernelTestCase
         );
         self::assertSame($expectedUtc, $startedAt);
         self::assertSame($expectedUtc, UtcInstant::ensure($newYork)->format('Y-m-d H:i:s'));
+        $stored = new \DateTimeImmutable($startedAt, new \DateTimeZone('UTC'));
+        self::assertSame($newYork->getTimestamp(), $stored->getTimestamp());
     }
 
     public function testUserTimezonePresentationDoesNotChangeDbValue(): void

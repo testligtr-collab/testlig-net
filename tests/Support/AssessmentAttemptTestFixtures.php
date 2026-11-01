@@ -92,11 +92,13 @@ trait AssessmentAttemptTestFixtures
      *     delivery: AssessmentDelivery,
      *     recipient: AssessmentDeliveryRecipient
      * }
+     *
+     * @param array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null $window
      */
-    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2): array
+    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2, ?array $window = null): array
     {
         $ctx = $this->publishedDeliveryContext($prefix);
-        [$opens, $closes] = $this->defaultWindow();
+        [$opens, $closes] = $window ?? $this->defaultWindow();
         $delivery = $this->deliveries()->createDraft(
             $ctx['institution'],
             $ctx['publication'],

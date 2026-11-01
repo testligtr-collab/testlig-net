@@ -98,11 +98,13 @@ trait AssessmentScoringTestFixtures
     /**
      * Submit a correct single-choice answer (opt_b) and score the attempt.
      *
+     * @param array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null $window
+     *
      * @return array{0: AssessmentAttempt, 1: AssessmentScoringRun, 2: array<string, mixed>}
      */
-    private function submitAndScoreClassroomAttempt(string $prefix, ?\App\Entity\User $actor = null): array
+    private function submitAndScoreClassroomAttempt(string $prefix, ?\App\Entity\User $actor = null, ?array $window = null): array
     {
-        $fx = $this->activatedClassroomDelivery($prefix);
+        $fx = $this->activatedClassroomDelivery($prefix, 2, $window);
         $student = $this->reloadUser($fx['student']->getId());
         $delivery = $this->reloadDelivery($fx['delivery']->getId());
         $attempt = $this->attempts()->startAttempt($delivery, $student, 'start_sc_'.$prefix);
