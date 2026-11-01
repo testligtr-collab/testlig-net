@@ -95,9 +95,9 @@ trait AssessmentAttemptTestFixtures
      *     recipient: AssessmentDeliveryRecipient
      * }
      */
-    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2, ?array $window = null): array
+    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2, ?array $window = null, ?int $durationSeconds = 3600): array
     {
-        $ctx = $this->publishedDeliveryContext($prefix);
+        $ctx = $this->publishedDeliveryContext($prefix, $durationSeconds);
         [$opens, $closes] = $window ?? $this->defaultWindow();
         $delivery = $this->deliveries()->createDraft(
             $ctx['institution'],

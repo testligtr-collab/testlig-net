@@ -102,9 +102,9 @@ trait AssessmentScoringTestFixtures
      *
      * @return array{0: AssessmentAttempt, 1: AssessmentScoringRun, 2: array<string, mixed>}
      */
-    private function submitAndScoreClassroomAttempt(string $prefix, ?\App\Entity\User $actor = null, ?array $window = null): array
+    private function submitAndScoreClassroomAttempt(string $prefix, ?\App\Entity\User $actor = null, ?array $window = null, ?int $durationSeconds = 3600): array
     {
-        $fx = $this->activatedClassroomDelivery($prefix, 2, $window);
+        $fx = $this->activatedClassroomDelivery($prefix, 2, $window, $durationSeconds);
         $student = $this->reloadUser($fx['student']->getId());
         $delivery = $this->reloadDelivery($fx['delivery']->getId());
         $attempt = $this->attempts()->startAttempt($delivery, $student, 'start_sc_'.$prefix);

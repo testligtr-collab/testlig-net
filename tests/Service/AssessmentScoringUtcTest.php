@@ -106,10 +106,13 @@ final class AssessmentScoringUtcTest extends KernelTestCase
         self::assertSame($baseUtc->getTimestamp(), $newYork->getTimestamp());
 
         Clock::set(new MockClock($newYork));
+        // Null duration stores expires_at at this fixed close. The answer guard
+        // compares MariaDB UTC_TIMESTAMP() with expires_at, so a past clock can
+        // still save the answer. The instant under test stays $baseUtc.
         [, $run] = $this->submitAndScoreClassroomAttempt($prefix, null, [
             $baseUtc->modify('-1 hour'),
-            $baseUtc->modify('+7 days'),
-        ]);
+            new \DateTimeImmutable('2099-01-01 00:00:00', new \DateTimeZone('UTC')),
+        ], null);
         $started = (string) $this->em->getConnection()->fetchOne(
             'SELECT started_at FROM assessment_scoring_runs WHERE id = ?',
             [$run->getId()->toBinary()],
