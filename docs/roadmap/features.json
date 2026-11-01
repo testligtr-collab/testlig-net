@@ -577,7 +577,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/182",
         "https://github.com/testligtr-collab/testlig-net/pull/184",
         "https://github.com/testligtr-collab/testlig-net/pull/185",
-        "https://github.com/testligtr-collab/testlig-net/pull/186"
+        "https://github.com/testligtr-collab/testlig-net/pull/186",
+        "https://github.com/testligtr-collab/testlig-net/pull/188"
       ],
       "acceptance": "Mevcut dar akış korunacak. Önizleme güncel test sürümünü, sabit soru sürümünü ve izinli soru belgesini cevap ile çözüm olmadan gösterir. CI görüntüsü ve production kabulü ayrıdır. M12 tamamlanmış sayılmaz.",
       "scope_decision": null
@@ -1299,7 +1300,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/183",
         "https://github.com/testligtr-collab/testlig-net/pull/184",
         "https://github.com/testligtr-collab/testlig-net/pull/185",
-        "https://github.com/testligtr-collab/testlig-net/pull/186"
+        "https://github.com/testligtr-collab/testlig-net/pull/186",
+        "https://github.com/testligtr-collab/testlig-net/pull/188"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Test önizlemesi ekran görüntüsü production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz. X10 tamamlanmış sayılmaz.",
       "scope_decision": null
