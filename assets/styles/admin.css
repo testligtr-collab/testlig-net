@@ -4925,3 +4925,217 @@ body.is-admin-panel {
     .is-admin-panel .admin-test-editor .admin-test-tech > summary { min-height: 2rem; }
 }
 
+.is-admin-panel .admin-test-detail__head { flex-wrap: wrap; }
+.is-admin-panel .admin-test-detail__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__title h1 {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-detail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-test-detail__actions .btn,
+.is-admin-panel .admin-test-detail .admin-test-detail__danger,
+.is-admin-panel .admin-test-detail .admin-test-detail__ops > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__ops > summary {
+    width: fit-content;
+    max-width: 100%;
+    color: #1f6499;
+    font-weight: 650;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-detail a:focus-visible,
+.is-admin-panel .admin-test-detail button:focus-visible,
+.is-admin-panel .admin-test-detail summary:focus-visible,
+.is-admin-panel .admin-test-detail input:focus-visible,
+.is-admin-panel .admin-test-detail select:focus-visible,
+.is-admin-panel .admin-test-detail textarea:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-detail__layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-test-detail__main,
+.is-admin-panel .admin-test-detail__side {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__card {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-detail__card h2,
+.is-admin-panel .admin-test-detail__card h3 {
+    margin: 0;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-detail__card h2 { font-size: 1.05rem; }
+.is-admin-panel .admin-test-detail__card h3 { margin-top: 1rem; font-size: 0.98rem; }
+.is-admin-panel .admin-test-detail__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-detail__card p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-detail__hint,
+.is-admin-panel .admin-test-detail__empty {
+    color: #52667d;
+}
+.is-admin-panel .admin-test-detail__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-detail__metrics li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__metric-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-detail__metric-copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__metric-copy span { color: #52667d; }
+.is-admin-panel .admin-test-detail__metric-copy strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-detail__questions,
+.is-admin-panel .admin-test-detail__placements {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-detail__question {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    min-width: 0;
+    padding: 0.8rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-detail__question p {
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: #eef3f8;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail__score {
+    color: #52667d;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-test-detail__instructions { overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail .admin-test-tech__panel { max-width: 100%; }
+.is-admin-panel .admin-test-detail .admin-test-detail__ops-panel { display: none; }
+.is-admin-panel .admin-test-detail .admin-test-detail__ops[open] > .admin-test-detail__ops-panel { display: block; }
+.is-admin-panel .admin-test-detail label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail input,
+.is-admin-panel .admin-test-detail select,
+.is-admin-panel .admin-test-detail textarea {
+    width: 100%;
+    min-width: 0;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-detail label.admin-test-detail__check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-detail label.admin-test-detail__check input {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__danger {
+    border: 1px solid var(--tl-danger);
+    background: #fff;
+    color: var(--tl-danger);
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__danger:hover,
+.is-admin-panel .admin-test-detail .admin-test-detail__danger:focus-visible {
+    background: var(--tl-danger-soft);
+    color: var(--tl-danger);
+}
+.is-admin-panel .admin-test-detail__placement {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+    padding: 0.75rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-detail__placement > div { min-width: 0; flex: 1 1 12rem; }
+.is-admin-panel .admin-test-detail__placement p { margin: 0.2rem 0 0; }
+.is-admin-panel .admin-test-detail__placement-path { margin-top: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail__placement code { overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail .stack-sm { margin-top: 0.85rem; }
+@media (min-width: 768px) {
+    .is-admin-panel .admin-test-detail__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-detail__layout { grid-template-columns: minmax(0, 1.85fr) minmax(16rem, 1fr); }
+    .is-admin-panel .admin-test-detail__metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-detail__main { grid-column: 1; grid-row: 1; }
+    .is-admin-panel .admin-test-detail__side { grid-column: 2; grid-row: 1; }
+}
+
