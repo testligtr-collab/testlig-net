@@ -635,9 +635,12 @@
       "source": "src/Controller/TeacherClassroomController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/TeacherClassroomController.php"
+        "src/Controller/TeacherClassroomController.php",
+        "Puanlama ve deneme başlangıcı America/New_York kış anı 2026-01-15 15:00:00 UTC için -18000, yaz anı 2026-07-15 15:00:00 UTC için -14400 offset’iyle aynı Unix anını UTC olarak saklar. Çalışma tarihine bağlı EDT varsayımı yoktur. Üretim kodu değişmedi. CI yeşili canlı kabul değildir. PR https://github.com/testligtr-collab/testlig-net/pull/187"
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/187"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
