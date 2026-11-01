@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\QuestionRevision;
 use App\Entity\QuestionRevisionOption;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
 
@@ -46,30 +47,27 @@ class QuestionRevisionOptionRepository extends ServiceEntityRepository
      */
     public function findPreviewContents(array $revisionIds): array
     {
-        $ids = [];
+        $binaries = [];
         foreach ($revisionIds as $revisionId) {
             if (Uuid::isValid($revisionId)) {
-                $ids[$revisionId] = Uuid::fromString($revisionId);
+                $binaries[] = Uuid::fromString($revisionId)->toBinary();
             }
         }
-        if ([] === $ids) {
+        if ([] === $binaries) {
             return [];
         }
 
-        /** @var list<array<string, mixed>> $rows */
-        $rows = $this->createQueryBuilder('option')
-            ->select('IDENTITY(option.revision) AS revisionId')
-            ->addSelect('option.position AS position')
-            ->addSelect('option.content AS content')
-            ->andWhere('option.revision IN (:ids)')
-            ->setParameter('ids', array_values($ids))
-            ->orderBy('option.position', 'ASC')
-            ->getQuery()
-            ->getArrayResult();
+        // Binary UUID lists do not bind through an untyped DQL IN parameter.
+        /** @var list<array{revision_id: string, position: int|string, content: mixed}> $rows */
+        $rows = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT revision_id, position, content FROM question_revision_options WHERE revision_id IN (?) ORDER BY position ASC',
+            [$binaries],
+            [ArrayParameterType::BINARY],
+        )->fetchAllAssociative();
 
         $grouped = [];
         foreach ($rows as $row) {
-            $key = self::revisionKey($row['revisionId'] ?? null);
+            $key = self::revisionKey($row['revision_id'] ?? null);
             if (null === $key) {
                 continue;
             }
