@@ -77,6 +77,8 @@ trait AssessmentAttemptTestFixtures
     }
 
     /**
+     * @param array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null $window
+     *
      * @return array{
      *     owner: User,
      *     sa: User,
@@ -92,8 +94,6 @@ trait AssessmentAttemptTestFixtures
      *     delivery: AssessmentDelivery,
      *     recipient: AssessmentDeliveryRecipient
      * }
-     *
-     * @param array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null $window
      */
     private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2, ?array $window = null): array
     {
