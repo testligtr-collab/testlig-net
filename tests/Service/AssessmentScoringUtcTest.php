@@ -6,6 +6,7 @@ namespace App\Tests\Service;
 
 use App\Tests\Support\AssessmentScoringTestFixtures;
 use App\Time\UtcInstant;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
@@ -86,19 +87,39 @@ final class AssessmentScoringUtcTest extends KernelTestCase
         self::assertSame($expected, UtcInstant::ensure($istanbul)->format('Y-m-d H:i:s'));
     }
 
-    public function testDstObservingZonePreservesInstant(): void
+    /**
+     * @return iterable<string, array{string, string, int}>
+     */
+    public static function newYorkStandardAndDaylightInstants(): iterable
     {
-        $baseUtc = $this->utcSecondPrecisionNow();
+        yield 'winter EST' => ['asutc3w', '2026-01-15 15:00:00', -5 * 3600];
+        yield 'summer EDT' => ['asutc3s', '2026-07-15 15:00:00', -4 * 3600];
+    }
+
+    #[DataProvider('newYorkStandardAndDaylightInstants')]
+    public function testDstObservingZonePreservesInstant(string $prefix, string $utcText, int $expectedOffset): void
+    {
+        $baseUtc = new \DateTimeImmutable($utcText, new \DateTimeZone('UTC'));
         $newYork = $baseUtc->setTimezone(new \DateTimeZone('America/New_York'));
-        self::assertSame(-4 * 3600, $newYork->getOffset(), 'Expected EDT offset in September.');
+        self::assertSame('America/New_York', $newYork->getTimezone()->getName());
+        self::assertSame($expectedOffset, $newYork->getOffset());
+        self::assertSame($baseUtc->getTimestamp(), $newYork->getTimestamp());
 
         Clock::set(new MockClock($newYork));
-        [, $run] = $this->submitAndScoreClassroomAttempt('asutc3');
+        // Null duration stores expires_at at this fixed close. The answer guard
+        // compares MariaDB UTC_TIMESTAMP() with expires_at, so a past clock can
+        // still save the answer. The instant under test stays $baseUtc.
+        [, $run] = $this->submitAndScoreClassroomAttempt($prefix, null, [
+            $baseUtc->modify('-1 hour'),
+            new \DateTimeImmutable('2099-01-01 00:00:00', new \DateTimeZone('UTC')),
+        ], null);
         $started = (string) $this->em->getConnection()->fetchOne(
             'SELECT started_at FROM assessment_scoring_runs WHERE id = ?',
             [$run->getId()->toBinary()],
         );
         self::assertSame($baseUtc->format('Y-m-d H:i:s'), $started);
+        $stored = new \DateTimeImmutable($started, new \DateTimeZone('UTC'));
+        self::assertSame($newYork->getTimestamp(), $stored->getTimestamp());
     }
 
     public function testReconnectReappliesUtcSessionOffset(): void

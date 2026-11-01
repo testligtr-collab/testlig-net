@@ -195,7 +195,7 @@ trait AssessmentDeliveryTestFixtures
      *     publication: AssessmentPublication
      * }
      */
-    private function publishedDeliveryContext(string $prefix): array
+    private function publishedDeliveryContext(string $prefix, ?int $durationSeconds = 3600): array
     {
         [$owner, $sa, $institution, $year, $classroom] = $this->readyClassroom($prefix);
         unset($year);
@@ -226,7 +226,7 @@ trait AssessmentDeliveryTestFixtures
         );
         $this->enrollmentManager()->enroll($classroom, $owner, $studentMembership, 'enroll_s');
 
-        [$assessment, $publication] = $this->publishPlatformAssessment($sa, $reviewer, $prefix);
+        [$assessment, $publication] = $this->publishPlatformAssessment($sa, $reviewer, $prefix, $durationSeconds);
 
         return [
             'owner' => $owner,
@@ -246,7 +246,7 @@ trait AssessmentDeliveryTestFixtures
     /**
      * @return array{0: Assessment, 1: AssessmentPublication}
      */
-    private function publishPlatformAssessment(User $sa, User $reviewer, string $suffix): array
+    private function publishPlatformAssessment(User $sa, User $reviewer, string $suffix, ?int $durationSeconds = 3600): array
     {
         $subject = $this->subjects()->create($sa, 'math_'.$suffix, 'Math '.$suffix, 'create_subj');
         $draft = $this->programs()->createDraft($subject, $sa, GradeLevel::Grade9, 'math_'.$suffix, 'Math', '1.0', 'prog');
@@ -270,7 +270,7 @@ trait AssessmentDeliveryTestFixtures
             'Delivery Blueprint '.$suffix,
             null,
             null,
-            3600,
+            $durationSeconds,
             NavigationMode::Free,
             QuestionOrderMode::Fixed,
             OptionOrderMode::Fixed,

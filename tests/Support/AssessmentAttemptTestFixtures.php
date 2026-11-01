@@ -77,6 +77,8 @@ trait AssessmentAttemptTestFixtures
     }
 
     /**
+     * @param array{0: \DateTimeImmutable, 1: \DateTimeImmutable}|null $window
+     *
      * @return array{
      *     owner: User,
      *     sa: User,
@@ -93,10 +95,10 @@ trait AssessmentAttemptTestFixtures
      *     recipient: AssessmentDeliveryRecipient
      * }
      */
-    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2): array
+    private function activatedClassroomDelivery(string $prefix, int $maxAttempts = 2, ?array $window = null, ?int $durationSeconds = 3600): array
     {
-        $ctx = $this->publishedDeliveryContext($prefix);
-        [$opens, $closes] = $this->defaultWindow();
+        $ctx = $this->publishedDeliveryContext($prefix, $durationSeconds);
+        [$opens, $closes] = $window ?? $this->defaultWindow();
         $delivery = $this->deliveries()->createDraft(
             $ctx['institution'],
             $ctx['publication'],
