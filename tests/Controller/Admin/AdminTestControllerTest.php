@@ -1104,11 +1104,13 @@ final class AdminTestControllerTest extends WebTestCase
      */
     private function previewQueryCounts(KernelBrowser $client, string $path): array
     {
-        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
-        self::assertInstanceOf(DebugDataHolder::class, $holder);
-        $holder->reset();
+        $before = $client->getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $before);
+        $before->reset();
         $client->request('GET', $path);
         self::assertResponseIsSuccessful();
+        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
         $counts = ['items' => 0, 'options' => 0, 'leaks' => 0, 'writes' => 0];
         foreach ($holder->getData() as $queries) {
             foreach ($queries as $query) {
