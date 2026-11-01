@@ -67,7 +67,7 @@ class QuestionRevisionOptionRepository extends ServiceEntityRepository
 
         $grouped = [];
         foreach ($rows as $row) {
-            $key = self::revisionKey($row['revision_id'] ?? null);
+            $key = self::revisionKey($row['revision_id']);
             if (null === $key) {
                 continue;
             }
