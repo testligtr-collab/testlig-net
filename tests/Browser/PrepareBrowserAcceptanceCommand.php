@@ -494,6 +494,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
             ],
             'browser_q_preview_plain',
+            1,
+            '1.00',
         );
         $previewRich = $this->previewQuestion(
             $teacher,
@@ -520,16 +522,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph(str_repeat('Uzunsecenek', 8).' sonu'), 'position' => 2],
             ],
             'browser_q_preview_rich',
+            2,
+            '2.50',
         );
         if (null === $previewPlain || null === $previewRich) {
             $output->writeln('Preview question revision was not found.');
 
             return Command::FAILURE;
         }
-        $previewPlain['position'] = 1;
-        $previewPlain['points'] = '1.00';
-        $previewRich['position'] = 2;
-        $previewRich['points'] = '2.50';
         $previewTitle = 'Uzun onizleme basligi dar ekranda kartin icinde sarilir ve formulle secenekler kart disina tasmaz.';
         $previewAssessment = $this->assessments->createDraftAssessment(
             $teacher,
@@ -816,12 +816,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
     }
 
     /**
-     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
-     */
-    /**
      * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options
      *
-     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: bool}|null
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
      */
     private function previewQuestion(
         User $teacher,
@@ -831,6 +828,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         QuestionContentDocument $stem,
         array $options,
         string $reason,
+        int $position,
+        string $points,
     ): ?array {
         $question = $this->questions->createDraftQuestion(
             $teacher,
@@ -857,13 +856,16 @@ final class PrepareBrowserAcceptanceCommand extends Command
         return [
             'questionId' => $question->getId(),
             'questionRevisionId' => $revision->getId(),
-            'position' => 1,
-            'points' => '1.00',
+            'position' => $position,
+            'points' => $points,
             'penaltyPoints' => '0.00',
             'required' => true,
         ];
     }
 
+    /**
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
+     */
     private function detailItem(User $teacher, User $admin, Subject $subject, CurriculumLearningOutcome $outcome, string $stem, int $position): ?array
     {
         $question = $this->questions->createDraftQuestion(

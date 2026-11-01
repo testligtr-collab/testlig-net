@@ -348,7 +348,9 @@ final class AdminTestControllerTest extends WebTestCase
         $assessment = $em->find(Assessment::class, Uuid::fromString(basename($path)));
         $question = $em->find(Question::class, Uuid::fromString($seed['question']));
         $second = $em->find(Question::class, Uuid::fromString($seed['second_question']));
-        $actor = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'tbpin-sa@example.com']);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $actor = $users->findOneBy(['email' => 'tbpin-sa@example.com']);
         self::assertInstanceOf(Assessment::class, $assessment);
         self::assertInstanceOf(Question::class, $question);
         self::assertInstanceOf(Question::class, $second);
@@ -1078,7 +1080,7 @@ final class AdminTestControllerTest extends WebTestCase
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{title: string, position: int, questionOrderMode: QuestionOrderMode, items: list<array{questionId: Uuid, questionRevisionId: Uuid, position: int, points: string, penaltyPoints: string, required: true}>}
      */
     private function previewSection(Question $question, QuestionRevision $revision, int $position, string $points): array
     {
