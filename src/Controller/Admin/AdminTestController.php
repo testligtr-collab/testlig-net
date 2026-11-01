@@ -37,6 +37,7 @@ use App\Presentation\ContentWorkflowReason;
 use App\Presentation\PlacementPosition;
 use App\Presentation\ResultPresentation;
 use App\Presentation\TestWorkflowProgress;
+use App\Question\Content\QuestionContentView;
 use App\Repository\AssessmentAccessPolicyRepository;
 use App\Repository\AssessmentItemRepository;
 use App\Repository\AssessmentRepository;
@@ -435,11 +436,24 @@ final class AdminTestController extends AdminBaseController
     {
         $assessment = $this->visibleAssessment($id);
         $revision = $this->currentRevision($assessment);
+        $rows = $this->previewRows($revision);
+        $instructions = $revision->getInstructions();
+        if (null !== $instructions && '' === trim($instructions)) {
+            $instructions = null;
+        }
 
         return $this->renderAdmin('admin/tests/preview.html.twig', [
+            'assessment_id' => $assessment->getId()->toRfc4122(),
+            'assessment_code' => $assessment->getCode(),
             'title' => $revision->getTitle(),
-            'instructions' => $revision->getInstructions(),
-            'rows' => $this->previewRows($revision),
+            'revision_label' => 'Sürüm '.$revision->getRevisionNumber(),
+            'instructions' => $instructions,
+            'subject_name' => $this->presentation->subjectName($assessment->getSubject()),
+            'grade_label' => $assessment->getGradeLevel()->value.'. sınıf',
+            'question_count' => \count($rows),
+            'total_points' => $this->presentation->points($this->totalPoints($rows)) ?? '0',
+            'duration_label' => $this->previewDurationLabel($revision),
+            'rows' => $this->presentPreviewRows($rows),
         ]);
     }
 
@@ -876,26 +890,56 @@ final class AdminTestController extends AdminBaseController
     }
 
     /**
-     * @return list<array{position: int, code: string, points: string, stem: list<string>, options: list<string>}>
+     * @return list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}>
      */
     private function previewRows(AssessmentRevision $revision): array
     {
+        $loaded = $this->items->findPreviewRows($revision->getId());
+        $revisionIds = [];
+        foreach ($loaded as $row) {
+            $revisionIds[$row['questionRevisionId']] = $row['questionRevisionId'];
+        }
+        $options = $this->options->findPreviewContents(array_values($revisionIds));
         $rows = [];
-        foreach ($this->orderedItems($revision) as $item) {
-            $options = [];
-            foreach ($this->options->findByRevision($item->getQuestionRevision()) as $option) {
-                $options[] = $this->plainLines($option->getContent())[0] ?? '';
+        foreach ($loaded as $row) {
+            $optionBlocks = [];
+            foreach ($options[$row['questionRevisionId']] ?? [] as $content) {
+                $optionBlocks[] = QuestionContentView::blocks($content, true);
             }
             $rows[] = [
-                'position' => $item->getPosition(),
-                'code' => $item->getQuestion()->getCode(),
-                'points' => $this->presentation->points($item->getPoints()) ?? $item->getPoints(),
-                'stem' => $this->plainLines($item->getQuestionRevision()->getStemContent()),
-                'options' => $options,
+                'position' => $row['position'],
+                'code' => $row['code'],
+                'points' => $row['points'],
+                'stem_blocks' => QuestionContentView::blocks($row['stemContent'], true),
+                'option_blocks' => $optionBlocks,
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * @param list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}> $rows
+     *
+     * @return list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}>
+     */
+    private function presentPreviewRows(array $rows): array
+    {
+        foreach ($rows as $index => $row) {
+            $rows[$index]['points'] = $this->presentation->points($row['points']) ?? $row['points'];
+        }
+
+        return $rows;
+    }
+
+    private function previewDurationLabel(AssessmentRevision $revision): string
+    {
+        $seconds = $revision->getDurationSeconds();
+        if (null === $seconds) {
+            return 'Süre sınırı yok';
+        }
+
+        return (string) (int) ceil($seconds / 60).' dk';
     }
 
     /**

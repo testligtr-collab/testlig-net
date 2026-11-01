@@ -569,7 +569,9 @@
         "Yönetim test listesi /yonetim/testler mevcut Assessment kaydını okur. Başlık ve soru sayısı güncel revision ile o revision’ın maddelerinden gelir. Sayaçlar aktörün görebildiği bütün platform kapsamını sayar; filtre ve 100 satırlık sayfa sayacı değiştirmez. Kurum testi ve başka kullanıcının görünmez taslağı listeye girmez. GET kayıt, revision, durum veya audit yazmaz. Oluşturma, detay, yayın ve erişim bu listede değişmedi. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
         "Yeni test ve testi düzenle ekranları aynı taslak kaydetme yolunda kart düzenine alındı. Adresler /yonetim/testler/yeni ve /yonetim/testler/{id}/duzenle aynı kaldı. GET soru araması kayıt veya revision yazmaz. Yukarı ve Aşağı formu gönderir. Yayın, erişim ve yayımlanmış sürümün değişmezliği aynı kaldı. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
         "Hatalı yeni test ve taslak düzenleme gönderimi aynı formu güvenli girdilerle yeniden gösterir. Geçersiz istek assessment, revision, madde veya başarı audit’i yazmaz. İlk açılışta sınıf alanı ve özet 1. sınıf der. Düzenlemede ders ve sınıf test kaydından gelir. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
-        "Test detayı GET /yonetim/testler/{id} güncel revision’ın başlık, yönerge, soru sırası, puan ve özetini gösterir. Yayın, öğrenci erişimi ve katalog yerleşimi ayrı durumlardır. GET kayıt veya audit yazmaz. Yazma formları mevcut CSRF, expected_revision ve onaylarla durur. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz."
+        "Test detayı GET /yonetim/testler/{id} güncel revision’ın başlık, yönerge, soru sırası, puan ve özetini gösterir. Yayın, öğrenci erişimi ve katalog yerleşimi ayrı durumlardır. GET kayıt veya audit yazmaz. Yazma formları mevcut CSRF, expected_revision ve onaylarla durur. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Test önizlemesi GET /yonetim/testler/{id}/gorunum güncel test sürümünü ve maddenin sabitlenmiş soru sürümünü gösterir. Paragraf içi biçim, liste, izinli formül ve seçeneğin bütün metni QuestionContentView ile çizilir. Eski düz paragraf da görünür. Doğru cevap, çözüm ve stableKey okunmaz. Bölüm, madde ve seçenekler toplu okunur. GET deneme, cevap, revision veya audit yazmaz. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Test önizlemesi açık yönetim kabuğunda test detayına dönüş, gerçek başlık, sürüm, özet, yönerge kartı ve numaralı soru kartlarıyla düzenlendi. Doğru cevap işareti, gönderim ve sonuç kontrolü yoktur. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/182",
@@ -577,7 +579,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/185",
         "https://github.com/testligtr-collab/testlig-net/pull/186"
       ],
-      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "acceptance": "Mevcut dar akış korunacak. Önizleme güncel test sürümünü, sabit soru sürümünü ve izinli soru belgesini cevap ile çözüm olmadan gösterir. CI görüntüsü ve production kabulü ayrıdır. M12 tamamlanmış sayılmaz.",
       "scope_decision": null
     },
     {
@@ -1264,7 +1266,8 @@
         "Testler listesi aynı yönetim kabuğunda başlık, dört sayaç, tek filtre paneli ve Test listesi kartıyla düzenlendi. Sayfa başlığı Testler, menü adı Test ve sınavlar kaldı. Adres /yonetim/testler aynıdır. Yeni test yalnız mevcut oluşturma yetkisiyle görünür. Filtre ve sayaç okuması bu görsel düzenle birlikte geldi. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Yeni test ve testi düzenle ekranları kabul edilen liste dilinde iki kolonlu kart düzenine alındı. Liste, detay, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Hatalı test formunda başlık, yönerge, süre ve güvenli seçimler korunur. Sınıf alanı ile özet aynı değeri gösterir. Liste, detay, önizleme ve sonuç değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
-        "Test detayı aynı yönetim kabuğunda özet ve iki kolonlu kart düzenine alındı. Liste, oluşturma, düzenleme, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz."
+        "Test detayı aynı yönetim kabuğunda özet ve iki kolonlu kart düzenine alındı. Liste, oluşturma, düzenleme, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Test önizlemesi aynı açık kabukta test detayına dönüş, gerçek başlık ve numaralı soru kartlarıyla düzenlendi. Liste, oluşturma, düzenleme, detay ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1298,7 +1301,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/185",
         "https://github.com/testligtr-collab/testlig-net/pull/186"
       ],
-      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz.",
+      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Test önizlemesi ekran görüntüsü production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz. X10 tamamlanmış sayılmaz.",
       "scope_decision": null
     },
     {

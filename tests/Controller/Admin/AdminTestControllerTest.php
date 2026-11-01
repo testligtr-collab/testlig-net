@@ -9,20 +9,28 @@ use App\Entity\AssessmentRevision;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\Institution;
 use App\Entity\Question;
+use App\Entity\QuestionRevision;
+use App\Entity\QuestionRevisionAlignment;
 use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
 use App\Enum\InstitutionType;
+use App\Enum\NavigationMode;
+use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
+use App\Enum\QuestionOrderMode;
 use App\Enum\QuestionScope;
 use App\Enum\QuestionType;
+use App\Enum\ResultReleasePolicy;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Question\Content\QuestionContentDocument;
+use App\Repository\QuestionRevisionAlignmentRepository;
 use App\Repository\QuestionRevisionRepository;
 use App\Repository\UserRepository;
+use App\Service\AssessmentManager;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
@@ -32,6 +40,7 @@ use App\Service\SubjectManager;
 use App\Service\UserFactory;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
@@ -112,6 +121,8 @@ final class AdminTestControllerTest extends WebTestCase
         $client = $this->newClient();
         $this->login($client, 'tb-teacher-b@example.com');
         $client->request('GET', $path);
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', $path.'/gorunum');
         self::assertResponseStatusCodeSame(404);
     }
 
@@ -251,6 +262,202 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertStringNotContainsString('answer_payload', $preview);
         self::assertStringNotContainsString($seed['question_revision'], $preview);
         self::assertStringNotContainsString('opt_a', $preview);
+    }
+
+    public function testPreviewRendersFullDocumentWithoutAnswerOrSolution(): void
+    {
+        $seed = $this->seed('tbrich');
+        $longOption = 'Uzun secenek metni '.str_repeat('devam ', 12);
+        $richId = $this->publishRichQuestion($seed, $longOption);
+        $this->createPrivileged('tbrich-teacher@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'tbrich-teacher@example.com');
+        $token = $this->token($client, $seed);
+        $client->request('POST', '/yonetim/testler/yeni', $this->payload($seed, [
+            '_token' => $token,
+            'title' => 'Biçimli önizleme',
+            'instructions' => '',
+            'duration_minutes' => '',
+            'items' => [
+                ['question_id' => $richId, 'position' => '1', 'points' => '2.50'],
+                ['question_id' => $seed['question'], 'position' => '2', 'points' => '1'],
+            ],
+        ]));
+        self::assertResponseRedirects();
+        $client->followRedirect();
+        $path = $client->getRequest()->getPathInfo();
+        $assessments = $this->assessmentCount();
+        $revisions = $this->revisionCount();
+        $audits = $this->successAuditCount();
+        $attempts = $this->tableCount('assessment_attempts');
+        $answers = $this->tableCount('assessment_attempt_answers');
+        $client->request('GET', $path.'/gorunum');
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertSame($assessments, $this->assessmentCount());
+        self::assertSame($revisions, $this->revisionCount());
+        self::assertSame($audits, $this->successAuditCount());
+        self::assertSame($attempts, $this->tableCount('assessment_attempts'));
+        self::assertSame($answers, $this->tableCount('assessment_attempt_answers'));
+        self::assertSelectorTextContains('h1', 'Biçimli önizleme');
+        self::assertStringContainsString('Sürüm 1', $html);
+        self::assertStringContainsString('Test önizlemesi', $html);
+        self::assertStringContainsString('Güncel test sürümünün önizlemesidir. Doğru cevaplar ve çözümler gösterilmez.', $html);
+        self::assertStringContainsString('Yönerge belirtilmemiş.', $html);
+        self::assertStringContainsString('Süre sınırı yok', $html);
+        self::assertSelectorTextContains('.admin-test-preview__count', '2');
+        self::assertSelectorTextContains('.admin-test-preview__points', '3,5');
+        self::assertStringContainsString('<strong>Kalın kök', $html);
+        self::assertStringContainsString('<em>eğik devam</em>', $html);
+        self::assertStringContainsString('<li>Liste maddesi bir</li>', $html);
+        self::assertStringContainsString('class="q-frac"', $html);
+        self::assertStringContainsString('Eski duz paragraf', $html);
+        self::assertStringContainsString('Uc nedir?', $html);
+        self::assertStringContainsString('Birinci paragraf baslangici', $html);
+        self::assertStringContainsString('Ikinci paragraf tamami burada', $html);
+        self::assertStringContainsString($longOption, $html);
+        self::assertStringContainsString('>A<', $html);
+        self::assertStringContainsString('>B<', $html);
+        self::assertStringNotContainsString('Gizli cozum cumlesi', $html);
+        self::assertStringNotContainsString('opt_a', $html);
+        self::assertStringNotContainsString('opt_b', $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString('type="radio"', $html);
+        self::assertStringNotContainsString($richId, $html);
+        self::assertSelectorExists('a.admin-test-preview__back[href="'.$path.'"]');
+    }
+
+    public function testPreviewUsesCurrentRevisionAndPinnedQuestionRevision(): void
+    {
+        $seed = $this->seed('tbpin');
+        $this->createPrivileged('tbpin-teacher@example.com', UserRole::Teacher);
+        $this->createPrivileged('tbpin-admin@example.com', UserRole::Admin);
+        $client = $this->newClient();
+        $this->login($client, 'tbpin-teacher@example.com');
+        $path = $this->createDraft($client, $seed, 'Yayin basligi');
+        $this->submitVisible($client, '/incelemeye-gonder');
+        $client = $this->newClient();
+        $this->login($client, 'tbpin-admin@example.com');
+        $client->request('GET', $path);
+        $this->submitVisible($client, '/yayinla');
+
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $assessment = $em->find(Assessment::class, Uuid::fromString(basename($path)));
+        $question = $em->find(Question::class, Uuid::fromString($seed['question']));
+        $second = $em->find(Question::class, Uuid::fromString($seed['second_question']));
+        $actor = static::getContainer()->get(UserRepository::class)->findOneBy(['email' => 'tbpin-sa@example.com']);
+        self::assertInstanceOf(Assessment::class, $assessment);
+        self::assertInstanceOf(Question::class, $question);
+        self::assertInstanceOf(Question::class, $second);
+        self::assertInstanceOf(User::class, $actor);
+        /** @var QuestionRevisionRepository $revisions */
+        $revisions = static::getContainer()->get(QuestionRevisionRepository::class);
+        $pinned = $revisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        $secondRevision = $revisions->findForQuestionNumber($second, $second->getCurrentRevisionNumber());
+        self::assertInstanceOf(QuestionRevision::class, $pinned);
+        self::assertInstanceOf(QuestionRevision::class, $secondRevision);
+        /** @var QuestionRevisionAlignmentRepository $alignments */
+        $alignments = static::getContainer()->get(QuestionRevisionAlignmentRepository::class);
+        $alignment = $alignments->findByRevision($pinned)[0] ?? null;
+        self::assertInstanceOf(QuestionRevisionAlignment::class, $alignment);
+        /** @var AssessmentManager $assessments */
+        $assessments = static::getContainer()->get(AssessmentManager::class);
+        $assessments->createRevision(
+            $assessment,
+            $actor,
+            'Guncel taslak basligi',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [
+                $this->previewSection($question, $pinned, 1, '1.00'),
+                $this->previewSection($second, $secondRevision, 2, '2.00'),
+            ],
+            'preview_revision',
+            $assessment->getSubject(),
+        );
+        /** @var QuestionManager $questions */
+        $questions = static::getContainer()->get(QuestionManager::class);
+        $questions->createRevision(
+            $question,
+            $actor,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Degisen kok metni'),
+            QuestionContentDocument::paragraph('Gizli cozum cumlesi')->toArray(),
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Yeni A'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Yeni B'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $alignment->getLearningOutcome(), 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'preview_question_revision',
+        );
+        self::ensureKernelShutdown();
+
+        $client = $this->newClient();
+        $this->login($client, 'tbpin-admin@example.com');
+        $assessmentsCount = $this->assessmentCount();
+        $revisions = $this->revisionCount();
+        $audits = $this->successAuditCount();
+        $client->request('GET', $path.'/gorunum');
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertSame($assessmentsCount, $this->assessmentCount());
+        self::assertSame($revisions, $this->revisionCount());
+        self::assertSame($audits, $this->successAuditCount());
+        self::assertSelectorTextContains('h1', 'Guncel taslak basligi');
+        self::assertStringContainsString('Sürüm 2', $html);
+        self::assertStringNotContainsString('Yayin basligi', $html);
+        self::assertStringNotContainsString('Yonerge metni', $html);
+        self::assertStringContainsString('Yönerge belirtilmemiş.', $html);
+        self::assertStringContainsString('Süre sınırı yok', $html);
+        self::assertStringNotContainsString('20 dk', $html);
+        $first = strpos($html, 'Uc nedir?');
+        $secondPos = strpos($html, 'Dort nedir?');
+        self::assertNotFalse($first);
+        self::assertNotFalse($secondPos);
+        self::assertLessThan($secondPos, $first);
+        self::assertSame(2, substr_count($html, 'admin-test-preview__question'));
+        self::assertStringNotContainsString('Degisen kok metni', $html);
+        self::assertStringNotContainsString('Gizli cozum cumlesi', $html);
+        self::assertStringNotContainsString('Yeni A', $html);
+        self::assertStringNotContainsString('opt_a', $html);
+        self::assertStringNotContainsString('correctStableKey', $html);
+        self::assertStringNotContainsString($pinned->getId()->toRfc4122(), $html);
+    }
+
+    public function testPreviewQueryCountDoesNotGrowWithQuestions(): void
+    {
+        $seed = $this->seed('tbqcount');
+        $this->createPrivileged('tbqcount-teacher@example.com', UserRole::Teacher);
+        $client = $this->newClient();
+        $this->login($client, 'tbqcount-teacher@example.com');
+        $one = $this->createDraft($client, $seed, 'Tek soru');
+        $two = $this->createDraft($client, $seed, 'Iki soru', [
+            ['question_id' => $seed['question'], 'position' => '1', 'points' => '1'],
+            ['question_id' => $seed['second_question'], 'position' => '2', 'points' => '2'],
+        ]);
+        $first = $this->previewQueryCounts($client, $one.'/gorunum');
+        $second = $this->previewQueryCounts($client, $two.'/gorunum');
+        self::assertSame(1, $first['items']);
+        self::assertSame(1, $second['items']);
+        self::assertSame(1, $first['options']);
+        self::assertSame(1, $second['options']);
+        self::assertSame(0, $first['leaks']);
+        self::assertSame(0, $second['leaks']);
+        self::assertSame(0, $first['writes']);
+        self::assertSame(0, $second['writes']);
+        self::assertStringContainsString('Uc nedir?', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Dort nedir?', (string) $client->getResponse()->getContent());
     }
 
     public function testLifecycleSeparationModeratorAndPublishedImmutable(): void
@@ -440,9 +647,11 @@ final class AdminTestControllerTest extends WebTestCase
         $owner = $users->findOneBy(['email' => 'iso-author@example.com']);
         self::assertInstanceOf(User::class, $owner);
         $institution = Institution::create('Kurum Liste', 'kurum liste', 'kurum-liste-iso', InstitutionType::School, new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $institutionAssessment = Assessment::createDraft(AssessmentScope::Institution, $institution, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00'));
         $em->persist($institution);
-        $em->persist(Assessment::createDraft(AssessmentScope::Institution, $institution, AssessmentType::Quiz, GradeLevel::Grade1, $owner, new \DateTimeImmutable('2026-01-01 00:00:00')));
+        $em->persist($institutionAssessment);
         $em->flush();
+        $hiddenPreview = '/yonetim/testler/'.$institutionAssessment->getId()->toRfc4122().'/gorunum';
         $before = $em->getConnection()->fetchFirstColumn('SELECT updated_at FROM assessments WHERE scope = ? ORDER BY code', ['platform']);
         self::ensureKernelShutdown();
 
@@ -461,6 +670,8 @@ final class AdminTestControllerTest extends WebTestCase
             self::assertSame(1, $client->getCrawler()->filter('.admin-test-table tbody tr')->count());
             self::assertStringNotContainsString('Kurum Liste', (string) $client->getResponse()->getContent());
             self::assertStringNotContainsString('correctStableKey', (string) $client->getResponse()->getContent());
+            $client->request('GET', $hiddenPreview);
+            self::assertResponseStatusCodeSame(404);
             self::ensureKernelShutdown();
             self::bootKernel();
             $connection = static::getContainer()->get(EntityManagerInterface::class);
@@ -796,6 +1007,145 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertStringNotContainsString('/taslaga-dondur', $archived);
         self::assertStringNotContainsString('/duzenle', $archived);
         self::assertStringNotContainsString('Yeni sürüm', $archived);
+    }
+
+    /**
+     * @param array{subject: string, question: string} $seed
+     */
+    private function publishRichQuestion(array $seed, string $longOption): string
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $base = $em->find(Question::class, Uuid::fromString($seed['question']));
+        $users = static::getContainer()->get(UserRepository::class);
+        self::assertInstanceOf(UserRepository::class, $users);
+        $actor = $users->findOneBy(['email' => 'tbrich-sa@example.com']);
+        $publisher = $users->findOneBy(['email' => 'tbrich-editor@example.com']);
+        self::assertInstanceOf(Question::class, $base);
+        self::assertInstanceOf(User::class, $actor);
+        self::assertInstanceOf(User::class, $publisher);
+        /** @var QuestionRevisionRepository $revisions */
+        $revisions = static::getContainer()->get(QuestionRevisionRepository::class);
+        $revision = $revisions->findForQuestionNumber($base, $base->getCurrentRevisionNumber());
+        self::assertInstanceOf(QuestionRevision::class, $revision);
+        /** @var QuestionRevisionAlignmentRepository $alignments */
+        $alignments = static::getContainer()->get(QuestionRevisionAlignmentRepository::class);
+        $alignment = $alignments->findByRevision($revision)[0] ?? null;
+        self::assertInstanceOf(QuestionRevisionAlignment::class, $alignment);
+        /** @var QuestionManager $questions */
+        $questions = static::getContainer()->get(QuestionManager::class);
+        $rich = $questions->createDraftQuestion(
+            $actor,
+            QuestionScope::Platform,
+            null,
+            $base->getSubject(),
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'inlines' => [
+                    ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                    ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
+                ]],
+                ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
+                ['type' => 'math', 'latex' => '\\frac{3}{4}'],
+                ['type' => 'paragraph', 'text' => 'Eski duz paragraf'],
+            ]),
+            QuestionContentDocument::paragraph('Gizli cozum cumlesi')->toArray(),
+            [
+                ['stableKey' => 'opt_a', 'content' => new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Birinci paragraf baslangici'],
+                    ]],
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Ikinci paragraf tamami burada'],
+                    ]],
+                ]), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph($longOption), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $alignment->getLearningOutcome(), 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'create_q_rich',
+        );
+        $questions->submitForReview($rich, $actor, 'ready_for_review');
+        $questions->publish($rich, $publisher, 'publish_approved');
+        $id = $rich->getId()->toRfc4122();
+        self::ensureKernelShutdown();
+
+        return $id;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function previewSection(Question $question, QuestionRevision $revision, int $position, string $points): array
+    {
+        return [
+            'title' => 'Bolum '.$position,
+            'position' => $position,
+            'questionOrderMode' => QuestionOrderMode::Fixed,
+            'items' => [[
+                'questionId' => $question->getId(),
+                'questionRevisionId' => $revision->getId(),
+                'position' => 1,
+                'points' => $points,
+                'penaltyPoints' => '0.00',
+                'required' => true,
+            ]],
+        ];
+    }
+
+    /**
+     * @return array{items: int, options: int, leaks: int, writes: int}
+     */
+    private function previewQueryCounts(KernelBrowser $client, string $path): array
+    {
+        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+        $holder->reset();
+        $client->request('GET', $path);
+        self::assertResponseIsSuccessful();
+        $counts = ['items' => 0, 'options' => 0, 'leaks' => 0, 'writes' => 0];
+        foreach ($holder->getData() as $queries) {
+            foreach ($queries as $query) {
+                $sql = $query['sql'] ?? null;
+                if (!\is_string($sql)) {
+                    continue;
+                }
+                $normalized = strtolower(trim((string) preg_replace('/\s+/', ' ', $sql)));
+                if (str_contains($normalized, 'from assessment_items') || str_contains($normalized, 'join assessment_items')) {
+                    ++$counts['items'];
+                }
+                if (str_contains($normalized, 'question_revision_options')) {
+                    ++$counts['options'];
+                }
+                if (str_contains($normalized, 'explanation_content') || str_contains($normalized, 'stable_key') || str_contains($normalized, 'question_answer_keys')) {
+                    ++$counts['leaks'];
+                }
+                if (1 === preg_match('/^(insert|update|delete)\b/', $normalized)
+                    && (str_contains($normalized, 'assessment') || str_contains($normalized, 'question_answer') || str_contains($normalized, 'security_audit'))
+                ) {
+                    ++$counts['writes'];
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    private function tableCount(string $table): int
+    {
+        $sql = match ($table) {
+            'assessment_attempts' => 'SELECT COUNT(*) FROM assessment_attempts',
+            'assessment_attempt_answers' => 'SELECT COUNT(*) FROM assessment_attempt_answers',
+            default => throw new \InvalidArgumentException('Unexpected table.'),
+        };
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+
+        return (int) $em->getConnection()->fetchOne($sql);
     }
 
     private function assessmentCount(): int
