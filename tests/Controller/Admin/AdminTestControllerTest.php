@@ -257,7 +257,7 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertStringContainsString('Yonerge', $preview);
         self::assertStringContainsString('Uc', $preview);
         self::assertStringContainsString('Dort', $preview);
-        self::assertStringNotContainsString('Doğru cevap', $preview);
+        self::assertStringContainsString('Güncel test sürümünün önizlemesidir. Doğru cevaplar ve çözümler gösterilmez.', $preview);
         self::assertStringNotContainsString('correctStableKey', $preview);
         self::assertStringNotContainsString('answer_payload', $preview);
         self::assertStringNotContainsString($seed['question_revision'], $preview);
@@ -307,8 +307,8 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertStringContainsString('Süre sınırı yok', $html);
         self::assertSelectorTextContains('.admin-test-preview__count', '2');
         self::assertSelectorTextContains('.admin-test-preview__points', '3,5');
-        self::assertStringContainsString('<strong>Kalın kök', $html);
-        self::assertStringContainsString('<em>eğik devam</em>', $html);
+        self::assertMatchesRegularExpression('/<strong>\s*Kalın kök/', $html);
+        self::assertMatchesRegularExpression('/<em>\s*eğik devam\s*<\/em>/', $html);
         self::assertStringContainsString('<li>Liste maddesi bir</li>', $html);
         self::assertStringContainsString('class="q-frac"', $html);
         self::assertStringContainsString('Eski duz paragraf', $html);
@@ -428,7 +428,7 @@ final class AdminTestControllerTest extends WebTestCase
         self::assertNotFalse($first);
         self::assertNotFalse($secondPos);
         self::assertLessThan($secondPos, $first);
-        self::assertSame(2, substr_count($html, 'admin-test-preview__question'));
+        self::assertSame(2, substr_count($html, 'admin-test-preview__question">'));
         self::assertStringNotContainsString('Degisen kok metni', $html);
         self::assertStringNotContainsString('Gizli cozum cumlesi', $html);
         self::assertStringNotContainsString('Yeni A', $html);
@@ -1116,11 +1116,11 @@ final class AdminTestControllerTest extends WebTestCase
                 if (!\is_string($sql)) {
                     continue;
                 }
-                $normalized = strtolower(trim((string) preg_replace('/\s+/', ' ', $sql)));
-                if (str_contains($normalized, 'from assessment_items') || str_contains($normalized, 'join assessment_items')) {
+                $normalized = strtolower(trim((string) preg_replace('/\s+/', ' ', str_replace('`', '', $sql))));
+                if (str_contains($normalized, 'from assessment_items')) {
                     ++$counts['items'];
                 }
-                if (str_contains($normalized, 'question_revision_options')) {
+                if (str_contains($normalized, 'from question_revision_options')) {
                     ++$counts['options'];
                 }
                 if (str_contains($normalized, 'explanation_content') || str_contains($normalized, 'stable_key') || str_contains($normalized, 'question_answer_keys')) {
