@@ -24,9 +24,9 @@ test('admin test results keep the open layout and the completed-run gate', async
     await expect(page.getByRole('heading', { level: 1, name: 'Sentetik sonuc testi' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Test detayına dön' })).toBeVisible();
     await expect(page.getByText(data.paths.testResultStudent)).toBeVisible();
-    await expect(page.getByText('Tamamlandı')).toBeVisible();
-    await expect(page.getByText('Devam ediyor')).toBeVisible();
-    await expect(page.getByText('İptal')).toBeVisible();
+    await expect(page.getByText('Tamamlandı', { exact: true })).toBeVisible();
+    await expect(page.getByText('Devam ediyor', { exact: true })).toBeVisible();
+    await expect(page.getByText('İptal', { exact: true })).toBeVisible();
     await expect(page.getByText('henüz sonuç yok')).toHaveCount(0);
     await expect(page.getByText('Doğru cevap')).toHaveCount(0);
     await expect(page.getByText('correctStableKey')).toHaveCount(0);
