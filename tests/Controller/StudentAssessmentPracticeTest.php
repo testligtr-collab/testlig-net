@@ -530,6 +530,7 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringNotContainsString('henüz sonuç yok', $openList);
         self::assertStringNotContainsString('Doğru cevap', $openList);
 
+        self::ensureKernelShutdown();
         $cancelClient = static::createClient();
         $this->login($cancelClient, 'rstat-cancel@example.com');
         $crawler = $cancelClient->request('GET', '/ogrenci/testler/'.$seed['main']);
@@ -654,8 +655,8 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertStringNotContainsString('rfmt-student@example.com', $list);
         $admin->request('GET', '/yonetim/testler/'.$id.'/sonuclar/1');
         $detail = (string) $admin->getResponse()->getContent();
-        self::assertStringContainsString('<strong>Kalın kök </strong>', $detail);
-        self::assertStringContainsString('<em>eğik devam</em>', $detail);
+        self::assertMatchesRegularExpression('/<strong>\s*Kalın kök\s*<\/strong>/', $detail);
+        self::assertMatchesRegularExpression('/<em>\s*eğik devam\s*<\/em>/', $detail);
         self::assertStringContainsString('Liste maddesi', $detail);
         self::assertStringContainsString('q-frac', $detail);
         self::assertStringContainsString('123456789012345678901234567890', $detail);
