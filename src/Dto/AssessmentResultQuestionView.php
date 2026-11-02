@@ -10,8 +10,8 @@ namespace App\Dto;
 final readonly class AssessmentResultQuestionView
 {
     /**
-     * @param list<string>              $stem
-     * @param list<string>              $explanation
+     * @param list<string>               $stem
+     * @param list<string>               $explanation
      * @param list<array<string, mixed>> $stemBlocks
      * @param list<array<string, mixed>> $explanationBlocks
      */
