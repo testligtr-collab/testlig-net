@@ -66,7 +66,8 @@ final class StudentPracticeResultReader
      *         correct_answer: string,
      *         label: string,
      *         explanation: list<string>,
-     *         explanation_blocks: list<array<string, mixed>>
+     *         explanation_blocks: list<array<string, mixed>>,
+     *         points: string
      *     }>
      * }|null
      */
@@ -101,11 +102,12 @@ final class StudentPracticeResultReader
      *         correct_answer: string,
      *         label: string,
      *         explanation: list<string>,
-     *         explanation_blocks: list<array<string, mixed>>
+     *         explanation_blocks: list<array<string, mixed>>,
+     *         points: string
      *     }>
      * }|null
      */
-    public function readScored(AssessmentAttempt $attempt): ?array
+    public function readScored(AssessmentAttempt $attempt, bool $imageNote = false): ?array
     {
         $run = $this->runs->findLatestForAttempt($attempt->getId());
         if (!$run instanceof AssessmentScoringRun || ScoringRunStatus::Completed !== $run->getStatus()) {
@@ -143,13 +145,14 @@ final class StudentPracticeResultReader
             $questions[] = [
                 'position' => $item->getPresentationPosition(),
                 'stem' => QuestionPlainText::lines($questionRevision->getStemContent()),
-                'stem_blocks' => QuestionContentView::blocks($questionRevision->getStemContent(), false),
+                'stem_blocks' => QuestionContentView::blocks($questionRevision->getStemContent(), $imageNote),
                 'options' => array_values($options),
                 'student_answer' => $selected ?? '',
                 'correct_answer' => $correct,
                 'label' => $this->label($score->getOutcome()),
                 'explanation' => QuestionPlainText::lines($questionRevision->getExplanationContent()),
-                'explanation_blocks' => QuestionContentView::blocks($questionRevision->getExplanationContent(), false),
+                'explanation_blocks' => QuestionContentView::blocks($questionRevision->getExplanationContent(), $imageNote),
+                'points' => $this->presentation->points($item->getPoints()) ?? '0',
             ];
         }
 

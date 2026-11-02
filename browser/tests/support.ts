@@ -33,6 +33,11 @@ type Manifest = {
     testTitle: string;
     testPublishedDetail: string;
     testPreview: string;
+    testResults: string;
+    testResultsEmpty: string;
+    testResultCompleted: string;
+    testResultOpen: string;
+    testResultStudent: string;
     foreignTitle: string;
     endedClassroom: string;
     userDetail: string;

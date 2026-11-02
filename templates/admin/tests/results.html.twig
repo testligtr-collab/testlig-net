@@ -3,86 +3,114 @@
 {% block title %}Sonuçlar — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_tests') }}">Testler</a>
-        <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_test_show', {id: assessment_id}) }}">{{ title }}</a>
-        <span aria-hidden="true">/</span>
-        <span>Sonuçlar</span>
-    </nav>
-    <h1 class="panel-greeting">Sonuçlar</h1>
-    <p class="muted">{{ title }}</p>
+    <div class="admin-test-results">
+        <a class="admin-test-results__back" href="{{ path('app_admin_test_show', {id: assessment_id}) }}">Test detayına dön</a>
+        <header class="admin-test-results__head">
+            <p class="admin-test-results__kicker">Sonuçlar</p>
+            <h1>{{ title }}</h1>
+            <p>
+                Bu liste, öğrencilerin çözdüğü sabit test sürümündeki denemeleri gösterir.
+                {% if search %}
+                    Özet, “{{ search }}” aramasındaki tüm sayfaları kapsar.
+                {% else %}
+                    Özet, bu testteki tüm denemeleri kapsar; yalnız bu sayfayı değil.
+                {% endif %}
+                Katılımcı, tamamlanan ve ortalama; gönderilmiş veya süresi dolmuş denemelerdendir. İptal edilen denemeler listede görünür, bu sayaçlara girmez.
+            </p>
+        </header>
 
-    <form method="get" action="{{ path('app_admin_test_results', {id: assessment_id}) }}" class="stack-sm">
-        <label>Ad, soyad veya test başlığı
-            <input type="search" name="q" value="{{ search }}" maxlength="100">
-        </label>
-        <button class="btn btn--primary" type="submit">Ara</button>
-    </form>
+        <form method="get" action="{{ path('app_admin_test_results', {id: assessment_id}) }}" class="admin-test-results__search">
+            <label>Ad, soyad veya test başlığı
+                <input type="search" name="q" value="{{ search }}" maxlength="100">
+            </label>
+            <button class="btn btn--primary" type="submit">Ara</button>
+        </form>
 
-    {% if summary.completed == 0 and summary.inProgress == 0 %}
-        <div class="empty-state" role="status">
-            <p>{% if search %}Aramanla eşleşen sonuç yok.{% else %}Bu test için henüz sonuç yok.{% endif %}</p>
-        </div>
-    {% else %}
-    <section class="admin-metric-grid" aria-label="Sonuç özeti">
-        <div class="admin-metric"><p class="admin-metric__label">Katılımcı</p><p class="admin-metric__value">{{ summary.participants }}</p></div>
-        <div class="admin-metric"><p class="admin-metric__label">Tamamlanan</p><p class="admin-metric__value">{{ summary.completed }}</p></div>
-        <div class="admin-metric"><p class="admin-metric__label">Devam eden</p><p class="admin-metric__value">{{ summary.inProgress }}</p></div>
-        {% if summary.averagePercentage %}
-            <div class="admin-metric"><p class="admin-metric__label">Ortalama yüzde</p><p class="admin-metric__value">{{ summary.averagePercentage }}</p></div>
+        {% if result.totalCount == 0 %}
+            <div class="empty-state" role="status">
+                <p>{% if search %}Aramanla eşleşen sonuç yok.{% else %}Bu test için henüz sonuç yok.{% endif %}</p>
+            </div>
+        {% else %}
+            <ul class="admin-test-results__metrics" aria-label="Sonuç özeti">
+                <li class="admin-test-results__metric"><span>Katılımcı</span><strong>{{ summary.participants }}</strong></li>
+                <li class="admin-test-results__metric"><span>Tamamlanan</span><strong>{{ summary.completed }}</strong></li>
+                <li class="admin-test-results__metric"><span>Devam eden</span><strong>{{ summary.inProgress }}</strong></li>
+                {% if summary.averagePercentage %}
+                    <li class="admin-test-results__metric"><span>Ortalama yüzde</span><strong>{{ summary.averagePercentage }}</strong></li>
+                {% endif %}
+            </ul>
+            {% if result.items is empty %}
+                <p role="status">Bu sayfada sonuç yok.</p>
+            {% else %}
+                <div class="admin-table-wrap admin-test-results__table-wrap">
+                    <table class="admin-table admin-test-results__table">
+                        <thead>
+                            <tr>
+                                <th>Öğrenci</th>
+                                <th>Durum</th>
+                                <th>Başlangıç</th>
+                                <th>Bitiş</th>
+                                <th>Puan</th>
+                                <th>Yüzde</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Öğrenci</span>
+                                            <span class="admin-result-field__value admin-test-results__name">{{ row.studentName }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Durum</span>
+                                            <span class="admin-result-field__value">{{ row.statusLabel }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Başlangıç</span>
+                                            <span class="admin-result-field__value">{{ row.startedAt }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Bitiş</span>
+                                            <span class="admin-result-field__value">{{ row.completedAt|default('—') }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Puan</span>
+                                            <span class="admin-result-field__value">{% if row.scored %}{{ row.earned }} / {{ row.total }}{% else %}—{% endif %}</span>
+                                            <span class="admin-result-field__counts">Doğru {% if row.scored %}{{ row.correct }}{% else %}—{% endif %} · Yanlış {% if row.scored %}{{ row.incorrect }}{% else %}—{% endif %} · Boş {% if row.scored %}{{ row.unanswered }}{% else %}—{% endif %}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Yüzde</span>
+                                            <span class="admin-result-field__value">{% if row.scored %}{{ row.percentage }}{% else %}—{% endif %}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <a class="admin-test-results__open" href="{{ path('app_admin_test_result', {id: assessment_id, rank: row.rank, q: search, page: result.page}) }}">İncele</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
         {% endif %}
-    </section>
-        {% if result.items is empty %}
-            <p role="status">Bu sayfada sonuç yok.</p>
-        {% endif %}
-    {% endif %}
 
-    {% if result.items is not empty %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Öğrenci</th>
-                        <th>Test</th>
-                        <th>Durum</th>
-                        <th>Başlangıç</th>
-                        <th>Tamamlanma</th>
-                        <th>Doğru</th>
-                        <th>Yanlış</th>
-                        <th>Boş</th>
-                        <th>Puan</th>
-                        <th>Yüzde</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.studentName }}</td>
-                            <td>{{ row.title }}</td>
-                            <td>{{ row.statusLabel }}</td>
-                            <td>{{ row.startedAt }}</td>
-                            <td>{{ row.completedAt|default('—') }}</td>
-                            <td>{% if row.scored %}{{ row.correct }}{% else %}—{% endif %}</td>
-                            <td>{% if row.scored %}{{ row.incorrect }}{% else %}—{% endif %}</td>
-                            <td>{% if row.scored %}{{ row.unanswered }}{% else %}—{% endif %}</td>
-                            <td>{% if row.scored %}{{ row.earned }} / {{ row.total }}{% else %}—{% endif %}</td>
-                            <td>{% if row.scored %}{{ row.percentage }}{% else %}—{% endif %}</td>
-                            <td>
-                                <a href="{{ path('app_admin_test_result', {id: assessment_id, rank: row.rank, q: search}) }}">Detay</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-
-    {% include 'components/admin_pagination.html.twig' with {
-        result: result,
-        route: 'app_admin_test_results',
-        route_params: { id: assessment_id },
-        query: { q: search }
-    } %}
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_test_results',
+            route_params: { id: assessment_id },
+            query: { q: search }
+        } %}
+    </div>
 {% endblock %}
