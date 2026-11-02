@@ -9,9 +9,16 @@ Bu belge kod, entity, migration, route, voter veya servis oluşturmaz. Aşağıd
 
 İlgili mevcut omurga (yeniden kurulmaz): `Institution`, `InstitutionMembership`, `AcademicYear`, `Classroom`, `ClassroomTeacherAssignment`, `ClassroomStudentEnrollment` — bkz. `docs/architecture.md` (2.5–2.6) ve `docs/architecture-auth-membership-onboarding.md`. Sınıf testi ataması `AssessmentDelivery` ayrı kalır (2.10). Assessment / Delivery / Attempt / Scoring yeniden yazılmaz. `AssessmentType::HomeworkBlueprint` tek başına çalışan ödev ürünü değildir.
 
-### X01 uygulamaya geçerken (ayrı açık karar; bu PR yapmaz)
+### Aktif iş geçiş zamanlaması
 
-X01 kod dilimi başlatılacağı zaman: `X10-admin-navigation` **partial** olarak korunur; `active_feature_ids` odağı **ayrı, açık kullanıcı kararıyla** `X01-homework` yapılır. Bu dokümantasyon PR’ı aktif işi değiştirmez.
+| An | Kayıt |
+|---|---|
+| Bu PR (#190, yalnız dokümantasyon) | `X01-homework` **planned** kalır; `active_feature_ids` yalnız `X10-admin-navigation` |
+| İlk X01 **uygulama** PR’ı açılırken | Aktif uygulama odağı açıkça `X01-homework` yapılır; `X10-admin-navigation` kaydı **partial** olarak korunur |
+| Bu geçişin anlamı | X10’un tamamlandığı veya kapsamdan çıkarıldığı anlamına **gelmez** |
+| X01 status ilerlemesi | Yalnız gerçekten teslim edilen dilimin kanıtıyla kaydedilir; tüm ödev ürünü (dosya/rubrik/veli vb.) tamamlandı sayılmaz |
+
+Bu dokümantasyon PR’ı `active_feature_ids` değiştirmez.
 
 ---
 
@@ -69,7 +76,7 @@ Tek küçük teslim sırası (hepsi metin; dosya yok):
 | 2. Kendi sınıfı + son tarih seçer | Aktif atandığı sınıf; `dueAt` UTC | Geç teslim, ek süre |
 | 3. Açık işlemle yayımlar/atar | POST + CSRF; recipient materialize; `assigned` | Sessiz yayın; kurum geneli; co-teacher |
 | 4. Uygun öğrenci görür ve metin teslim eder | Liste + detay; taslak; tek gönderim | Dosya; veli; bildirim; yeniden teslim; geç teslim |
-| 5. Atayan öğretmen inceler | Etiket: **İncelendi** veya **Yeniden çalışılmalı** + metin geri bildirim | Sayısal puan; rubrik; AI; otomatik puan |
+| 5. Atayan öğretmen inceler | **İncelendi** (geri bildirim isteğe bağlı) veya **Yeniden çalışılmalı** (anlamlı geri bildirim zorunlu); §3.6 | Sayısal puan; rubrik; AI; yeniden teslim |
 | 6. Öğrenci güncel değerlendirmeyi görür | Aktif etiket + geri bildirim | Eski superseded UI’si zorunlu değil; sınıf sıralaması yok |
 
 **Kapsam dışı (ilk dilim; tamamlandı sayılmaz):** dosya/görsel yükleme, veli, bildirim, sayısal puan, rubrik, AI, test bağlama, co-teacher, sahiplik devri, yeniden teslim, geç teslim, yönetim/acil destek bypass, owner/manager/Admin/SA teslim gövdesi.
@@ -110,24 +117,27 @@ Geçiş: `draft` → `assigned` → `closed` \| `cancelled`; `assigned` → `can
 
 | Durum | Anlam |
 |---|---|
-| `draft` | Öğrenci kaydetti; öğretmen değerlendirmez; gövde yalnız sahibi (+ yetkili atayan öğretmen, taslak politikası: öğretmen taslağı **görmez** — yalnız `submitted`) |
+| `draft` | Öğrenci kaydetti; öğretmen değerlendirmez; öğretmen taslağı **görmez** (yalnız `submitted`) |
 | `submitted` | Gönderildi; içerik kilitli; yeniden teslim yok |
 
 Geç teslim durumu yok.
 
-**Taslak gizliliği (net):** Öğretmen yalnız `submitted` gövdesini görür; öğrenci `draft` yalnız kendisine aittir.
+**Taslak gizliliği:** Öğretmen yalnız `submitted` gövdesini görür; `draft` yalnız öğrenci sahibinindir.
+
+**Taslak boş metin:** Draft kaydı, gönderimden önce isteğe bağlı kayıt davranışıdır. Öğrenci taslağı **boş string** olarak saklanabilir (önceki taslağı temizleme / henüz yazmama). Yalnız boşluklardan oluşan draft metin trim sonrası boş sayılır ve boş draft olarak saklanır; bu “gönderilmiş teslim” değildir. **Submit** (§3.6) boş veya yalnız boşluk metni kabul etmez.
 
 ### 3.4 HomeworkEvaluation (öneri)
 
 | Alan | Kural |
 |---|---|
 | Etiket | Yalnız **`reviewed` (İncelendi)** veya **`needs_rework` (Yeniden çalışılmalı)** |
-| Geri bildirim | Metin zorunlu veya isteğe bağlı — uygulama diliminde alan zorunluluğu netleştirilir; içerik metindir |
+| Geri bildirim — `needs_rework` | **Anlamlı metin zorunlu** (trim sonrası boş olamaz; §3.6 üst sınır) |
+| Geri bildirim — `reviewed` | **İsteğe bağlı**; verilirse §3.6 sınırına uyar; yalnız boşluk → yok sayılır |
 | Sayısal puan | **Yok** |
 | Durum | `recorded` → düzeltmede önceki `superseded`; yeni satır `recorded` |
 | Değerlendirilmemiş | Hiçbir etiket gösterilmez; “İncelendi” / “Yeniden çalışılmalı” gibi sunulmaz |
 
-**`needs_rework` pedagojik geri bildirimdir.** İlk dilimde yeniden teslim izni, ek süre veya due uzatması oluşturmaz. UI bunu vaat etmez.
+**`needs_rework` pedagojik geri bildirimdir.** Yeniden teslim izni, ek süre veya due uzatması **açmaz**. UI bunu vaat etmez.
 
 Öğrenci yalnız güncel (`recorded`) etiket + geri bildirimi görür. Eski satırlar silinmez; ilk dilim UI’sinde superseded listesi zorunlu değildir.
 
@@ -141,6 +151,28 @@ Geç teslim durumu yok.
 | Son tarih | Inclusive: sunucunun kabul anı `now <= dueAt` ise kabul; `now > dueAt` ise red. Saklama UTC; `ClockInterface`; kontrol **transaction içinde**, submit kilidi altında |
 | Geç teslim / ek süre | **Yok** |
 | Değerlendirme düzeltmesi | Append-only; sessiz overwrite yok |
+
+### 3.6 Metin sınırları ve karakter sayım sözleşmesi (ürün sözleşmesi)
+
+Bu sınırlar uygulanacak üründür; **bu PR’da validator/form kodu yoktur.**
+
+| Alan | Üst sınır | Boş / yalnız boşluk |
+|---|---|---|
+| Ödev başlığı | ≤ **150** karakter | Red (trim sonrası boş olamaz) |
+| Ödev açıklaması (istem) | ≤ **10.000** karakter | Red (trim sonrası boş olamaz) |
+| Öğrenci **gönderilen** teslim metni | ≤ **20.000** karakter | Red (trim sonrası boş olamaz) |
+| Öğrenci **taslak** metni | ≤ **20.000** karakter | Boş taslak saklanabilir (§3.3) |
+| Öğretmen geri bildirimi | ≤ **5.000** karakter | `needs_rework`: anlamlı zorunlu; `reviewed`: isteğe bağlı |
+
+**Karakter sayımı (sunucu esas):**
+
+- Sınır **UTF-8 bayt sayısı değildir**.
+- Sunucu, repodaki diğer metin alanlarıyla uyumlu olarak Unicode karakter sayısını `mb_strlen($value, 'UTF-8')` ile ölçer (UTF-8 kod noktası; Türkçe harfler ve BMP dışı kod noktaları tek karakter sayılır).
+- İstemci sayacı **aynı Unicode kod noktası** sözleşmesini kullanır; JS `string.length` (UTF-16 birimi) astral karakterlerde sapma yaratır — sayaç kod noktası saymalı.
+- **Sunucu doğrulaması esas güvenlik kontrolüdür**; istemci sınırı tek başına yetmez.
+- Gösterim: Twig/autoescape ile kaçışlı düz metin. Bu sınırlar ham HTML veya zengin editör desteği **vermez**.
+
+**Sonraki form kabul maddeleri:** karakter sayacı; erişilebilir Türkçe alan hatası; hatalı gönderimde güvenli girdinin korunması (PRG/re-render).
 
 ---
 
@@ -205,7 +237,7 @@ Fail-closed. Global rol hiyerarşisi nesne kuralını aşmaz. Teslim gövdesi: y
 - **GET yazmaz.**
 - Yazmalar: POST + CSRF + PRG; domain TX; assignment → recipient/submission kilit sırası; due kontrolü aynı TX içinde `ClockInterface` UTC anı ile.
 - Mükerrer: `(assignment_id, student_user_id)` en fazla bir `submitted` (+ en fazla bir aktif draft).
-- Metin: Twig autoescape; HTML yok; uzunluk üst sınırları uygulama diliminde sabitlenir (belge önerisi: başlık ≤200, istem ≤10k, teslim ≤20k, feedback ≤5k).
+- Metin: Twig autoescape; HTML/zengin editör yok; uzunluk ve boşluk kuralları §3.6 (`mb_strlen` UTF-8); sunucu validator esas.
 - Audit: `homework_*`; metadata id/status/reason_code; **teslim gövdesi ve geri bildirim audit’e kopyalanmaz**.
 - Liste minimizasyonu; hard delete yok.
 - Bildirim yok (ilk dilim).
@@ -234,10 +266,11 @@ Bu belge kabulü tamamlamaz. Uygulama diliminde ayrı kanıtlanır.
 6. Çift submit / concurrent conflict; GET side-effect yok.
 7. Transfer: eski teslim sahibi/içerik aynı; yeni sınıf eski ödevi açmaz; sonradan katılan alıcı olmaz.
 8. Publish sonrası istem metni değişmez.
-9. Evaluation: yalnız iki etiket; değerlendirilmemiş boş; append-only supersede; `needs_rework` resubmit açmaz.
-10. Öğretmen erişimi kesilince değerlendirilemeyen submitted kalabilir; bypass yok.
-11. Mobil/tablet + klavye odak kabulü ayrı işaretlenir.
-12. Kod merge ≠ deploy ≠ production kullanıcı kabulü.
+9. Evaluation: yalnız iki etiket; `needs_rework` anlamlı geri bildirim zorunlu; `reviewed` isteğe bağlı; append-only; `needs_rework` resubmit/ek süre açmaz.
+10. §3.6: başlık/açıklama/submit boşluk-only red; taslak boş saklanabilir; karakter sayacı = sunucu `mb_strlen` UTF-8; istemci sapması sunucuda yakalanır; hatalı gönderimde girdi korunur; erişilebilir Türkçe hata.
+11. Öğretmen erişimi kesilince değerlendirilemeyen submitted kalabilir; bypass yok.
+12. Mobil/tablet + klavye odak kabulü ayrı işaretlenir.
+13. Kod merge ≠ deploy ≠ production kullanıcı kabulü; karar belgesi kabul sayılmaz.
 
 ---
 
@@ -254,27 +287,22 @@ Bu belge kabulü tamamlamaz. Uygulama diliminde ayrı kanıtlanır.
 
 ## 10. Yol haritası notları (bu PR değiştirmez)
 
-| Kayıt | Bu PR |
+| Kayıt | Bu PR (#190) |
 |---|---|
 | `X01-homework` status | `planned` kalır |
 | `active_feature_ids` | Yalnız `X10-admin-navigation` |
 | `depends_on` | `M18-local-pdf` korunur (metin dilimi dosya kullanmaz) |
-| X01 uygulama başlangıcı | Ayrı karar: X10 partial kalır; aktif odak X01’e alınır |
-| Evidence | Karar belgesi hazırlığı; çalışan kod/kabul iddiası yok |
+| İlk X01 uygulama PR’ı | Aktif odak açıkça `X01-homework`; X10 kaydı **partial** kalır; X10 tamamlandı/retired değildir |
+| X01 ilerleme kanıtı | Yalnız teslim edilen dilim; tüm ödev ürünü tamamlandı sayılmaz |
+| Evidence | Karar belgesi; çalışan kod/kabul iddiası yok |
 
 ---
 
 ## G. Kalan gerçek belirsizlikler
 
-Çözülen konular (teslim gizliliği, etiketli değerlendirme, öğretmen sahipliği kesilmesi, snapshot, due inclusive, yeniden teslim yok) yukarıda kesinleşti; “karar bekliyor” olarak tekrar edilmez.
+Çözülen: teslim gizliliği; etiket + geri bildirim zorunluluğu (`needs_rework` zorunlu / `reviewed` isteğe bağlı); karakter üst sınırları ve `mb_strlen` UTF-8 sayımı; taslak boş saklama; aktif iş geçiş zamanlaması; sahiplik kesilmesi; snapshot; due inclusive; yeniden/geç teslim yok.
 
-Hâlâ uygulama diliminde netleştirilecek / ayrı karar:
-
-1. Geri bildirim metninin zorunlu olup olmadığı (etiket her zaman zorunlu).
-2. Metin alanları için kesin karakter üst sınırları.
-3. X01 koduna geçişte `active_feature_ids` değişiminin zamanlaması (süreç kararı; bu PR’da yapılmaz).
-
-Yeni ürün kapsamı bu listeden üretilmez.
+Ürün kapsamı üreten açık karar kalmadı. Uygulama diliminde yalnızca kod/CI/ekran kanıtı üretilir; yeni kapsam bu belgeden türetilmez.
 
 ---
 
