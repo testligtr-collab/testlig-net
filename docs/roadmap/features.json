@@ -1092,7 +1092,8 @@
         "M18-local-pdf"
       ],
       "evidence": [
-        "5 Ekim devir hedefi"
+        "5 Ekim devir hedefi",
+        "docs/architecture-homework.md: önerilen ürün/mimari karar belgesi hazır; uygulama kodu yok; ilk dilim metin tabanlı (dosya yok); M18-local-pdf bağımlılığı dosyalı sonraki dilim için kayıtlı kalır"
       ],
       "pr_links": [],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",

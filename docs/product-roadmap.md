@@ -118,7 +118,7 @@ Bu satırlar “V1'de çalışıyordu” diye raporlanmaz. 5 Ekim devir özetind
 |---|---|---|
 | Yanlış defteri, favori/not, kazanım haritası, adaptif tekrar | Ayrı ürün karşılığı bulunamadı; scoring/outcome temeli var | Öğrenme ilerlemesi ve pedagojik geri bildirim paketi |
 | Günlük çalışma planı ve son ders | Ders ziyaret/ilerleme modeli yok | Test “Devam et”i yeniden yazmadan ders ilerlemesi ekle |
-| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir | Atama/teslim/öğretmen değerlendirme döngüsü |
+| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir; karar: `docs/architecture-homework.md` (uygulama yok; ilk dilim metin) | Atama/teslim/öğretmen değerlendirme döngüsü |
 | Oyunlaştırma: seri, görev, rozet/seviye/ödül | Ürün karşılığı bulunamadı | Eğitsel oyun motorundan ayrı motivasyon modülü |
 | Rehberlik | Ayrıntılı akış kararı eksik | Yaş/rol/mahremiyet kapsamı netleştirilip planlanacak |
 | Manuel değerlendirme, itiraz/regrade/release politika UI | Domain temeli mevcut; genel HTTP ürün akışı tamamlanmamış | Yeni puanlama motoru değil mevcut manager'ların güvenli yüzeyi |
@@ -208,6 +208,7 @@ https://github.com/testligtr-collab/testlig-net/tree/2a615f1113126ad5b023b4a2893
 - docs/architecture-learning-content.md
 - docs/architecture-commerce-payment.md
 - docs/architecture-admin-operations-panel.md (ilk aşama sınırları güncel feature yokluğu sanılmadı)
+- docs/architecture-homework.md (X01 önerilen mimari; uygulama henüz yok)
 
 PR #112:
 https://github.com/testligtr-collab/testlig-net/pull/112
