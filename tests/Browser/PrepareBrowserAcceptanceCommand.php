@@ -69,6 +69,9 @@ use App\Service\TeacherProfessionalProfileManager;
 use App\Service\UserFactory;
 use App\Service\UserModulePermissionManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -766,6 +769,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'testResultsEmpty' => $resultScreens['empty'],
                 'testResultCompleted' => $resultScreens['completed'],
                 'testResultOpen' => $resultScreens['open'],
+                'testResultExpired' => $resultScreens['expired'],
+                'testResultExpiredClosed' => $resultScreens['expiredClosed'],
                 'testResultStudent' => $resultScreens['student'],
                 'testReview' => '/yonetim/testler/'.$reviewAssessment->getId()->toRfc4122(),
                 'foreignTitle' => 'Gizli admin taslagi',
@@ -922,122 +927,149 @@ final class PrepareBrowserAcceptanceCommand extends Command
     }
 
     /**
-     * @return array{list: string, empty: string, completed: string, open: string, student: string}|null
+     * @return array{list: string, empty: string, completed: string, open: string, expired: string, expiredClosed: string, student: string}|null
      */
     private function resultScreens(User $superAdmin, User $admin, User $teacher, Subject $subject, CurriculumLearningOutcome $outcome, string $emptyAssessmentId): ?array
     {
-        $stem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
-            ['type' => 'paragraph', 'inlines' => [
-                ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
-                ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
-            ]],
-            ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
-            ['type' => 'math', 'latex' => '\\frac{3}{4}+1234567890123456789012345678901234567890'],
-        ]);
-        $explanation = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
-            ['type' => 'paragraph', 'text' => 'Cozum satiri'],
-            ['type' => 'math', 'latex' => 'a+b'],
-        ]);
-        $question = $this->questions->createDraftQuestion(
-            $teacher,
-            QuestionScope::Platform,
-            null,
-            $subject,
-            GradeLevel::Grade1,
-            QuestionType::SingleChoice,
-            $stem,
-            $explanation->toArray(),
-            [
-                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
-                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
-            ],
-            ['correctStableKey' => 'opt_b'],
-            [['learningOutcome' => $outcome, 'isPrimary' => true]],
-            QuestionDifficulty::Easy,
-            'browser_q_result',
-        );
-        $this->questions->submitForReview($question, $teacher, 'browser_submit_result');
-        $this->questions->publish($question, $admin, 'browser_publish_result');
-        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
-        if (null === $revision) {
-            return null;
-        }
-        $assessment = $this->assessments->createDraftAssessment(
-            $teacher,
-            AssessmentScope::Platform,
-            null,
-            AssessmentType::Quiz,
-            GradeLevel::Grade1,
-            'Sentetik sonuc testi',
-            null,
-            'Sentetik sonuc yonerge',
-            null,
-            NavigationMode::Free,
-            QuestionOrderMode::Fixed,
-            OptionOrderMode::Fixed,
-            ResultReleasePolicy::Manual,
-            null,
-            [[
-                'title' => 'Bolum',
-                'instructions' => null,
-                'position' => 1,
-                'durationSeconds' => null,
-                'questionOrderMode' => QuestionOrderMode::Fixed,
-                'items' => [[
-                    'questionId' => $question->getId(),
-                    'questionRevisionId' => $revision->getId(),
-                    'position' => 1,
-                    'points' => '2.50',
-                    'penaltyPoints' => '0.00',
-                    'required' => true,
+        $clock = new MockClock(new \DateTimeImmutable('2026-11-02T12:00:00+00:00'));
+        Clock::set($clock);
+        try {
+            $stem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'inlines' => [
+                    ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                    ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
                 ]],
-            ]],
-            'browser_test_result',
-            $subject,
-        );
-        $this->assessments->submitForReview($assessment, $teacher, 'browser_submit_result');
-        $this->assessments->publish($assessment, $admin, 'browser_publish_result');
-        $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
-
-        $studentName = str_repeat('Uzunad', 6);
-        $done = $this->account('browser-result-done@example.test', $studentName, 'Kaydi', UserRole::Student);
-        $open = $this->account('browser-result-open@example.test', 'Devam', 'Eden', UserRole::Student);
-        $cancelled = $this->account('browser-result-cancel@example.test', 'Iptal', 'Edilen', UserRole::Student);
-        $this->profiles->completeOnboarding($done, $this->profile(GradeLevel::Grade1));
-        $this->profiles->completeOnboarding($open, $this->profile(GradeLevel::Grade1));
-        $this->profiles->completeOnboarding($cancelled, $this->profile(GradeLevel::Grade1));
-
-        $code = $assessment->getCode();
-        $this->practice->start($done, GradeLevel::Grade1, $code);
-        $this->practice->saveChoice($done, GradeLevel::Grade1, $code, 1, 2, 0);
-        $this->practice->finish($done, GradeLevel::Grade1, $code);
-        $this->practice->start($open, GradeLevel::Grade1, $code);
-        $cancelledAttempt = $this->practice->start($cancelled, GradeLevel::Grade1, $code);
-        $this->attemptManager->cancel($cancelledAttempt, $superAdmin, 'browser_cancel', 'cancelled_by_admin');
-        $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::EntitlementRequired, 'browser_entitlement');
-
-        $completedRank = null;
-        $openRank = null;
-        foreach ($this->resultReport->page($assessment, 1, null)->items as $row) {
-            if (str_contains($row->studentName, $studentName)) {
-                $completedRank = $row->rank;
+                ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
+                ['type' => 'math', 'latex' => '\\frac{3}{4}+1234567890123456789012345678901234567890'],
+            ]);
+            $explanation = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'text' => 'Cozum satiri'],
+                ['type' => 'math', 'latex' => 'a+b'],
+            ]);
+            $question = $this->questions->createDraftQuestion(
+                $teacher,
+                QuestionScope::Platform,
+                null,
+                $subject,
+                GradeLevel::Grade1,
+                QuestionType::SingleChoice,
+                $stem,
+                $explanation->toArray(),
+                [
+                    ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                    ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+                ],
+                ['correctStableKey' => 'opt_b'],
+                [['learningOutcome' => $outcome, 'isPrimary' => true]],
+                QuestionDifficulty::Easy,
+                'browser_q_result',
+            );
+            $this->questions->submitForReview($question, $teacher, 'browser_submit_result');
+            $this->questions->publish($question, $admin, 'browser_publish_result');
+            $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+            if (null === $revision) {
+                return null;
             }
-            if ('Devam Eden' === $row->studentName) {
-                $openRank = $row->rank;
-            }
-        }
-        if (null === $completedRank || null === $openRank) {
-            return null;
-        }
-        $id = $assessment->getId()->toRfc4122();
+            $assessment = $this->assessments->createDraftAssessment(
+                $teacher,
+                AssessmentScope::Platform,
+                null,
+                AssessmentType::Quiz,
+                GradeLevel::Grade1,
+                'Sentetik sonuc testi',
+                null,
+                'Sentetik sonuc yonerge',
+                7200,
+                NavigationMode::Free,
+                QuestionOrderMode::Fixed,
+                OptionOrderMode::Fixed,
+                ResultReleasePolicy::Manual,
+                null,
+                [[
+                    'title' => 'Bolum',
+                    'instructions' => null,
+                    'position' => 1,
+                    'durationSeconds' => null,
+                    'questionOrderMode' => QuestionOrderMode::Fixed,
+                    'items' => [[
+                        'questionId' => $question->getId(),
+                        'questionRevisionId' => $revision->getId(),
+                        'position' => 1,
+                        'points' => '2.50',
+                        'penaltyPoints' => '0.00',
+                        'required' => true,
+                    ]],
+                ]],
+                'browser_test_result',
+                $subject,
+            );
+            $this->assessments->submitForReview($assessment, $teacher, 'browser_submit_result');
+            $this->assessments->publish($assessment, $admin, 'browser_publish_result');
+            $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
 
-        return [
-            'list' => '/yonetim/testler/'.$id.'/sonuclar',
-            'empty' => '/yonetim/testler/'.$emptyAssessmentId.'/sonuclar',
-            'completed' => '/yonetim/testler/'.$id.'/sonuclar/'.$completedRank.'?page=1',
-            'open' => '/yonetim/testler/'.$id.'/sonuclar/'.$openRank.'?page=1',
-            'student' => $studentName.' Kaydi',
-        ];
+            $studentName = str_repeat('Uzunad', 6);
+            $done = $this->account('browser-result-done@example.test', $studentName, 'Kaydi', UserRole::Student);
+            $open = $this->account('browser-result-open@example.test', 'Devam', 'Eden', UserRole::Student);
+            $cancelled = $this->account('browser-result-cancel@example.test', 'Iptal', 'Edilen', UserRole::Student);
+            $expired = $this->account('browser-result-expired@example.test', 'Sure', 'Doldu', UserRole::Student);
+            $expiredClosed = $this->account('browser-result-expired-open@example.test', 'Bos', 'Deneme', UserRole::Student);
+            $this->profiles->completeOnboarding($done, $this->profile(GradeLevel::Grade1));
+            $this->profiles->completeOnboarding($open, $this->profile(GradeLevel::Grade1));
+            $this->profiles->completeOnboarding($cancelled, $this->profile(GradeLevel::Grade1));
+            $this->profiles->completeOnboarding($expired, $this->profile(GradeLevel::Grade1));
+            $this->profiles->completeOnboarding($expiredClosed, $this->profile(GradeLevel::Grade1));
+
+            $code = $assessment->getCode();
+            $this->practice->start($done, GradeLevel::Grade1, $code);
+            $this->practice->saveChoice($done, GradeLevel::Grade1, $code, 1, 2, 0);
+            $this->practice->finish($done, GradeLevel::Grade1, $code);
+            $this->practice->start($open, GradeLevel::Grade1, $code);
+            $cancelledAttempt = $this->practice->start($cancelled, GradeLevel::Grade1, $code);
+            $this->attemptManager->cancel($cancelledAttempt, $superAdmin, 'browser_cancel', 'cancelled_by_admin');
+            $expiredAttempt = $this->practice->start($expired, GradeLevel::Grade1, $code);
+            $this->practice->saveChoice($expired, GradeLevel::Grade1, $code, 1, 2, 0);
+            $closedAttempt = $this->practice->start($expiredClosed, GradeLevel::Grade1, $code);
+            $clock->modify('+3 hours');
+            $this->attemptManager->expire($expiredAttempt, 'browser_expire');
+            $this->attemptManager->expire($closedAttempt, 'browser_expire');
+            $this->practice->finish($expired, GradeLevel::Grade1, $code);
+            $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::EntitlementRequired, 'browser_entitlement');
+
+            $completedRank = null;
+            $openRank = null;
+            $expiredRank = null;
+            $expiredClosedRank = null;
+            foreach ($this->resultReport->page($assessment, 1, null)->items as $row) {
+                if (str_contains($row->studentName, $studentName)) {
+                    $completedRank = $row->rank;
+                }
+                if ('Devam Eden' === $row->studentName) {
+                    $openRank = $row->rank;
+                }
+                if ('Sure Doldu' === $row->studentName) {
+                    $expiredRank = $row->rank;
+                }
+                if ('Bos Deneme' === $row->studentName) {
+                    $expiredClosedRank = $row->rank;
+                }
+            }
+            if (null === $completedRank || null === $openRank || null === $expiredRank || null === $expiredClosedRank) {
+                return null;
+            }
+            $id = $assessment->getId()->toRfc4122();
+
+            return [
+                'list' => '/yonetim/testler/'.$id.'/sonuclar',
+                'empty' => '/yonetim/testler/'.$emptyAssessmentId.'/sonuclar',
+                'completed' => '/yonetim/testler/'.$id.'/sonuclar/'.$completedRank.'?page=1',
+                'open' => '/yonetim/testler/'.$id.'/sonuclar/'.$openRank.'?page=1',
+                'expired' => '/yonetim/testler/'.$id.'/sonuclar/'.$expiredRank.'?page=1',
+                'expiredClosed' => '/yonetim/testler/'.$id.'/sonuclar/'.$expiredClosedRank.'?page=1',
+                'student' => $studentName.' Kaydi',
+            ];
+        } finally {
+            Clock::set(new NativeClock());
+        }
     }
 
     private function profile(GradeLevel $grade): StudentProfileRequest

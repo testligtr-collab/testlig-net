@@ -5409,11 +5409,16 @@ body.is-admin-panel {
     border-top: 1px solid #e2eaf4;
 }
 .is-admin-panel .admin-test-results .q-math {
-    display: inline-block;
+    display: block;
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    vertical-align: middle;
+    overscroll-behavior-x: contain;
     white-space: nowrap;
+}
+.is-admin-panel .admin-test-results .q-math:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
 }
 .is-admin-panel .admin-test-results .q-math,
 .is-admin-panel .admin-test-results .q-frac,

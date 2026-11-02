@@ -49,6 +49,34 @@
                     </li>
                 {% endfor %}
             </ol>
+            <script nonce="{{ csp_nonce() }}">
+                (function () {
+                    var root = document.querySelector('.admin-test-results--detail');
+                    if (!root) {
+                        return;
+                    }
+                    var mark = function () {
+                        root.querySelectorAll('.q-math').forEach(function (node) {
+                            var overflows = node.scrollWidth > node.clientWidth + 1;
+                            if (overflows) {
+                                node.tabIndex = 0;
+                                node.setAttribute('role', 'group');
+                                node.setAttribute('aria-label', 'Formül');
+                                node.setAttribute('data-formula-scroll', '1');
+                                return;
+                            }
+                            if ('1' === node.getAttribute('data-formula-scroll')) {
+                                node.removeAttribute('tabindex');
+                                node.removeAttribute('role');
+                                node.removeAttribute('aria-label');
+                                node.removeAttribute('data-formula-scroll');
+                            }
+                        });
+                    };
+                    mark();
+                    window.addEventListener('resize', mark);
+                }());
+            </script>
         {% else %}
             <p class="admin-test-results__pending" role="status">Bu deneme henüz tamamlanmadı.</p>
         {% endif %}
