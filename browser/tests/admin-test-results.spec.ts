@@ -181,9 +181,14 @@ async function measureFormula(page: Page, info: TestInfo, viewportName: string):
     }
     await math.focus();
     expect(await math.evaluate((node) => document.activeElement === node)).toBe(true);
+    await math.evaluate((node) => {
+      node.scrollLeft = 0;
+    });
+    await page.keyboard.press('ArrowRight');
+    const keyed = await math.evaluate((node) => node.scrollLeft);
+    expect(keyed).toBeGreaterThan(0);
+    await page.keyboard.press('End');
     after = await math.evaluate((node) => {
-      const start = node.scrollLeft;
-      node.scrollLeft = node.scrollWidth;
       const tailVisible = (target: HTMLElement): boolean => {
         const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
         let current: Node | null = null;
@@ -207,7 +212,7 @@ async function measureFormula(page: Page, info: TestInfo, viewportName: string):
         scrollWidth: node.scrollWidth,
         clientWidth: node.clientWidth,
         scrollLeft: node.scrollLeft,
-        start,
+        start: 0,
         tab: node.getAttribute('tabindex'),
         label: node.getAttribute('aria-label'),
         role: node.getAttribute('role'),
@@ -215,14 +220,9 @@ async function measureFormula(page: Page, info: TestInfo, viewportName: string):
         endVisible: tailVisible(node),
       };
     });
-    expect(after.scrollLeft).toBeGreaterThan(after.start ?? 0);
+    expect(after.scrollLeft).toBeGreaterThanOrEqual(keyed);
     expect(after.scrollLeft + after.clientWidth).toBeGreaterThanOrEqual(after.scrollWidth - 2);
     expect(after.endVisible).toBe(true);
-    await page.keyboard.press('Home');
-    const home = await math.evaluate((node) => node.scrollLeft);
-    await page.keyboard.press('End');
-    const end = await math.evaluate((node) => node.scrollLeft);
-    expect(end).toBeGreaterThan(home);
     if (viewportName === '390') {
       await shot(info, page.locator('.admin-test-results__question').first(), 'admin-test-sonuc-formul-390-son.png');
     }
