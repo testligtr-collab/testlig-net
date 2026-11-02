@@ -1095,7 +1095,9 @@
         "5 Ekim devir hedefi",
         "docs/architecture-homework.md: önerilen ürün/mimari karar belgesi hazır; uygulama kodu yok; ilk dilim metin tabanlı (dosya yok); M18-local-pdf bağımlılığı dosyalı sonraki dilim için kayıtlı kalır"
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/190"
+      ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
       "scope_decision": null
     },
