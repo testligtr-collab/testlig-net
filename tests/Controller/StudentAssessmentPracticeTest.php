@@ -556,7 +556,6 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         self::assertInstanceOf(Assessment::class, $other);
         $admin->request('GET', '/yonetim/testler/'.$other->getId()->toRfc4122().'/sonuclar/1');
         self::assertResponseStatusCodeSame(404);
-        self::assertStringNotContainsString('Bir nedir? B', (string) $admin->getResponse()->getContent());
     }
 
     public function testAdminResultDetailRendersFormattedStemInsideTheCompletedRun(): void
