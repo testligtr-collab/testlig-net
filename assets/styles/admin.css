@@ -5343,7 +5343,15 @@ body.is-admin-panel {
     color: #16324f;
 }
 .is-admin-panel .admin-test-results__table { width: 100%; }
-.is-admin-panel .admin-test-results__name { overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-results__table th,
+.is-admin-panel .admin-test-results__table td:not(:first-child) .admin-result-field__value,
+.is-admin-panel .admin-test-results__open {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+.is-admin-panel .admin-test-results__table th:first-child,
+.is-admin-panel .admin-test-results__table td:first-child { width: 40%; }
+.is-admin-panel .admin-test-results__name { overflow-wrap: anywhere; white-space: normal; }
 .is-admin-panel .admin-result-field__label { display: none; }
 .is-admin-panel .admin-result-field__counts {
     display: block;

@@ -36,10 +36,12 @@ test('admin test results keep the open layout and the completed-run gate', async
     const open = await links.first().boundingBox();
     expect(open?.height).toBeGreaterThanOrEqual(44);
     if (viewport.width >= 1024) {
-      await expect(page.getByRole('columnheader', { name: 'Öğrenci' })).toBeVisible();
+      await expect(page.locator('.admin-test-results__table th', { hasText: 'Öğrenci' })).toBeVisible();
       await expect(page.locator('.admin-result-field__label').first()).toBeHidden();
+      const action = await links.first().evaluate((node) => getComputedStyle(node).whiteSpace);
+      expect(action).toBe('nowrap');
     } else {
-      await expect(page.getByRole('columnheader')).toHaveCount(0);
+      await expect(page.locator('.admin-test-results__table thead')).toBeHidden();
       await expect(page.locator('.admin-result-field__label').first()).toBeVisible();
       const row = await page.locator('.admin-test-results__table tbody tr').first().boundingBox();
       expect(row).toBeTruthy();
