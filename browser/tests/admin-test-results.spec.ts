@@ -237,6 +237,7 @@ async function measureFormula(page: Page, info: TestInfo, viewportName: string):
     body: JSON.stringify({ page: pageBox, before, after, short }),
     contentType: 'application/json',
   });
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 async function readMath(locator: Locator): Promise<MathBox> {
