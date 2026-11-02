@@ -3,26 +3,72 @@
 {% block title %}Test önizleme — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_tests') }}">Testler</a>
-        <span aria-hidden="true">/</span>
-        <span>Önizleme</span>
-    </nav>
-    <h1 class="panel-greeting">{{ title }}</h1>
-    {% if instructions %}
-        <p>{{ instructions }}</p>
-    {% endif %}
-    <ol>
-        {% for row in rows %}
-            <li>
-                <p>{{ row.stem|join(' ') }}</p>
-                <ol>
-                    {% for option in row.options %}
-                        <li>{{ option }}</li>
+    <div class="admin-user-page admin-test-page admin-test-preview">
+        <a class="admin-test-preview__back" href="{{ path('app_admin_test_show', {id: assessment_id}) }}">Test detayına dön</a>
+        <header class="admin-test-preview__head">
+            <p class="admin-test-preview__kicker">Test önizlemesi</p>
+            <h1>{{ title }}</h1>
+            <p class="admin-test-preview__revision">{{ revision_label }}</p>
+            <p>Güncel test sürümünün önizlemesidir. Doğru cevaplar ve çözümler gösterilmez.</p>
+        </header>
+        <ul class="admin-test-preview__metrics" aria-label="Test özeti">
+            <li class="admin-test-preview__metric"><span>Ders</span><strong>{{ subject_name }}</strong></li>
+            <li class="admin-test-preview__metric"><span>Sınıf</span><strong>{{ grade_label }}</strong></li>
+            <li class="admin-test-preview__metric"><span>Soru sayısı</span><strong class="admin-test-preview__count">{{ question_count }}</strong></li>
+            <li class="admin-test-preview__metric"><span>Toplam puan</span><strong class="admin-test-preview__points">{{ total_points }}</strong></li>
+            <li class="admin-test-preview__metric"><span>Süre</span><strong class="admin-test-preview__duration">{{ duration_label }}</strong></li>
+        </ul>
+        <section class="admin-test-preview__card" aria-labelledby="preview-instructions">
+            <h2 id="preview-instructions">Yönerge</h2>
+            {% if instructions %}
+                <p class="admin-test-preview__instructions">{{ instructions }}</p>
+            {% else %}
+                <p class="admin-test-preview__instructions">Yönerge belirtilmemiş.</p>
+            {% endif %}
+        </section>
+        <section class="admin-test-preview__questions-wrap" aria-labelledby="preview-questions">
+            <h2 id="preview-questions">Sorular</h2>
+            {% if rows is empty %}
+                <p class="admin-test-preview__empty">Bu sürümde soru yok.</p>
+            {% else %}
+                <ol class="admin-test-preview__questions">
+                    {% for row in rows %}
+                        <li class="admin-test-preview__card admin-test-preview__question">
+                            <div class="admin-test-preview__question-head">
+                                <h3>Soru {{ loop.index }}</h3>
+                                <p>{{ row.points }} puan</p>
+                            </div>
+                            <div class="admin-test-preview__stem">
+                                {% include 'components/question_blocks.html.twig' with { blocks: row.stem_blocks } only %}
+                            </div>
+                            {% if row.option_blocks is not empty %}
+                                <ul class="admin-test-preview__choices">
+                                    {% for blocks in row.option_blocks %}
+                                        {% set letter = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|slice(loop.index0, 1) %}
+                                        <li class="admin-test-preview__option">
+                                            <span class="admin-test-preview__letter">{{ letter != '' ? letter : loop.index }}</span>
+                                            <div class="admin-test-preview__option-body">
+                                                {% include 'components/question_blocks.html.twig' with { blocks: blocks } only %}
+                                            </div>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </li>
                     {% endfor %}
                 </ol>
-                <p class="muted">{{ row.points }} puan</p>
-            </li>
-        {% endfor %}
-    </ol>
+            {% endif %}
+        </section>
+        <details class="admin-test-tech">
+            <summary role="button">Teknik bilgiler</summary>
+            <div class="admin-test-tech__panel">
+                <dl>
+                    <div><dt>Test kodu</dt><dd><code>{{ assessment_code }}</code></dd></div>
+                    {% for row in rows %}
+                        <div><dt>Soru {{ loop.index }}</dt><dd><code>{{ row.code }}</code></dd></div>
+                    {% endfor %}
+                </dl>
+            </div>
+        </details>
+    </div>
 {% endblock %}

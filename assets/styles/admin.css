@@ -5139,3 +5139,142 @@ body.is-admin-panel {
     .is-admin-panel .admin-test-detail__side { grid-column: 2; grid-row: 1; }
 }
 
+.is-admin-panel .admin-test-preview {
+    width: min(100%, 48rem);
+    min-width: 0;
+}
+.is-admin-panel .admin-test-preview__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-preview__head { min-width: 0; margin-top: 0.35rem; }
+.is-admin-panel .admin-test-preview__kicker {
+    margin: 0;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-preview h1,
+.is-admin-panel .admin-test-preview h2,
+.is-admin-panel .admin-test-preview h3 {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-preview h1 { margin-top: 0.15rem; }
+.is-admin-panel .admin-test-preview h2 { margin-bottom: 0.65rem; font-size: 1.05rem; }
+.is-admin-panel .admin-test-preview h3 { font-size: 1rem; }
+.is-admin-panel .admin-test-preview__revision,
+.is-admin-panel .admin-test-preview__head > p:last-child { margin: 0.35rem 0 0; }
+.is-admin-panel .admin-test-preview a:focus-visible,
+.is-admin-panel .admin-test-preview summary:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-preview__metrics {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__metric,
+.is-admin-panel .admin-test-preview__card {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-preview__metric span {
+    display: block;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-preview__metric strong {
+    display: block;
+    margin-top: 0.15rem;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-preview__card { margin-top: 0.85rem; }
+.is-admin-panel .admin-test-preview__questions-wrap { min-width: 0; margin-top: 0.85rem; }
+.is-admin-panel .admin-test-preview__questions {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__questions > li { margin: 0; }
+.is-admin-panel .admin-test-preview__question-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-preview__question-head p { margin: 0; color: #52667d; }
+.is-admin-panel .admin-test-preview__stem,
+.is-admin-panel .admin-test-preview__option-body,
+.is-admin-panel .admin-test-preview__instructions {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+.is-admin-panel .admin-test-preview__stem { margin-top: 0.75rem; }
+.is-admin-panel .admin-test-preview__stem p,
+.is-admin-panel .admin-test-preview__option-body p { margin: 0.35rem 0; }
+.is-admin-panel .admin-test-preview__choices {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__option {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.75rem;
+    background: #f8fbfd;
+}
+.is-admin-panel .admin-test-preview__letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: #e7f6f8;
+    color: #1f6499;
+    font-weight: 700;
+}
+.is-admin-panel .admin-test-preview .q-math {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-test-preview .q-math,
+.is-admin-panel .admin-test-preview .q-frac,
+.is-admin-panel .admin-test-preview .q-sqrt,
+.is-admin-panel .admin-test-preview .q-script,
+.is-admin-panel .admin-test-preview .q-over {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.is-admin-panel .admin-test-preview .admin-test-tech > summary { min-height: 2.75rem; }
+.is-admin-panel .admin-test-preview .admin-test-tech__panel { max-width: 100%; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-preview__metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+

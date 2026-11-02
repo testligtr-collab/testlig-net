@@ -31,6 +31,8 @@ type Manifest = {
     classroomName: string;
     contentTitle: string;
     testTitle: string;
+    testPublishedDetail: string;
+    testPreview: string;
     foreignTitle: string;
     endedClassroom: string;
     userDetail: string;

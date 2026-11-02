@@ -483,6 +483,81 @@ final class PrepareBrowserAcceptanceCommand extends Command
         );
         $this->assessments->submitForReview($reviewAssessment, $teacher, 'browser_submit_review');
 
+        $previewPlain = $this->previewQuestion(
+            $teacher,
+            $admin,
+            $subject,
+            $outcome,
+            QuestionContentDocument::paragraph('Duz onizleme sorusu'),
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            'browser_q_preview_plain',
+            1,
+            '1.00',
+        );
+        $previewRich = $this->previewQuestion(
+            $teacher,
+            $admin,
+            $subject,
+            $outcome,
+            new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'inlines' => [
+                    ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                    ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
+                ]],
+                ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
+                ['type' => 'math', 'latex' => '\\frac{3}{4}+1234567890123456789012345678901234567890'],
+            ]),
+            [
+                ['stableKey' => 'opt_a', 'content' => new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Birinci paragraf'],
+                    ]],
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Ikinci paragraf tamami'],
+                    ]],
+                ]), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph(str_repeat('Uzunsecenek', 8).' sonu'), 'position' => 2],
+            ],
+            'browser_q_preview_rich',
+            2,
+            '2.50',
+        );
+        if (null === $previewPlain || null === $previewRich) {
+            $output->writeln('Preview question revision was not found.');
+
+            return Command::FAILURE;
+        }
+        $previewTitle = 'Uzun onizleme basligi dar ekranda kartin icinde sarilir ve formulle secenekler kart disina tasmaz.';
+        $previewAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            $previewTitle,
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [$previewPlain, $previewRich],
+            ]],
+            'browser_test_preview',
+            $subject,
+        );
+
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,
             QuestionScope::Platform,
@@ -673,6 +748,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'testDraftEdit' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122().'/duzenle',
                 'testDraft' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122(),
                 'testPublishedDetail' => '/yonetim/testler/'.$detailAssessment->getId()->toRfc4122(),
+                'testPreview' => '/yonetim/testler/'.$previewAssessment->getId()->toRfc4122().'/gorunum',
                 'testReview' => '/yonetim/testler/'.$reviewAssessment->getId()->toRfc4122(),
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
@@ -737,6 +813,54 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->users->save($user);
 
         return $user;
+    }
+
+    /**
+     * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options
+     *
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
+     */
+    private function previewQuestion(
+        User $teacher,
+        User $admin,
+        Subject $subject,
+        CurriculumLearningOutcome $outcome,
+        QuestionContentDocument $stem,
+        array $options,
+        string $reason,
+        int $position,
+        string $points,
+    ): ?array {
+        $question = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            $stem,
+            null,
+            $options,
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            $reason,
+        );
+        $this->questions->submitForReview($question, $teacher, $reason.'_submit');
+        $this->questions->publish($question, $admin, $reason.'_publish');
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (null === $revision) {
+            return null;
+        }
+
+        return [
+            'questionId' => $question->getId(),
+            'questionRevisionId' => $revision->getId(),
+            'position' => $position,
+            'points' => $points,
+            'penaltyPoints' => '0.00',
+            'required' => true,
+        ];
     }
 
     /**
