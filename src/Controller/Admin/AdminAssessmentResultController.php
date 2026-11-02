@@ -10,6 +10,7 @@ use App\Security\AdminPermission;
 use App\Security\AssessmentPermission;
 use App\Service\Admin\AdminLikeEscape;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\Admin\AdminPagination;
 use App\Service\AssessmentResultReportGate;
 use App\Service\AssessmentResultReportQuery;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,6 +36,7 @@ final class AdminAssessmentResultController extends AdminBaseController
     {
         $assessment = $this->visibleAssessment($id);
         $search = AdminLikeEscape::normalizeSearch($request->query->getString('q'));
+        $page = AdminPagination::normalizePage($request->query->getInt('page', 1));
 
         return $this->renderAdmin('admin/tests/results.html.twig', [
             'assessment_id' => $assessment->getId()->toRfc4122(),
@@ -42,8 +44,9 @@ final class AdminAssessmentResultController extends AdminBaseController
                 ?? $assessment->getCurrentRevision()?->getTitle()
                 ?? '',
             'search' => $search ?? '',
+            'page' => $page,
             'summary' => $this->report->summarize($assessment, $search),
-            'result' => $this->report->page($assessment, $request->query->getInt('page', 1), $search),
+            'result' => $this->report->page($assessment, $page, $search),
         ]);
     }
 
@@ -52,6 +55,7 @@ final class AdminAssessmentResultController extends AdminBaseController
     {
         $assessment = $this->visibleAssessment($id);
         $search = AdminLikeEscape::normalizeSearch($request->query->getString('q'));
+        $page = AdminPagination::normalizePage($request->query->getInt('page', 1));
         $detail = $this->report->detail($assessment, $rank, $search);
         if (null === $detail) {
             throw $this->createNotFoundException();
@@ -60,6 +64,7 @@ final class AdminAssessmentResultController extends AdminBaseController
         return $this->renderAdmin('admin/tests/result.html.twig', [
             'assessment_id' => $assessment->getId()->toRfc4122(),
             'search' => $search ?? '',
+            'page' => $page,
             'detail' => $detail,
         ]);
     }

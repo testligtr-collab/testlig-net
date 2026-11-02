@@ -3,47 +3,54 @@
 {% block title %}Sonuç detayı — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        <a href="{{ path('app_admin_test_results', {id: assessment_id, q: search}) }}">Sonuçlar</a>
-        <span aria-hidden="true">/</span>
-        <span>{{ detail.studentName }}</span>
-    </nav>
-    <h1 class="panel-greeting">{{ detail.title }}</h1>
-    <p>{{ detail.studentName }} · {{ detail.statusLabel }}</p>
-    <ul class="student-test-facts">
-        <li>Başlangıç: {{ detail.startedAt }}</li>
-        {% if detail.completedAt %}
-            <li>Tamamlanma: {{ detail.completedAt }}</li>
-        {% endif %}
-        {% if detail.revealed %}
-            <li>Doğru: {{ detail.correct }}</li>
-            <li>Yanlış: {{ detail.incorrect }}</li>
-            <li>Boş: {{ detail.unanswered }}</li>
-            <li>Puan: {{ detail.earned }} / {{ detail.total }}</li>
-            <li>Yüzde: {{ detail.percentage }}</li>
-        {% endif %}
-    </ul>
+    <div class="admin-test-results admin-test-results--detail">
+        <a class="admin-test-results__back" href="{{ path('app_admin_test_results', {id: assessment_id, q: search, page: page}) }}">Sonuç listesine dön</a>
+        <header class="admin-test-results__head">
+            <p class="admin-test-results__kicker">Sonuç detayı</p>
+            <h1>{{ detail.title }}</h1>
+            <p>{{ detail.studentName }} · {{ detail.statusLabel }}</p>
+        </header>
+        <ul class="admin-test-results__metrics" aria-label="Deneme özeti">
+            <li class="admin-test-results__metric"><span>Başlangıç</span><strong>{{ detail.startedAt }}</strong></li>
+            <li class="admin-test-results__metric"><span>Bitiş</span><strong>{{ detail.completedAt|default('—') }}</strong></li>
+            {% if detail.revealed %}
+                <li class="admin-test-results__metric"><span>Puan</span><strong>{{ detail.earned }} / {{ detail.total }}</strong></li>
+                <li class="admin-test-results__metric"><span>Yüzde</span><strong>{{ detail.percentage }}</strong></li>
+                <li class="admin-test-results__metric"><span>Doğru, yanlış, boş</span><strong>{{ detail.correct }} / {{ detail.incorrect }} / {{ detail.unanswered }}</strong></li>
+            {% else %}
+                <li class="admin-test-results__metric"><span>Puan</span><strong>—</strong></li>
+                <li class="admin-test-results__metric"><span>Yüzde</span><strong>—</strong></li>
+                <li class="admin-test-results__metric"><span>Doğru, yanlış, boş</span><strong>— / — / —</strong></li>
+            {% endif %}
+        </ul>
 
-    {% if detail.revealed %}
-        <ol class="student-test-review">
-            {% for question in detail.questions %}
-                <li>
-                    <h2>Soru {{ question.position }}</h2>
-                    {% for line in question.stem %}
-                        <p>{{ line }}</p>
-                    {% endfor %}
-                    <p>Öğrencinin cevabı: {% if question.studentAnswer %}{{ question.studentAnswer }}{% else %}Boş{% endif %}</p>
-                    <p>Doğru cevap: {{ question.correctAnswer }}</p>
-                    <p>{{ question.label }}</p>
-                    {% if question.explanation %}
-                        {% for line in question.explanation %}
-                            <p>{{ line }}</p>
-                        {% endfor %}
-                    {% endif %}
-                </li>
-            {% endfor %}
-        </ol>
-    {% else %}
-        <p role="status">Bu deneme henüz tamamlanmadı.</p>
-    {% endif %}
+        {% if detail.revealed %}
+            <ol class="admin-test-results__questions">
+                {% for question in detail.questions %}
+                    <li class="admin-test-results__question">
+                        <div class="admin-test-results__question-head">
+                            <h2>Soru {{ question.position }}</h2>
+                            <p>{{ question.points }} puan</p>
+                        </div>
+                        <div class="admin-test-results__stem">
+                            {% include 'components/question_blocks.html.twig' with { blocks: question.stemBlocks } only %}
+                        </div>
+                        <div class="admin-test-results__answers">
+                            <p><span class="admin-test-results__tag">Öğrencinin cevabı</span> {% if question.studentAnswer %}{{ question.studentAnswer }}{% else %}Boş{% endif %}</p>
+                            <p><span class="admin-test-results__tag">Doğru cevap</span> {{ question.correctAnswer }}</p>
+                            <p class="admin-test-results__outcome">{{ question.label }}</p>
+                        </div>
+                        {% if question.explanationBlocks %}
+                            <div class="admin-test-results__solution">
+                                <h3>Çözüm</h3>
+                                {% include 'components/question_blocks.html.twig' with { blocks: question.explanationBlocks } only %}
+                            </div>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ol>
+        {% else %}
+            <p class="admin-test-results__pending" role="status">Bu deneme henüz tamamlanmadı.</p>
+        {% endif %}
+    </div>
 {% endblock %}
