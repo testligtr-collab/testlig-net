@@ -137,7 +137,7 @@ test('admin test results keep the open layout and the completed-run gate', async
     await page.goto(data.paths.testResultExpired);
     await expect(page.getByText('Sure Doldu')).toBeVisible();
     await expect(page.getByText('Süre doldu')).toBeVisible();
-    await expect(page.getByText('2,5')).toBeVisible();
+    await expect(page.getByText('2,5 / 2,5')).toBeVisible();
     await expect(page.getByText('Doğru cevap')).toBeVisible();
     await expect(page.getByRole('heading', { level: 3, name: 'Çözüm' })).toBeVisible();
     await expect(page.getByText('Bu deneme henüz tamamlanmadı.')).toHaveCount(0);
