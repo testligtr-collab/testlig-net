@@ -1093,12 +1093,13 @@
       ],
       "evidence": [
         "5 Ekim devir hedefi",
-        "docs/architecture-homework.md: önerilen ürün/mimari karar belgesi hazır; uygulama kodu yok; ilk dilim metin tabanlı (dosya yok); M18-local-pdf bağımlılığı dosyalı sonraki dilim için kayıtlı kalır"
+        "docs/architecture-homework.md: ürün/mimari karar belgesi (öneri); uygulama kodu yok; ilk dilim metin tabanlı, dosya yok; teslim gövdesi yalnız öğrenci sahibi + güncel yetkili atayan öğretmen; değerlendirme İncelendi|Yeniden çalışılmalı + metin (sayısal puan yok); M18-local-pdf dosyalı sonraki dilim için depends_on olarak kalır",
+        "PR #190 karar belgesi dokümantasyonu; çalışan ödev ürünü veya production kabulü değildir"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190"
       ],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Karar belgesi uygulama kabulü sayılmaz. Kod diliminde: kurum/sınıf izolasyonu; atayan öğretmen + güncel ClassroomTeacherAssignment; Admin/SA/owner teslim gövdesi yok; iki etiketli append-only değerlendirme; recipient snapshot; dueAt inclusive UTC; yeniden/geç teslim yok; negatif yetki ve gerçek kullanıcı kabulü ayrı kanıtlanır.",
       "scope_decision": null
     },
     {

@@ -240,7 +240,7 @@ HTML indeks, CSP ve çerçeve kararı `ResponseSecurityPolicySubscriber` içinde
 
 ## Ödev / proje (X01 — öneri)
 
-Kurum sınıfı ödev atama, metin teslimi ve öğretmen değerlendirmesi için **önerilen** ürün/mimari karar: `docs/architecture-homework.md`. Uygulama, entity ve HTTP yüzeyi henüz yoktur. `AssessmentType::HomeworkBlueprint` ve `/yonetim/bolum/odevler` yer tutucusu ödev ürünü değildir. İlk dilim metin tabanlıdır; dosya teslimi `M18-local-pdf` bağımlılığıyla sonraki dilimde kalır.
+Kurum sınıfı ödev atama, metin teslimi ve öğretmen değerlendirmesi için **önerilen** ürün/mimari karar: `docs/architecture-homework.md`. Uygulama, entity ve HTTP yüzeyi henüz yoktur. `AssessmentType::HomeworkBlueprint` ve `/yonetim/bolum/odevler` yer tutucusu ödev ürünü değildir. İlk dilim metin tabanlıdır (dosya yok; `M18-local-pdf` sonraki dilimde kalır); teslim gövdesi yalnız öğrenci sahibi ve güncel yetkili atayan öğretmenedir; değerlendirme sayısal puansız etiket + metindir; Admin/SA/owner otomatik gövde okumaz.
 
 ## Sonraki aşamalar
 
