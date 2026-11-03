@@ -138,6 +138,7 @@ final class HomeworkDefinitionManager
             return $definition;
         });
     }
+
     /**
      * Converts form wall-clock (Europe/Istanbul) to a UTC instant. Returns null when malformed.
      */
@@ -206,12 +207,14 @@ final class HomeworkDefinitionManager
             ->setLockMode(LockMode::PESSIMISTIC_WRITE)
             ->setHint(Query::HINT_REFRESH, true)
             ->getOneOrNullResult();
+
         return $definition instanceof HomeworkDefinition ? $definition : null;
     }
 
     private function freshActor(Uuid $actorId): ?User
     {
         $actor = $this->freshUsers->findFreshLockedUser($actorId, LockMode::PESSIMISTIC_READ);
+
         return $actor instanceof User && $this->activeUsers->isActiveAndVerified($actor) ? $actor : null;
     }
 

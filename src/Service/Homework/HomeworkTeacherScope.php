@@ -104,6 +104,7 @@ final class HomeworkTeacherScope
 
         return \count($names) > 1;
     }
+
     private static function uuid(Uuid|string $value): string
     {
         if ($value instanceof Uuid) {
