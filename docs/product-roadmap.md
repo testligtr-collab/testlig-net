@@ -157,7 +157,7 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 ## 7. Mevcut açık kabul ve korunacak kayıtlar
 
-- Aktif uygulama işi X10-admin-navigation. M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
+- Aktif uygulama işi X01-homework (yalnız öğretmen taslak dilimi; yayımlama/teslim/değerlendirme yok). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
 
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.
@@ -208,7 +208,7 @@ https://github.com/testligtr-collab/testlig-net/tree/2a615f1113126ad5b023b4a2893
 - docs/architecture-learning-content.md
 - docs/architecture-commerce-payment.md
 - docs/architecture-admin-operations-panel.md (ilk aşama sınırları güncel feature yokluğu sanılmadı)
-- docs/architecture-homework.md (X01 önerilen mimari; uygulama henüz yok)
+- docs/architecture-homework.md (X01 önerilen mimari; yalnız öğretmen taslak dilimi kodda)
 
 PR #112:
 https://github.com/testligtr-collab/testlig-net/pull/112

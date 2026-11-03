@@ -1,0 +1,95 @@
+{% extends 'teacher/layout.html.twig' %}
+
+{% block title %}Ödevlerim - Testlig{% endblock %}
+
+{% block teacher_content %}
+<section class="hw-page" aria-labelledby="hw-heading">
+    <header class="hw-head">
+        <div class="hw-head__text">
+            <h1 id="hw-heading">Ödevlerim</h1>
+            <p class="hw-sub">Bu sayfada yalnızca taslak ödevlerini görürsün. Yayımlama ve öğrenci teslimleri bu adımda yok.</p>
+        </div>
+        <a class="btn hw-btn hw-btn--primary" href="{{ path('app_teacher_homework_new') }}">+ Yeni ödev</a>
+    </header>
+
+    <p class="hw-stat" data-testid="hw-draft-count"><strong>{{ page.total }}</strong> <span>taslak</span>{% if filtered %} <span class="hw-muted">(toplam {{ total_drafts }})</span>{% endif %}</p>
+
+    <form class="hw-card hw-filters" method="get" action="{{ path('app_teacher_homeworks') }}" role="search" aria-label="Taslakları filtrele">
+        <div class="hw-field">
+            <label for="hw-q">Başlıkta ara</label>
+            <input id="hw-q" type="search" name="q" value="{{ search }}" maxlength="100" autocomplete="off" placeholder="Ödev başlığı">
+        </div>
+        <div class="hw-field">
+            <label for="hw-class">Sınıf</label>
+            <select id="hw-class" name="sinif">
+                <option value="">Tüm sınıflar</option>
+                {% for option in classrooms %}
+                    <option value="{{ option.id }}"{% if option.id == filter %} selected{% endif %}>{{ option.label(with_institution) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="hw-filters__actions">
+            <button type="submit" class="btn hw-btn hw-btn--secondary">Ara</button>
+            {% if filtered %}
+                <a class="btn hw-btn hw-btn--ghost" href="{{ path('app_teacher_homeworks') }}">Filtreleri temizle</a>
+            {% endif %}
+        </div>
+    </form>
+
+    {% if page.rows is empty %}
+        <div class="hw-card hw-empty" role="status">
+            {% if filtered %}
+                <h2>Aramana uygun taslak bulunamadı</h2>
+                <p>Başlığı veya sınıf seçimini değiştirip tekrar dene.</p>
+                <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homeworks') }}">Filtreleri temizle</a>
+            {% else %}
+                <h2>Henüz ödev taslağın yok</h2>
+                <p>Bir sınıf ve son teslim zamanı seçerek ilk taslağını oluşturabilirsin. Taslak kaydetmek öğrencilere atama yapmaz.</p>
+                <a class="btn hw-btn hw-btn--primary" href="{{ path('app_teacher_homework_new') }}">+ Yeni ödev</a>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="hw-card hw-table-card">
+            <table class="hw-table">
+                <caption class="sr-only">Taslak ödevler</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Ödev</th>
+                        <th scope="col">Sınıf</th>
+                        <th scope="col">Son teslim</th>
+                        <th scope="col">Durum</th>
+                        <th scope="col"><span class="sr-only">İşlem</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in page.rows %}
+                        <tr>
+                            <td data-label="Ödev" class="hw-table__title"><span class="hw-title-text">{{ row.title }}</span></td>
+                            <td data-label="Sınıf">{{ row.classroomName }}{% if with_institution %}<span class="hw-muted"> — {{ row.institutionName }}</span>{% endif %}</td>
+                            <td data-label="Son teslim">{{ row.dueAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }}</td>
+                            <td data-label="Durum"><span class="hw-badge hw-badge--draft">Taslak</span></td>
+                            <td data-label="İşlem" class="hw-table__action">
+                                <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homework_show', {id: row.id}) }}" aria-label="İncele: {{ row.title }}">İncele</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page.pageCount > 1 %}
+            <nav class="hw-pager" aria-label="Sayfalar">
+                {% if page.page > 1 %}
+                    <a class="btn hw-btn hw-btn--ghost" rel="prev" href="{{ path('app_teacher_homeworks', {q: search, sinif: filter, sayfa: page.page - 1}) }}">Önceki</a>
+                {% endif %}
+                <span class="hw-muted">Sayfa {{ page.page }} / {{ page.pageCount }}</span>
+                {% if page.page < page.pageCount %}
+                    <a class="btn hw-btn hw-btn--ghost" rel="next" href="{{ path('app_teacher_homeworks', {q: search, sinif: filter, sayfa: page.page + 1}) }}">Sonraki</a>
+                {% endif %}
+            </nav>
+        {% endif %}
+    {% endif %}
+
+    <p class="hw-note">Bu listede yalnızca senin oluşturduğun ve şu anda atandığın sınıflara ait taslaklar görünür.</p>
+</section>
+{% endblock %}

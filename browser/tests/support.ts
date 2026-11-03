@@ -60,6 +60,14 @@ type Manifest = {
     curriculumNew: string;
     curriculumProgram: string;
     curriculumDraft: string;
+    homeworkList: string;
+    homeworkNew: string;
+    homeworkDetail: string;
+    homeworkEdit: string;
+    homeworkLongDetail: string;
+    homeworkLongEdit: string;
+    homeworkTitle: string;
+    homeworkLongTitle: string;
   };
 };
 

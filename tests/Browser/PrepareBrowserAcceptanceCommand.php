@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Browser;
 
+use App\Dto\HomeworkDraftInput;
 use App\Dto\StudentProfileRequest;
 use App\Dto\TeacherProfessionalProfileRequest;
 use App\Entity\CurriculumLearningOutcome;
@@ -51,6 +52,7 @@ use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
+use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\InstitutionApplicationManager;
 use App\Service\InstitutionBranchCreator;
 use App\Service\InstitutionBranchStatusManager;
@@ -129,6 +131,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly StudentAssessmentPractice $practice,
         private readonly AssessmentAttemptManager $attemptManager,
         private readonly AssessmentResultReportQuery $resultReport,
+        private readonly HomeworkDefinitionManager $homework,
     ) {
         parent::__construct();
     }
@@ -639,6 +642,27 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $endedAssignment = $this->teacherAssignments->assign($endedClassroom, $owner, $teacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_create');
         $this->teacherAssignments->endAssignment($endedAssignment, $owner, 'browser_end');
         $this->enrollments->enroll($classroom, $owner, $studentMembership, 'browser_create');
+        $homeworkEmptyTeacher = $this->account('browser-teacher-homework@example.test', 'Deneme', 'Odevsiz', UserRole::Teacher);
+        $homeworkEmptyMembership = $this->memberships->addMember($institution, $owner, $homeworkEmptyTeacher, InstitutionMembershipRole::Teacher, 'browser_homework');
+        $this->teacherAssignments->assign($classroom, $owner, $homeworkEmptyMembership, TeacherAssignmentRole::AssistantTeacher, 'browser_homework');
+        $homeworkTitle = 'Kesirler calisma kagidi';
+        $homeworkDraft = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkTitle,
+            "Sayfa 12 ve 13 deki sorulari coz.\nCevaplarini defterine yaz.",
+            $classroom->getId()->toRfc4122(),
+            '2099-06-15',
+            '18:30',
+            null,
+        ));
+        $homeworkLongTitle = trim(str_repeat('Cok uzun odev basligi ', 5)).' ParcalanmayanKelime'.str_repeat('X', 20);
+        $homeworkLong = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkLongTitle,
+            str_repeat("Uzun aciklama satiri ve sozcukleri dar ekranda tasmadan sarilmalidir.\n", 40).str_repeat('U', 140),
+            $classroom->getId()->toRfc4122(),
+            '2099-06-16',
+            '08:05',
+            null,
+        ));
         $longOwner = $this->account('browser-class-owner@example.test', 'Sinif', 'Sahibi', UserRole::Teacher);
         $longInstitution = $this->institutions->create($superAdmin, $longOwner, 'Uzun Adli Tarayici Egitim Kurumu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($longInstitution, $superAdmin, 'browser_activate');
@@ -739,8 +763,17 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'parent' => 'browser-parent@example.test',
                 'parentUnlinked' => 'browser-parent-empty@example.test',
                 'owner' => 'browser-owner@example.test',
+                'homeworkEmptyTeacher' => 'browser-teacher-homework@example.test',
             ],
             'paths' => [
+                'homeworkList' => '/ogretmen/odevler',
+                'homeworkNew' => '/ogretmen/odevler/yeni',
+                'homeworkDetail' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122(),
+                'homeworkEdit' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122().'/duzenle',
+                'homeworkLongDetail' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122(),
+                'homeworkLongEdit' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122().'/duzenle',
+                'homeworkTitle' => $homeworkTitle,
+                'homeworkLongTitle' => $homeworkLongTitle,
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
                 'publicCatalog' => '/dersler',
                 'publicGrade' => '/dersler/1',

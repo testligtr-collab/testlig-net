@@ -83,6 +83,9 @@ jobs:
       - name: Location cascade regression
         run: node --experimental-detect-module --import ./tests/js/register-stimulus-stub.mjs --test tests/js/location_cascade_controller.test.mjs
 
+      - name: Homework text counter regression
+        run: node --experimental-detect-module --test tests/js/homework_text.test.mjs
+
       - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
