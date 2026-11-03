@@ -170,7 +170,6 @@ final class HomeworkDefinitionQueryTest extends KernelTestCase
         for ($i = 1; $i <= 3; ++$i) {
             $this->persistDraft($ctx, 'Az '.$i);
         }
-        $this->em->clear();
         $query->page($ctx['teacher'], '', null, 1); // warm-up (metadata / auth lookups)
         $before = $counter->count;
         $small = $query->page($ctx['teacher'], '', null, 1);
@@ -179,7 +178,6 @@ final class HomeworkDefinitionQueryTest extends KernelTestCase
         for ($i = 1; $i <= 15; ++$i) {
             $this->persistDraft($ctx, 'Çok '.$i);
         }
-        $this->em->clear();
         $before = $counter->count;
         $large = $query->page($ctx['teacher'], '', null, 1);
         $largeQueries = $counter->count - $before;
