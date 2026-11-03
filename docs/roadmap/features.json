@@ -1100,7 +1100,8 @@
         "Kapsam dışı / yok: yayımlama, atama, HomeworkAssignment/Recipient snapshot, öğrenci teslimi, değerlendirme, dosya/PDF (M18-local-pdf depends_on olarak kalır), admin placeholder ürünleştirme; canlı kabul yok"
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/190"
+        "https://github.com/testligtr-collab/testlig-net/pull/190",
+        "https://github.com/testligtr-collab/testlig-net/pull/191"
       ],
       "acceptance": "Durum partial: yalnız öğretmen taslak dilimi kodda (liste/oluştur/göster/düzenle; kurum+sınıf+yıl sunucuda çözülür; sahiplik + güncel aktif üyelik + güncel aktif ClassroomTeacherAssignment; Admin/SA atlaması yok; dueAt UTC, Europe/Istanbul formu; revision_number ile eşzamanlı düzenleme; denetimde metin yok). Yayımlama, atama, recipient snapshot, öğrenci teslimi, değerlendirme, dosya ve canlı kabul YOK; CI/preview production kabulü değildir; main merge, deploy ve production kabulü ayrı kanıtlanır. Karar belgesi uygulama kabulü sayılmaz. Kalan kod diliminde: kurum/sınıf izolasyonu; atayan öğretmen + güncel ClassroomTeacherAssignment; Admin/SA/owner teslim gövdesi yok; needs_rework anlamlı geri bildirim zorunlu / reviewed isteğe bağlı; append-only; recipient snapshot; dueAt inclusive UTC; metin sınırları mb_strlen UTF-8 (150/10000/20000/5000); yeniden/geç teslim yok; negatif yetki ve gerçek kullanıcı kabulü ayrı kanıtlanır.",
       "scope_decision": null
