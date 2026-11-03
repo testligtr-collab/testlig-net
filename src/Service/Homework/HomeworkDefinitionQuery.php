@@ -49,7 +49,7 @@ final class HomeworkDefinitionQuery
         $page = min(max(1, $page), $pageCount);
         $counts = $this->statusCounts($actor);
 
-        /** @var list<array{id: Uuid|string, title: string, dueAt: \DateTimeInterface, classroomName: string, institutionName: string, assignmentId: Uuid|string|null, recipientCount: int|null}> $rows */
+        /** @var list<array{id: Uuid|string, title: string, dueAt: mixed, classroomName: string, institutionName: string, assignmentId: Uuid|string|null, recipientCount: int|null}> $rows */
         $rows = $this->filtered($actor, $search, $classroomId, $assignedOnly)
             ->select(
                 'h.id AS id',
@@ -72,10 +72,10 @@ final class HomeworkDefinitionQuery
             $id = $row['id'];
             $assigned = null !== $row['assignmentId'] && '' !== $row['assignmentId'];
             // COALESCE(asg.dueAt, h.dueAt) may hydrate as a plain string under MariaDB.
-            $dueAt = $row['dueAt'];
-            if (!$dueAt instanceof \DateTimeInterface) {
-                $dueAt = new \DateTimeImmutable((string) $dueAt, new \DateTimeZone('UTC'));
-            }
+            $dueRaw = $row['dueAt'];
+            $dueAt = $dueRaw instanceof \DateTimeInterface
+                ? $dueRaw
+                : new \DateTimeImmutable((string) $dueRaw, new \DateTimeZone('UTC'));
             $list[] = new HomeworkDraftRow(
                 $id instanceof Uuid ? $id->toRfc4122() : (16 === \strlen((string) $id) ? Uuid::fromBinary((string) $id)->toRfc4122() : (string) $id),
                 $row['title'],
