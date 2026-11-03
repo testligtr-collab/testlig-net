@@ -294,7 +294,10 @@ body.is-workspace {
     display: grid;
     gap: 1rem;
     padding-top: 1.25rem;
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
 .is-workspace .hw-page > * {
@@ -308,15 +311,23 @@ body.is-workspace {
     align-items: flex-start;
     justify-content: space-between;
     gap: 0.75rem 1rem;
+    /* Flex row must shrink inside .hw-page; unbroken titles otherwise force page width. */
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .is-workspace .hw-head__text {
-    flex: 1 1 18rem;
+    flex: 1 1 12rem;
     min-width: 0;
+    max-width: 100%;
 }
 
 .is-workspace .hw-head h1 {
     margin: 0 0 0.35rem;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .is-workspace .hw-sub,
@@ -345,6 +356,8 @@ body.is-workspace {
 .is-workspace .hw-wrap {
     overflow-wrap: anywhere;
     word-break: break-word;
+    max-width: 100%;
+    min-width: 0;
 }
 
 .is-workspace .hw-card {
@@ -632,8 +645,10 @@ body.is-workspace {
 .is-workspace .hw-head__actions {
     display: flex;
     flex-wrap: wrap;
+    flex: 0 1 auto;
     gap: 0.65rem;
     align-items: center;
+    max-width: 100%;
 }
 
 .is-workspace .hw-confirm {
@@ -718,7 +733,12 @@ body.is-workspace {
 }
 
 .is-workspace .hw-title-text {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .is-workspace .hw-table__action {

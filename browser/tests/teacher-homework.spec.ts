@@ -48,6 +48,60 @@ async function screens(page: Page, info: TestInfo, route: string, path: string, 
   }
 }
 
+/**
+ * Unbroken long titles must wrap inside the homework content column.
+ * Page-level scrollWidth alone is not enough (flex can overflow a child without growing html).
+ */
+async function assertHeadingFitsContent(page: Page, expectedTitle: string): Promise<void> {
+  const metrics = await page.evaluate((title) => {
+    const heading = document.getElementById('hw-heading');
+    const content = document.querySelector('.hw-page');
+    const head = heading?.closest('.hw-head');
+    const actions = document.querySelector('.hw-head__actions');
+    if (!(heading instanceof HTMLElement) || !(content instanceof HTMLElement) || !(head instanceof HTMLElement)) {
+      return { ok: false as const, reason: 'missing-nodes' };
+    }
+    if ((heading.textContent ?? '').trim() !== title.trim()) {
+      return { ok: false as const, reason: 'title-mismatch', actual: heading.textContent ?? '' };
+    }
+    const h = heading.getBoundingClientRect();
+    const c = content.getBoundingClientRect();
+    const a = actions instanceof HTMLElement ? actions.getBoundingClientRect() : null;
+    return {
+      ok: true as const,
+      headingOverflow: heading.scrollWidth - heading.clientWidth,
+      contentOverflow: content.scrollWidth - content.clientWidth,
+      headOverflow: head.scrollWidth - head.clientWidth,
+      headingTop: h.top,
+      headingBottom: h.bottom,
+      headingLeft: h.left,
+      headingRight: h.right,
+      contentLeft: c.left,
+      contentRight: c.right,
+      actionsTop: a?.top ?? null,
+      actionsLeft: a?.left ?? null,
+    };
+  }, expectedTitle);
+
+  expect(metrics.ok, JSON.stringify(metrics)).toBe(true);
+  if (!metrics.ok) {
+    return;
+  }
+  expect(metrics.headingOverflow, 'heading scrollWidth overflow').toBeLessThanOrEqual(1);
+  expect(metrics.contentOverflow, '.hw-page scrollWidth overflow').toBeLessThanOrEqual(1);
+  expect(metrics.headOverflow, '.hw-head scrollWidth overflow').toBeLessThanOrEqual(1);
+  expect(metrics.headingLeft).toBeGreaterThanOrEqual(metrics.contentLeft - 1);
+  expect(metrics.headingRight).toBeLessThanOrEqual(metrics.contentRight + 1);
+  if (metrics.actionsTop !== null && metrics.actionsLeft !== null) {
+    const sameRow = Math.abs(metrics.actionsTop - metrics.headingTop) < 48;
+    if (sameRow) {
+      expect(metrics.headingRight, 'title must not overlap actions on the same row').toBeLessThanOrEqual(metrics.actionsLeft + 1);
+    } else {
+      expect(metrics.actionsTop, 'actions wrap below the title').toBeGreaterThanOrEqual(metrics.headingBottom - 2);
+    }
+  }
+}
+
 test('teacher mixed homework list, draft detail and edit screens at four widths', async ({ page }, info) => {
   await watch(page);
   const data = manifest();
@@ -216,17 +270,36 @@ test('teacher draft homework long title and description wrap without overflow', 
   await watch(page);
   const data = manifest();
   await login(page, data.users.teacher);
+  const longTitle = data.paths.homeworkLongTitle;
+  expect(longTitle.length).toBeLessThanOrEqual(150);
+  expect(longTitle.includes('ParcalanmayanKelime')).toBe(true);
 
-  await screens(page, info, 'odev-uzun-detay', data.paths.homeworkLongDetail, { touch: false });
+  for (const viewport of HOMEWORK_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await gotoOk(page, data.paths.homeworkLongDetail);
+    await assertLayout(page);
+    await assertHeadingFitsContent(page, longTitle);
+    await shot(page, info, 'teacher-homework', 'odev-uzun-detay', viewport.name);
+  }
+
   await screens(page, info, 'odev-uzun-duzenle', data.paths.homeworkLongEdit);
 
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoOk(page, data.paths.homeworkList);
   await assertLayout(page);
+  const listTitle = page.locator('.hw-title-text', { hasText: 'ParcalanmayanKelime' }).first();
+  await expect(listTitle).toBeVisible();
+  const listOverflow = await listTitle.evaluate((node) => {
+    const el = node as HTMLElement;
+    const cell = el.closest('td, .hw-table__title') as HTMLElement | null;
+    return {
+      title: el.scrollWidth - el.clientWidth,
+      cell: cell ? cell.scrollWidth - cell.clientWidth : 0,
+    };
+  });
+  expect(listOverflow.title).toBeLessThanOrEqual(1);
+  expect(listOverflow.cell).toBeLessThanOrEqual(1);
   await shot(page, info, 'teacher-homework', 'odevler-uzun', '390');
-  await gotoOk(page, data.paths.homeworkLongDetail);
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-  expect(overflow).toBeLessThanOrEqual(1);
   await assertClean(page);
 });
 

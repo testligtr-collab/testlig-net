@@ -44,9 +44,9 @@ use Symfony\Component\Uid\Uuid;
  * re-lock memberships after the enrollment cut, so a membership ending mid-assign either waits
  * or is excluded when re-checked under the membership lock.
  *
- * Snapshot validity: the set of recipients is the set of enrollments that were active, with an
- * active student membership, at commit time under those locks. Later enrollment/membership
- * changes do not rewrite this snapshot.
+ * Snapshot validity point: flush/commit of this transaction under the locks above. The recipient
+ * set is whatever enrollments still had an active student membership when those rows were locked
+ * and re-checked. Later enrollment/membership changes do not rewrite homework_recipients.
  */
 final class HomeworkAssignmentManager
 {

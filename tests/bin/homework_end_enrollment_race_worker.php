@@ -6,6 +6,8 @@ declare(strict_types=1);
  * Parallel end-enrollment worker for HomeworkAssignmentConcurrencyTest.
  *
  * Usage: php tests/bin/homework_end_enrollment_race_worker.php <payload.json> <result.json>
+ *
+ * Optional payload keys mirror the assign worker: ready_path/go_path, after_path, done_path.
  */
 
 use App\Entity\ClassroomStudentEnrollment;
@@ -25,11 +27,24 @@ if (!is_string($payloadPath) || !is_string($resultPath)) {
     exit(2);
 }
 
+$waitForFile = static function (string $path, float $seconds, string $label) use ($resultPath): void {
+    $deadline = microtime(true) + $seconds;
+    while (!is_file($path) && microtime(true) < $deadline) {
+        usleep(10_000);
+    }
+    if (!is_file($path)) {
+        file_put_contents($resultPath, json_encode(['ok' => false, 'error' => $label.'_timeout'], \JSON_THROW_ON_ERROR));
+        exit(1);
+    }
+};
+
 $payload = json_decode((string) file_get_contents($payloadPath), true, 512, \JSON_THROW_ON_ERROR);
 $ownerId = Uuid::fromString($payload['owner_id']);
 $enrollmentId = Uuid::fromString($payload['enrollment_id']);
 $readyPath = $payload['ready_path'] ?? null;
 $goPath = $payload['go_path'] ?? null;
+$afterPath = $payload['after_path'] ?? null;
+$donePath = $payload['done_path'] ?? null;
 
 $kernel = new Kernel('test', true);
 $kernel->boot();
@@ -59,18 +74,18 @@ if (null === $owner || !$enrollment instanceof ClassroomStudentEnrollment) {
 
 if (is_string($readyPath) && is_string($goPath)) {
     file_put_contents($readyPath, '1');
-    $deadline = microtime(true) + 45.0;
-    while (!is_file($goPath) && microtime(true) < $deadline) {
-        usleep(10_000);
-    }
-    if (!is_file($goPath)) {
-        file_put_contents($resultPath, json_encode(['ok' => false, 'error' => 'go_timeout'], \JSON_THROW_ON_ERROR));
-        exit(1);
-    }
+    $waitForFile($goPath, 45.0, 'go');
+}
+
+if (is_string($afterPath) && '' !== $afterPath) {
+    $waitForFile($afterPath, 60.0, 'after');
 }
 
 try {
     $manager->endEnrollment($enrollment, $owner, 'left_class');
+    if (is_string($donePath) && '' !== $donePath) {
+        file_put_contents($donePath, '1');
+    }
     file_put_contents($resultPath, json_encode([
         'ok' => true,
         'enrollment_id' => $enrollmentId->toRfc4122(),
