@@ -31,7 +31,8 @@ test('teacher workspace editors run without a publish button', async ({ page }, 
     await expect(page.getByRole('button', { name: 'Yayımla' })).toHaveCount(0);
     await expect(page.locator('#review-queue')).toHaveCount(0);
     await expect(page.locator('[data-metric="drafts"] .workspace-metric__value')).toHaveText('1');
-    await expect(page.locator('[data-metric="classrooms"] .workspace-metric__value')).toHaveText('1');
+    // Sinif A plus the student-less homework classroom used for the zero-recipient assign screen.
+    await expect(page.locator('[data-metric="classrooms"] .workspace-metric__value')).toHaveText('2');
     await expect(page.getByText(data.paths.foreignTitle)).toHaveCount(0);
     await expect(page.getByText(data.paths.endedClassroom)).toHaveCount(0);
     await assertLayout(page);

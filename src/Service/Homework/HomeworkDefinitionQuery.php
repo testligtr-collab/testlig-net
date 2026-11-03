@@ -71,10 +71,15 @@ final class HomeworkDefinitionQuery
         foreach ($rows as $row) {
             $id = $row['id'];
             $assigned = null !== $row['assignmentId'] && '' !== $row['assignmentId'];
+            // COALESCE(asg.dueAt, h.dueAt) may hydrate as a plain string under MariaDB.
+            $dueAt = $row['dueAt'];
+            if (!$dueAt instanceof \DateTimeInterface) {
+                $dueAt = new \DateTimeImmutable((string) $dueAt, new \DateTimeZone('UTC'));
+            }
             $list[] = new HomeworkDraftRow(
                 $id instanceof Uuid ? $id->toRfc4122() : (16 === \strlen((string) $id) ? Uuid::fromBinary((string) $id)->toRfc4122() : (string) $id),
                 $row['title'],
-                UtcInstant::ensure($row['dueAt']),
+                UtcInstant::ensure($dueAt),
                 $row['classroomName'],
                 $row['institutionName'],
                 $assigned,

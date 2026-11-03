@@ -38,7 +38,9 @@ final class Version20261103180000 extends AbstractMigration
             UNIQUE INDEX uniq_homework_assignment_definition (definition_id),
             INDEX idx_homework_asg_classroom (classroom_id),
             INDEX idx_homework_asg_institution (institution_id),
+            INDEX idx_homework_asg_year (academic_year_id),
             INDEX idx_homework_asg_assigner (assigned_by_user_id),
+            INDEX idx_homework_asg_membership (assigned_by_membership_id),
             PRIMARY KEY (id)
         ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
         $this->addSql('CREATE TABLE homework_recipients (

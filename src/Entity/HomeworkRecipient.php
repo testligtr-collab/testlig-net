@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Repository\HomeworkRecipientRepository;
 use App\Time\UtcInstant;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Types\UuidType;
 use Symfony\Component\Serializer\Attribute\Ignore;
@@ -45,7 +46,7 @@ class HomeworkRecipient
     #[ORM\JoinColumn(name: 'enrollment_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private ClassroomStudentEnrollment $enrollment;
 
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+    #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
 
     private function __construct(

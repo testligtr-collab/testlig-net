@@ -25,14 +25,18 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_homework_assignment_definition', columns: ['definition_id'])]
 #[ORM\Index(name: 'idx_homework_asg_classroom', columns: ['classroom_id'])]
 #[ORM\Index(name: 'idx_homework_asg_institution', columns: ['institution_id'])]
+#[ORM\Index(name: 'idx_homework_asg_year', columns: ['academic_year_id'])]
 #[ORM\Index(name: 'idx_homework_asg_assigner', columns: ['assigned_by_user_id'])]
+#[ORM\Index(name: 'idx_homework_asg_membership', columns: ['assigned_by_membership_id'])]
 class HomeworkAssignment
 {
     #[ORM\Id]
     #[ORM\Column(type: UuidType::NAME, unique: true)]
     private Uuid $id;
 
-    #[ORM\OneToOne]
+    // ManyToOne + UniqueConstraint (not OneToOne): keeps the named UNIQUE index in sync with the
+    // migration and avoids Doctrine's auto-named UNIQ_* for OneToOne join columns.
+    #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'definition_id', referencedColumnName: 'id', nullable: false, onDelete: 'RESTRICT')]
     private HomeworkDefinition $definition;
 
