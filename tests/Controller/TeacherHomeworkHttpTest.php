@@ -549,6 +549,7 @@ final class TeacherHomeworkHttpTest extends WebTestCase
         self::assertContains($ended->getResponse()->getStatusCode(), [403, 404]);
         $this->assertNothingAssigned();
     }
+
     private function clientFor(string $email): KernelBrowser
     {
         // Log in on real time; the fixed clock only applies to the page requests under test.

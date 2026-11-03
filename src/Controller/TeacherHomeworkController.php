@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Dto\HomeworkDraftInput;
-use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkDefinition;
 use App\Entity\User;
 use App\Exception\HomeworkDefinitionException;

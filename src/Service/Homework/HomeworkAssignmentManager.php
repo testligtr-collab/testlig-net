@@ -174,7 +174,7 @@ final class HomeworkAssignmentManager
                         'academic_year_id' => $assignment->getAcademicYear()->getId()->toRfc4122(),
                         'status' => $assignment->getStatus()->value,
                         'recipient_count' => $assignment->getRecipientCount(),
-                        'definition_revision' => $definition->getRevisionNumber(),
+                        'revision_number' => $definition->getRevisionNumber(),
                     ],
                     correlationId: Uuid::v7()->toRfc4122(),
                 ));
