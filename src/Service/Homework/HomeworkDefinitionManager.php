@@ -100,11 +100,13 @@ final class HomeworkDefinitionManager
             if (!$freshActor instanceof User) {
                 return HomeworkDefinitionException::forbidden();
             }
-            if (!$definition->getCreatedByUser()->getId()->equals($freshActor->getId())) {
+            $owner = $definition->getCreatedByUser();
+            $storedClassroom = $definition->getClassroom();
+            if (!$owner->getId()->equals($freshActor->getId())) {
                 return HomeworkDefinitionException::notFound();
             }
             // Current scope on the stored classroom first: ended assignment/membership => opaque deny.
-            $current = $this->scope->findAssignment($freshActor, $definition->getClassroom()->getId(), true, true);
+            $current = $this->scope->findAssignment($freshActor, $storedClassroom->getId(), true, true);
             if (null === $current) {
                 return HomeworkDefinitionException::notFound();
             }
@@ -120,7 +122,7 @@ final class HomeworkDefinitionManager
             $classroomId = $this->parseClassroomId($input->classroomId);
             $target = null;
             if ($classroomId instanceof Uuid) {
-                $target = $classroomId->equals($definition->getClassroom()->getId())
+                $target = $classroomId->equals($storedClassroom->getId())
                     ? $current
                     : $this->scope->findAssignment($freshActor, $classroomId, true, true);
             }

@@ -60,16 +60,18 @@ final class HomeworkDefinitionVoter extends Voter
         }
 
         if ($subject instanceof HomeworkDefinition && HomeworkDefinitionPermission::CREATE !== $attribute) {
-            if (!$subject->getCreatedByUser()->getId()->equals($user->id)) {
+            $owner = $subject->getCreatedByUser();
+            $classroom = $subject->getClassroom();
+            $membership = $subject->getCreatedByMembership();
+            if (!$owner->getId()->equals($user->id)) {
                 return false;
             }
-            $classroomId = $subject->getClassroom()->getId();
             $write = HomeworkDefinitionPermission::EDIT === $attribute;
             if ($write && HomeworkDefinitionStatus::Draft !== $subject->getStatus()) {
                 return false;
             }
 
-            return $this->teachesClassroom($user->id, $classroomId, $write, $subject->getCreatedByMembership()->getId());
+            return $this->teachesClassroom($user->id, $classroom->getId(), $write, $membership->getId());
         }
 
         if ($subject instanceof Classroom && HomeworkDefinitionPermission::CREATE === $attribute) {
