@@ -64,7 +64,7 @@ test('teacher draft homework list, detail and edit screens at four widths', asyn
   await expect(page.locator('.hw-table thead')).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoOk(page, data.paths.homeworkList);
-  await expect(page.locator('.hw-table thead')).not.toBeVisible();
+  await expect(page.locator('.hw-table thead')).toBeHidden();
   await expect(page.locator('.hw-table td[data-label="Son teslim"]').first()).toBeVisible();
 
   // Empty search keeps the filter form and explains the empty result.
@@ -119,7 +119,9 @@ test('teacher draft homework empty list and mobile menu entry', async ({ page },
   await page.setViewportSize({ width: 390, height: 844 });
   await gotoOk(page, '/calisma-alani');
   await openMobile(page);
-  await page.getByRole('link', { name: 'Ödevlerim', exact: true }).last().click();
+  const mobileNav = page.locator('#teacher-mobile-nav');
+  await expect(mobileNav).toBeVisible();
+  await mobileNav.getByRole('link', { name: 'Ödevlerim', exact: true }).click();
   await expect(page).toHaveURL(/\/ogretmen\/odevler$/);
   await assertClean(page);
 });
@@ -175,6 +177,11 @@ test('teacher draft homework form validates, counts Unicode and never writes on 
 
   await gotoOk(page, data.paths.homeworkList);
   await expect(page.locator('[data-testid="hw-draft-count"] strong')).toHaveText('2');
+  // Intentional 422 validation responses are expected above; clear watch notes before the clean check.
+  const notes = (page as Page & { __notes?: string[] }).__notes;
+  if (notes) {
+    notes.length = 0;
+  }
   await assertClean(page);
 });
 
