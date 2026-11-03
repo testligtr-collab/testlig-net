@@ -131,7 +131,7 @@ final class HomeworkAssignmentManagerTest extends KernelTestCase
         self::assertSame($ctx['classroom']->getId()->toRfc4122(), $metadata['classroom_id']);
         self::assertSame($ctx['institution']->getId()->toRfc4122(), $metadata['institution_id']);
         self::assertSame(2, $metadata['recipient_count']);
-        self::assertSame(1, $metadata['definition_revision']);
+        self::assertSame(1, $metadata['revision_number']);
         self::assertSame('assigned', $metadata['status']);
         self::assertArrayNotHasKey('title', $metadata);
         self::assertArrayNotHasKey('description', $metadata);
