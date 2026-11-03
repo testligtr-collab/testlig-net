@@ -319,15 +319,18 @@ body.is-workspace {
 }
 
 .is-workspace .hw-head__text {
-    flex: 1 1 12rem;
+    /* flex-basis 0 + min-width 0 gives a definite shrinkable width so wrap can engage. */
+    flex: 1 1 0;
     min-width: 0;
     max-width: 100%;
 }
 
 .is-workspace .hw-head h1 {
     margin: 0 0 0.35rem;
+    width: 100%;
     max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
 .is-workspace .hw-sub,
@@ -358,6 +361,27 @@ body.is-workspace {
     word-break: break-word;
     max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
+}
+
+.is-workspace .hw-head h1.hw-wrap {
+    /* break-all only on the homework detail title — unbroken 150-char tokens stay in-column. */
+    word-break: break-all;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 1023px) {
+    .is-workspace .hw-head {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .is-workspace .hw-head__text,
+    .is-workspace .hw-head__actions {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: 100%;
+    }
 }
 
 .is-workspace .hw-card {

@@ -57,8 +57,14 @@ async function assertHeadingFitsContent(page: Page, expectedTitle: string): Prom
     const heading = document.getElementById('hw-heading');
     const content = document.querySelector('.hw-page');
     const head = heading?.closest('.hw-head');
+    const textWrap = heading?.closest('.hw-head__text');
     const actions = document.querySelector('.hw-head__actions');
-    if (!(heading instanceof HTMLElement) || !(content instanceof HTMLElement) || !(head instanceof HTMLElement)) {
+    if (
+      !(heading instanceof HTMLElement)
+      || !(content instanceof HTMLElement)
+      || !(head instanceof HTMLElement)
+      || !(textWrap instanceof HTMLElement)
+    ) {
       return { ok: false as const, reason: 'missing-nodes' };
     }
     if ((heading.textContent ?? '').trim() !== title.trim()) {
@@ -67,17 +73,23 @@ async function assertHeadingFitsContent(page: Page, expectedTitle: string): Prom
     const h = heading.getBoundingClientRect();
     const c = content.getBoundingClientRect();
     const a = actions instanceof HTMLElement ? actions.getBoundingClientRect() : null;
+    const viewport = document.documentElement.clientWidth;
     return {
       ok: true as const,
-      headingOverflow: heading.scrollWidth - heading.clientWidth,
-      contentOverflow: content.scrollWidth - content.clientWidth,
-      headOverflow: head.scrollWidth - head.clientWidth,
+      // Growing the element itself can hide overflow; compare against parent/viewport widths.
+      headingVsParent: heading.scrollWidth - textWrap.clientWidth,
+      headVsContent: head.scrollWidth - content.clientWidth,
+      contentVsViewport: content.scrollWidth - viewport,
+      pageScrollOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      headingWidth: h.width,
+      contentWidth: c.width,
       headingTop: h.top,
       headingBottom: h.bottom,
       headingLeft: h.left,
       headingRight: h.right,
       contentLeft: c.left,
       contentRight: c.right,
+      viewport,
       actionsTop: a?.top ?? null,
       actionsLeft: a?.left ?? null,
     };
@@ -87,11 +99,13 @@ async function assertHeadingFitsContent(page: Page, expectedTitle: string): Prom
   if (!metrics.ok) {
     return;
   }
-  expect(metrics.headingOverflow, 'heading scrollWidth overflow').toBeLessThanOrEqual(1);
-  expect(metrics.contentOverflow, '.hw-page scrollWidth overflow').toBeLessThanOrEqual(1);
-  expect(metrics.headOverflow, '.hw-head scrollWidth overflow').toBeLessThanOrEqual(1);
+  expect(metrics.headingVsParent, 'heading scrollWidth vs .hw-head__text clientWidth').toBeLessThanOrEqual(1);
+  expect(metrics.headVsContent, '.hw-head scrollWidth vs .hw-page clientWidth').toBeLessThanOrEqual(1);
+  expect(metrics.contentVsViewport, '.hw-page scrollWidth vs viewport').toBeLessThanOrEqual(1);
+  expect(metrics.pageScrollOverflow, 'documentElement horizontal scroll').toBeLessThanOrEqual(1);
+  expect(metrics.headingWidth).toBeLessThanOrEqual(metrics.contentWidth + 1);
   expect(metrics.headingLeft).toBeGreaterThanOrEqual(metrics.contentLeft - 1);
-  expect(metrics.headingRight).toBeLessThanOrEqual(metrics.contentRight + 1);
+  expect(metrics.headingRight).toBeLessThanOrEqual(Math.min(metrics.contentRight, metrics.viewport) + 1);
   if (metrics.actionsTop !== null && metrics.actionsLeft !== null) {
     const sameRow = Math.abs(metrics.actionsTop - metrics.headingTop) < 48;
     if (sameRow) {
