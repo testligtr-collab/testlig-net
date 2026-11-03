@@ -10,8 +10,7 @@ use App\Enum\TeacherAssignmentRole;
 use App\Service\Homework\HomeworkDefinitionQuery;
 use App\Service\Homework\HomeworkTeacherScope;
 use App\Tests\Support\HomeworkTestFixtures;
-use Doctrine\DBAL\Logging\Middleware as LoggingMiddleware;
-use Psr\Log\AbstractLogger;
+use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 final class HomeworkDefinitionQueryTest extends KernelTestCase
@@ -152,35 +151,23 @@ final class HomeworkDefinitionQueryTest extends KernelTestCase
     {
         $ctx = $this->homeworkContext('hwq-bound');
         $query = $this->homeworkQuery();
-        $counter = new class extends AbstractLogger {
-            public int $count = 0;
-
-            public function log($level, \Stringable|string $message, array $context = []): void
-            {
-                ++$this->count;
-            }
-        };
-        $connection = $this->em->getConnection();
-        $configuration = $connection->getConfiguration();
-        $configuration->setMiddlewares(array_merge(
-            [new LoggingMiddleware($counter)],
-            $configuration->getMiddlewares(),
-        ));
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
 
         for ($i = 1; $i <= 3; ++$i) {
             $this->persistDraft($ctx, 'Az '.$i);
         }
         $query->page($ctx['teacher'], '', null, 1); // warm-up (metadata / auth lookups)
-        $before = $counter->count;
+        $holder->reset();
         $small = $query->page($ctx['teacher'], '', null, 1);
-        $smallQueries = $counter->count - $before;
+        $smallQueries = $this->recordedStatements($holder);
 
         for ($i = 1; $i <= 15; ++$i) {
             $this->persistDraft($ctx, 'Çok '.$i);
         }
-        $before = $counter->count;
+        $holder->reset();
         $large = $query->page($ctx['teacher'], '', null, 1);
-        $largeQueries = $counter->count - $before;
+        $largeQueries = $this->recordedStatements($holder);
 
         self::assertCount(3, $small->rows);
         self::assertCount(18, $large->rows);
@@ -195,5 +182,23 @@ final class HomeworkDefinitionQueryTest extends KernelTestCase
     private function titles(HomeworkDraftPage $page): array
     {
         return array_map(static fn ($row): string => $row->title, $page->rows);
+    }
+
+    private function recordedStatements(DebugDataHolder $holder): int
+    {
+        $count = 0;
+        foreach ($holder->getData() as $queries) {
+            if (!\is_array($queries)) {
+                continue;
+            }
+            foreach ($queries as $item) {
+                $statement = \is_array($item) ? ($item['sql'] ?? null) : null;
+                if (\is_string($statement) && '' !== trim($statement)) {
+                    ++$count;
+                }
+            }
+        }
+
+        return $count;
     }
 }
