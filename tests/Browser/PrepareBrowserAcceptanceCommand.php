@@ -643,7 +643,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->teacherAssignments->endAssignment($endedAssignment, $owner, 'browser_end');
         $this->enrollments->enroll($classroom, $owner, $studentMembership, 'browser_create');
         // Separate classroom so Sinif A teacher counts in admin-classrooms browser tests stay unchanged.
-        $homeworkEmptyClassroom = $this->classrooms->create($year, $owner, 'Odev Taslak Sinifi', GradeLevel::Grade1, 'browser_homework', 'O', 24);
+        $homeworkEmptyClassroom = $this->classrooms->create($year, $owner, 'Odev Bos Sinifi', GradeLevel::Grade1, 'browser_homework', 'O', 24);
         $homeworkEmptyTeacher = $this->account('browser-teacher-homework@example.test', 'Deneme', 'Odevsiz', UserRole::Teacher);
         $homeworkEmptyMembership = $this->memberships->addMember($institution, $owner, $homeworkEmptyTeacher, InstitutionMembershipRole::Teacher, 'browser_homework');
         $this->teacherAssignments->assign($homeworkEmptyClassroom, $owner, $homeworkEmptyMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_homework');

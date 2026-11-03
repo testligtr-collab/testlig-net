@@ -116,8 +116,9 @@ test('teacher draft homework empty list and mobile menu entry', async ({ page },
   await expect(page.locator('.hw-table')).toHaveCount(0);
   await screens(page, info, 'odevler-bos', data.paths.homeworkList);
 
+  // Teacher mobile drawer lives on /ogretmen/* (workspace dashboard uses a different chrome).
   await page.setViewportSize({ width: 390, height: 844 });
-  await gotoOk(page, '/calisma-alani');
+  await gotoOk(page, '/ogretmen/siniflarim');
   await openMobile(page);
   const mobileNav = page.locator('#teacher-mobile-nav');
   await expect(mobileNav).toBeVisible();
