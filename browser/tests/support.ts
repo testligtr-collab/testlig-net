@@ -67,6 +67,15 @@ type Manifest = {
     homeworkLongDetail: string;
     homeworkLongEdit: string;
     homeworkTitle: string;
+    homeworkConfirm: string;
+    homeworkAssignedDetail: string;
+    homeworkAssignedEdit: string;
+    homeworkAssignedConfirm: string;
+    homeworkZeroDetail: string;
+    homeworkZeroConfirm: string;
+    homeworkAssignedTitle: string;
+    homeworkAssignedRecipients: string;
+    homeworkZeroTitle: string;
     homeworkLongTitle: string;
   };
 };

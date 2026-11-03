@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Dto\HomeworkDraftInput;
+use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkDefinition;
 use App\Entity\User;
 use App\Exception\HomeworkDefinitionException;
 use App\Security\HomeworkDefinitionPermission;
 use App\Service\ActiveVerifiedUserPolicy;
+use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
 use App\Service\Homework\HomeworkTeacherScope;
@@ -25,17 +27,19 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Teacher draft homework (X01 first slice): list, create, show, edit. No publish, assign or submit.
+ * Teacher homework: drafts, classroom assign with recipient snapshot. No student submit/evaluate.
  */
 #[Route('/ogretmen/odevler')]
 #[IsGranted('ROLE_USER')]
 final class TeacherHomeworkController extends AbstractController
 {
-    private const CSRF = 'teacher_homework_draft';
+    private const CSRF_DRAFT = 'teacher_homework_draft';
+    private const CSRF_ASSIGN = 'teacher_homework_assign';
     private const ID = '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
     public function __construct(
         private readonly HomeworkDefinitionManager $manager,
+        private readonly HomeworkAssignmentManager $assignments,
         private readonly HomeworkDefinitionQuery $query,
         private readonly HomeworkTeacherScope $scope,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
@@ -61,17 +65,22 @@ final class TeacherHomeworkController extends AbstractController
         if (!$known) {
             $filter = null;
         }
-        $page = $this->query->page($actor, $search, $filter, $request->query->getInt('sayfa', 1));
-        $total = $this->query->count($actor);
-        $filtered = '' !== trim($search) || null !== $filter;
+        $statusFilter = $request->query->getString('durum');
+        $assignedOnly = match ($statusFilter) {
+            'taslak' => false,
+            'atandi' => true,
+            default => null,
+        };
+        $page = $this->query->page($actor, $search, $filter, $request->query->getInt('sayfa', 1), $assignedOnly);
+        $filtered = '' !== trim($search) || null !== $filter || null !== $assignedOnly;
 
         return $this->noStore($this->render('teacher/homework/index.html.twig', [
             'page' => $page,
-            'total_drafts' => $total,
             'classrooms' => $classrooms,
             'with_institution' => HomeworkTeacherScope::spansInstitutions($classrooms),
             'search' => trim($search),
             'filter' => $filter?->toRfc4122() ?? '',
+            'status_filter' => $statusFilter,
             'filtered' => $filtered,
         ]));
     }
@@ -89,7 +98,7 @@ final class TeacherHomeworkController extends AbstractController
         $status = Response::HTTP_OK;
 
         if ($request->isMethod('POST')) {
-            $this->assertCsrf($request);
+            $this->assertCsrf($request, self::CSRF_DRAFT);
             $values = $this->postedValues($request);
             try {
                 $definition = $this->manager->createDraft($actor, $this->inputFrom($values, null));
@@ -104,19 +113,52 @@ final class TeacherHomeworkController extends AbstractController
         return $this->noStore($this->renderForm('new', $options, $values, $errors, null), $status);
     }
 
-    #[Route('/{id}', name: 'app_teacher_homework_show', methods: ['GET'], requirements: ['id' => self::ID])]
-    public function show(string $id): Response
+    #[Route('/{id}', name: 'app_teacher_homework_show', methods: ['GET', 'POST'], requirements: ['id' => self::ID])]
+    public function show(Request $request, string $id): Response
     {
         $actor = $this->account();
-        $definition = $this->query->findOwned($actor, Uuid::fromString($id), false);
+        $definitionId = Uuid::fromString($id);
+        $definition = $this->query->findOwned($actor, $definitionId, false);
         if (!$definition instanceof HomeworkDefinition || !$this->isGranted(HomeworkDefinitionPermission::VIEW, $definition)) {
             throw new NotFoundHttpException('Not Found');
+        }
+        $assignment = $this->query->findAssignment($actor, $definitionId);
+        $canAssign = null === $assignment && $this->isGranted(HomeworkDefinitionPermission::ASSIGN, $definition);
+        $canEdit = null === $assignment && $this->isGranted(HomeworkDefinitionPermission::EDIT, $definition);
+        $errors = [];
+        $status = Response::HTTP_OK;
+        $showConfirm = $request->query->getBoolean('ata');
+        $eligibleCount = $canAssign ? $this->query->countEligibleRecipients($definition->getClassroom()->getId()) : 0;
+
+        if ($request->isMethod('POST')) {
+            $this->assertCsrf($request, self::CSRF_ASSIGN);
+            if (!$canAssign) {
+                throw new NotFoundHttpException('Not Found');
+            }
+            $showConfirm = true;
+            $confirmed = $request->request->getBoolean('confirm_assign');
+            $revision = $this->revisionFrom(['revision' => $request->request->getString('revision')]);
+            try {
+                $this->assignments->assignToClassroom($actor, $definitionId, $revision ?? 0, $confirmed);
+                $this->addFlash('success', 'Ödev sınıfa atandı. Ödev metni donduruldu.');
+
+                return $this->redirectToRoute('app_teacher_homework_show', ['id' => $id]);
+            } catch (HomeworkDefinitionException $exception) {
+                [$errors, $status] = $this->handleAssignFailure($exception);
+                $eligibleCount = $this->query->countEligibleRecipients($definition->getClassroom()->getId());
+            }
         }
 
         return $this->noStore($this->render('teacher/homework/show.html.twig', [
             'definition' => $definition,
-            'can_edit' => $this->isGranted(HomeworkDefinitionPermission::EDIT, $definition),
-        ]));
+            'assignment' => $assignment,
+            'can_edit' => $canEdit,
+            'can_assign' => $canAssign,
+            'show_confirm' => $showConfirm && $canAssign,
+            'eligible_count' => $eligibleCount,
+            'errors' => $errors,
+            'csrf_assign' => self::CSRF_ASSIGN,
+        ]), $status);
     }
 
     #[Route('/{id}/duzenle', name: 'app_teacher_homework_edit', methods: ['GET', 'POST'], requirements: ['id' => self::ID])]
@@ -134,7 +176,7 @@ final class TeacherHomeworkController extends AbstractController
         $status = Response::HTTP_OK;
 
         if ($request->isMethod('POST')) {
-            $this->assertCsrf($request);
+            $this->assertCsrf($request, self::CSRF_DRAFT);
             $values = $this->postedValues($request);
             try {
                 $this->manager->updateDraft($actor, $definitionId, $this->inputFrom($values, $this->revisionFrom($values)));
@@ -165,7 +207,7 @@ final class TeacherHomeworkController extends AbstractController
             'definition' => $definition,
             'title_max' => HomeworkText::TITLE_MAX,
             'description_max' => HomeworkText::DESCRIPTION_MAX,
-            'csrf_intent' => self::CSRF,
+            'csrf_intent' => self::CSRF_DRAFT,
             'cancel_route' => null === $definition ? 'app_teacher_homeworks' : 'app_teacher_homework_show',
         ]);
     }
@@ -181,7 +223,29 @@ final class TeacherHomeworkController extends AbstractController
                 Response::HTTP_UNPROCESSABLE_ENTITY,
             ],
             HomeworkDefinitionException::REASON_STALE_REVISION,
-            HomeworkDefinitionException::REASON_CONFLICT => $this->flashError($exception->getMessage()),
+            HomeworkDefinitionException::REASON_CONFLICT,
+            HomeworkDefinitionException::REASON_NOT_EDITABLE,
+            HomeworkDefinitionException::REASON_ALREADY_ASSIGNED => $this->flashError($exception->getMessage()),
+            default => throw new NotFoundHttpException('Not Found'),
+        };
+    }
+
+    /**
+     * @return array{0: array<string, string>, 1: int}
+     */
+    private function handleAssignFailure(HomeworkDefinitionException $exception): array
+    {
+        return match ($exception->getReason()) {
+            HomeworkDefinitionException::REASON_NO_RECIPIENTS,
+            HomeworkDefinitionException::REASON_DUE_NOT_FUTURE,
+            HomeworkDefinitionException::REASON_CONFIRMATION_REQUIRED,
+            HomeworkDefinitionException::REASON_INVALID_INPUT => [
+                $exception->getFieldErrors() ?: ['form' => $exception->getMessage()],
+                Response::HTTP_UNPROCESSABLE_ENTITY,
+            ],
+            HomeworkDefinitionException::REASON_STALE_REVISION,
+            HomeworkDefinitionException::REASON_CONFLICT,
+            HomeworkDefinitionException::REASON_ALREADY_ASSIGNED => $this->flashError($exception->getMessage()),
             default => throw new NotFoundHttpException('Not Found'),
         };
     }
@@ -265,9 +329,9 @@ final class TeacherHomeworkController extends AbstractController
         return '' !== $raw && Uuid::isValid($raw) ? Uuid::fromString($raw) : null;
     }
 
-    private function assertCsrf(Request $request): void
+    private function assertCsrf(Request $request, string $intent): void
     {
-        if (!$this->isCsrfTokenValid(self::CSRF, $request->request->getString('_token'))) {
+        if (!$this->isCsrfTokenValid($intent, $request->request->getString('_token'))) {
             throw new AccessDeniedHttpException('Geçersiz istek.');
         }
     }

@@ -1,7 +1,7 @@
 # X01 — Ödev ve proje (ürün / mimari karar)
 
-**Durum:** Önerilen mimari; yalnız **öğretmen taslak dilimi** koda alındı (aşağıdaki “Uygulanan taslak dilimi”). Yayımlama, atama, öğrenci teslimi ve değerlendirme henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir.  
-**Feature ID:** `X01-homework` (`partial` — yalnız taslak dilimi kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
+**Durum:** Önerilen mimari; **öğretmen taslak dilimi** ve **sınıfa atama + alıcı snapshot dilimi** koda alındı (aşağıdaki 0.1 ve 0.1b). Öğrenci teslimi ve değerlendirme henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen kabulü açıktır.  
+**Feature ID:** `X01-homework` (`partial` — taslak + atama dilimleri kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
 **Aktif uygulama işi:** `active_feature_ids` = `X01-homework`; `X10-admin-navigation` **partial** olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez).  
 **Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimi metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu bu dilime dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
 
@@ -42,16 +42,35 @@ Bu bölüm koddaki gerçek durumu, aşağıdaki bölümler (1–10) ise **öneri
 | Metin | `HomeworkText`: UTF-8 kod noktası sayımı (`mb_strlen`), trim, HTML ve kontrol karakteri reddi; tarayıcı sayacı da kod noktası sayar. Satır sonu LF olarak sayılır/saklanır. |
 | UI | Öğretmen menüsünde **Ödevlerim**; liste, yeni/düzenle formu (Taslak özeti), detay. Yayımla, ata, teslim, dosya veya değerlendirme düğmesi **yoktur**. |
 
-Bu dilim `X01-homework` ürününü tamamlamaz: yayımlama, atama, alıcı snapshot’ı, öğrenci teslimi, değerlendirme, dosya (`M18-local-pdf` bağımlılığı) ve production kabulü kapsam dışıdır.
+Bu dilim `X01-homework` ürününü tamamlamaz: yayımlama, atama, alıcı snapshot’ı, öğrenci teslimi, değerlendirme, dosya (`M18-local-pdf` bağımlılığı) ve production kabulü kapsam dışıdır. (Sınıfa atama + alıcı snapshot’ı sonraki alt bölümde ayrı bir dilim olarak anlatılır.)
 
-### 0.2 Önerilen gelecek model (henüz kodda yok)
+### 0.1b Uygulanan sınıfa atama + alıcı snapshot dilimi (kodda; branch `feature/x01-homework-assign`)
+
+Bu dilim 0.1’in üstüne biner; taslak dilimindeki kurallar (sahiplik, güncel aktif üyelik + sınıf ataması, Admin/SA atlaması yok) aynen geçerlidir. Main merge, deploy ve **canlı öğretmen kabulü açıktır**; CI veya yerel test başarısı production kabulü değildir.
+
+| Konu | Kodda olan |
+|---|---|
+| Tablolar | `homework_assignments` (tanım başına tek satır: `UNIQUE(definition_id)`; atama anında dondurulmuş `title`, `description`, `due_at`, `status=assigned`, `recipient_count`, `assigned_at`, atayan kullanıcı + üyelik, kurum/sınıf/yıl) ve `homework_recipients` (`UNIQUE(assignment_id, student_user_id)`; öğrenci kullanıcı, öğrenci üyeliği, kayıt `enrollment_id`). Tüm FK’ler RESTRICT (`Version20261103180000`, geri alınabilir). Teslim / değerlendirme tablosu **yok**. |
+| Durum anlamı | `HomeworkDefinition.status` `draft` kalır; liste ve detaydaki **“Atandı”** etiketi `HomeworkAssignment` satırının varlığından gelir. Atama tek başına öğrenci erişimi değildir (öğrenci ödev görme/teslim bu dilimde yok). |
+| Servis | `HomeworkAssignmentManager::assignToClassroom(User, Uuid, int $expectedRevision, bool $confirmed)`: tek transaction; onay yoksa `confirmationRequired`; yabancı/eksik/bitmiş atama için opak `notFound`, pasif/doğrulanmamış kullanıcı için `forbidden`; ikinci atama `alreadyAssigned`; eski sürüm `staleRevision`; `due_at <= şimdi` `dueNotFuture`; uygun öğrenci yoksa `noRecipients` (hiçbir satır yazılmaz). Başarıda `homework_assignment_created` denetimi (yalnız kimlik/sayı/sürüm; ödev metni yok). |
+| Kilit protokolü | Sıra: kurum WRITE → akademik yıl WRITE → sınıf WRITE → ödev tanımı WRITE → uygun `ClassroomStudentEnrollment` satırları WRITE (`id ASC`) → bu kayıtların öğrenci `InstitutionMembership` satırları WRITE (`id ASC`). Sıra `ClassroomStudentEnrollmentManager` ile aynı hiyerarşiyi izler (sınıfı tutan atama, aynı sınıfı önce kilitleyen kayıt/transfer/bitirme işlemlerini bekletir). Üyelik kilitlendikten sonra durum/rol yeniden denetlenir; aktif öğrenci üyeliği olmayan kayıtlar snapshot’tan çıkarılır. Deadlock/lock-wait: `conflict`. |
+| Snapshot geçerliliği | Alıcı kümesi, bu kilitler altında commit anında **aktif kayıt + aktif öğrenci üyeliği** olan öğrencilerdir. Sonradan kayıt/üyelik değişikliği snapshot’ı yeniden yazmaz; atamadan sonra eklenen/çıkan öğrenci `recipient_count` ve alıcı satırlarını değiştirmez. Canlı “uygun alıcı” sayısı (`countEligibleRecipients`) yalnız onay ekranı içindir ve snapshot değildir. |
+| Yetki | `HomeworkDefinitionVoter` `ASSIGN` özniteliği; `EDIT`/`ASSIGN` atama satırı varsa reddedilir (`VIEW` açık kalır). `HomeworkDefinitionManager::updateDraft` atama varsa `notEditable`. |
+| Rotalar | `GET/POST /ogretmen/odevler/{id}` (`app_teacher_homework_show`): `?ata=1` onay ekranı (GET yazmaz); POST CSRF niyeti `teacher_homework_assign`, alanlar `confirm_assign`, `revision`; başarıda PRG + flash. `GET /ogretmen/odevler?durum=taslak|atandi` durum süzgeci; sayaçlar (`hw-status-count`) süzgeçten bağımsız gerçek taslak/atandı sayısıdır. |
+| UI | “Sınıfa ata” → onay ekranı (“Atamayı onayla”); atanmış ödevde düzenle/ata yok, “Atandı” etiketi, alıcı sayısı. Yayımla, teslim, değerlendir düğmesi **yoktur**. |
+
+Test kanıtı (kod kanıtı; CI ve canlı kabul ayrıdır): `tests/Service/HomeworkAssignmentManagerTest.php`, `tests/Service/HomeworkDefinitionQueryTest.php`, `tests/Security/HomeworkDefinitionVoterTest.php`, `tests/Controller/TeacherHomeworkHttpTest.php`, `browser/tests/teacher-homework.spec.ts` (+ `tests/Browser/PrepareBrowserAcceptanceCommand.php` tohumu). Gerçek iki-bağlantılı eşzamanlılık testi **yoktur**; kilit sırası kod ve aynı-süreç “önce bitir, sonra ata” senaryolarıyla doğrulanır.
+
+Kapsam dışı (bu dilimde de yok): öğrenci tarafı alıcı görünümü, teslim, değerlendirme, dosya/PDF (`M18-local-pdf` `depends_on` olarak kalır), atamayı geri alma/iptal.
+
+### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |
 |---|---|
-| `HomeworkAssignment` | **Önerilen.** Tanımın belirli sınıf + akademik yıl için yayımlanması; atama anında dondurulmuş istem metni; `dueAt`. Tanım ≠ atama ayrımı bu yüzden korunur: taslaktaki `classroom_id` atama değildir. |
-| `HomeworkRecipient` | **Önerilen.** Yayın anında sabitlenen öğrenci satırları; tek başına güncel erişim yetkisi değildir. |
+| `HomeworkAssignment` | **Kısmen uygulandı** (0.1b): yalnız `assigned`; dondurulmuş metin/due; 1:1 tanım. `closed`/`cancelled` ve atama taslağı **yok**. |
+| `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; öğrenci erişimi / liste **yok**. |
 | `HomeworkSubmission` / `HomeworkEvaluation` | **Önerilen.** Metin teslimi ve etiket + geri bildirim. |
-| `archived` tanım durumu | **Önerilen.** Taslak diliminde yazılmaz. |
+| `archived` tanım durumu | **Önerilen.** Bu dilimde yazılmaz. |
 
 ---
 

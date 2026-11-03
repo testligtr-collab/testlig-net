@@ -52,6 +52,7 @@ use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
+use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\InstitutionApplicationManager;
 use App\Service\InstitutionBranchCreator;
@@ -132,6 +133,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly AssessmentAttemptManager $attemptManager,
         private readonly AssessmentResultReportQuery $resultReport,
         private readonly HomeworkDefinitionManager $homework,
+        private readonly HomeworkAssignmentManager $homeworkAssignments,
     ) {
         parent::__construct();
     }
@@ -656,6 +658,29 @@ final class PrepareBrowserAcceptanceCommand extends Command
             '18:30',
             null,
         ));
+        // Mixed list for the assign slice: one draft already assigned to Sinif A (real recipient snapshot
+        // from the enrolled student), the two drafts above, and a zero-recipient draft.
+        $homeworkAssignedTitle = 'Atanmis ondalik calisma kagidi';
+        $homeworkAssigned = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkAssignedTitle,
+            "Ondalik sayilari siralayan alistirmalari coz.\nSonuclari kontrol et.",
+            $classroom->getId()->toRfc4122(),
+            '2099-06-20',
+            '10:00',
+            null,
+        ));
+        $homeworkAssignment = $this->homeworkAssignments->assignToClassroom($teacher, $homeworkAssigned->getId(), 1, true);
+        // Teacher also assists the (student-less) homework classroom so the zero-recipient confirm screen is reachable.
+        $this->teacherAssignments->assign($homeworkEmptyClassroom, $owner, $teacherMembership, TeacherAssignmentRole::AssistantTeacher, 'browser_homework');
+        $homeworkZeroTitle = 'Ogrencisiz sinif odevi';
+        $homeworkZero = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkZeroTitle,
+            'Bu siniftaki ogrenci olmadigi icin atanamaz.',
+            $homeworkEmptyClassroom->getId()->toRfc4122(),
+            '2099-06-25',
+            '09:00',
+            null,
+        ));
         $homeworkLongTitle = trim(str_repeat('Cok uzun odev basligi ', 5)).' ParcalanmayanKelime'.str_repeat('X', 20);
         $homeworkLong = $this->homework->createDraft($teacher, new HomeworkDraftInput(
             $homeworkLongTitle,
@@ -775,6 +800,15 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'homeworkLongDetail' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122(),
                 'homeworkLongEdit' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122().'/duzenle',
                 'homeworkTitle' => $homeworkTitle,
+                'homeworkConfirm' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122().'?ata=1',
+                'homeworkAssignedDetail' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122(),
+                'homeworkAssignedEdit' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122().'/duzenle',
+                'homeworkAssignedConfirm' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122().'?ata=1',
+                'homeworkZeroDetail' => '/ogretmen/odevler/'.$homeworkZero->getId()->toRfc4122(),
+                'homeworkZeroConfirm' => '/ogretmen/odevler/'.$homeworkZero->getId()->toRfc4122().'?ata=1',
+                'homeworkAssignedTitle' => $homeworkAssignedTitle,
+                'homeworkAssignedRecipients' => (string) $homeworkAssignment->getRecipientCount(),
+                'homeworkZeroTitle' => $homeworkZeroTitle,
                 'homeworkLongTitle' => $homeworkLongTitle,
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
                 'publicCatalog' => '/dersler',

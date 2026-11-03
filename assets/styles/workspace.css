@@ -624,6 +624,55 @@ body.is-workspace {
     color: var(--hw-primary-strong);
 }
 
+.is-workspace .hw-badge--assigned {
+    background: #e7f6ee;
+    color: #0f6b3c;
+}
+
+.is-workspace .hw-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+}
+
+.is-workspace .hw-confirm {
+    margin-bottom: 1rem;
+}
+
+.is-workspace .hw-confirm .hw-summary {
+    margin: 0.75rem 0;
+}
+
+.is-workspace .hw-assign-form .hw-check {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    margin: 1rem 0;
+}
+
+.is-workspace .hw-assign-form .hw-check input {
+    width: 1.25rem;
+    height: 1.25rem;
+    min-width: 1.25rem;
+    margin-top: 0.2rem;
+}
+
+.is-workspace .hw-assign-form .hw-check label {
+    margin: 0;
+    line-height: 1.4;
+}
+
+.is-workspace .hw-field-error,
+.is-workspace .hw-alert {
+    color: #8a1f1f;
+    background: #fdebec;
+    border: 1px solid #f0c2c2;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.8rem;
+    margin: 0.65rem 0;
+}
+
 /* Table (desktop) */
 .is-workspace .hw-table-card {
     padding: 0;

@@ -13,12 +13,13 @@ final class HomeworkDefinitionPermission
     public const VIEW = 'HOMEWORK_DEFINITION_VIEW';
     public const EDIT = 'HOMEWORK_DEFINITION_EDIT';
     public const CREATE = 'HOMEWORK_DEFINITION_CREATE';
+    public const ASSIGN = 'HOMEWORK_DEFINITION_ASSIGN';
 
     /**
      * @return list<string>
      */
     public static function all(): array
     {
-        return [self::VIEW, self::EDIT, self::CREATE];
+        return [self::VIEW, self::EDIT, self::CREATE, self::ASSIGN];
     }
 }

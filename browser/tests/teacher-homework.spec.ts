@@ -14,15 +14,23 @@ async function gotoOk(page: Page, path: string): Promise<void> {
 }
 
 async function noFakeControls(page: Page): Promise<void> {
-  await expect(page.locator('.hw-page').getByRole('button', { name: /Yayımla|Ata$|Gönder|Teslim|Değerlendir/ })).toHaveCount(0);
-  await expect(page.locator('.hw-page').getByRole('link', { name: /Yayımla|Ata$|Gönder|Teslim et|Değerlendir/ })).toHaveCount(0);
+  await expect(page.locator('.hw-page').getByRole('button', { name: /Yayımla|^Ata$|Gönder|Teslim|Değerlendir/ })).toHaveCount(0);
+  await expect(page.locator('.hw-page').getByRole('link', { name: /Yayımla|^Ata$|Gönder|Teslim et|Değerlendir/ })).toHaveCount(0);
+}
+
+async function expectCounts(page: Page, draft: string, assigned: string): Promise<void> {
+  const counts = page.locator('[data-testid="hw-status-count"] strong');
+  await expect(counts.nth(0)).toHaveText(draft);
+  await expect(counts.nth(1)).toHaveText(assigned);
 }
 
 async function touchTargets(page: Page): Promise<void> {
   const small = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-page a.btn, .hw-page button, .hw-page input:not([type="hidden"]), .hw-page select, .hw-page textarea'))
     .filter((node) => {
       const box = node.getBoundingClientRect();
-      return box.width > 0 && box.height > 0 && box.height < 44;
+      // The confirm checkbox is small by design; its whole label row is the touch target.
+      const checkbox = node instanceof HTMLInputElement && node.type === 'checkbox';
+      return !checkbox && box.width > 0 && box.height > 0 && box.height < 44;
     })
     .map((node) => `${node.tagName.toLowerCase()}.${node.className} ${Math.round(node.getBoundingClientRect().height)}`));
   expect(small, 'interactive targets under 44px').toEqual([]);
@@ -40,7 +48,7 @@ async function screens(page: Page, info: TestInfo, route: string, path: string, 
   }
 }
 
-test('teacher draft homework list, detail and edit screens at four widths', async ({ page }, info) => {
+test('teacher mixed homework list, draft detail and edit screens at four widths', async ({ page }, info) => {
   await watch(page);
   const data = manifest();
   await login(page, data.users.teacher);
@@ -49,14 +57,30 @@ test('teacher draft homework list, detail and edit screens at four widths', asyn
   expect(list?.status()).toBe(200);
   expect(list?.headers()['cache-control'] ?? '').toContain('no-store');
   await expect(page.getByRole('heading', { level: 1, name: 'Ödevlerim' })).toBeVisible();
-  await expect(page.locator('[data-testid="hw-draft-count"] strong')).toHaveText('2');
+  // Mixed list: Kesirler + uzun başlık + öğrencisiz sınıf taslağı, and one assigned homework.
+  await expectCounts(page, '3', '1');
   await expect(page.getByText(data.paths.homeworkTitle, { exact: true })).toBeVisible();
+  await expect(page.getByText(data.paths.homeworkAssignedTitle, { exact: true })).toBeVisible();
   await expect(page.locator('.hw-badge--draft').first()).toHaveText('Taslak');
+  await expect(page.locator('.hw-badge--assigned')).toHaveCount(1);
+  await expect(page.locator('.hw-badge--assigned')).toHaveText('Atandı');
+  await expect(page.locator('tr', { hasText: data.paths.homeworkAssignedTitle })).toContainText(`${data.paths.homeworkAssignedRecipients} alıcı`);
   await expect(page.getByRole('link', { name: 'Ödevlerim', exact: true }).first()).toBeVisible();
   await expect(page.getByText(data.paths.foreignTitle)).toHaveCount(0);
   await noFakeControls(page);
   await expect(page.getByText('Yayında')).toHaveCount(0);
-  await screens(page, info, 'odevler', data.paths.homeworkList);
+  await screens(page, info, 'odevler-karisik', data.paths.homeworkList);
+
+  // Status filter splits assigned from draft rows while the counters stay real.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, `${data.paths.homeworkList}?durum=atandi`);
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody')).toContainText(data.paths.homeworkAssignedTitle);
+  await expectCounts(page, '3', '1');
+  await screens(page, info, 'odevler-atandi', `${data.paths.homeworkList}?durum=atandi`);
+  await gotoOk(page, `${data.paths.homeworkList}?durum=taslak`);
+  await expect(page.locator('tbody tr')).toHaveCount(3);
+  await expect(page.locator('.hw-badge--assigned')).toHaveCount(0);
 
   // Desktop shows a table, narrow screens switch to labeled cards without horizontal scroll.
   await page.setViewportSize({ width: 1440, height: 900 });
@@ -70,14 +94,15 @@ test('teacher draft homework list, detail and edit screens at four widths', asyn
   // Empty search keeps the filter form and explains the empty result.
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoOk(page, `${data.paths.homeworkList}?q=bulunmayan-baslik`);
-  await expect(page.getByRole('heading', { name: 'Aramana uygun taslak bulunamadı' })).toBeVisible();
-  await expect(page.getByText('Henüz ödev taslağın yok')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Aramana uygun ödev bulunamadı' })).toBeVisible();
+  await expect(page.getByText('Henüz ödevin yok')).toHaveCount(0);
   await screens(page, info, 'odevler-arama-bos', `${data.paths.homeworkList}?q=bulunmayan-baslik`);
 
-  // Search narrows the list and keeps the real draft total visible.
+  // Search narrows the list; the counters keep describing the whole authorized set.
   await gotoOk(page, `${data.paths.homeworkList}?q=kesirler`);
-  await expect(page.locator('[data-testid="hw-draft-count"] strong')).toHaveText('1');
-  await expect(page.locator('[data-testid="hw-draft-count"]')).toContainText('toplam 2');
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expectCounts(page, '3', '1');
+  await expect(page.locator('[data-testid="hw-status-count"]')).toContainText('listelenen 1');
 
   await page.goto(data.paths.homeworkList);
   await page.getByRole('link', { name: `İncele: ${data.paths.homeworkTitle}` }).click();
@@ -85,6 +110,7 @@ test('teacher draft homework list, detail and edit screens at four widths', asyn
   await expect(page.getByRole('heading', { level: 1, name: data.paths.homeworkTitle })).toBeVisible();
   await expect(page.getByText('Bu taslak öğrencilere atanmadı; öğrenciler göremez.')).toBeVisible();
   await expect(page.getByText('15.06.2099 18:30')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Sınıfa ata' })).toBeVisible();
   await noFakeControls(page);
   await screens(page, info, 'odev-detay', data.paths.homeworkDetail);
 
@@ -110,8 +136,8 @@ test('teacher draft homework empty list and mobile menu entry', async ({ page },
 
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoOk(page, data.paths.homeworkList);
-  await expect(page.locator('[data-testid="hw-draft-count"] strong')).toHaveText('0');
-  await expect(page.getByRole('heading', { name: 'Henüz ödev taslağın yok' })).toBeVisible();
+  await expectCounts(page, '0', '0');
+  await expect(page.getByRole('heading', { name: 'Henüz ödevin yok' })).toBeVisible();
   await expect(page.getByText('Taslak kaydetmek öğrencilere atama yapmaz.').first()).toBeVisible();
   await expect(page.locator('.hw-table')).toHaveCount(0);
   await screens(page, info, 'odevler-bos', data.paths.homeworkList);
@@ -177,7 +203,7 @@ test('teacher draft homework form validates, counts Unicode and never writes on 
   expect(outline).not.toBe('none');
 
   await gotoOk(page, data.paths.homeworkList);
-  await expect(page.locator('[data-testid="hw-draft-count"] strong')).toHaveText('2');
+  await expectCounts(page, '3', '1');
   // Intentional 422 validation responses are expected above; clear watch notes before the clean check.
   const notes = (page as Page & { __notes?: string[] }).__notes;
   if (notes) {
@@ -204,6 +230,61 @@ test('teacher draft homework long title and description wrap without overflow', 
   await assertClean(page);
 });
 
+test('teacher assign confirmation and assigned detail screens at four widths', async ({ page }, info) => {
+  await watch(page);
+  const data = manifest();
+  await login(page, data.users.teacher);
+
+  // Confirm screen: reachable by GET only, shows the live eligible count, never submitted here.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.homeworkConfirm);
+  const confirm = page.locator('[data-testid="hw-assign-confirm"]');
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByRole('heading', { name: 'Sınıfa ata' })).toBeVisible();
+  await expect(page.locator('[data-testid="hw-eligible-count"]')).toHaveText('1');
+  await expect(confirm.getByRole('button', { name: 'Atamayı onayla' })).toBeEnabled();
+  await expect(confirm.getByRole('link', { name: 'Vazgeç' })).toBeVisible();
+  await expect(confirm.getByLabel(/Bu ödevi sınıfa atamayı onaylıyorum/)).not.toBeChecked();
+  await expect(confirm.getByText('Atama sırasında alıcılar sabitlenir.')).toBeVisible();
+  await noFakeControls(page);
+  await screens(page, info, 'odev-ata-onay', data.paths.homeworkConfirm);
+
+  // Zero eligible recipients: explained, submit disabled.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.homeworkZeroConfirm);
+  await expect(page.getByRole('heading', { level: 1, name: data.paths.homeworkZeroTitle })).toBeVisible();
+  await expect(page.locator('[data-testid="hw-eligible-count"]')).toHaveText('0');
+  await expect(page.getByText('Bu sınıfta atama için uygun aktif öğrenci yok.').first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Atamayı onayla' })).toBeDisabled();
+  await noFakeControls(page);
+  await screens(page, info, 'odev-ata-bos', data.paths.homeworkZeroConfirm);
+
+  // Assigned detail: frozen text, real recipient count, no edit / assign actions.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.homeworkAssignedDetail);
+  await expect(page.getByRole('heading', { level: 1, name: data.paths.homeworkAssignedTitle })).toBeVisible();
+  await expect(page.locator('.hw-badge--assigned').first()).toHaveText('Atandı');
+  await expect(page.getByText('Ödev metni donduruldu.')).toBeVisible();
+  await expect(page.getByText('20.06.2099 10:00')).toBeVisible();
+  await expect(page.locator('[data-testid="hw-recipient-count"]')).toHaveText(data.paths.homeworkAssignedRecipients);
+  await expect(page.getByRole('link', { name: 'Düzenle' })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Sınıfa ata' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Atamayı onayla' })).toHaveCount(0);
+  await expect(page.locator('[data-testid="hw-assign-confirm"]')).toHaveCount(0);
+  await expect(page.getByText('Bu taslak öğrencilere atanmadı')).toHaveCount(0);
+  await noFakeControls(page);
+  await screens(page, info, 'odev-atandi-detay', data.paths.homeworkAssignedDetail);
+
+  // The assign link is gone and a stale confirm URL on an assigned homework shows the plain detail.
+  await gotoOk(page, data.paths.homeworkAssignedConfirm);
+  await expect(page.locator('[data-testid="hw-assign-confirm"]')).toHaveCount(0);
+  // Edit is closed once assigned (request API keeps console noise out of the page watcher).
+  const edit = await page.request.get(data.paths.homeworkAssignedEdit);
+  expect(edit.status()).toBe(404);
+
+  await assertClean(page);
+});
+
 test('other roles and teachers without assignment do not see teacher draft homework', async ({ browser }) => {
   const data = manifest();
   for (const email of [data.users.student, data.users.owner, data.users.admin, data.users.superadmin, data.users.emptyTeacher]) {
@@ -215,7 +296,12 @@ test('other roles and teachers without assignment do not see teacher draft homew
     expect([403, 404], email).toContain(response?.status());
     const detail = await page.goto(data.paths.homeworkDetail);
     expect(detail?.status(), email).toBe(404);
+    for (const path of [data.paths.homeworkConfirm, data.paths.homeworkAssignedDetail, data.paths.homeworkAssignedConfirm, data.paths.homeworkZeroConfirm]) {
+      const denied = await page.goto(path);
+      expect(denied?.status(), `${email} ${path}`).toBe(404);
+    }
     await expect(page.getByText(data.paths.homeworkTitle)).toHaveCount(0);
+    await expect(page.getByText(data.paths.homeworkAssignedTitle)).toHaveCount(0);
     await context.close();
   }
 

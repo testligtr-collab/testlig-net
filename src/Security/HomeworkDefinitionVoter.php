@@ -66,12 +66,15 @@ final class HomeworkDefinitionVoter extends Voter
             if (!$owner->getId()->equals($user->id)) {
                 return false;
             }
-            $write = HomeworkDefinitionPermission::EDIT === $attribute;
-            if ($write && HomeworkDefinitionStatus::Draft !== $subject->getStatus()) {
+            $mutating = \in_array($attribute, [HomeworkDefinitionPermission::EDIT, HomeworkDefinitionPermission::ASSIGN], true);
+            if ($mutating && HomeworkDefinitionStatus::Draft !== $subject->getStatus()) {
+                return false;
+            }
+            if ($mutating && $this->hasClassroomAssignment($subject->getId())) {
                 return false;
             }
 
-            return $this->teachesClassroom($user->id, $classroom->getId(), $write, $membership->getId());
+            return $this->teachesClassroom($user->id, $classroom->getId(), $mutating, $membership->getId());
         }
 
         if ($subject instanceof Classroom && HomeworkDefinitionPermission::CREATE === $attribute) {
@@ -123,5 +126,15 @@ final class HomeworkDefinitionVoter extends Voter
         );
 
         return AcademicYearStatus::Active->value === $status;
+    }
+
+    private function hasClassroomAssignment(Uuid $definitionId): bool
+    {
+        $found = $this->connection->fetchOne(
+            'SELECT 1 FROM homework_assignments WHERE definition_id = :id LIMIT 1',
+            ['id' => $definitionId->toBinary()],
+        );
+
+        return false !== $found && null !== $found;
     }
 }
