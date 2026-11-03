@@ -1010,3 +1010,15 @@ when@test:
             public: true
             autowire: true
             autoconfigure: true
+        App\Service\Homework\HomeworkDefinitionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkDefinitionQuery:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkTeacherScope:
+            public: true
+            autowire: true
+            autoconfigure: true

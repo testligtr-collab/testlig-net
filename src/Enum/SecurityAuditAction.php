@@ -226,4 +226,6 @@ enum SecurityAuditAction: string
     case ParentLinkActivated = 'parent_link_activated';
     case ParentLinkRevoked = 'parent_link_revoked';
     case ModulePermissionChanged = 'module_permission_changed';
+    case HomeworkDefinitionDraftCreated = 'homework_definition_draft_created';
+    case HomeworkDefinitionDraftUpdated = 'homework_definition_draft_updated';
 }

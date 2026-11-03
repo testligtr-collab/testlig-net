@@ -1,11 +1,11 @@
 # X01 — Ödev ve proje (ürün / mimari karar)
 
-**Durum:** Önerilen mimari; uygulama henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir.  
-**Feature ID:** `X01-homework` (`planned`)  
-**Aktif uygulama işi (bu PR):** değişmez — `active_feature_ids` yalnız `X10-admin-navigation`.  
+**Durum:** Önerilen mimari; yalnız **öğretmen taslak dilimi** koda alındı (aşağıdaki “Uygulanan taslak dilimi”). Yayımlama, atama, öğrenci teslimi ve değerlendirme henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir.  
+**Feature ID:** `X01-homework` (`partial` — yalnız taslak dilimi kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
+**Aktif uygulama işi:** `active_feature_ids` = `X01-homework`; `X10-admin-navigation` **partial** olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez).  
 **Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimi metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu bu dilime dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
 
-Bu belge kod, entity, migration, route, voter veya servis oluşturmaz. Aşağıdaki adlar **önerilen kavram adlarıdır**; mevcut Doctrine sınıfları gibi sunulmaz.
+Bölüm 0 uygulanan taslak dilimini anlatır. Bölüm 1–10’daki Assignment/Recipient/Submission/Evaluation adları **önerilen** gelecek kavramlardır; henüz Doctrine sınıfı değillerse öyle sunulmazlar.
 
 İlgili mevcut omurga (yeniden kurulmaz): `Institution`, `InstitutionMembership`, `AcademicYear`, `Classroom`, `ClassroomTeacherAssignment`, `ClassroomStudentEnrollment` — bkz. `docs/architecture.md` (2.5–2.6) ve `docs/architecture-auth-membership-onboarding.md`. Sınıf testi ataması `AssessmentDelivery` ayrı kalır (2.10). Assessment / Delivery / Attempt / Scoring yeniden yazılmaz. `AssessmentType::HomeworkBlueprint` tek başına çalışan ödev ürünü değildir.
 
@@ -19,6 +19,39 @@ Bu belge kod, entity, migration, route, voter veya servis oluşturmaz. Aşağıd
 | X01 status ilerlemesi | Yalnız gerçekten teslim edilen dilimin kanıtıyla kaydedilir; tüm ödev ürünü (dosya/rubrik/veli vb.) tamamlandı sayılmaz |
 
 Bu dokümantasyon PR’ı `active_feature_ids` değiştirmez.
+
+---
+
+## 0. Uygulanan taslak dilimi (kodda) ve önerilen gelecek modeli
+
+Bu bölüm koddaki gerçek durumu, aşağıdaki bölümler (1–10) ise **önerilen** nihai modeli anlatır. İkisi karıştırılmaz.
+
+### 0.1 Uygulanan taslak dilimi
+
+| Konu | Kodda olan |
+|---|---|
+| Tablo | Yalnız `homework_definitions` (`Version20261103120000`, geri alınabilir). Assignment / recipient / submission / evaluation tablosu **yok**. |
+| Entity | `App\Entity\HomeworkDefinition`; durum enum’u `HomeworkDefinitionStatus` yalnız `Draft`. Bu dilimde yalnız `draft` yazılır. |
+| Alanlar | `institution_id`, `classroom_id`, `academic_year_id`, `created_by_user_id`, `created_by_membership_id` (hepsi RESTRICT FK), `title` (≤150), `description` (MEDIUMTEXT, ≤10.000), `due_at` (UTC), `status`, `revision_number`, `created_at`, `updated_at`. |
+| Sınıf anlamı | `classroom_id` yalnız **taslak hazırlığı** içindir. Öğrenci erişimi, alıcı veya atama anlamına gelmez; öğrenci taslağı göremez. |
+| Rotalar | `GET /ogretmen/odevler` (`app_teacher_homeworks`), `GET/POST /ogretmen/odevler/yeni` (`app_teacher_homework_new`), `GET /ogretmen/odevler/{id}` (`app_teacher_homework_show`), `GET/POST /ogretmen/odevler/{id}/duzenle` (`app_teacher_homework_edit`). `{id}` UuidV7. GET hiçbir şey yazmaz. |
+| Yazma | `HomeworkDefinitionManager::createDraft/updateDraft`: tek transaction, taze aktif+doğrulanmış kullanıcı, **güncel** aktif öğretmen üyeliği + **güncel** aktif `ClassroomTeacherAssignment`; kurum/sınıf/yıl sunucuda yeniden çözülür; `due_at` gelecekte olmalı (`ClockInterface`); form yerel tarih+saat `Europe/Istanbul` (`DateTimeZone`, sabit offset değil) → UTC saklanır; eşzamanlı düzenleme `revision_number` + beklenen sürüm ile reddedilir. Admin/SuperAdmin atlaması **yok**; sahiplik `created_by_user_id`. |
+| Okuma | `HomeworkDefinitionQuery`: sahiplik + güncel aktif üyelik + güncel aktif sınıf ataması; biten atama geçmişi de gizler; co-teacher göremez. Başlık araması LIKE kaçışlı; sınıf filtresi; sayfalı; liste sorgu sayısı satır sayısıyla artmaz. |
+| Yetki | `HomeworkDefinitionVoter` (`VIEW`, `EDIT`, `CREATE`) fail-closed; global `ROLE_ADMIN` / `ROLE_SUPER_ADMIN` tek başına deny. Yabancı/eksik kimlik için opak 404. |
+| Denetim | `homework_definition_draft_created` / `homework_definition_draft_updated`; metadata yalnız kimlik/durum/sürüm (ödev metni **yok**). |
+| Metin | `HomeworkText`: UTF-8 kod noktası sayımı (`mb_strlen`), trim, HTML ve kontrol karakteri reddi; tarayıcı sayacı da kod noktası sayar. Satır sonu LF olarak sayılır/saklanır. |
+| UI | Öğretmen menüsünde **Ödevlerim**; liste, yeni/düzenle formu (Taslak özeti), detay. Yayımla, ata, teslim, dosya veya değerlendirme düğmesi **yoktur**. |
+
+Bu dilim `X01-homework` ürününü tamamlamaz: yayımlama, atama, alıcı snapshot’ı, öğrenci teslimi, değerlendirme, dosya (`M18-local-pdf` bağımlılığı) ve production kabulü kapsam dışıdır.
+
+### 0.2 Önerilen gelecek model (henüz kodda yok)
+
+| Kavram | Durum |
+|---|---|
+| `HomeworkAssignment` | **Önerilen.** Tanımın belirli sınıf + akademik yıl için yayımlanması; atama anında dondurulmuş istem metni; `dueAt`. Tanım ≠ atama ayrımı bu yüzden korunur: taslaktaki `classroom_id` atama değildir. |
+| `HomeworkRecipient` | **Önerilen.** Yayın anında sabitlenen öğrenci satırları; tek başına güncel erişim yetkisi değildir. |
+| `HomeworkSubmission` / `HomeworkEvaluation` | **Önerilen.** Metin teslimi ve etiket + geri bildirim. |
+| `archived` tanım durumu | **Önerilen.** Taslak diliminde yazılmaz. |
 
 ---
 

@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-31",
+  "updated_at": "2026-11-03",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
-    "X10-admin-navigation"
+    "X01-homework"
   ],
   "features": [
     {
@@ -1086,7 +1086,7 @@
       "id": "X01-homework",
       "module": "X01",
       "title": "Ödev/proje, dosya teslimi ve rubrik",
-      "status": "planned",
+      "status": "partial",
       "source": "5 Ekim devir hedefi",
       "depends_on": [
         "M18-local-pdf"
@@ -1094,12 +1094,16 @@
       "evidence": [
         "5 Ekim devir hedefi",
         "docs/architecture-homework.md: ürün/mimari karar belgesi (öneri); uygulama kodu yok; ilk dilim metin tabanlı, dosya yok; teslim gövdesi yalnız öğrenci sahibi + güncel yetkili atayan öğretmen; değerlendirme İncelendi|Yeniden çalışılmalı + metin (sayısal puan yok); metin sınırları 150/10k/20k/5k mb_strlen UTF-8; M18-local-pdf dosyalı sonraki dilim için depends_on olarak kalır",
-        "PR #190 karar belgesi dokümantasyonu; çalışan ödev ürünü veya production kabulü değildir"
+        "PR #190 karar belgesi dokümantasyonu; çalışan ödev ürünü veya production kabulü değildir",
+        "Kod (yalnız öğretmen taslak dilimi, feature/x01-homework-draft; main/deploy/production kabulü YOK): migrations/Version20261103120000.php (yalnız homework_definitions); src/Entity/HomeworkDefinition.php; src/Enum/HomeworkDefinitionStatus.php (yalnız Draft); src/Service/Homework/{HomeworkDefinitionManager,HomeworkDefinitionQuery,HomeworkTeacherScope,HomeworkText}.php; src/Security/{HomeworkDefinitionVoter,HomeworkDefinitionPermission}.php; src/Controller/TeacherHomeworkController.php (app_teacher_homeworks|new|show|edit); templates/teacher/homework/*.html.twig; assets/controllers/homework_draft_controller.js; assets/homework_text.js; denetim homework_definition_draft_created|updated (metin yok)",
+        "Testler (kod kanıtı; CI sonucu ayrı kanıttır): tests/Service/HomeworkDefinitionManagerTest.php, tests/Service/HomeworkDefinitionQueryTest.php, tests/Security/HomeworkDefinitionVoterTest.php, tests/Controller/TeacherHomeworkHttpTest.php, tests/Service/HomeworkTextTest.php, tests/js/homework_text.test.mjs, browser/tests/teacher-homework.spec.ts (yerelde çalıştırılmadı)",
+        "Kapsam dışı / yok: yayımlama, atama, HomeworkAssignment/Recipient snapshot, öğrenci teslimi, değerlendirme, dosya/PDF (M18-local-pdf depends_on olarak kalır), admin placeholder ürünleştirme; canlı kabul yok"
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/190"
+        "https://github.com/testligtr-collab/testlig-net/pull/190",
+        "https://github.com/testligtr-collab/testlig-net/pull/191"
       ],
-      "acceptance": "Karar belgesi uygulama kabulü sayılmaz. Kod diliminde: kurum/sınıf izolasyonu; atayan öğretmen + güncel ClassroomTeacherAssignment; Admin/SA/owner teslim gövdesi yok; needs_rework anlamlı geri bildirim zorunlu / reviewed isteğe bağlı; append-only; recipient snapshot; dueAt inclusive UTC; metin sınırları mb_strlen UTF-8 (150/10000/20000/5000); yeniden/geç teslim yok; negatif yetki ve gerçek kullanıcı kabulü ayrı kanıtlanır.",
+      "acceptance": "Durum partial: yalnız öğretmen taslak dilimi kodda (liste/oluştur/göster/düzenle; kurum+sınıf+yıl sunucuda çözülür; sahiplik + güncel aktif üyelik + güncel aktif ClassroomTeacherAssignment; Admin/SA atlaması yok; dueAt UTC, Europe/Istanbul formu; revision_number ile eşzamanlı düzenleme; denetimde metin yok). Yayımlama, atama, recipient snapshot, öğrenci teslimi, değerlendirme, dosya ve canlı kabul YOK; CI/preview production kabulü değildir; main merge, deploy ve production kabulü ayrı kanıtlanır. Karar belgesi uygulama kabulü sayılmaz. Kalan kod diliminde: kurum/sınıf izolasyonu; atayan öğretmen + güncel ClassroomTeacherAssignment; Admin/SA/owner teslim gövdesi yok; needs_rework anlamlı geri bildirim zorunlu / reviewed isteğe bağlı; append-only; recipient snapshot; dueAt inclusive UTC; metin sınırları mb_strlen UTF-8 (150/10000/20000/5000); yeniden/geç teslim yok; negatif yetki ve gerçek kullanıcı kabulü ayrı kanıtlanır.",
       "scope_decision": null
     },
     {
