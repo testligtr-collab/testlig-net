@@ -228,4 +228,5 @@ enum SecurityAuditAction: string
     case ModulePermissionChanged = 'module_permission_changed';
     case HomeworkDefinitionDraftCreated = 'homework_definition_draft_created';
     case HomeworkDefinitionDraftUpdated = 'homework_definition_draft_updated';
+    case HomeworkAssignmentCreated = 'homework_assignment_created';
 }

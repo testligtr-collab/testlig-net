@@ -6,6 +6,7 @@ namespace App\Service\Homework;
 
 use App\Dto\HomeworkDraftInput;
 use App\Dto\SecurityAuditContext;
+use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkDefinition;
 use App\Entity\User;
 use App\Enum\HomeworkDefinitionStatus;
@@ -113,6 +114,9 @@ final class HomeworkDefinitionManager
             if (HomeworkDefinitionStatus::Draft !== $definition->getStatus()) {
                 return HomeworkDefinitionException::notEditable();
             }
+            if ($this->hasAssignment($definitionId)) {
+                return HomeworkDefinitionException::notEditable();
+            }
             if (null === $input->expectedRevision || $input->expectedRevision !== $definition->getRevisionNumber()) {
                 return HomeworkDefinitionException::staleRevision();
             }
@@ -211,6 +215,20 @@ final class HomeworkDefinitionManager
             ->getOneOrNullResult();
 
         return $definition instanceof HomeworkDefinition ? $definition : null;
+    }
+
+    private function hasAssignment(Uuid $definitionId): bool
+    {
+        $id = $this->entityManager->createQueryBuilder()
+            ->select('a.id')
+            ->from(HomeworkAssignment::class, 'a')
+            ->andWhere('a.definition = :definition')
+            ->setParameter('definition', $definitionId, 'uuid')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return null !== $id;
     }
 
     private function freshActor(Uuid $actorId): ?User

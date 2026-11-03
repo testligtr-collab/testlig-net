@@ -7,19 +7,24 @@ namespace App\Tests\Support;
 use App\Dto\HomeworkDraftInput;
 use App\Entity\AcademicYear;
 use App\Entity\Classroom;
+use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherAssignment;
+use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkDefinition;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
+use App\Enum\StudentEnrollmentStatus;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserStatus;
+use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Teacher draft homework fixtures built on the Stage 2.10 readyClassroom pattern.
@@ -205,9 +210,102 @@ trait HomeworkTestFixtures
         );
     }
 
+    private function homeworkAssignmentManager(): HomeworkAssignmentManager
+    {
+        $manager = static::getContainer()->get(HomeworkAssignmentManager::class);
+        self::assertInstanceOf(HomeworkAssignmentManager::class, $manager);
+
+        return $manager;
+    }
+
+    /**
+     * Creates and enrolls $n active students in the context classroom. Call before freezing the
+     * clock; enrollment itself is not clock-sensitive.
+     *
+     * @param array{owner: User, institution: Institution, classroom: Classroom} $ctx
+     *
+     * @return list<InstitutionMembership>
+     */
+    private function enrollStudents(array $ctx, int $n): array
+    {
+        $memberships = [];
+        for ($i = 1; $i <= $n; ++$i) {
+            $student = $this->activeUser(\sprintf('hwstu-%s-%d@example.com', bin2hex(random_bytes(4)), $i));
+            $membership = $this->membershipManager()->addMember(
+                $ctx['institution'],
+                $ctx['owner'],
+                $student,
+                InstitutionMembershipRole::Student,
+                'add_student',
+            );
+            $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $membership, 'enroll_student');
+            $memberships[] = $membership;
+        }
+
+        return $memberships;
+    }
+
+    /**
+     * The active enrollment of a student membership in a classroom.
+     */
+    private function activeEnrollment(Classroom $classroom, InstitutionMembership $membership): ClassroomStudentEnrollment
+    {
+        $enrollment = $this->em->getRepository(ClassroomStudentEnrollment::class)->findOneBy([
+            'classroom' => $classroom,
+            'studentMembership' => $membership,
+            'status' => StudentEnrollmentStatus::Active,
+        ]);
+        self::assertInstanceOf(ClassroomStudentEnrollment::class, $enrollment);
+
+        return $enrollment;
+    }
+
+    /**
+     * Assigns a draft through HomeworkAssignmentManager (the only supported write path).
+     */
+    private function assignHomework(User $teacher, Uuid $definitionId, int $revision, bool $confirmed = true): HomeworkAssignment
+    {
+        return $this->homeworkAssignmentManager()->assignToClassroom($teacher, $definitionId, $revision, $confirmed);
+    }
+
+    private function assignmentRowCount(): int
+    {
+        return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_assignments');
+    }
+
+    private function recipientRowCount(?Uuid $assignmentId = null): int
+    {
+        if (null === $assignmentId) {
+            return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_recipients');
+        }
+
+        return (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM homework_recipients WHERE assignment_id = :id',
+            ['id' => $assignmentId->toBinary()],
+        );
+    }
+
+    /**
+     * @return list<array{action: string, metadata: string}>
+     */
+    private function assignmentAuditRows(): array
+    {
+        /** @var list<array{action: string, metadata: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT action, metadata FROM security_audit_events WHERE action = 'homework_assignment_created' ORDER BY occurred_at ASC, id ASC",
+        );
+
+        return $rows;
+    }
+
     private function cleanupHomework(): void
     {
         $connection = $this->em->getConnection();
+        foreach (['homework_recipients', 'homework_assignments'] as $table) {
+            if ($connection->createSchemaManager()->tablesExist([$table])) {
+                $connection->executeStatement('DELETE FROM '.$table);
+            }
+        }
         if ($connection->createSchemaManager()->tablesExist(['homework_definitions'])) {
             $connection->executeStatement('DELETE FROM homework_definitions');
         }

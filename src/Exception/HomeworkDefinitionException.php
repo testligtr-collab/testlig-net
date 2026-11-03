@@ -12,6 +12,10 @@ final class HomeworkDefinitionException extends \RuntimeException
     public const REASON_STALE_REVISION = 'stale_revision';
     public const REASON_NOT_EDITABLE = 'not_editable';
     public const REASON_CONFLICT = 'conflict';
+    public const REASON_ALREADY_ASSIGNED = 'already_assigned';
+    public const REASON_NO_RECIPIENTS = 'no_recipients';
+    public const REASON_DUE_NOT_FUTURE = 'due_not_future';
+    public const REASON_CONFIRMATION_REQUIRED = 'confirmation_required';
 
     /**
      * @param array<string, string> $fieldErrors
@@ -68,5 +72,37 @@ final class HomeworkDefinitionException extends \RuntimeException
     public static function conflict(): self
     {
         return new self(self::REASON_CONFLICT, 'Taslak şu an kaydedilemedi. Biraz sonra tekrar dene.');
+    }
+
+    public static function alreadyAssigned(): self
+    {
+        return new self(self::REASON_ALREADY_ASSIGNED, 'Bu ödev zaten sınıfa atandı.');
+    }
+
+    public static function noRecipients(): self
+    {
+        return new self(
+            self::REASON_NO_RECIPIENTS,
+            'Bu sınıfta atama için uygun aktif öğrenci yok. Atama oluşturulmadı.',
+            ['recipients' => 'Bu sınıfta uygun aktif öğrenci yok.'],
+        );
+    }
+
+    public static function dueNotFuture(): self
+    {
+        return new self(
+            self::REASON_DUE_NOT_FUTURE,
+            'Son teslim zamanı atama anından sonra olmalıdır.',
+            ['due' => 'Son teslim zamanı atama anından sonra olmalıdır.'],
+        );
+    }
+
+    public static function confirmationRequired(): self
+    {
+        return new self(
+            self::REASON_CONFIRMATION_REQUIRED,
+            'Atamayı onaylaman gerekir.',
+            ['confirm' => 'Atamayı onaylamak için kutuyu işaretle.'],
+        );
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Enum\GradeLevel;
+use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserRole;
 use App\Tests\Support\HomeworkTestFixtures;
 use Doctrine\DBAL\Connection;
@@ -49,8 +51,8 @@ final class TeacherHomeworkHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/ogretmen/odevler');
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('Ödevlerim', (string) $client->getResponse()->getContent());
-        self::assertStringContainsString('Henüz ödev taslağın yok', (string) $client->getResponse()->getContent());
-        self::assertSame('0', trim($crawler->filter('[data-testid="hw-draft-count"] strong')->text()));
+        self::assertStringContainsString('Henüz ödevin yok', (string) $client->getResponse()->getContent());
+        self::assertSame(['draft' => '0', 'assigned' => '0'], $this->counters($crawler));
         // Only real data: no counters or actions for features that do not exist yet.
         foreach (['Yayında', 'Teslim', 'İncelenecek'] as $fake) {
             self::assertStringNotContainsString($fake, (string) $client->getResponse()->getContent());
@@ -85,7 +87,7 @@ final class TeacherHomeworkHttpTest extends WebTestCase
 
         $crawler = $client->request('GET', '/ogretmen/odevler');
         self::assertResponseIsSuccessful();
-        self::assertSame('1', trim($crawler->filter('[data-testid="hw-draft-count"] strong')->text()));
+        self::assertSame(['draft' => '1', 'assigned' => '0'], $this->counters($crawler));
         self::assertStringContainsString('Kesirler çalışma kâğıdı', (string) $client->getResponse()->getContent());
         self::assertSame('İncele', trim($crawler->filter('a[href="/ogretmen/odevler/'.$id.'"]')->text()));
 
@@ -267,21 +269,21 @@ final class TeacherHomeworkHttpTest extends WebTestCase
         $client = $this->clientFor('hwh-search-teacher@example.com');
 
         $crawler = $client->request('GET', '/ogretmen/odevler');
-        self::assertSame('3', trim($crawler->filter('[data-testid="hw-draft-count"] strong')->text()));
+        self::assertSame(['draft' => '3', 'assigned' => '0'], $this->counters($crawler));
         self::assertCount(3, $crawler->filter('tbody tr'));
 
         $crawler = $client->request('GET', '/ogretmen/odevler', ['q' => 'kesir']);
         self::assertCount(1, $crawler->filter('tbody tr'));
-        self::assertSame('1', trim($crawler->filter('[data-testid="hw-draft-count"] strong')->text()));
-        self::assertStringContainsString('(toplam 3)', (string) $client->getResponse()->getContent());
+        self::assertSame(['draft' => '3', 'assigned' => '0'], $this->counters($crawler), 'counters describe the whole authorized set');
+        self::assertStringContainsString('(listelenen 1)', (string) $client->getResponse()->getContent());
 
         $crawler = $client->request('GET', '/ogretmen/odevler', ['q' => '%']);
         self::assertCount(1, $crawler->filter('tbody tr'), 'a literal percent sign is not a wildcard');
 
         $crawler = $client->request('GET', '/ogretmen/odevler', ['q' => 'bulunmayan başlık']);
         self::assertResponseIsSuccessful();
-        self::assertStringContainsString('Aramana uygun taslak bulunamadı', (string) $client->getResponse()->getContent());
-        self::assertStringNotContainsString('Henüz ödev taslağın yok', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Aramana uygun ödev bulunamadı', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Henüz ödevin yok', (string) $client->getResponse()->getContent());
         self::assertCount(0, $crawler->filter('tbody tr'));
 
         $crawler = $client->request('GET', '/ogretmen/odevler', ['sinif' => $ctx['classroom']->getId()->toRfc4122()]);
@@ -312,6 +314,240 @@ final class TeacherHomeworkHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertStringContainsString('en fazla 150 karakter', (string) $client->getResponse()->getContent());
         self::assertSame(1, $this->rowCount('homework_definitions'));
+    }
+
+    public function testAssignFlowGetNeverWritesThenConfirmedPostRedirectsToFrozenDetail(): void
+    {
+        $ctx = $this->homeworkContext('hwh-assign');
+        $this->enrollStudents($ctx, 3);
+        $draft = $this->persistDraft($ctx, 'Atanacak ödev');
+        $id = $draft->getId()->toRfc4122();
+        $detail = '/ogretmen/odevler/'.$id;
+        $this->frozenUtc = '2026-11-10 09:00:00';
+        $client = $this->clientFor('hwh-assign-teacher@example.com');
+
+        // Detail GET offers the action but shows no confirm form and writes nothing.
+        $crawler = $client->request('GET', $detail);
+        self::assertResponseIsSuccessful();
+        self::assertSame(0, $crawler->filter('[data-testid="hw-assign-confirm"]')->count());
+        $assignLink = $crawler->filter('a[href="'.$detail.'?ata=1"]');
+        self::assertSame(1, $assignLink->count());
+        self::assertSame('Sınıfa ata', trim($assignLink->text()));
+        $this->assertNoPublishControls($crawler);
+        $this->assertNothingAssigned();
+
+        // Confirm screen GET: live eligible count, form with CSRF + revision, still no writes.
+        $updatedAt = $this->db()->fetchOne('SELECT updated_at FROM homework_definitions');
+        $crawler = $client->request('GET', $detail, ['ata' => '1']);
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $crawler->filter('[data-testid="hw-assign-confirm"]')->count());
+        self::assertSame('3', trim($crawler->filter('[data-testid="hw-eligible-count"]')->text()));
+        self::assertSame('Atamayı onayla', trim($crawler->filter('.hw-assign-form button[type="submit"]')->text()));
+        self::assertSame('1', $crawler->filter('.hw-assign-form input[name="revision"]')->attr('value'));
+        self::assertSame(1, $crawler->filter('.hw-assign-form input[name="confirm_assign"][type="checkbox"]')->count());
+        self::assertSame(0, $crawler->filter('.hw-assign-form button[type="submit"][disabled]')->count());
+        $this->assertNoPublishControls($crawler);
+        $this->assertNothingAssigned();
+        self::assertSame($updatedAt, $this->db()->fetchOne('SELECT updated_at FROM homework_definitions'), 'GET must not write');
+        $token = $this->assignToken($crawler);
+
+        // Unchecked confirmation: 422 with the field error, nothing written.
+        $client->request('POST', $detail, ['_token' => $token, 'revision' => '1']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Atamayı onaylamak için kutuyu işaretle.', (string) $client->getResponse()->getContent());
+        $this->assertNothingAssigned();
+
+        // Confirmed POST: PRG to the detail, flash, frozen assignment with real recipient count.
+        $client->request('POST', $detail, ['_token' => $token, 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseRedirects($detail);
+        $crawler = $client->followRedirect();
+        self::assertResponseIsSuccessful();
+        $html = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('Ödev sınıfa atandı. Ödev metni donduruldu.', $html);
+        self::assertStringContainsString('Atandı', $html);
+        self::assertStringContainsString('Atanacak ödev', $html);
+        self::assertSame('3', trim($crawler->filter('[data-testid="hw-recipient-count"]')->text()));
+        self::assertSame(0, $crawler->filter('[data-testid="hw-assign-confirm"]')->count());
+        self::assertSame(0, $crawler->filter('a[href$="/duzenle"]')->count(), 'assigned homework has no edit link');
+        self::assertSame(0, $crawler->filter('a[href*="ata=1"]')->count(), 'assigned homework has no assign link');
+        self::assertSame(1, $this->rowCount('homework_assignments'));
+        self::assertSame(3, $this->rowCount('homework_recipients'));
+        self::assertSame(1, $this->rowCount('security_audit_events', "action = 'homework_assignment_created'"));
+        $this->assertNoPublishControls($crawler);
+
+        // Reloading the PRG target repeats nothing.
+        $client->request('GET', $detail);
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $this->rowCount('homework_assignments'));
+
+        // Edit is closed, and a replayed assign POST is an opaque 404 that writes nothing.
+        $client->request('GET', $detail.'/duzenle');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('POST', $detail, ['_token' => $token, 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame(1, $this->rowCount('homework_assignments'));
+        self::assertSame(3, $this->rowCount('homework_recipients'));
+        self::assertSame(1, $this->rowCount('security_audit_events', "action = 'homework_assignment_created'"));
+    }
+
+    public function testAssignedAndDraftRowsAppearTogetherAndStatusFilterWorks(): void
+    {
+        $ctx = $this->homeworkContext('hwh-mixed');
+        $this->enrollStudents($ctx, 2);
+        $this->frozenUtc = '2026-11-10 09:00:00';
+        $this->persistDraft($ctx, 'Hâlâ taslak');
+        $assigned = $this->persistDraft($ctx, 'Atanmış ödev');
+        $this->assignHomework($ctx['teacher'], $assigned->getId(), 1);
+        $client = $this->clientFor('hwh-mixed-teacher@example.com');
+
+        $crawler = $client->request('GET', '/ogretmen/odevler');
+        self::assertResponseIsSuccessful();
+        self::assertSame(['draft' => '1', 'assigned' => '1'], $this->counters($crawler));
+        self::assertCount(2, $crawler->filter('tbody tr'));
+        self::assertCount(1, $crawler->filter('.hw-badge--assigned'));
+        self::assertCount(1, $crawler->filter('.hw-badge--draft'));
+        self::assertSame('Atandı', trim($crawler->filter('.hw-badge--assigned')->text()));
+        self::assertStringContainsString('2 alıcı', (string) $client->getResponse()->getContent());
+        self::assertStringNotContainsString('Yayında', (string) $client->getResponse()->getContent());
+
+        $crawler = $client->request('GET', '/ogretmen/odevler', ['durum' => 'atandi']);
+        self::assertCount(1, $crawler->filter('tbody tr'));
+        self::assertStringContainsString('Atanmış ödev', $crawler->filter('tbody')->text());
+        self::assertSame(['draft' => '1', 'assigned' => '1'], $this->counters($crawler));
+
+        $crawler = $client->request('GET', '/ogretmen/odevler', ['durum' => 'taslak']);
+        self::assertCount(1, $crawler->filter('tbody tr'));
+        self::assertStringContainsString('Hâlâ taslak', $crawler->filter('tbody')->text());
+        self::assertSame(0, $crawler->filter('.hw-badge--assigned')->count());
+
+        // Unknown status values are ignored rather than leaking or failing.
+        $crawler = $client->request('GET', '/ogretmen/odevler', ['durum' => 'yayinda']);
+        self::assertResponseIsSuccessful();
+        self::assertCount(2, $crawler->filter('tbody tr'));
+    }
+
+    public function testAssignPostCsrfFailuresWriteNothing(): void
+    {
+        $ctx = $this->homeworkContext('hwh-asgcsrf');
+        $this->enrollStudents($ctx, 2);
+        $draft = $this->persistDraft($ctx, 'CSRF ödevi');
+        $detail = '/ogretmen/odevler/'.$draft->getId()->toRfc4122();
+        $this->frozenUtc = '2026-11-10 09:00:00';
+        $client = $this->clientFor('hwh-asgcsrf-teacher@example.com');
+
+        $form = $client->request('GET', '/ogretmen/odevler/yeni');
+        $draftIntentToken = $this->token($form);
+
+        $client->request('POST', $detail, ['_token' => 'invalid-token', 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(403);
+        $client->request('POST', $detail, ['revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(403);
+        // A token minted for the draft form must not authorize an assignment.
+        $client->request('POST', $detail, ['_token' => $draftIntentToken, 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(403);
+
+        $this->assertNothingAssigned();
+        $crawler = $client->request('GET', $detail, ['ata' => '1']);
+        self::assertResponseIsSuccessful();
+        self::assertSame(1, $crawler->filter('[data-testid="hw-assign-confirm"]')->count(), 'draft is still assignable');
+    }
+
+    public function testAssignRejectionsRenderTheRightStateAndLeaveNoRows(): void
+    {
+        $ctx = $this->homeworkContext('hwh-asgfail');
+        $second = $this->classroomManager()->create($ctx['year'], $ctx['owner'], 'hwh-asgfail 9-B', GradeLevel::Grade9, 'cls2', 'B', 40);
+        $this->teacherManager()->assign($second, $ctx['owner'], $ctx['teacherMembership'], TeacherAssignmentRole::AssistantTeacher, 'assign_b');
+        $this->enrollStudents(['owner' => $ctx['owner'], 'institution' => $ctx['institution'], 'classroom' => $second], 2);
+        $empty = $this->persistDraft($ctx, 'Öğrencisiz sınıf ödevi');
+        $pastDue = $this->persistDraft($ctx, 'Süresi geçen ödev', '2026-11-05 10:00:00', $second);
+        $stale = $this->persistDraft($ctx, 'Eski sürüm ödevi', '2026-12-01 10:00:00', $second);
+        $this->frozenUtc = '2026-11-10 09:00:00';
+        $client = $this->clientFor('hwh-asgfail-teacher@example.com');
+
+        // No eligible student: the confirm screen says so, disables the button and POST yields 422.
+        $emptyPath = '/ogretmen/odevler/'.$empty->getId()->toRfc4122();
+        $crawler = $client->request('GET', $emptyPath, ['ata' => '1']);
+        self::assertSame('0', trim($crawler->filter('[data-testid="hw-eligible-count"]')->text()));
+        self::assertStringContainsString('uygun aktif öğrenci yok', (string) $client->getResponse()->getContent());
+        self::assertSame(1, $crawler->filter('.hw-assign-form button[type="submit"][disabled]')->count());
+        $token = $this->assignToken($crawler);
+        $client->request('POST', $emptyPath, ['_token' => $token, 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Bu sınıfta uygun aktif öğrenci yok.', (string) $client->getResponse()->getContent());
+        $this->assertNothingAssigned();
+
+        // Students exist but the due date is already past: 422 with the due message.
+        $pastPath = '/ogretmen/odevler/'.$pastDue->getId()->toRfc4122();
+        $crawler = $client->request('GET', $pastPath, ['ata' => '1']);
+        self::assertSame('2', trim($crawler->filter('[data-testid="hw-eligible-count"]')->text()));
+        $client->request('POST', $pastPath, ['_token' => $token, 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertStringContainsString('Son teslim zamanı atama anından sonra olmalıdır.', (string) $client->getResponse()->getContent());
+        $this->assertNothingAssigned();
+
+        // Stale revision: 409 conflict, nothing written.
+        $stalePath = '/ogretmen/odevler/'.$stale->getId()->toRfc4122();
+        $client->request('POST', $stalePath, ['_token' => $token, 'revision' => '9', 'confirm_assign' => '1']);
+        self::assertResponseStatusCodeSame(409);
+        self::assertStringContainsString('başka bir yerde değiştirilmiş', (string) $client->getResponse()->getContent());
+        $this->assertNothingAssigned();
+    }
+
+    public function testAssignIsOpaqueNotFoundForForeignRolesEndedAssignmentAndAbsentIds(): void
+    {
+        $ctx = $this->homeworkContext('hwh-asgdeny');
+        $other = $this->homeworkContext('hwh-asgdeny2');
+        $co = $this->addCoTeacher($ctx, 'hwh-asgdeny-co@example.com');
+        $admin = $this->activeUser('hwh-asgdeny-admin@example.com');
+        $admin->addGlobalRole(UserRole::Admin);
+        $this->users->save($admin);
+        $this->enrollStudents($ctx, 2);
+        $draft = $this->persistDraft($ctx, 'Gizli atama ödevi');
+        $detail = '/ogretmen/odevler/'.$draft->getId()->toRfc4122();
+
+        $endedCtx = $this->homeworkContext('hwh-asgdeny3');
+        $this->enrollStudents($endedCtx, 2);
+        $endedDraft = $this->persistDraft($endedCtx, 'Biten atama ödevi');
+        $endedDetail = '/ogretmen/odevler/'.$endedDraft->getId()->toRfc4122();
+        $this->teacherManager()->endAssignment($endedCtx['assignment'], $endedCtx['owner'], 'ended');
+        unset($co, $other);
+        $this->frozenUtc = '2026-11-10 09:00:00';
+
+        foreach ([
+            'hwh-asgdeny2-teacher@example.com',
+            'hwh-asgdeny-co@example.com',
+            'hwh-asgdeny-sa@example.com',
+            'hwh-asgdeny-admin@example.com',
+            'hwh-asgdeny-owner@example.com',
+        ] as $email) {
+            $client = $this->clientFor($email);
+            $client->request('GET', $detail, ['ata' => '1']);
+            self::assertResponseStatusCodeSame(404, $email.' GET');
+            $body = (string) $client->getResponse()->getContent();
+            if (!str_contains($body, 'NotFoundHttpException') && !str_contains($body, 'sf-dump')) {
+                self::assertStringNotContainsString('Gizli atama ödevi', $body);
+            }
+            $client->request('POST', $detail, ['_token' => 'x', 'revision' => '1', 'confirm_assign' => '1']);
+            self::assertContains($client->getResponse()->getStatusCode(), [403, 404], $email.' POST');
+        }
+        $this->assertNothingAssigned();
+
+        $teacher = $this->clientFor('hwh-asgdeny-teacher@example.com');
+        $teacher->request('GET', '/ogretmen/odevler/'.self::ABSENT_ID, ['ata' => '1']);
+        self::assertResponseStatusCodeSame(404);
+        $teacher->request('POST', '/ogretmen/odevler/'.self::ABSENT_ID, ['_token' => 'x', 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertContains($teacher->getResponse()->getStatusCode(), [403, 404]);
+        $this->assertNothingAssigned();
+
+        // Ended teacher assignment: detail, confirm screen and POST are all closed.
+        $ended = $this->clientFor('hwh-asgdeny3-teacher@example.com');
+        $ended->request('GET', $endedDetail);
+        self::assertResponseStatusCodeSame(404);
+        $ended->request('GET', $endedDetail, ['ata' => '1']);
+        self::assertResponseStatusCodeSame(404);
+        $ended->request('POST', $endedDetail, ['_token' => 'x', 'revision' => '1', 'confirm_assign' => '1']);
+        self::assertContains($ended->getResponse()->getStatusCode(), [403, 404]);
+        $this->assertNothingAssigned();
     }
 
     private function clientFor(string $email): KernelBrowser
@@ -364,6 +600,28 @@ final class TeacherHomeworkHttpTest extends WebTestCase
             'due_date' => '2026-11-12',
             'due_time' => '18:30',
         ], $overrides);
+    }
+
+    /**
+     * @return array{draft: string, assigned: string}
+     */
+    private function counters(Crawler $crawler): array
+    {
+        $numbers = $crawler->filter('[data-testid="hw-status-count"] strong');
+
+        return ['draft' => trim($numbers->eq(0)->text()), 'assigned' => trim($numbers->eq(1)->text())];
+    }
+
+    private function assignToken(Crawler $crawler): string
+    {
+        return (string) $crawler->filter('.hw-assign-form input[name="_token"]')->attr('value');
+    }
+
+    private function assertNothingAssigned(): void
+    {
+        self::assertSame(0, $this->rowCount('homework_assignments'), 'homework_assignments must be empty');
+        self::assertSame(0, $this->rowCount('homework_recipients'), 'homework_recipients must be empty');
+        self::assertSame(0, $this->rowCount('security_audit_events', "action = 'homework_assignment_created'"));
     }
 
     private function assertNoPublishControls(Crawler $crawler): void

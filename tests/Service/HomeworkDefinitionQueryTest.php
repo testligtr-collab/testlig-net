@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Service;
 
 use App\Dto\HomeworkDraftPage;
+use App\Entity\HomeworkAssignment;
 use App\Enum\GradeLevel;
 use App\Enum\TeacherAssignmentRole;
 use App\Service\Homework\HomeworkDefinitionQuery;
@@ -12,6 +13,7 @@ use App\Service\Homework\HomeworkTeacherScope;
 use App\Tests\Support\HomeworkTestFixtures;
 use Symfony\Bridge\Doctrine\Middleware\Debug\DebugDataHolder;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Uid\Uuid;
 
 final class HomeworkDefinitionQueryTest extends KernelTestCase
 {
@@ -173,6 +175,234 @@ final class HomeworkDefinitionQueryTest extends KernelTestCase
         self::assertCount(18, $large->rows);
         self::assertGreaterThan(0, $smallQueries);
         self::assertSame($smallQueries, $largeQueries, 'List SQL must not grow with the number of rows (no N+1).');
+        self::assertLessThanOrEqual(8, $largeQueries);
+    }
+
+    public function testAssignedAndDraftRowsShareOneListWithRecipientCountAndStatusCounters(): void
+    {
+        $ctx = $this->homeworkContext('hwq-mixed');
+        $this->enrollStudents($ctx, 2);
+        $this->freezeClock();
+        $draftOne = $this->persistDraft($ctx, 'Taslak kesirler');
+        $this->persistDraft($ctx, 'Taslak ondalıklar');
+        $assigned = $this->persistDraft($ctx, 'Atanan problemler', '2026-12-05 10:00:00');
+        $this->assignHomework($ctx['teacher'], $assigned->getId(), 1);
+
+        $query = $this->homeworkQuery();
+        $page = $query->page($ctx['teacher'], '', null, 1);
+
+        self::assertSame(3, $page->total);
+        self::assertSame(2, $page->draftCount);
+        self::assertSame(1, $page->assignedCount);
+        self::assertSame(['draft' => 2, 'assigned' => 1], $query->statusCounts($ctx['teacher']));
+        $byTitle = [];
+        foreach ($page->rows as $row) {
+            $byTitle[$row->title] = $row;
+        }
+        self::assertEqualsCanonicalizing(['Taslak kesirler', 'Taslak ondalıklar', 'Atanan problemler'], array_keys($byTitle));
+        self::assertTrue($byTitle['Atanan problemler']->assigned);
+        self::assertSame(2, $byTitle['Atanan problemler']->recipientCount);
+        self::assertSame('2026-12-05 10:00:00', $byTitle['Atanan problemler']->dueAt->format('Y-m-d H:i:s'));
+        self::assertFalse($byTitle['Taslak kesirler']->assigned);
+        self::assertNull($byTitle['Taslak kesirler']->recipientCount);
+        self::assertFalse($byTitle['Taslak ondalıklar']->assigned);
+        self::assertSame($draftOne->getId()->toRfc4122(), $byTitle['Taslak kesirler']->id);
+        self::assertSame($assigned->getId()->toRfc4122(), $byTitle['Atanan problemler']->id);
+    }
+
+    public function testStatusFilterSplitsAssignedFromDraftAndKeepsRealCounters(): void
+    {
+        $ctx = $this->homeworkContext('hwq-status');
+        $this->enrollStudents($ctx, 1);
+        $this->freezeClock();
+        $this->persistDraft($ctx, 'Taslak bir');
+        $this->persistDraft($ctx, 'Taslak iki');
+        $this->persistDraft($ctx, 'Taslak üç');
+        $one = $this->persistDraft($ctx, 'Atanmış bir');
+        $two = $this->persistDraft($ctx, 'Atanmış iki');
+        $this->assignHomework($ctx['teacher'], $one->getId(), 1);
+        $this->assignHomework($ctx['teacher'], $two->getId(), 1);
+
+        $query = $this->homeworkQuery();
+        $assignedOnly = $query->page($ctx['teacher'], '', null, 1, true);
+        $draftOnly = $query->page($ctx['teacher'], '', null, 1, false);
+        $all = $query->page($ctx['teacher'], '', null, 1, null);
+
+        self::assertEqualsCanonicalizing(['Atanmış bir', 'Atanmış iki'], $this->titles($assignedOnly));
+        self::assertEqualsCanonicalizing(['Taslak bir', 'Taslak iki', 'Taslak üç'], $this->titles($draftOnly));
+        self::assertSame(5, $all->total);
+        self::assertSame(2, $assignedOnly->total);
+        self::assertSame(3, $draftOnly->total);
+        self::assertSame(2, $query->count($ctx['teacher'], '', null, true));
+        self::assertSame(3, $query->count($ctx['teacher'], '', null, false));
+        self::assertSame(5, $query->count($ctx['teacher']));
+        // The counters describe the whole authorized set, not the filtered list.
+        foreach ([$assignedOnly, $draftOnly, $all] as $page) {
+            self::assertSame(3, $page->draftCount);
+            self::assertSame(2, $page->assignedCount);
+        }
+
+        // Search and status filters combine.
+        self::assertSame(['Atanmış iki'], $this->titles($query->page($ctx['teacher'], 'iki', null, 1, true)));
+        self::assertSame(['Taslak iki'], $this->titles($query->page($ctx['teacher'], 'iki', null, 1, false)));
+        self::assertSame(0, $query->count($ctx['teacher'], 'Taslak', null, true));
+    }
+
+    public function testStatusFilterCombinesWithClassroomFilter(): void
+    {
+        $ctx = $this->homeworkContext('hwq-statcls');
+        $second = $this->classroomManager()->create($ctx['year'], $ctx['owner'], 'hwq-statcls 9-B', GradeLevel::Grade9, 'cls2', 'B', 40);
+        $this->teacherManager()->assign($second, $ctx['owner'], $ctx['teacherMembership'], TeacherAssignmentRole::AssistantTeacher, 'assign_b');
+        $this->enrollStudents($ctx, 1);
+        $this->enrollStudents(['owner' => $ctx['owner'], 'institution' => $ctx['institution'], 'classroom' => $second], 3);
+        $this->freezeClock();
+        $a = $this->persistDraft($ctx, 'A atanmış');
+        $this->persistDraft($ctx, 'A taslak');
+        $b = $this->persistDraft($ctx, 'B atanmış', classroom: $second);
+        $this->assignHomework($ctx['teacher'], $a->getId(), 1);
+        $assignmentB = $this->assignHomework($ctx['teacher'], $b->getId(), 1);
+        self::assertSame(3, $assignmentB->getRecipientCount());
+
+        $query = $this->homeworkQuery();
+        self::assertSame(['B atanmış'], $this->titles($query->page($ctx['teacher'], '', $second->getId(), 1, true)));
+        self::assertSame(3, $query->page($ctx['teacher'], '', $second->getId(), 1, true)->rows[0]->recipientCount);
+        self::assertSame([], $this->titles($query->page($ctx['teacher'], '', $second->getId(), 1, false)));
+        self::assertSame(['A taslak'], $this->titles($query->page($ctx['teacher'], '', $ctx['classroom']->getId(), 1, false)));
+        self::assertSame(1, $query->count($ctx['teacher'], '', $ctx['classroom']->getId(), true));
+    }
+
+    public function testAssignedRowShowsTheFrozenTextEvenIfTheDefinitionRowDiverges(): void
+    {
+        $ctx = $this->homeworkContext('hwq-frozen');
+        $this->enrollStudents($ctx, 1);
+        $this->freezeClock();
+        $definition = $this->persistDraft($ctx, 'Dondurulan başlık', '2026-12-05 10:00:00');
+        $this->assignHomework($ctx['teacher'], $definition->getId(), 1);
+        // Simulate drift on the definition row (the manager and voter forbid this; the read model
+        // must still present the frozen assignment values).
+        $this->em->getConnection()->executeStatement(
+            "UPDATE homework_definitions SET title = 'Sızmış başlık', due_at = '2027-01-01 10:00:00' WHERE id = :id",
+            ['id' => $definition->getId()->toBinary()],
+        );
+        $this->em->clear();
+
+        $page = $this->homeworkQuery()->page($ctx['teacher'], '', null, 1);
+
+        self::assertSame('Dondurulan başlık', $page->rows[0]->title);
+        self::assertSame('2026-12-05 10:00:00', $page->rows[0]->dueAt->format('Y-m-d H:i:s'));
+    }
+
+    public function testFindAssignmentIsOwnerScopedAndNullForDrafts(): void
+    {
+        $ctx = $this->homeworkContext('hwq-find');
+        $co = $this->addCoTeacher($ctx, 'hwq-find-co@example.com');
+        $other = $this->homeworkContext('hwq-find-other');
+        $this->enrollStudents($ctx, 2);
+        $this->freezeClock();
+        $assigned = $this->persistDraft($ctx, 'Atanmış');
+        $draft = $this->persistDraft($ctx, 'Taslak');
+        $assignment = $this->assignHomework($ctx['teacher'], $assigned->getId(), 1);
+
+        $query = $this->homeworkQuery();
+        $found = $query->findAssignment($ctx['teacher'], $assigned->getId());
+        self::assertInstanceOf(HomeworkAssignment::class, $found);
+        self::assertTrue($found->getId()->equals($assignment->getId()));
+        self::assertSame(2, $found->getRecipientCount());
+        self::assertNull($query->findAssignment($ctx['teacher'], $draft->getId()));
+        foreach ([$co['user'], $other['teacher'], $ctx['owner'], $ctx['sa']] as $intruder) {
+            self::assertNull($query->findAssignment($intruder, $assigned->getId()), $intruder->getEmail());
+            self::assertSame(['draft' => 0, 'assigned' => 0], $query->statusCounts($intruder), $intruder->getEmail());
+        }
+    }
+
+    public function testStatusCountsAreScopedPerTeacher(): void
+    {
+        $ctx = $this->homeworkContext('hwq-scope');
+        $co = $this->addCoTeacher($ctx, 'hwq-scope-co@example.com');
+        $this->enrollStudents($ctx, 1);
+        $this->freezeClock();
+        $mine = $this->persistDraft($ctx, 'Benim atamam');
+        $this->persistDraft($ctx, 'Benim taslağım');
+        $theirs = $this->persistDraft(['teacher' => $co['user'], 'teacherMembership' => $co['membership'], 'classroom' => $ctx['classroom']], 'Yardımcı atama');
+        $this->persistDraft(['teacher' => $co['user'], 'teacherMembership' => $co['membership'], 'classroom' => $ctx['classroom']], 'Yardımcı taslak');
+        $this->persistDraft(['teacher' => $co['user'], 'teacherMembership' => $co['membership'], 'classroom' => $ctx['classroom']], 'Yardımcı taslak iki');
+        $this->assignHomework($ctx['teacher'], $mine->getId(), 1);
+        $this->assignHomework($co['user'], $theirs->getId(), 1);
+
+        $query = $this->homeworkQuery();
+        self::assertSame(['draft' => 1, 'assigned' => 1], $query->statusCounts($ctx['teacher']));
+        self::assertSame(['draft' => 2, 'assigned' => 1], $query->statusCounts($co['user']));
+    }
+
+    public function testEndedTeacherAssignmentHidesAssignedHomeworkAndCounters(): void
+    {
+        $ctx = $this->homeworkContext('hwq-endasg');
+        $this->enrollStudents($ctx, 1);
+        $this->freezeClock();
+        $assigned = $this->persistDraft($ctx, 'Atanmış');
+        $this->persistDraft($ctx, 'Taslak');
+        $this->assignHomework($ctx['teacher'], $assigned->getId(), 1);
+        self::assertSame(['draft' => 1, 'assigned' => 1], $this->homeworkQuery()->statusCounts($ctx['teacher']));
+
+        $this->teacherManager()->endAssignment($ctx['assignment'], $ctx['owner'], 'ended');
+
+        $query = $this->homeworkQuery();
+        self::assertSame(['draft' => 0, 'assigned' => 0], $query->statusCounts($ctx['teacher']));
+        self::assertSame(0, $query->count($ctx['teacher']));
+        self::assertNull($query->findAssignment($ctx['teacher'], $assigned->getId()));
+        self::assertNull($query->findOwned($ctx['teacher'], $assigned->getId()));
+    }
+
+    public function testCountEligibleRecipientsCountsOnlyActiveEnrollmentsWithActiveStudentMemberships(): void
+    {
+        $ctx = $this->homeworkContext('hwq-elig');
+        $second = $this->classroomManager()->create($ctx['year'], $ctx['owner'], 'hwq-elig 9-B', GradeLevel::Grade9, 'cls2', 'B', 40);
+        $students = $this->enrollStudents($ctx, 4);
+        $this->enrollStudents(['owner' => $ctx['owner'], 'institution' => $ctx['institution'], 'classroom' => $second], 2);
+        $query = $this->homeworkQuery();
+        self::assertSame(4, $query->countEligibleRecipients($ctx['classroom']->getId()));
+        self::assertSame(2, $query->countEligibleRecipients($second->getId()));
+
+        $this->enrollmentManager()->endEnrollment($this->activeEnrollment($ctx['classroom'], $students[0]), $ctx['owner'], 'left_class');
+        self::assertSame(3, $query->countEligibleRecipients($ctx['classroom']->getId()));
+
+        $this->em->getConnection()->executeStatement(
+            "UPDATE institution_memberships SET status = 'suspended' WHERE id = :id",
+            ['id' => $students[1]->getId()->toBinary()],
+        );
+        $this->em->clear();
+        self::assertSame(2, $query->countEligibleRecipients($ctx['classroom']->getId()));
+        self::assertSame(0, $query->countEligibleRecipients(Uuid::fromString('0192f000-0000-7000-8000-000000000001')));
+    }
+
+    public function testListQueryCountDoesNotGrowWithAssignedRows(): void
+    {
+        $ctx = $this->homeworkContext('hwq-boundasg');
+        $this->enrollStudents($ctx, 2);
+        $this->freezeClock();
+        $query = $this->homeworkQuery();
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+
+        for ($i = 1; $i <= 2; ++$i) {
+            $this->assignHomework($ctx['teacher'], $this->persistDraft($ctx, 'Atanan az '.$i)->getId(), 1);
+        }
+        $query->page($ctx['teacher'], '', null, 1); // warm-up
+        $holder->reset();
+        $small = $query->page($ctx['teacher'], '', null, 1);
+        $smallQueries = $this->recordedStatements($holder);
+
+        for ($i = 1; $i <= 6; ++$i) {
+            $this->assignHomework($ctx['teacher'], $this->persistDraft($ctx, 'Atanan çok '.$i)->getId(), 1);
+            $this->persistDraft($ctx, 'Taslak çok '.$i);
+        }
+        $holder->reset();
+        $large = $query->page($ctx['teacher'], '', null, 1);
+        $largeQueries = $this->recordedStatements($holder);
+
+        self::assertCount(2, $small->rows);
+        self::assertCount(14, $large->rows);
+        self::assertSame($smallQueries, $largeQueries, 'List SQL must not grow with assigned/draft rows (no N+1).');
         self::assertLessThanOrEqual(8, $largeQueries);
     }
 

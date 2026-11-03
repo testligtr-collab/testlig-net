@@ -38,6 +38,7 @@ final class HomeworkDefinitionVoterTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        $this->resetClock();
         if (isset($this->em)) {
             $this->cleanupHomework();
         }
@@ -134,6 +135,76 @@ final class HomeworkDefinitionVoterTest extends KernelTestCase
         self::assertFalse($this->decide($ctx['teacher'], HomeworkDefinitionPermission::CREATE, $draft));
         self::assertFalse($this->decide($ctx['teacher'], HomeworkDefinitionPermission::VIEW, $ctx['classroom']));
         self::assertFalse($this->decide($ctx['teacher'], 'HOMEWORK_DEFINITION_PUBLISH', $draft));
+    }
+
+    public function testAssignAttributeIsOwnerTeacherOnly(): void
+    {
+        $ctx = $this->homeworkContext('hwv-asg');
+        $co = $this->addCoTeacher($ctx, 'hwv-asg-co@example.com');
+        $other = $this->homeworkContext('hwv-asg-other');
+        $admin = $this->activeUser('hwv-asg-admin@example.com');
+        $admin->addGlobalRole(UserRole::Admin);
+        $this->users->save($admin);
+        $student = $this->activeUser('hwv-asg-student@example.com');
+        $this->membershipManager()->addMember($ctx['institution'], $ctx['owner'], $student, InstitutionMembershipRole::Student, 'add_student');
+        $draft = $this->persistDraft($ctx, 'Atanabilir taslak');
+
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::ASSIGN, $draft));
+        self::assertFalse($this->decide($co['user'], HomeworkDefinitionPermission::ASSIGN, $draft));
+        self::assertFalse($this->decide($other['teacher'], HomeworkDefinitionPermission::ASSIGN, $draft));
+        foreach ([$ctx['sa'], $admin, $ctx['owner'], $student] as $actor) {
+            self::assertFalse($this->decide($actor, HomeworkDefinitionPermission::ASSIGN, $draft));
+        }
+        // ASSIGN targets a definition, never a classroom.
+        self::assertFalse($this->decide($ctx['teacher'], HomeworkDefinitionPermission::ASSIGN, $ctx['classroom']));
+        self::assertContains(HomeworkDefinitionPermission::ASSIGN, HomeworkDefinitionPermission::all());
+    }
+
+    public function testAssignDeniedForEndedAssignmentSuspendedMembershipAndInactiveUser(): void
+    {
+        $ended = $this->homeworkContext('hwv-asg-ended');
+        $endedDraft = $this->persistDraft($ended, 'Biten atama');
+        $this->teacherManager()->endAssignment($ended['assignment'], $ended['owner'], 'ended');
+        self::assertFalse($this->decide($ended['teacher'], HomeworkDefinitionPermission::ASSIGN, $endedDraft));
+
+        $suspended = $this->homeworkContext('hwv-asg-susp');
+        $suspendedDraft = $this->persistDraft($suspended, 'Askıda atama');
+        $this->em->getConnection()->executeStatement(
+            "UPDATE institution_memberships SET status = 'suspended' WHERE id = :id",
+            ['id' => $suspended['teacherMembership']->getId()->toBinary()],
+        );
+        self::assertFalse($this->decide($suspended['teacher'], HomeworkDefinitionPermission::ASSIGN, $suspendedDraft));
+
+        $inactive = $this->homeworkContext('hwv-asg-inactive');
+        $inactiveDraft = $this->persistDraft($inactive, 'Pasif atama');
+        $this->setUserStatusRaw($inactive['teacher'], UserStatus::Suspended);
+        self::assertFalse($this->decide($inactive['teacher'], HomeworkDefinitionPermission::ASSIGN, $inactiveDraft));
+
+        $institution = $this->homeworkContext('hwv-asg-inst');
+        $institutionDraft = $this->persistDraft($institution, 'Kurum askıda atama');
+        $this->institutionStatus()->suspend($institution['institution'], $institution['sa'], 'suspend');
+        self::assertFalse($this->decide($institution['teacher'], HomeworkDefinitionPermission::ASSIGN, $institutionDraft));
+    }
+
+    public function testAssignAndEditAreDeniedOnceAnAssignmentExistsButViewStaysGranted(): void
+    {
+        $ctx = $this->homeworkContext('hwv-after');
+        $this->enrollStudents($ctx, 2);
+        $this->freezeClock();
+        $draft = $this->persistDraft($ctx, 'Atanacak taslak');
+        $untouched = $this->persistDraft($ctx, 'Dokunulmamış taslak');
+
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::ASSIGN, $draft));
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::EDIT, $draft));
+
+        $this->assignHomework($ctx['teacher'], $draft->getId(), 1);
+
+        self::assertFalse($this->decide($ctx['teacher'], HomeworkDefinitionPermission::ASSIGN, $draft));
+        self::assertFalse($this->decide($ctx['teacher'], HomeworkDefinitionPermission::EDIT, $draft));
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::VIEW, $draft), 'assigned homework is still viewable');
+        // Another draft of the same teacher in the same classroom is unaffected.
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::ASSIGN, $untouched));
+        self::assertTrue($this->decide($ctx['teacher'], HomeworkDefinitionPermission::EDIT, $untouched));
     }
 
     private function decide(User $user, string $attribute, HomeworkDefinition|Classroom $subject): bool

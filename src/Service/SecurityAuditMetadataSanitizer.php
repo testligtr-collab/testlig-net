@@ -232,6 +232,8 @@ final class SecurityAuditMetadataSanitizer
         'grants_child_data_access',
         'added_permissions',
         'removed_permissions',
+        // X01 homework assignment snapshot (identifiers / counts only; no title or student names).
+        'definition_id',
     ];
 
     /**
