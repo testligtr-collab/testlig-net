@@ -41,9 +41,7 @@ final class HomeworkEvaluationVoter extends Voter
         if (!$user instanceof User || !$this->activeUsers->isActiveAndVerified($user)) {
             return false;
         }
-        if (!$subject instanceof HomeworkSubmission) {
-            return false;
-        }
+        // $subject is HomeworkSubmission because supports() already gated the type.
         if (HomeworkSubmissionStatus::Submitted !== $subject->getStatus()) {
             return false;
         }

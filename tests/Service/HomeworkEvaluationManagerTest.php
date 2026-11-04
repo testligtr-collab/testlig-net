@@ -226,7 +226,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertSame(HomeworkSubmissionStatus::Draft, $draft->getStatus());
 
         foreach (['reviewed', 'needs_rework'] as $label) {
-            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($teacher, $id, $label, 'Taslağı değerlendirmeye çalışma', null));
+            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($teacher, $id, $label, 'Taslağı değerlendirmeye çalışma', null));
             self::assertSame(HomeworkEvaluationException::REASON_NOT_SUBMITTED, $failure->getReason());
         }
 
@@ -336,7 +336,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
             'other institution teacher' => $otherTeacher,
         ];
         foreach ($intruders as $name => $intruder) {
-            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($intruder, $id, 'reviewed', 'Yetkisiz', null));
+            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($intruder, $id, 'reviewed', 'Yetkisiz', null));
             self::assertSame(HomeworkEvaluationException::REASON_NOT_FOUND, $failure->getReason(), $name);
             self::assertNull($query->submittedDetail($intruder, $id), $name);
             self::assertNull($query->recipientRows($intruder, $s['assignment']), $name);
@@ -371,7 +371,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $id = $this->studentSubmit($s['users'][0], $s['assignment'])->getId();
 
         foreach (['reviewed', 'needs_rework'] as $label) {
-            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, $label, $unsafe, null));
+            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, $label, $unsafe, null));
             self::assertSame(HomeworkEvaluationException::REASON_INVALID_INPUT, $failure->getReason(), $label);
             self::assertArrayHasKey('feedback', $failure->getFieldErrors());
             self::assertStringStartsWith('Geri bildirim ', $failure->getFieldErrors()['feedback']);
@@ -387,7 +387,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $s = $this->scenario('hwe-plain');
         $id = $this->studentSubmit($s['users'][0], $s['assignment'])->getId();
 
-        $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, 'reviewed', 'merhaba <b>dünya</b>', null));
+        $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, 'reviewed', 'merhaba <b>dünya</b>', null));
         self::assertSame(['feedback' => 'Geri bildirim HTML içeremez.'], $failure->getFieldErrors());
 
         // Plain-text punctuation is stored as typed (escaping is the template's job, not storage's).
@@ -562,9 +562,9 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertSame($before, $this->submissionRow($id), 'evaluate must not touch body, status, revision or submitted_at');
         // Neither evaluation label gives the student another write.
         foreach ([2, 1, 0] as $revision) {
-            $draftAgain = $this->failure(static fn () => $this->homeworkSubmissionManager()->saveDraft($student, $s['assignment']->getId(), 'taslağa dönüş', $revision));
+            $draftAgain = $this->failure(fn () => $this->homeworkSubmissionManager()->saveDraft($student, $s['assignment']->getId(), 'taslağa dönüş', $revision));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $draftAgain->getReason(), (string) $revision);
-            $resubmit = $this->failure(static fn () => $this->homeworkSubmissionManager()->submit($student, $s['assignment']->getId(), 'yeniden teslim', $revision, true));
+            $resubmit = $this->failure(fn () => $this->homeworkSubmissionManager()->submit($student, $s['assignment']->getId(), 'yeniden teslim', $revision, true));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $resubmit->getReason(), (string) $revision);
         }
         self::assertSame($before, $this->submissionRow($id));

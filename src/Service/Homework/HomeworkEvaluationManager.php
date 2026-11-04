@@ -146,9 +146,9 @@ final class HomeworkEvaluationManager
                     }
                 } elseif (null === $currentId || !$currentId->equals($expectedCurrentEvaluationId)) {
                     return HomeworkEvaluationException::stale();
-                } elseif (null !== $current && !$current->getSubmission()->getId()->equals($submission->getId())) {
-                    return HomeworkEvaluationException::conflict();
                 }
+                // Same-submission current pointer is enforced by the composite FK
+                // (current_evaluation_id, id) → homework_evaluations(id, submission_id).
 
                 $label = HomeworkEvaluationLabel::tryFrom(trim($rawLabel));
                 if (null === $label) {

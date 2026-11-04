@@ -804,10 +804,16 @@ body.is-workspace {
 }
 
 .is-workspace .hw-fieldset {
+    display: grid;
+    gap: 0.35rem;
     margin: 0;
     padding: 0;
     border: 0;
+    /* Chromium keeps fieldset min-content width unless both are cleared. */
     min-width: 0;
+    min-inline-size: 0;
+    max-width: 100%;
+    width: 100%;
 }
 
 .is-workspace .hw-fieldset legend {
@@ -818,15 +824,40 @@ body.is-workspace {
 
 .is-workspace .hw-choice {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 0.6rem;
     min-height: 2.75rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .is-workspace .hw-choice input {
     width: 1.15rem;
     height: 1.15rem;
+    margin-top: 0.55rem;
     flex: 0 0 auto;
+}
+
+.is-workspace .hw-choice span {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.35;
+    padding-top: 0.55rem;
+}
+
+.is-workspace .hw-eval-form,
+.is-workspace .hw-eval-form .hw-field,
+.is-workspace .hw-eval-form textarea {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.is-workspace .hw-eval-form .hw-form-actions .hw-btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
 }
 
 @media (max-width: 480px) {

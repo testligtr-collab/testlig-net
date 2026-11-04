@@ -120,7 +120,8 @@ final class HomeworkTeacherSubmissionQuery
             $labelKey = null;
             $labelTr = null;
             if ($hasSubmission && null !== $label) {
-                $labelKey = $label instanceof \BackedEnum ? $label->value : (string) $label;
+                $rawLabel = $label instanceof \BackedEnum ? (string) $label->value : (string) $label;
+                $labelKey = '' !== $rawLabel ? $rawLabel : null;
                 $labelTr = match ($labelKey) {
                     'reviewed' => 'İncelendi',
                     'needs_rework' => 'Yeniden çalışılmalı',

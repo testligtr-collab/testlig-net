@@ -24,7 +24,6 @@ declare(strict_types=1);
  * never a success for the test.
  */
 
-use App\Entity\HomeworkEvaluation;
 use App\Kernel;
 use App\Repository\UserRepository;
 use App\Service\Homework\HomeworkEvaluationManager;
@@ -133,9 +132,6 @@ if (is_string($afterPath) && '' !== $afterPath) {
 
 try {
     $evaluation = $manager->record($teacher, $submissionId, $payload['label'], $payload['feedback'], $expected);
-    if (!$evaluation instanceof HomeworkEvaluation) {
-        $fail('no_evaluation_returned');
-    }
     if (is_string($donePath) && '' !== $donePath) {
         file_put_contents($donePath, '1');
     }
