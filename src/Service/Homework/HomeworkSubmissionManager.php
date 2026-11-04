@@ -9,7 +9,6 @@ use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkRecipient;
 use App\Entity\HomeworkSubmission;
 use App\Entity\User;
-use App\Enum\HomeworkAssignmentStatus;
 use App\Enum\HomeworkSubmissionStatus;
 use App\Enum\SecurityAuditAction;
 use App\Enum\SecurityAuditActorType;
@@ -128,9 +127,7 @@ final class HomeworkSubmissionManager
                 if (!$freshActor instanceof User || !$this->activeUsers->isActiveAndVerified($freshActor)) {
                     return HomeworkSubmissionException::forbidden();
                 }
-                if (HomeworkAssignmentStatus::Assigned !== $assignment->getStatus()) {
-                    return HomeworkSubmissionException::notFound();
-                }
+                // Assignment status is Assigned-only in this slice (see HomeworkAssignmentStatus).
                 if (!$assignment->getClassroom()->getId()->equals($lockedClassroom->getId())) {
                     return HomeworkSubmissionException::notFound();
                 }

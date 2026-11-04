@@ -232,8 +232,15 @@ final class HomeworkStudentQuery
     ): HomeworkStudentDetail {
         [$statusKey, $statusLabel] = \array_slice($this->statusParts($submission), 0, 2);
         $duePassed = $now > $assignment->getDueAt();
-        $submitted = $submission instanceof HomeworkSubmission
-            && HomeworkSubmissionStatus::Submitted === $submission->getStatus();
+        $submitted = false;
+        $submittedAtLocal = null;
+        if ($submission instanceof HomeworkSubmission
+            && HomeworkSubmissionStatus::Submitted === $submission->getStatus()
+        ) {
+            $submitted = true;
+            $submittedAt = $submission->getSubmittedAt();
+            $submittedAtLocal = null !== $submittedAt ? $this->formatLocal($submittedAt) : null;
+        }
         $writable = $inCurrentScope && $openScope && !$submitted && !$duePassed
             && $this->hierarchyActive($assignment);
 
@@ -255,13 +262,11 @@ final class HomeworkStudentQuery
             duePassed: $duePassed,
             statusKey: $statusKey,
             statusLabel: $statusLabel,
-            body: $submission?->getBody() ?? '',
-            revisionNumber: $submission?->getRevisionNumber() ?? 0,
+            body: $submission instanceof HomeworkSubmission ? $submission->getBody() : '',
+            revisionNumber: $submission instanceof HomeworkSubmission ? $submission->getRevisionNumber() : 0,
             writable: $writable,
             submitted: $submitted,
-            submittedAtLocal: $submitted && null !== $submission?->getSubmittedAt()
-                ? $this->formatLocal($submission->getSubmittedAt())
-                : null,
+            submittedAtLocal: $submittedAtLocal,
             closedReason: $closedReason,
         );
     }
@@ -295,7 +300,7 @@ final class HomeworkStudentQuery
             1 => 'Ocak', 2 => 'Şubat', 3 => 'Mart', 4 => 'Nisan', 5 => 'Mayıs', 6 => 'Haziran',
             7 => 'Temmuz', 8 => 'Ağustos', 9 => 'Eylül', 10 => 'Ekim', 11 => 'Kasım', 12 => 'Aralık',
         ];
-        $month = $months[(int) $local->format('n')] ?? $local->format('F');
+        $month = $months[(int) $local->format('n')];
 
         return $local->format('j').' '.$month.' '.$local->format('Y').' • '.$local->format('H.i');
     }

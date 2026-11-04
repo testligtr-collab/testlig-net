@@ -46,10 +46,7 @@ final class HomeworkStudentScope
         bool $openScope,
         bool $lock = false,
     ): ?ClassroomStudentEnrollment {
-        if (HomeworkAssignmentStatus::Assigned !== $assignment->getStatus()) {
-            return null;
-        }
-
+        // This slice only persists Assigned; closed/cancelled arrive in a later enum expansion.
         $qb = $this->entityManager->createQueryBuilder()
             ->select('e', 'm', 'c', 'i', 'y')
             ->from(ClassroomStudentEnrollment::class, 'e')

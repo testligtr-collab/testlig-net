@@ -14,7 +14,7 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 /**
  * Fail-closed student homework access. Admin/SA/teacher/parent roles never grant.
  *
- * @extends Voter<string, HomeworkAssignment>
+ * @extends Voter<string, mixed>
  */
 final class HomeworkSubmissionVoter extends Voter
 {

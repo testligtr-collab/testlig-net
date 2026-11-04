@@ -140,7 +140,7 @@ final class HomeworkSubmissionConcurrencyTest extends KernelTestCase
 
         if ('submit' === ($this->winner($results)['mode'] ?? null)) {
             // Submit serialized first: the late draft is refused and the body is never reverted.
-            self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $loser['reason'] ?? null, json_encode($results));
+            self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $loser['reason'] ?? null, (string) json_encode($results));
             self::assertSame('submitted', $row['status']);
             self::assertSame('nihai yanıt', $row['body']);
             self::assertNotSame('geç gelen taslak', $row['body']);
@@ -148,7 +148,7 @@ final class HomeworkSubmissionConcurrencyTest extends KernelTestCase
             self::assertSame(1, $this->auditCount('homework_submission_submitted'));
         } else {
             // Draft serialized first: the submit carried an outdated revision and was refused.
-            self::assertSame(HomeworkSubmissionException::REASON_STALE_REVISION, $loser['reason'] ?? null, json_encode($results));
+            self::assertSame(HomeworkSubmissionException::REASON_STALE_REVISION, $loser['reason'] ?? null, (string) json_encode($results));
             self::assertSame('draft', $row['status']);
             self::assertSame('geç gelen taslak', $row['body']);
             self::assertSame(2, $row['revision_number']);
@@ -185,7 +185,7 @@ final class HomeworkSubmissionConcurrencyTest extends KernelTestCase
                 ['after_path' => $submitDone],
             ));
             self::assertFalse(!empty($lateResult['ok']), 'late draft must fail: '.json_encode($lateResult));
-            self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $lateResult['reason'] ?? null, json_encode($lateResult));
+            self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $lateResult['reason'] ?? null, (string) json_encode($lateResult));
         }
 
         $this->em->clear();
