@@ -65,7 +65,7 @@ class HomeworkEvaluation
         InstitutionMembership $evaluatedByMembership,
         HomeworkEvaluationLabel $label,
         ?string $feedback,
-        ?HomeworkEvaluation $supersedes,
+        ?self $supersedes,
         \DateTimeImmutable $now,
     ) {
         $this->id = new UuidV7();
@@ -87,7 +87,7 @@ class HomeworkEvaluation
         InstitutionMembership $evaluatedByMembership,
         HomeworkEvaluationLabel $label,
         ?string $feedback,
-        ?HomeworkEvaluation $supersedes,
+        ?self $supersedes,
         \DateTimeImmutable $now,
     ): self {
         return new self($submission, $evaluatedByUser, $evaluatedByMembership, $label, $feedback, $supersedes, $now);
@@ -117,7 +117,7 @@ class HomeworkEvaluation
     }
 
     #[Ignore]
-    public function getSupersedes(): ?HomeworkEvaluation
+    public function getSupersedes(): ?self
     {
         return $this->supersedes;
     }

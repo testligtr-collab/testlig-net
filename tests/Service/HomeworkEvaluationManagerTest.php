@@ -183,7 +183,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $manager = $this->homeworkEvaluationManager();
 
         foreach (['', '   ', "\r\n\t "] as $blank) {
-            $failure = $this->failure(fn () => $manager->record($s['ctx']['teacher'], $id, 'needs_rework', $blank, null));
+            $failure = $this->failure(static fn () => $manager->record($s['ctx']['teacher'], $id, 'needs_rework', $blank, null));
             self::assertSame(HomeworkEvaluationException::REASON_INVALID_INPUT, $failure->getReason());
             self::assertSame(['feedback' => 'Geri bildirim boş olamaz.'], $failure->getFieldErrors());
         }
@@ -204,7 +204,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $manager = $this->homeworkEvaluationManager();
 
         foreach (['', 'approved', 'REVIEWED', 'Reviewed', 'needs-rework', 'graded', '10', '85.5', "reviewed\0", 'reviewed;needs_rework'] as $label) {
-            $failure = $this->failure(fn () => $manager->record($s['ctx']['teacher'], $id, $label, 'Geri bildirim', null));
+            $failure = $this->failure(static fn () => $manager->record($s['ctx']['teacher'], $id, $label, 'Geri bildirim', null));
             self::assertSame(HomeworkEvaluationException::REASON_INVALID_INPUT, $failure->getReason(), bin2hex($label));
             self::assertArrayHasKey('label', $failure->getFieldErrors(), bin2hex($label));
         }
@@ -226,7 +226,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertSame(HomeworkSubmissionStatus::Draft, $draft->getStatus());
 
         foreach (['reviewed', 'needs_rework'] as $label) {
-            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($teacher, $id, $label, 'Taslağı değerlendirmeye çalışma', null));
+            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($teacher, $id, $label, 'Taslağı değerlendirmeye çalışma', null));
             self::assertSame(HomeworkEvaluationException::REASON_NOT_SUBMITTED, $failure->getReason());
         }
 
@@ -251,11 +251,11 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $s = $this->scenario('hwe-none');
         $manager = $this->homeworkEvaluationManager();
 
-        $failure = $this->failure(fn () => $manager->record($s['ctx']['teacher'], Uuid::fromString(self::ABSENT_ID), 'reviewed', '', null));
+        $failure = $this->failure(static fn () => $manager->record($s['ctx']['teacher'], Uuid::fromString(self::ABSENT_ID), 'reviewed', '', null));
         self::assertSame(HomeworkEvaluationException::REASON_NOT_FOUND, $failure->getReason());
         // The recipient id (a real id, but not a submission id) is not a submission either.
         $recipientId = Uuid::fromBinary((string) $this->em->getConnection()->fetchOne('SELECT id FROM homework_recipients'));
-        $failure = $this->failure(fn () => $manager->record($s['ctx']['teacher'], $recipientId, 'reviewed', '', null));
+        $failure = $this->failure(static fn () => $manager->record($s['ctx']['teacher'], $recipientId, 'reviewed', '', null));
         self::assertSame(HomeworkEvaluationException::REASON_NOT_FOUND, $failure->getReason());
 
         self::assertSame(0, $this->submissionRowCount());
@@ -336,7 +336,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
             'other institution teacher' => $otherTeacher,
         ];
         foreach ($intruders as $name => $intruder) {
-            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($intruder, $id, 'reviewed', 'Yetkisiz', null));
+            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($intruder, $id, 'reviewed', 'Yetkisiz', null));
             self::assertSame(HomeworkEvaluationException::REASON_NOT_FOUND, $failure->getReason(), $name);
             self::assertNull($query->submittedDetail($intruder, $id), $name);
             self::assertNull($query->recipientRows($intruder, $s['assignment']), $name);
@@ -371,7 +371,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $id = $this->studentSubmit($s['users'][0], $s['assignment'])->getId();
 
         foreach (['reviewed', 'needs_rework'] as $label) {
-            $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, $label, $unsafe, null));
+            $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, $label, $unsafe, null));
             self::assertSame(HomeworkEvaluationException::REASON_INVALID_INPUT, $failure->getReason(), $label);
             self::assertArrayHasKey('feedback', $failure->getFieldErrors());
             self::assertStringStartsWith('Geri bildirim ', $failure->getFieldErrors()['feedback']);
@@ -387,7 +387,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $s = $this->scenario('hwe-plain');
         $id = $this->studentSubmit($s['users'][0], $s['assignment'])->getId();
 
-        $failure = $this->failure(fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, 'reviewed', 'merhaba <b>dünya</b>', null));
+        $failure = $this->failure(static fn () => $this->homeworkEvaluationManager()->record($s['ctx']['teacher'], $id, 'reviewed', 'merhaba <b>dünya</b>', null));
         self::assertSame(['feedback' => 'Geri bildirim HTML içeremez.'], $failure->getFieldErrors());
 
         // Plain-text punctuation is stored as typed (escaping is the template's job, not storage's).
@@ -405,7 +405,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertSame(4 * HomeworkText::FEEDBACK_MAX, \strlen($max));
 
         $first = $this->studentSubmit($s['users'][0], $s['assignment']);
-        $failure = $this->failure(fn () => $manager->record($s['ctx']['teacher'], $first->getId(), 'needs_rework', $max.$emoji, null));
+        $failure = $this->failure(static fn () => $manager->record($s['ctx']['teacher'], $first->getId(), 'needs_rework', $max.$emoji, null));
         self::assertSame(HomeworkEvaluationException::REASON_INVALID_INPUT, $failure->getReason());
         self::assertSame(['feedback' => 'Geri bildirim en fazla 5.000 karakter olabilir.'], $failure->getFieldErrors());
         self::assertSame(0, $this->evaluationRowCount());
@@ -428,7 +428,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $teacher = $s['ctx']['teacher'];
 
         // No evaluation exists yet: a concrete expected id cannot be "current".
-        $failure = $this->failure(fn () => $manager->record($teacher, $id, 'reviewed', 'x', Uuid::fromString(self::ABSENT_ID)));
+        $failure = $this->failure(static fn () => $manager->record($teacher, $id, 'reviewed', 'x', Uuid::fromString(self::ABSENT_ID)));
         self::assertSame(HomeworkEvaluationException::REASON_STALE, $failure->getReason());
         self::assertSame(0, $this->evaluationRowCount());
 
@@ -436,7 +436,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
 
         // The first tab still believes nothing exists, another tab holds a foreign id.
         foreach ([null, Uuid::fromString(self::ABSENT_ID)] as $expected) {
-            $failure = $this->failure(fn () => $manager->record($teacher, $id, 'needs_rework', 'Eski sekme', $expected));
+            $failure = $this->failure(static fn () => $manager->record($teacher, $id, 'needs_rework', 'Eski sekme', $expected));
             self::assertSame(HomeworkEvaluationException::REASON_STALE, $failure->getReason());
         }
         self::assertSame(1, $this->evaluationRowCount());
@@ -444,7 +444,7 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
 
         $second = $manager->record($teacher, $id, 'needs_rework', 'Düzeltme', $first->getId());
         // The superseded id is stale from now on, however recent it was.
-        $failure = $this->failure(fn () => $manager->record($teacher, $id, 'reviewed', 'Eski sekme yine', $first->getId()));
+        $failure = $this->failure(static fn () => $manager->record($teacher, $id, 'reviewed', 'Eski sekme yine', $first->getId()));
         self::assertSame(HomeworkEvaluationException::REASON_STALE, $failure->getReason());
         self::assertSame(2, $this->evaluationRowCount());
         self::assertSame($second->getId()->toRfc4122(), $this->currentEvaluationId($id));
@@ -517,15 +517,15 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertCount(1, $this->evaluationAuditRows());
 
         $attempts = [
-            'bad label' => fn () => $manager->record($teacher, $id, 'approved', 'x', $first->getId()),
-            'blank rework' => fn () => $manager->record($teacher, $id, 'needs_rework', '  ', $first->getId()),
-            'html' => fn () => $manager->record($teacher, $id, 'reviewed', '<b>x</b>', $first->getId()),
-            'too long' => fn () => $manager->record($teacher, $id, 'reviewed', str_repeat('a', HomeworkText::FEEDBACK_MAX + 1), $first->getId()),
-            'stale null' => fn () => $manager->record($teacher, $id, 'reviewed', 'x', null),
-            'stale foreign' => fn () => $manager->record($teacher, $id, 'reviewed', 'x', Uuid::fromString(self::ABSENT_ID)),
-            'draft' => fn () => $manager->record($teacher, $draftId, 'reviewed', 'x', null),
-            'unknown' => fn () => $manager->record($teacher, Uuid::fromString(self::ABSENT_ID), 'reviewed', 'x', null),
-            'student' => fn () => $manager->record($s['users'][0], $id, 'reviewed', 'x', $first->getId()),
+            'bad label' => static fn () => $manager->record($teacher, $id, 'approved', 'x', $first->getId()),
+            'blank rework' => static fn () => $manager->record($teacher, $id, 'needs_rework', '  ', $first->getId()),
+            'html' => static fn () => $manager->record($teacher, $id, 'reviewed', '<b>x</b>', $first->getId()),
+            'too long' => static fn () => $manager->record($teacher, $id, 'reviewed', str_repeat('a', HomeworkText::FEEDBACK_MAX + 1), $first->getId()),
+            'stale null' => static fn () => $manager->record($teacher, $id, 'reviewed', 'x', null),
+            'stale foreign' => static fn () => $manager->record($teacher, $id, 'reviewed', 'x', Uuid::fromString(self::ABSENT_ID)),
+            'draft' => static fn () => $manager->record($teacher, $draftId, 'reviewed', 'x', null),
+            'unknown' => static fn () => $manager->record($teacher, Uuid::fromString(self::ABSENT_ID), 'reviewed', 'x', null),
+            'student' => static fn () => $manager->record($s['users'][0], $id, 'reviewed', 'x', $first->getId()),
         ];
         foreach ($attempts as $name => $attempt) {
             $this->failure($attempt);
@@ -562,9 +562,9 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         self::assertSame($before, $this->submissionRow($id), 'evaluate must not touch body, status, revision or submitted_at');
         // Neither evaluation label gives the student another write.
         foreach ([2, 1, 0] as $revision) {
-            $draftAgain = $this->failure(fn () => $this->homeworkSubmissionManager()->saveDraft($student, $s['assignment']->getId(), 'taslağa dönüş', $revision));
+            $draftAgain = $this->failure(static fn () => $this->homeworkSubmissionManager()->saveDraft($student, $s['assignment']->getId(), 'taslağa dönüş', $revision));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $draftAgain->getReason(), (string) $revision);
-            $resubmit = $this->failure(fn () => $this->homeworkSubmissionManager()->submit($student, $s['assignment']->getId(), 'yeniden teslim', $revision, true));
+            $resubmit = $this->failure(static fn () => $this->homeworkSubmissionManager()->submit($student, $s['assignment']->getId(), 'yeniden teslim', $revision, true));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $resubmit->getReason(), (string) $revision);
         }
         self::assertSame($before, $this->submissionRow($id));
@@ -664,9 +664,9 @@ final class HomeworkEvaluationManagerTest extends KernelTestCase
         $auditBefore = \count($this->evaluationAuditRows());
 
         // First evaluation of a submission and a correction of an existing evaluation are both closed.
-        $first = $this->failure(fn () => $manager->record($teacher, $otherId, 'reviewed', 'Artık yetkim yok', null));
+        $first = $this->failure(static fn () => $manager->record($teacher, $otherId, 'reviewed', 'Artık yetkim yok', null));
         self::assertSame($reason, $first->getReason());
-        $correction = $this->failure(fn () => $manager->record($teacher, $evaluatedId, 'needs_rework', 'Düzeltme', null !== $pointer ? Uuid::fromString($pointer) : null));
+        $correction = $this->failure(static fn () => $manager->record($teacher, $evaluatedId, 'needs_rework', 'Düzeltme', null !== $pointer ? Uuid::fromString($pointer) : null));
         self::assertSame($reason, $correction->getReason());
 
         $query = $this->homeworkTeacherSubmissionQuery();

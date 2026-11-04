@@ -188,7 +188,7 @@ class HomeworkSubmission
     }
 
     /**
-     * @internal prefer HomeworkEvaluationManager — only under submission WRITE lock.
+     * @internal prefer HomeworkEvaluationManager — only under submission WRITE lock
      */
     public function assignCurrentEvaluation(HomeworkEvaluation $evaluation): void
     {

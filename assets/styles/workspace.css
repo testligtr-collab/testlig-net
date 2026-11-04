@@ -750,6 +750,9 @@ body.is-workspace {
 
 .is-workspace .hw-recipient__name {
     font-weight: 650;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .is-workspace .hw-recipient__side {
@@ -757,6 +760,8 @@ body.is-workspace {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.6rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .is-workspace .hw-eval-side {
@@ -772,10 +777,28 @@ body.is-workspace {
     background: #f7f9fb;
     border: 1px solid var(--hw-line);
     border-radius: var(--tl-radius-md);
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .is-workspace .hw-feedback {
     margin: 0.5rem 0 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.is-workspace .hw-page .hw-breadcrumb {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.is-workspace .hw-page .hw-breadcrumb a,
+.is-workspace .hw-page .hw-breadcrumb span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .is-workspace .hw-fieldset {
