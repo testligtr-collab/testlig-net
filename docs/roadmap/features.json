@@ -1103,12 +1103,14 @@
         "PR #192: sınıfa atama + alıcı snapshot dilimi; inceleme düzeltmeleri: uzun başlık taşması CSS + güçlendirilmiş eşzamanlılık kimlik kanıtı (incelemede; main merge/deploy/production kabulü YOK)",
         "Kod (öğrenci metin teslimi, feature/x01-homework-student-submit; main/deploy/production kabulü YOK): migrations/Version20261104120000.php (homework_submissions); src/Entity/HomeworkSubmission.php; src/Service/Homework/HomeworkSubmissionManager.php; src/Service/Homework/HomeworkStudentQuery.php; src/Service/Homework/HomeworkStudentScope.php; src/Controller/StudentHomeworkController.php; templates/student/homework/*; browser/tests/student-homework.spec.ts",
         "Testler (kod kanıtı; CI sonucu ayrı): tests/Service/HomeworkSubmissionManagerTest.php, tests/Service/HomeworkSubmissionConcurrencyTest.php, tests/Controller/StudentHomeworkHttpTest.php, tests/Service/HomeworkTextTest.php (draft/submit body)",
-        "Kapsam dışı / açık: öğretmen değerlendirmesi, dosya/PDF, bildirim, veli, iptal/ikinci atama, canlı öğretmen ve canlı öğrenci kabulü"
+        "Kapsam dışı / açık: öğretmen değerlendirmesi, dosya/PDF, bildirim, veli, iptal/ikinci atama, canlı öğretmen ve canlı öğrenci kabulü",
+        "PR #193: öğrenci metin teslimi dilimi (incelemede; main merge/deploy/production kabulü YOK)"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
         "https://github.com/testligtr-collab/testlig-net/pull/191",
-        "https://github.com/testligtr-collab/testlig-net/pull/192"
+        "https://github.com/testligtr-collab/testlig-net/pull/192",
+        "https://github.com/testligtr-collab/testlig-net/pull/193"
       ],
       "acceptance": "Durum partial: öğretmen taslak + sınıfa atama/alıcı snapshot + öğrenci metin teslimi (liste/detay/taslak/tek gönderim) kodda. Recipient snapshot tek başına yetki değil; güncel üyelik+enrollment; submitted geçmiş salt okunur istisnası; dueAt inclusive UTC ClockInterface; UNIQUE recipient/assignment+student; kilit protokolü atama ile uyumlu; GET yazmaz; Admin/SA/veli/öğretmen taslak/gövde otomatik yok. Değerlendirme, dosya, bildirim, veli, yeniden/geç teslim ve canlı öğretmen/öğrenci kabulü AÇIK. CI/preview production kabulü değildir; main merge, deploy ve production kabulü ayrı kanıtlanır. M18-local-pdf depends_on korunur. X10 partial korunur.",
       "scope_decision": null
