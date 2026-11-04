@@ -118,7 +118,7 @@ Bu satırlar “V1'de çalışıyordu” diye raporlanmaz. 5 Ekim devir özetind
 |---|---|---|
 | Yanlış defteri, favori/not, kazanım haritası, adaptif tekrar | Ayrı ürün karşılığı bulunamadı; scoring/outcome temeli var | Öğrenme ilerlemesi ve pedagojik geri bildirim paketi |
 | Günlük çalışma planı ve son ders | Ders ziyaret/ilerleme modeli yok | Test “Devam et”i yeniden yazmadan ders ilerlemesi ekle |
-| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir; karar: `docs/architecture-homework.md` (uygulama yok; ilk dilim metin) | Atama/teslim/öğretmen değerlendirme döngüsü |
+| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir; karar: `docs/architecture-homework.md` (taslak+atama+öğrenci teslimi kodda; değerlendirme erişim/MariaDB modeli belgede; değerlendirme kodu yok) | Atama/teslim/öğretmen değerlendirme döngüsü |
 | Oyunlaştırma: seri, görev, rozet/seviye/ödül | Ürün karşılığı bulunamadı | Eğitsel oyun motorundan ayrı motivasyon modülü |
 | Rehberlik | Ayrıntılı akış kararı eksik | Yaş/rol/mahremiyet kapsamı netleştirilip planlanacak |
 | Manuel değerlendirme, itiraz/regrade/release politika UI | Domain temeli mevcut; genel HTTP ürün akışı tamamlanmamış | Yeni puanlama motoru değil mevcut manager'ların güvenli yüzeyi |
@@ -157,7 +157,7 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 ## 7. Mevcut açık kabul ve korunacak kayıtlar
 
-- Aktif uygulama işi X01-homework (yalnız öğretmen taslak dilimi; yayımlama/teslim/değerlendirme yok). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
+- Aktif uygulama işi X01-homework (taslak + atama + öğrenci metin teslimi kodda; öğretmen değerlendirme erişim kararı belgede; değerlendirme uygulaması ve canlı kabul açık). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
 
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.
@@ -208,7 +208,7 @@ https://github.com/testligtr-collab/testlig-net/tree/2a615f1113126ad5b023b4a2893
 - docs/architecture-learning-content.md
 - docs/architecture-commerce-payment.md
 - docs/architecture-admin-operations-panel.md (ilk aşama sınırları güncel feature yokluğu sanılmadı)
-- docs/architecture-homework.md (X01 önerilen mimari; yalnız öğretmen taslak dilimi kodda)
+- docs/architecture-homework.md (X01 önerilen mimari; taslak/atama/öğrenci teslimi kodda; §4.4 öğretmen değerlendirme erişimi + §3.4 MariaDB `current_evaluation_id` modeli belgede; değerlendirme kodu yok)
 
 PR #112:
 https://github.com/testligtr-collab/testlig-net/pull/112

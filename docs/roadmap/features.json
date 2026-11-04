@@ -1104,7 +1104,8 @@
         "Kod (öğrenci metin teslimi, feature/x01-homework-student-submit; main/deploy/production kabulü YOK): migrations/Version20261104120000.php (homework_submissions); src/Entity/HomeworkSubmission.php; src/Service/Homework/HomeworkSubmissionManager.php; src/Service/Homework/HomeworkStudentQuery.php; src/Service/Homework/HomeworkStudentScope.php; src/Controller/StudentHomeworkController.php; templates/student/homework/*; browser/tests/student-homework.spec.ts",
         "Testler (kod kanıtı; CI sonucu ayrı): tests/Service/HomeworkSubmissionManagerTest.php, tests/Service/HomeworkSubmissionConcurrencyTest.php, tests/Controller/StudentHomeworkHttpTest.php, tests/Service/HomeworkTextTest.php (draft/submit body)",
         "Kapsam dışı / açık: öğretmen değerlendirmesi, dosya/PDF, bildirim, veli, iptal/ikinci atama, canlı öğretmen ve canlı öğrenci kabulü",
-        "PR #193: öğrenci metin teslimi dilimi (incelemede; main merge/deploy/production kabulü YOK)"
+        "PR #193: öğrenci metin teslimi dilimi (incelemede; main merge/deploy/production kabulü YOK)",
+        "Karar hazırlığı (yalnız belge; değerlendirme kodu YOK): docs/architecture-homework.md §4.4 öğrenci ayrılması sonrası güncel yetkili atayan öğretmen submitted okuma/değerlendirme (öğrenci enrollment şart değil); §3.4 MariaDB 10.11 uyumlu current_evaluation_id işaretçisi + bileşik FK; partial unique yok; append-only immutable evaluation; expected_current_evaluation_id stale kontrolü; §6 işlem türüne göre enrollment ayrımı; canlı öğretmen/öğrenci kabulü AÇIK"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
@@ -1112,7 +1113,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/192",
         "https://github.com/testligtr-collab/testlig-net/pull/193"
       ],
-      "acceptance": "Durum partial: öğretmen taslak + sınıfa atama/alıcı snapshot + öğrenci metin teslimi (liste/detay/taslak/tek gönderim) kodda. Recipient snapshot tek başına yetki değil; güncel üyelik+enrollment; submitted geçmiş salt okunur istisnası; dueAt inclusive UTC ClockInterface; UNIQUE recipient/assignment+student; kilit protokolü atama ile uyumlu; GET yazmaz; Admin/SA/veli/öğretmen taslak/gövde otomatik yok. Değerlendirme, dosya, bildirim, veli, yeniden/geç teslim ve canlı öğretmen/öğrenci kabulü AÇIK. CI/preview production kabulü değildir; main merge, deploy ve production kabulü ayrı kanıtlanır. M18-local-pdf depends_on korunur. X10 partial korunur.",
+      "acceptance": "Durum partial: öğretmen taslak + sınıfa atama/alıcı snapshot + öğrenci metin teslimi kodda. Değerlendirme erişim kararı ve MariaDB current_evaluation_id tutarlılık modeli belgede (§4.4/§3.4); değerlendirme entity/route/migration YOK. Recipient snapshot tek başına yetki değil; öğrenci yazma güncel enrollment; öğretmen submitted okuma/değerlendirme için öğrenci enrollment şart değil; öğretmen yetkisi bitince erişim kapanır; submitted geçmiş salt okunur istisna (öğrenci); GET yazmaz; Admin/SA/veli/co-teacher otomatik yok. Dosya, bildirim, veli, yeniden/geç teslim ve canlı öğretmen/öğrenci kabulü AÇIK. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur.",
       "scope_decision": null
     },
     {
