@@ -1,11 +1,11 @@
 # X01 — Ödev ve proje (ürün / mimari karar)
 
-**Durum:** Önerilen mimari; **öğretmen taslak**, **sınıfa atama + alıcı snapshot** ve **öğrenci metin teslimi** dilimleri koda alındı (0.1, 0.1b, 0.1c). Öğretmen değerlendirmesi henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen kabulü açıktır.  
-**Feature ID:** `X01-homework` (`partial` — taslak + atama dilimleri kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
+**Durum:** Önerilen mimari; **öğretmen taslak**, **sınıfa atama + alıcı snapshot**, **öğrenci metin teslimi** ve **öğretmen değerlendirme** dilimleri koda alındı (0.1–0.1d). Dosya/bildirim/veli/yeniden teslim yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen/öğrenci kabulü açıktır.  
+**Feature ID:** `X01-homework` (`partial` — taslak + atama + öğrenci teslimi + öğretmen değerlendirme kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
 **Aktif uygulama işi:** `active_feature_ids` = `X01-homework`; `X10-admin-navigation` **partial** olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez).  
-**Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimi metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu bu dilime dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
+**Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimleri metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
 
-Bölüm 0 uygulanan taslak dilimini anlatır. Bölüm 1–10’daki Assignment/Recipient/Submission/Evaluation adları **önerilen** gelecek kavramlardır; henüz Doctrine sınıfı değillerse öyle sunulmazlar.
+Bölüm 0 uygulanan dilimleri anlatır. Bölüm 1–10 ile kod gerçeği çelişirse Bölüm 0 ve §4.4 / §3.4 kararları esas alınır.
 
 İlgili mevcut omurga (yeniden kurulmaz): `Institution`, `InstitutionMembership`, `AcademicYear`, `Classroom`, `ClassroomTeacherAssignment`, `ClassroomStudentEnrollment` — bkz. `docs/architecture.md` (2.5–2.6) ve `docs/architecture-auth-membership-onboarding.md`. Sınıf testi ataması `AssessmentDelivery` ayrı kalır (2.10). Assessment / Delivery / Attempt / Scoring yeniden yazılmaz. `AssessmentType::HomeworkBlueprint` tek başına çalışan ödev ürünü değildir.
 
@@ -63,47 +63,46 @@ Test kanıtı (kod kanıtı; CI ve canlı kabul ayrıdır): `tests/Service/Homew
 
 Kapsam dışı (bu dilimde de yok): öğrenci tarafı alıcı görünümü, teslim, değerlendirme, dosya/PDF (`M18-local-pdf` `depends_on` olarak kalır), atamayı geri alma/iptal.
 
-### 0.1c Uygulanan öğrenci metin teslimi dilimi (kodda; branch 
-eature/x01-homework-student-submit)
+### 0.1c Uygulanan öğrenci metin teslimi dilimi (kodda; branch `feature/x01-homework-student-submit`)
 
 Bu dilim 0.1b üzerine biner. Öğretmen değerlendirmesi, dosya, bildirim, veli ve yeniden/geç teslim **yoktur**. Main merge, deploy ve **canlı öğrenci/öğretmen kabulü açıktır**; CI production kabulü değildir.
 
 | Konu | Kodda olan |
 |---|---|
-| Tablo | homework_submissions (UNIQUE(recipient_id), UNIQUE(assignment_id, student_user_id); body MEDIUMTEXT; status draft\|submitted; submitted_at; revision_number; created/updated; tüm FK RESTRICT). Version20261104120000, geri alınabilir. Mevcut alıcılar için backfill **yok**. Evaluation tablosu **yok**. |
+| Tablo | `homework_submissions` (UNIQUE(recipient_id), UNIQUE(assignment_id, student_user_id); body MEDIUMTEXT; status draft\|submitted; submitted_at; revision_number; created/updated; tüm FK RESTRICT). `Version20261104120000`, geri alınabilir. Mevcut alıcılar için backfill **yok**. Evaluation tablosu **yok**. |
 | Entity / servis | HomeworkSubmission; HomeworkSubmissionManager::saveDraft/submit; HomeworkStudentQuery (liste/detay DTO); HomeworkStudentScope (güncel enrollment+üyelik; snapshot enrollment_id yetki değildir). |
 | Metin | HomeworkText::draftBody (boş OK) / submittedBody (trim sonrası boş red); ≤20.000 Unicode kod noktası; HTML/kontrol red; istemci homework_text.js aynı sayım. |
 | Erişim | Açık ödev/taslak: aktif+doğrulanmış öğrenci + kendi recipient + assignment assigned + aktif öğrenci üyeliği + **o sınıfta güncel** aktif enrollment + yazmada aktif kurum/sınıf/yıl. Ayrılma/transfer yazmayı kapatır. Kendi **submitted** kaydı ayrıldıktan sonra salt okunur (yeni yazma yok). Admin/SA/veli/moderatör/öğretmen otomatik erişim yok; öğretmen taslağı görmez. |
-| Son tarih | Inclusive: TX içinde ClockInterface; 
-ow <= dueAt kabul; 
-ow > dueAt ret. Süre dolması GET ile kalıcı status yapılmaz. |
+| Son tarih | Inclusive: TX içinde ClockInterface; `now <= dueAt` kabul; `now > dueAt` ret. Süre dolması GET ile kalıcı status yapılmaz. |
 | Kilit | kurum WRITE → yıl WRITE → sınıf WRITE → assignment WRITE → recipient WRITE → (varsa) submission WRITE → güncel enrollment WRITE → membership WRITE. İlk oluşturma recipient kilidi + UNIQUE ile güvenli. |
-| Rotalar | GET /ogrenci/odevler, GET /ogrenci/odevler/{id}, POST .../taslak, POST .../gonder. GET yazmaz. CSRF student_homework_draft / student_homework_submit; gönderimde açık onay; 
-evision_number. |
+| Rotalar | GET /ogrenci/odevler, GET /ogrenci/odevler/{id}, POST .../taslak, POST .../gonder. GET yazmaz. CSRF student_homework_draft / student_homework_submit; gönderimde açık onay; revision_number. |
 | UI | Öğrenci menüsünde **Ödevlerim**; liste (Teslim edilmedi/Taslak/Gönderildi); detayda dondurulmuş istem, taslak kaydet / onaylı gönder, gönderim sonrası salt okunur. |
 | Denetim | homework_submission_draft_saved / homework_submission_submitted (kimlik/durum/sürüm; gövde yok). |
 
 Kapsam dışı: değerlendirme, dosya (M18-local-pdf depends_on kalır), bildirim, veli, iptal, AssessmentAttempt.
 
-### 0.1d Öğretmen değerlendirmesi dilimi (bu branch'te uygulanıyor; branch `feature/x01-homework-teacher-evaluate`)
+### 0.1d Uygulanan öğretmen değerlendirme dilimi (kodda; branch `feature/x01-homework-teacher-evaluate`)
 
-Kod bu branch'te mevcuttur; main merge, deploy ve canlı kabul **açıktır** (CI production kabulü değildir). Değerlendirme yalnız etiket (`reviewed` / `needs_rework`) + isteğe bağlı geri bildirimdir (≤5.000 kod noktası; `needs_rework` için zorunlu); not/puan yoktur ve **yeniden teslim hakkı vermez**.
+Bu dilim 0.1c + §4.4 / §3.4 kararları üzerine biner. Main merge, deploy ve **canlı öğretmen/öğrenci kabulü açıktır**; CI production kabulü değildir. Değerlendirme yalnız etiket (`reviewed` / `needs_rework`) + metin geri bildirimdir (≤5.000 kod noktası; `needs_rework` zorunlu); sayısal puan yok; **yeniden teslim / ek süre açmaz**.
 
 | Konu | Kodda olan |
 |---|---|
-| Tablo / servis | homework_evaluations (append-only; `HomeworkSubmission.currentEvaluation` güncel kayıt); `HomeworkEvaluationManager::record` (stale `expected_current_evaluation_id` reddi, audit `homework_evaluation_recorded`); Version20261104200000. |
-| Erişim | Yalnız atayan + tanımı oluşturan öğretmen, açık sınıf/yıl; `HomeworkEvaluationVoter`; admin/SA/yardımcı öğretmen yok; öğrenci enrollment'ı aranmaz; kapsam dışı 404. |
-| Rotalar | GET `/ogretmen/odevler/teslim/{id}`, POST `.../degerlendir` (CSRF `teacher_homework_evaluate`; PRG; alan hataları 422, stale/çakışma 409 flash, form değerleri korunur). Atanmış ödev sayfasında alıcı/gönderen/değerlendirilen sayaçları ve alıcı listesi (taslak gövde yok). |
-| Öğrenci | Gönderilmiş detayda yalnız kendi güncel değerlendirmesi: "Henüz değerlendirilmedi" veya etiket + geri bildirim; yeniden teslim yok. |
+| Tablo | `homework_evaluations` (immutable satırlar; RESTRICT; `uniq_hw_eval_id_submission`; `supersedes` bileşik FK aynı submission); `homework_submissions.current_evaluation_id` + bileşik FK `(current_evaluation_id, id) → (id, submission_id)`. `Version20261104200000`; backfill yok. Partial unique yok. |
+| Servis | `HomeworkEvaluationManager::record` (kurum→yıl→sınıf→assignment→recipient→submission kilit; öğretmen üyeliği/atama doğrulama; **öğrenci enrollment kilidi yok**); stale `expected_current_evaluation_id`; audit `homework_evaluation_recorded` (gövde yok). |
+| Erişim | Atayan + tanımı oluşturan öğretmen + güncel üyelik/sınıf ataması + açık kurum/sınıf/yıl; öğrenci ayrılsa da submitted okunur/değerlendirilir (§4.4); taslak öğretmene kapalı; Admin/SA/co-teacher yok. |
+| Rotalar | GET `/ogretmen/odevler/teslim/{id}`, POST `.../degerlendir` (CSRF `teacher_homework_evaluate`; PRG). Atanmış ödev: alıcı/gönderilmiş/değerlendirilmiş sayaçları + liste (taslak gövde yok). |
+| Öğrenci | Submitted detayda yalnız kendi güncel değerlendirmesi veya “Henüz değerlendirilmedi”; yazma/yeniden teslim yok. |
+
+Kapsam dışı (bu dilimde de yok): dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik.
 
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |
 |---|---|
 | `HomeworkAssignment` | **Kısmen uygulandı** (0.1b): yalnız `assigned`; dondurulmuş metin/due; 1:1 tanım. `closed`/`cancelled` ve atama taslağı **yok**. |
-| `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; öğrenci erişimi / liste **yok**. |
-| `HomeworkSubmission` | **Kısmen uygulandı** (0.1c): draft/submitted metin; evaluation yok. |
-| `HomeworkEvaluation` | **Kısmen uygulanıyor** (0.1d, bu branch): etiket + geri bildirim, append-only; puan/yeniden teslim yok. |
+| `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; tek başına yetki değil. |
+| `HomeworkSubmission` | **Kısmen uygulandı** (0.1c+0.1d): draft/submitted metin; nullable `current_evaluation_id`. |
+| `HomeworkEvaluation` | **Kısmen uygulandı** (0.1d): etiket + geri bildirim; append-only; `current_evaluation_id` ile tek güncel. |
 | `archived` tanım durumu | **Önerilen.** Bu dilimde yazılmaz. |
 
 ---
@@ -212,20 +211,56 @@ Geç teslim durumu yok.
 
 **Taslak boş metin:** Draft kaydı, gönderimden önce isteğe bağlı kayıt davranışıdır. Öğrenci taslağı **boş string** olarak saklanabilir (önceki taslağı temizleme / henüz yazmama). Yalnız boşluklardan oluşan draft metin trim sonrası boş sayılır ve boş draft olarak saklanır; bu “gönderilmiş teslim” değildir. **Submit** (§3.6) boş veya yalnız boşluk metni kabul etmez.
 
-### 3.4 HomeworkEvaluation (öneri)
+### 3.4 HomeworkEvaluation (öneri — henüz kodda yok)
 
-| Alan | Kural |
+Ürün sözleşmesi (uygulama diliminde kanıtlanır; AssessmentScoringRun / sayısal puan / rubrik bağlanmaz):
+
+| Alan / kural | Değer |
 |---|---|
+| Hedef | Yalnız `submitted` teslim; `draft` değerlendirilmez ve öğretmene açılmaz |
 | Etiket | Yalnız **`reviewed` (İncelendi)** veya **`needs_rework` (Yeniden çalışılmalı)** |
-| Geri bildirim — `needs_rework` | **Anlamlı metin zorunlu** (trim sonrası boş olamaz; §3.6 üst sınır) |
-| Geri bildirim — `reviewed` | **İsteğe bağlı**; verilirse §3.6 sınırına uyar; yalnız boşluk → yok sayılır |
-| Sayısal puan | **Yok** |
-| Durum | `recorded` → düzeltmede önceki `superseded`; yeni satır `recorded` |
+| Geri bildirim — `needs_rework` | **Anlamlı metin zorunlu** (trim sonrası boş olamaz; §3.6 ≤ 5.000) |
+| Geri bildirim — `reviewed` | **İsteğe bağlı**; verilirse §3.6; yalnız boşluk → yok sayılır |
+| Gösterim | Twig autoescape; düz metin; ham HTML / zengin editör yok |
+| `needs_rework` etkisi | Pedagojik geri bildirimdir; **yeniden teslim, ek süre veya due uzatması açmaz** |
 | Değerlendirilmemiş | Hiçbir etiket gösterilmez; “İncelendi” / “Yeniden çalışılmalı” gibi sunulmaz |
+| Düzeltme | Yeni değerlendirme satırı eklenir; eski etiket, metin, aktör ve zaman **UPDATE edilmez / silinmez** |
+| Öğrenci UI | Yalnız **güncel** etiket + geri bildirim; superseded listesi ilk dilimde zorunlu değil |
 
-**`needs_rework` pedagojik geri bildirimdir.** Yeniden teslim izni, ek süre veya due uzatması **açmaz**. UI bunu vaat etmez.
+#### MariaDB’ye uygun tek güncel değerlendirme (öneri)
 
-Öğrenci yalnız güncel (`recorded`) etiket + geri bildirimi görür. Eski satırlar silinmez; ilk dilim UI’sinde superseded listesi zorunlu değildir.
+Repo **MariaDB 10.11** kullanır. PostgreSQL tarzı **partial unique index** (`WHERE status = …`) tasarlanmaz.
+
+Repo kalıbı (ör. `LearningContent.current_revision_id`): ebeveyn satırda nullable güncel işaretçi.
+
+| Öneri ad | Anlam (uygulanmamış) |
+|---|---|
+| `homework_evaluations` | Append-only satırlar: `submission_id` RESTRICT, etiket, geri bildirim, `evaluated_by_user_id` (+ üyelik), `recorded_at`, isteğe bağlı `supersedes_evaluation_id` |
+| Değerlendirme satırı | Insert sonrası **immutable**: etiket/geri bildirim/aktör/zaman UPDATE edilmez |
+| `homework_submissions.current_evaluation_id` | Nullable FK; tek “güncel” işaretçi. Güncel = bu işaretçinin gösterdiği satır; diğerleri geçmiş (superseded) sayılır — eski satıra `superseded` UPDATE zorunlu değildir |
+| `supersedes_evaluation_id` | Yeni satırın hemen önceki değerlendirmeyi işaret etmesi (zincir). Aynı `submission_id` zorunlu; dallanma yok (yalnız mevcut güncel supersede edilir) |
+
+**DB güvenceleri (MariaDB uyumlu):**
+
+1. `homework_evaluations (id, submission_id)` üzerinde bileşik aday anahtar / unique; submission tarafında  
+   `FOREIGN KEY (current_evaluation_id, id) REFERENCES homework_evaluations (id, submission_id)`  
+   → işaretçi **başka submission’ın** değerlendirmesine bağlanamaz.
+2. `supersedes_evaluation_id` için aynı submission koşulu: servis TX içinde doğrular; tercihen  
+   `FOREIGN KEY (supersedes_evaluation_id, submission_id) REFERENCES homework_evaluations (id, submission_id)`.
+3. Tüm FK’ler **RESTRICT**; hard delete yok; geçmiş satırlar korunur.
+4. Chicken-egg insert (LearningContent revision ile aynı fikir): önce evaluation INSERT, sonra aynı TX içinde submission işaretçisi UPDATE.
+
+**Stale form:** istemci `expected_current_evaluation_id` gönderir — `null` = henüz değerlendirme yok (ilk kayıt); aksi halde TX içinde kilitli submission’ın `current_evaluation_id` ile **eşit** olmalı. Eşleşmezse sessiz overwrite yok; conflict / stale.
+
+**Eşzamanlılık (submission WRITE kilidi altında, aynı TX):**
+
+| Yarış | Beklenen davranış |
+|---|---|
+| İki ilk değerlendirme (`expected` null) | Tek kazanan: tek yeni satır + tek işaretçi; diğeri stale/conflict; tek başarı audit |
+| İki düzeltme (aynı `expected` id) | Tek kazanan yeni satır + işaretçi güncellemesi; diğeri stale; eski satır içeriği değişmez |
+| Başarısız TX | Yeni evaluation, işaretçi değişimi veya başarı audit’i **kalmaz** |
+
+Öğrenci yalnız `current_evaluation_id` ile çözülen güncel satırı görür.
 
 ### 3.5 Dondurulmuş kararlar
 
@@ -284,33 +319,52 @@ Bu sınırlar uygulanacak üründür; **bu PR’da validator/form kodu yoktur.**
 - İlk dilimde **yalnız ödevi oluşturan ve atayan öğretmen** düzenler, atar ve değerlendirir.
 - Aynı sınıf başka öğretmen / co-teacher otomatik erişim kazanmaz.
 - Sahiplik devri ve ortak değerlendirme **yok**.
+- Öğretmen submitted okuma / değerlendirme için **öğrencinin güncel enrollment veya öğrenci üyeliği şart değildir** (§4.4).
 - Gerekli sınıf öğretmen ataması veya kurum üyeliği biterse: **geçmiş dahil** tüm ödev/teslim/evaluation erişimi kapanır.
 - Kayıtlar DB’de korunur; otomatik başka öğretmene devredilmez.
-- **Operasyonel sınır:** Bu durumda değerlendirilemeyen `submitted` teslimler kalabilir. Gizli admin/owner/SA bypass **eklenmez**. İleride yönetim erişimi ayrı açık karar + izin + denetim ister.
+- **Operasyonel sınır:** Öğretmen yetkisi bitince değerlendirilemeyen `submitted` teslimler kalabilir. Gizli admin/owner/SA bypass **eklenmez**. İleride yönetim erişimi ayrı açık karar + izin + denetim ister.
 
 ### 4.3 Kurum / yıl / sınıf pasifliği
 
-Yeni publish/submit/evaluate deny; satırlar silinmez. Erişim §4.1–4.2 güncel yetkiye bağlıdır.
+Yeni publish/submit/evaluate deny; satırlar silinmez. Erişim §4.1–4.2 güncel yetkiye bağlıdır. Bu karar, kurum/sınıf/yıl için mevcut öğretmen okuma/yazma **aktiflik** kurallarını gevşetmez (§4.4).
+
+### 4.4 Öğrenci ayrılması / transfer ve öğretmen değerlendirmesi (kesin)
+
+| Durum | Sonuç |
+|---|---|
+| Öğrenci sınıftan ayrılır, transfer olur veya öğrenci üyeliği biter | Mevcut `submitted` teslim **korunur**; içerik/sahip değişmez; yeni sınıfa taşınmaz |
+| Atayan öğretmen; aktif+doğrulanmış; sahiplik; gerekli **güncel** kurum öğretmen üyeliği + **güncel** `ClassroomTeacherAssignment`; kurum/sınıf/yıl öğretmen okuma-yazma aktiflik kuralları sağlanır | Bu `submitted` teslimi **okuyabilir ve değerlendirebilir** |
+| Öğrencinin güncel enrollment / öğrenci üyeliği | Bu öğretmen işlemi için **şart değildir**; TX içinde öğrencinin güncel enrollment’ı şart koşulmaz veya gereksiz yere kilitlenmez |
+| Öğretmen üyeliği veya sınıf ataması biter | Geçmiş dahil okuma/değerlendirme **kapanır**; kayıtlar silinmez |
+| Öğrenci `draft` | Öğretmene **açılmaz**; değerlendirilmez |
+| Admin / SuperAdmin / kurum owner-manager / moderatör / veli / co-teacher | Otomatik okuma veya değerlendirme **yok** |
+| Aktif+doğrulanmış öğrenci sahibi | §4.1 submitted geçmiş kuralıyla **kendi güncel değerlendirmesini** görür; bu istisna yeniden teslim veya yeni yazma vermez |
+
+**İşlem türüne göre enrollment (genel “her yazmada enrollment” ifadesinin ayrımı):**
+
+1. **Öğrenci taslak kaydı / gönderim:** güncel uygun öğrenci üyeliği + o sınıfta güncel aktif enrollment **gerekir** (öğrenci yazma kapısı gevşetilmez).
+2. **Öğretmen submitted okuma / değerlendirme:** öğrencinin güncel enrollment’ı **gerekmez**; öğretmenin güncel yetkisi **gerekir**.
+3. **Öğrencinin kendi submitted / güncel evaluation okuması:** aktif+doğrulanmış sahiplik istisnası (§4.1); enrollment bitmiş olsa da salt okunur.
 
 ---
 
 ## 5. Yetki matrisi (ilk dilim — kesin)
 
-Fail-closed. Global rol hiyerarşisi nesne kuralını aşmaz. Teslim gövdesi: yalnız sahibi öğrenci + atayan ve **güncel yetkisi devam eden** öğretmen.
+Fail-closed. Global rol hiyerarşisi nesne kuralını aşmaz. Teslim gövdesi: yalnız sahibi öğrenci + atayan ve **güncel yetkisi devam eden** öğretmen. Matris satırı “Atayan öğretmen (güncel atama+üyelik)” için submitted okuma/değerlendirme, öğrencinin güncel enrollment’ına **bağlı değildir** (§4.4).
 
 | Aktör | Ödev listesi / meta | Teslim gövdesi | Oluştur / düzenle / ata | Submit | Değerlendir | İptal/arşiv |
 |---|---|---|---|---|---|---|
 | SuperAdmin | Otomatik yok | **Hayır** | Hayır | Hayır | Hayır | Hayır |
 | Admin (global) | Otomatik yok | **Hayır** | Hayır | Hayır | Hayır | Hayır |
 | Kurum owner/manager | İlk dilimde ödev ürün yönetimi **yok** | **Hayır** | Hayır | Hayır | Hayır | Hayır |
-| Atayan öğretmen (güncel atama+üyelik) | Kendi ödevleri | Evet (`submitted`) | Evet | Hayır | Evet | Evet (kendi) |
+| Atayan öğretmen (güncel atama+üyelik) | Kendi ödevleri | Evet (`submitted`; öğrenci ayrılsa da §4.4) | Evet | Hayır | Evet (§4.4) | Evet (kendi) |
 | Atayan öğretmen (atama/üyelik bitmiş) | **Hayır** (geçmiş dahil kapalı) | **Hayır** | Hayır | Hayır | Hayır | Hayır |
 | Aynı sınıf başka öğretmen | Hayır | Hayır | Hayır | Hayır | Hayır | Hayır |
-| Öğrenci | Kendi recipient ödevleri (§4.1) | Yalnız kendi | Hayır | Evet (kendi) | Hayır | Hayır |
+| Öğrenci | Kendi recipient ödevleri (§4.1) | Yalnız kendi | Hayır | Evet (yalnız güncel enrollment ile) | Hayır | Hayır |
 | Veli | Yok | Yok | — | — | — | — |
 | Moderatör | Hayır — içerik/test izninden **türetme** | Hayır | Hayır | Hayır | Hayır | Hayır |
 
-**Yönetim / acil destek erişimi:** ilk dilimde yoktur. İleride ayrı açık karar, yeni izin ve audit tasarımı gerekir; bu PR izin uygulamaz.
+**Yönetim / acil destek erişimi:** ilk dilimde yoktur. İleride ayrı açık karar, yeni izin ve audit tasarımı gerekir; bu dokümantasyon PR’ı izin uygulamaz.
 
 **Yeni izin adları (öneri; uygulanmamış):** örn. `HOMEWORK_ASSIGNING_TEACHER_MANAGE`, `HOMEWORK_STUDENT_SUBMIT`. `ADMIN_SECTION_ENTRY` / `/yonetim/bolum/odevler` ürün yetkisi değildir.
 
@@ -318,15 +372,29 @@ Fail-closed. Global rol hiyerarşisi nesne kuralını aşmaz. Teslim gövdesi: y
 
 ## 6. Güvenlik ve veri bütünlüğü
 
-- Her yazmada institution, classroom, academic year, teacher assignment / student enrollment, recipient ve submission ilişkileri sunucuda yeniden çözülür. İstemci UUID yetki değildir.
-- Actor: active + verified; stale identity map yok.
-- **GET yazmaz.**
-- Yazmalar: POST + CSRF + PRG; domain TX; assignment → recipient/submission kilit sırası; due kontrolü aynı TX içinde `ClockInterface` UTC anı ile.
-- Mükerrer: `(assignment_id, student_user_id)` en fazla bir `submitted` (+ en fazla bir aktif draft).
-- Metin: Twig autoescape; HTML/zengin editör yok; uzunluk ve boşluk kuralları §3.6 (`mb_strlen` UTF-8); sunucu validator esas.
-- Audit: `homework_*`; metadata id/status/reason_code; **teslim gövdesi ve geri bildirim audit’e kopyalanmaz**.
-- Liste minimizasyonu; hard delete yok.
-- Bildirim yok (ilk dilim).
+- İstemci UUID yetki değildir. Actor: active + verified; stale identity map yok.
+- **GET yazmaz** (değerlendirme, durum veya audit yan etkisi yok).
+- Yazmalar: POST + CSRF + PRG; domain TX.
+- Metin: Twig autoescape; HTML/zengin editör yok; §3.6 `mb_strlen` UTF-8; sunucu validator esas.
+- Audit: `homework_*`; metadata id/status/reason_code / evaluation id / label; **teslim gövdesi ve geri bildirim metni audit’e kopyalanmaz**.
+- Liste minimizasyonu (öğretmen listesinde taslak gövdesi / gereksiz PII yok); hard delete yok.
+- Bildirim yok (ilk dilim). Geniş izin motoru veya scoring refactor yok.
+
+### 6.1 İşlem türüne göre yeniden çözülen ilişkiler
+
+| İşlem | TX içinde yeniden doğrulananlar | Öğrenci enrollment |
+|---|---|---|
+| Öğrenci draft / submit | Kurum/sınıf/yıl aktifliği; recipient; assignment; güncel öğrenci üyeliği + **güncel enrollment**; due (`ClockInterface`); submission durumu | **Zorunlu** (kilitle + doğrula) |
+| Öğretmen submitted okuma / değerlendirme | Kurum/sınıf/yıl öğretmen okuma-yazma aktiflik kuralları; assignment sahipliği; recipient↔submission bağı; submission `submitted`; öğretmen **güncel** üyelik + sınıf ataması; `expected_current_evaluation_id` | **Şart değil**; kilitleme yok |
+| Öğrenci submitted / güncel evaluation okuma | Aktif+doğrulanmış + `student_user_id` sahipliği; güncel işaretçi | Yazma yok; enrollment şart değil (§4.1) |
+
+### 6.2 Ortak kilit sırası (atama #192 / teslim #193 ile uyum)
+
+Deterministik sıra (WRITE unless noted): **kurum → akademik yıl → sınıf → assignment → recipient → submission** → (öğrenci yazmada) güncel enrollment → öğrenci üyeliği. Actor READ.
+
+**Önerilen öğretmen değerlendirme yazması** (kod yok): aynı hiyerarşi ile submission WRITE’a kadar; ardından öğretmen `ClassroomTeacherAssignment` / üyelik taze doğrulama; **öğrenci enrollment adımı yok**. Aynı TX: evaluation INSERT + `current_evaluation_id` UPDATE + (başarıda) audit. Deadlock/lock-wait → conflict; kısmi satır/işaretçi/audit bırakılmaz.
+
+Mükerrer teslim: `(assignment_id, student_user_id)` en fazla bir `submitted`. Tek güncel evaluation: §3.4 işaretçi + submission kilidi.
 
 ---
 
@@ -346,49 +414,59 @@ Bu belge kabulü tamamlamaz. Uygulama diliminde ayrı kanıtlanır.
 
 1. Kurum izolasyonu: A öğretmeni B kurumuna yazamaz / göremez.
 2. Ataması olmayan veya ataması bitmiş öğretmen: publish/evaluate/gövde okuma deny (geçmiş dahil).
-3. Owner/manager/Admin/SA teslim gövdesi okuyamaz; moderatör türetmez; rol hiyerarşisi aşamaz.
-4. Başka öğrencinin teslimi opaque deny.
-5. `dueAt` inclusive; `now > dueAt` red; UTC + TX içi clock.
+3. Owner/manager/Admin/SA / co-teacher / moderatör teslim gövdesi okuyamaz; rol hiyerarşisi aşamaz.
+4. Başka öğrencinin teslimi / değerlendirmesi opaque deny.
+5. `dueAt` inclusive; `now > dueAt` red; UTC + TX içi clock (öğrenci submit).
 6. Çift submit / concurrent conflict; GET side-effect yok.
 7. Transfer: eski teslim sahibi/içerik aynı; yeni sınıf eski ödevi açmaz; sonradan katılan alıcı olmaz.
 8. Publish sonrası istem metni değişmez.
-9. Evaluation: yalnız iki etiket; `needs_rework` anlamlı geri bildirim zorunlu; `reviewed` isteğe bağlı; append-only; `needs_rework` resubmit/ek süre açmaz.
-10. §3.6: başlık/açıklama/submit boşluk-only red; taslak boş saklanabilir; karakter sayacı = sunucu `mb_strlen` UTF-8; istemci sapması sunucuda yakalanır; hatalı gönderimde girdi korunur; erişilebilir Türkçe hata.
+9. Evaluation etiketleri: yalnız iki etiket; `needs_rework` anlamlı geri bildirim zorunlu; `reviewed` isteğe bağlı; `needs_rework` resubmit/ek süre açmaz; Unicode ≤5.000; kaçışlı çizim / XSS.
+10. §3.6 başlık/açıklama/submit kuralları; istemci sapması sunucuda yakalanır.
 11. Öğretmen erişimi kesilince değerlendirilemeyen submitted kalabilir; bypass yok.
-12. Mobil/tablet + klavye odak kabulü ayrı işaretlenir.
-13. Kod merge ≠ deploy ≠ production kullanıcı kabulü; karar belgesi kabul sayılmaz.
+12. **Öğrenci ayrıldıktan / enrollment bittikten sonra** güncel yetkili atayan öğretmen `submitted` okur ve değerlendirir; öğrenci enrollment şartı aranmaz (§4.4).
+13. Öğretmen yetkisi sona erince submitted okuma/değerlendirme reddi (geçmiş dahil).
+14. Öğretmen taslak gövdesine erişemez.
+15. Aktif+doğrulanmış öğrenci sahibi yalnız kendi güncel değerlendirmesini görür; ayrılma sonrası salt okunur istisna yazma vermez.
+16. İlk değerlendirme yarışı ve iki düzeltme yarışı: tek kazanan / tek `current_evaluation_id` / tek başarı audit (§3.4).
+17. Stale `expected_current_evaluation_id`; başka submission’ın evaluation id’si ile işaretçi veya supersede zinciri reddi (DB bileşik FK + servis).
+18. Eski evaluation satırının etiket/metin/aktör/zaman değişmezliği (immutable).
+19. Başarısız TX: yeni evaluation, işaretçi değişimi, başarı audit yok; GET yazmaz.
+20. Liste N+1 ölçümü; 1440/1920/768/390 + klavye odak.
+21. Kod merge ≠ deploy ≠ production kullanıcı kabulü; karar belgesi kabul sayılmaz.
 
 ---
 
 ## 9. Sonraki görseller (sıra; bu turda UI yok)
 
-1. Öğretmen — ödev listesi  
-2. Öğretmen — oluşturma + sınıf/due + yayın  
-3. Öğretmen — teslim listesi + etiket/geri bildirim  
-4. Öğrenci — ödev listesi + teslim detayı  
+1. Öğretmen — ödev listesi / atama detayı (submitted ayrımı) — kısmen kodda  
+2. Öğretmen — oluşturma + sınıf/due + yayın — kısmen kodda  
+3. Öğretmen — teslim listesi + etiket/geri bildirim (**sıradaki görsel dilim**)  
+4. Öğrenci — submitted detayda güncel değerlendirme / boş durum (**sıradaki görsel dilim**)  
 
 `/yonetim/bolum/odevler` yer tutucusu ürün sayılmaz.
 
 ---
 
-## 10. Yol haritası notları (bu PR değiştirmez)
+## 10. Yol haritası notları
 
-| Kayıt | Bu PR (#190) |
+| Kayıt | Bu dokümantasyon PR’ı (değerlendirme erişim + MariaDB tutarlılık) |
 |---|---|
-| `X01-homework` status | `planned` kalır |
-| `active_feature_ids` | Yalnız `X10-admin-navigation` |
-| `depends_on` | `M18-local-pdf` korunur (metin dilimi dosya kullanmaz) |
-| İlk X01 uygulama PR’ı | Aktif odak açıkça `X01-homework`; X10 kaydı **partial** kalır; X10 tamamlandı/retired değildir |
-| X01 ilerleme kanıtı | Yalnız teslim edilen dilim; tüm ödev ürünü tamamlandı sayılmaz |
-| Evidence | Karar belgesi; çalışan kod/kabul iddiası yok |
+| `X01-homework` status | **`partial` kalır** (değerlendirme kodu varmış gibi yazılmaz) |
+| `active_feature_ids` | `X01-homework` (değişmez) |
+| `X10-admin-navigation` | **partial** korunur |
+| `depends_on` | `M18-local-pdf` korunur |
+| Evidence | Yalnız karar hazırlığı + belge; değerlendirme entity/route/migration iddiası yok |
+| Canlı kabul | Öğretmen/öğrenci kabulü **açık** kalır |
+
+Tarihsel not: PR #190 yalnız karar belgesi açılışındaydı (`planned` / X10 aktif). Sonraki uygulama dilimleri (#191–#193) ayrı kanıtlardır.
 
 ---
 
 ## G. Kalan gerçek belirsizlikler
 
-Çözülen: teslim gizliliği; etiket + geri bildirim zorunluluğu (`needs_rework` zorunlu / `reviewed` isteğe bağlı); karakter üst sınırları ve `mb_strlen` UTF-8 sayımı; taslak boş saklama; aktif iş geçiş zamanlaması; sahiplik kesilmesi; snapshot; due inclusive; yeniden/geç teslim yok.
+Çözülen: teslim gizliliği; etiket + geri bildirim zorunluluğu; karakter üst sınırları ve `mb_strlen` UTF-8; taslak boş saklama; aktif iş geçiş zamanlaması; sahiplik kesilmesi; snapshot; due inclusive; yeniden/geç teslim yok; **öğrenci ayrılması sonrası güncel yetkili atayan öğretmenin submitted okuma/değerlendirmesi (§4.4)**; **MariaDB `current_evaluation_id` tek-güncel modeli (§3.4)**.
 
-Ürün kapsamı üreten açık karar kalmadı. Uygulama diliminde yalnızca kod/CI/ekran kanıtı üretilir; yeni kapsam bu belgeden türetilmez.
+Değerlendirme **ürün kapsamı** için yeni açık karar kalmadı. Sıradaki iş: görseller + uygulama kodu/CI kanıtı. Dosya/PDF, bildirim, veli, yeniden/geç teslim ve canlı kabul hâlâ sonraki dilimlerdir; bu belgeden sessizce tamamlanmış sayılmaz.
 
 ---
 
