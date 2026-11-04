@@ -491,6 +491,11 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         $small = $query->listFor($fresh);
         $smallStatements = $this->recordedStatements($holder);
         self::assertCount(2, $small);
+        self::assertEqualsCanonicalizing(
+            ['draft', 'none'],
+            array_map(static fn ($row): string => $row->statusKey, $small),
+            'list must hydrate draft rows (typed studentUser load, not broken UUID IN)',
+        );
 
         $more = $this->assignExtra($s['ctx'], 3, 'Çok ödev');
         $this->homeworkSubmissionManager()->submit($student, $more[0]->getId(), 'teslim', 0, true);
@@ -504,6 +509,10 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         $largeStatements = $this->recordedStatements($holder);
 
         self::assertCount(5, $large, 'five assignments, one open classroom lookup');
+        self::assertEqualsCanonicalizing(
+            ['draft', 'draft', 'submitted', 'none', 'none'],
+            array_map(static fn ($row): string => $row->statusKey, $large),
+        );
         self::assertSame($smallStatements, $largeStatements, 'List SQL must not grow with assignment rows (no N+1).');
         self::assertLessThanOrEqual(6, $largeStatements);
         self::assertCount(5, array_unique(array_map(static fn ($row): string => $row->assignmentId, $large)));

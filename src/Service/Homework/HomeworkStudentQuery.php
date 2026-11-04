@@ -65,7 +65,9 @@ final class HomeworkStudentQuery
             ->getQuery()
             ->getResult();
 
-        $submissionsByRecipient = $this->submissionsByRecipientIds($recipients);
+        // Load by studentUser (= typed uuid), not recipient IN (:ids): binary UUID lists do not
+        // bind through an untyped DQL IN on MariaDB, which left every list row as "Teslim edilmedi".
+        $submissionsByRecipient = $this->submissionsForActor($actor);
         $openClassroomIds = $this->openClassroomIdsFor($actor);
 
         $rows = [];
@@ -165,22 +167,17 @@ final class HomeworkStudentQuery
     }
 
     /**
-     * @param list<HomeworkRecipient> $recipients
-     *
-     * @return array<string, HomeworkSubmission>
+     * @return array<string, HomeworkSubmission> recipient uuid => submission
      */
-    private function submissionsByRecipientIds(array $recipients): array
+    private function submissionsForActor(User $actor): array
     {
-        if ([] === $recipients) {
-            return [];
-        }
-        $ids = array_map(static fn (HomeworkRecipient $recipient): Uuid => $recipient->getId(), $recipients);
         /** @var list<HomeworkSubmission> $rows */
         $rows = $this->entityManager->createQueryBuilder()
-            ->select('s')
+            ->select('s', 'r')
             ->from(HomeworkSubmission::class, 's')
-            ->andWhere('s.recipient IN (:ids)')
-            ->setParameter('ids', $ids)
+            ->innerJoin('s.recipient', 'r')
+            ->andWhere('s.studentUser = :actor')
+            ->setParameter('actor', $actor->getId(), 'uuid')
             ->getQuery()
             ->getResult();
 
