@@ -739,6 +739,8 @@ body.is-workspace {
     padding: 0.7rem 0.9rem;
     border: 1px solid var(--hw-line);
     border-radius: var(--tl-radius-md);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .is-workspace .hw-recipient__main {
