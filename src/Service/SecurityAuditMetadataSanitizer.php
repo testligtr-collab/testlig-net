@@ -234,6 +234,8 @@ final class SecurityAuditMetadataSanitizer
         'removed_permissions',
         // X01 homework assignment snapshot (identifiers / counts only; no title or student names).
         'definition_id',
+        'assignment_id',
+        // recipient_id already allowlisted for other domains; homework submit reuses it (no body).
     ];
 
     /**

@@ -116,4 +116,100 @@ final class HomeworkTextTest extends TestCase
         self::assertSame(10000, HomeworkText::length(str_replace(["\r\n", "\r"], "\n", $value)));
         self::assertSame(10000, HomeworkText::length(HomeworkText::description($value)));
     }
+
+    public function testBodyLimitMatchesTheSubmissionEntity(): void
+    {
+        self::assertSame(\App\Entity\HomeworkSubmission::BODY_MAX, HomeworkText::BODY_MAX);
+        self::assertSame(20000, HomeworkText::BODY_MAX);
+        self::assertSame(1, HomeworkText::BODY_MIN);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function blankBodies(): iterable
+    {
+        yield 'empty' => [''];
+        yield 'spaces' => ['    '];
+        yield 'tabs and newlines' => ["\t\r\n \n"];
+    }
+
+    #[DataProvider('blankBodies')]
+    public function testDraftBodyAllowsBlankAndNormalizesItToEmpty(string $value): void
+    {
+        self::assertSame('', HomeworkText::draftBody($value));
+    }
+
+    #[DataProvider('blankBodies')]
+    public function testSubmittedBodyRejectsBlank(string $value): void
+    {
+        try {
+            HomeworkText::submittedBody($value);
+            self::fail('A blank submitted body must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame('Yanıtın boş olamaz.', $exception->getMessage());
+        }
+    }
+
+    public function testBodyKeepsLineBreaksTabsAndStoresLfOnly(): void
+    {
+        $value = "  birinci satır\r\n\tgirintili ikinci\r\rüçüncü  ";
+        $expected = "birinci satır\n\tgirintili ikinci\n\nüçüncü";
+
+        self::assertSame($expected, HomeworkText::draftBody($value));
+        self::assertSame($expected, HomeworkText::submittedBody($value));
+    }
+
+    public function testBodyLimitIsTwentyThousandCodePointsForDraftAndSubmit(): void
+    {
+        $emoji = "\u{1F600}";
+        $max = str_repeat($emoji, HomeworkText::BODY_MAX);
+        self::assertSame(HomeworkText::BODY_MAX * 4, \strlen($max));
+        self::assertSame(HomeworkText::BODY_MAX, HomeworkText::length($max));
+        self::assertSame($max, HomeworkText::draftBody($max));
+        self::assertSame($max, HomeworkText::submittedBody($max));
+
+        foreach ([HomeworkText::draftBody(...), HomeworkText::submittedBody(...)] as $validate) {
+            try {
+                $validate($max.'a');
+                self::fail('One code point over the limit must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame('Yanıtın en fazla 20.000 karakter olabilir.', $exception->getMessage());
+            }
+        }
+    }
+
+    public function testBodyLengthIsMeasuredAfterTrimAndCrlfNormalization(): void
+    {
+        $value = '  '.str_repeat('ğ', HomeworkText::BODY_MAX - 2)."\r\n".'ş  ';
+
+        $draft = HomeworkText::draftBody($value);
+        self::assertSame(HomeworkText::BODY_MAX, HomeworkText::length($draft));
+        self::assertSame($draft, HomeworkText::submittedBody($value));
+    }
+
+    #[DataProvider('unsafeValues')]
+    public function testBodyRejectsHtmlControlAndInvalidUtf8ForDraftAndSubmit(string $value): void
+    {
+        foreach ([HomeworkText::draftBody(...), HomeworkText::submittedBody(...)] as $validate) {
+            try {
+                $validate($value);
+                self::fail('Unsafe body must be rejected, not stripped.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertStringStartsWith('Yanıtın ', $exception->getMessage());
+            }
+        }
+    }
+
+    public function testBodyHtmlMessageIsSafeToShowToTheStudent(): void
+    {
+        foreach ([HomeworkText::draftBody(...), HomeworkText::submittedBody(...)] as $validate) {
+            try {
+                $validate('<img src=x onerror=alert(1)>');
+                self::fail('HTML must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame('Yanıtın HTML içeremez.', $exception->getMessage());
+            }
+        }
+    }
 }

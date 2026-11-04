@@ -323,3 +323,213 @@ body.is-student-surface {
         transition: none;
     }
 }
+
+/* Student homework (X01 text submit). Light ground, white cards, teal actions. */
+.is-student-surface .shw-page {
+    --shw-primary: #0b7f8a;
+    --shw-primary-strong: #076771;
+    --shw-primary-soft: #dff4f5;
+    --shw-line: #d9e2ea;
+    --shw-warn-bg: #fff7e8;
+    --shw-warn-ink: #8a5a00;
+    --shw-danger-soft: #fdecee;
+    --shw-danger: #b42318;
+    --shw-ok-soft: #e7f7ef;
+    --shw-ok: #0f7a45;
+    --shw-draft-soft: #fff1e0;
+    --shw-draft: #b86500;
+    box-sizing: border-box;
+    width: min(72rem, 100%);
+    min-width: 0;
+    margin: 0 auto;
+    padding: 1.25rem 0 2rem;
+    overflow-x: clip;
+}
+
+.is-student-surface .shw-page > * { min-width: 0; max-width: 100%; }
+
+.is-student-surface .shw-head { margin: 0 0 1rem; }
+.is-student-surface .shw-head h1 {
+    margin: 0 0 0.35rem;
+    font-size: clamp(1.5rem, 2vw + 1rem, 1.85rem);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+}
+.is-student-surface .shw-sub,
+.is-student-surface .shw-hint,
+.is-student-surface .shw-tz,
+.is-student-surface .shw-due-note { color: var(--tl-ink-muted); margin: 0.25rem 0 0; }
+.is-student-surface .shw-back { margin: 0 0 0.75rem; }
+.is-student-surface .shw-back a { color: var(--shw-primary-strong); font-weight: 600; }
+.is-student-surface .shw-wrap { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+
+.is-student-surface .shw-card {
+    background: #fff;
+    border: 1px solid var(--shw-line);
+    border-radius: 0.85rem;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 1px 2px rgb(15 40 60 / 4%);
+}
+.is-student-surface .shw-card h2 { margin: 0 0 0.65rem; font-size: 1.05rem; }
+
+.is-student-surface .shw-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.85rem;
+}
+.is-student-surface .shw-item {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.is-student-surface .shw-item__main { flex: 1 1 14rem; min-width: 0; }
+.is-student-surface .shw-item__side {
+    flex: 0 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.55rem;
+    min-width: 0;
+}
+.is-student-surface .shw-item__title {
+    margin: 0;
+    font-size: 1.05rem;
+    line-height: 1.35;
+}
+.is-student-surface .shw-item__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem;
+    align-items: center;
+    margin: 0.45rem 0 0;
+}
+
+.is-student-surface .shw-pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    padding: 0.15rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 650;
+}
+.is-student-surface .shw-pill--class { background: var(--shw-primary-soft); color: var(--shw-primary-strong); }
+.is-student-surface .shw-pill--none { background: var(--shw-danger-soft); color: var(--shw-danger); }
+.is-student-surface .shw-pill--draft { background: var(--shw-draft-soft); color: var(--shw-draft); }
+.is-student-surface .shw-pill--submitted { background: var(--shw-ok-soft); color: var(--shw-ok); }
+
+.is-student-surface .shw-btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.55rem 1rem;
+    border-radius: 0.65rem;
+    font-weight: 650;
+}
+.is-student-surface .shw-btn--primary {
+    background: var(--shw-primary);
+    border-color: var(--shw-primary);
+    color: #fff;
+}
+.is-student-surface .shw-btn--primary:hover { background: var(--shw-primary-strong); }
+.is-student-surface .shw-btn--ghost {
+    background: #fff;
+    border: 1px solid #1f2a37;
+    color: #1f2a37;
+}
+.is-student-surface .shw-link {
+    color: var(--shw-primary-strong);
+    font-weight: 650;
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+}
+
+.is-student-surface .shw-detail {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 1fr);
+}
+.is-student-surface .shw-detail__main,
+.is-student-surface .shw-detail__side { min-width: 0; display: grid; gap: 1rem; align-content: start; }
+.is-student-surface .shw-prompt,
+.is-student-surface .shw-readonly {
+    white-space: pre-wrap;
+    line-height: 1.55;
+    margin: 0;
+}
+.is-student-surface .shw-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 12rem;
+    border: 1px solid var(--shw-line);
+    border-radius: 0.65rem;
+    padding: 0.75rem 0.85rem;
+    font: inherit;
+    line-height: 1.5;
+    resize: vertical;
+}
+.is-student-surface .shw-form textarea:focus {
+    outline: 2px solid var(--shw-primary);
+    outline-offset: 2px;
+}
+.is-student-surface .shw-form__meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0.45rem 0;
+    color: var(--tl-ink-muted);
+    font-size: 0.875rem;
+}
+.is-student-surface .shw-counter--over { color: var(--shw-danger); font-weight: 700; }
+.is-student-surface .shw-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+}
+.is-student-surface .shw-check {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+    margin: 0.85rem 0 0;
+}
+.is-student-surface .shw-check input { width: 1.15rem; height: 1.15rem; margin-top: 0.15rem; flex: 0 0 auto; }
+.is-student-surface .shw-warn {
+    margin: 0.85rem 0 0;
+    padding: 0.65rem 0.75rem;
+    border-radius: 0.55rem;
+    background: var(--shw-warn-bg);
+    color: var(--shw-warn-ink);
+}
+.is-student-surface .shw-alert {
+    margin: 0 0 1rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.55rem;
+    background: var(--shw-danger-soft);
+    color: var(--shw-danger);
+}
+.is-student-surface .shw-alert--ok { background: var(--shw-ok-soft); color: var(--shw-ok); }
+.is-student-surface .shw-field-error { color: var(--shw-danger); margin: 0.35rem 0 0; font-size: 0.875rem; }
+.is-student-surface .shw-dl { margin: 0; display: grid; gap: 0.75rem; }
+.is-student-surface .shw-dl dt { font-size: 0.8125rem; color: var(--tl-ink-muted); margin: 0; }
+.is-student-surface .shw-dl dd { margin: 0.15rem 0 0; font-weight: 650; }
+.is-student-surface .shw-empty { text-align: center; padding: 1.5rem 1rem; }
+.is-student-surface .shw-tz { margin-top: 1.25rem; font-size: 0.8125rem; }
+
+@media (min-width: 960px) {
+    .is-student-surface .shw-detail {
+        grid-template-columns: minmax(0, 1.7fr) minmax(14rem, 0.8fr);
+        align-items: start;
+    }
+}
+
+@media (max-width: 767px) {
+    .is-student-surface .shw-item__side { align-items: stretch; width: 100%; }
+    .is-student-surface .shw-item__side .btn,
+    .is-student-surface .shw-item__side .shw-link { justify-content: center; }
+}

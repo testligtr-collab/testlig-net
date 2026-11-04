@@ -1,0 +1,48 @@
+{% extends 'student/layout.html.twig' %}
+
+{% block title %}Ödevlerim — Testlig{% endblock %}
+
+{% block student_content %}
+<section class="shw-page">
+    <header class="shw-head">
+        <h1>Ödevlerim</h1>
+        <p class="shw-sub">Sana verilen ödevleri burada takip edebilirsin.</p>
+    </header>
+
+    {% if rows is empty %}
+        <div class="shw-card shw-empty" role="status">
+            <p>Şu an görüntülenecek ödevin yok.</p>
+        </div>
+    {% else %}
+        <ul class="shw-list">
+            {% for row in rows %}
+                <li class="shw-card shw-item">
+                    <div class="shw-item__main">
+                        <h2 class="shw-item__title shw-wrap">{{ row.title }}</h2>
+                        <p class="shw-item__meta">
+                            <span class="shw-pill shw-pill--class">{{ row.classroomName }}</span>
+                            <span class="shw-due">Son teslim: {{ row.dueAtLocal }}</span>
+                        </p>
+                        {% if row.duePassed %}
+                            <p class="shw-due-note">Teslim süresi sona erdi</p>
+                        {% endif %}
+                        {% if row.outsideCurrentScope and row.outsideScopeNote %}
+                            <p class="shw-due-note">{{ row.outsideScopeNote }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="shw-item__side">
+                        <span class="shw-pill shw-pill--{{ row.statusKey }}">{{ row.statusLabel }}</span>
+                        {% if row.statusKey == 'none' %}
+                            <a class="btn shw-btn shw-btn--primary" href="{{ path('app_student_homework_show', {id: row.assignmentId}) }}">{{ row.actionLabel }} →</a>
+                        {% else %}
+                            <a class="shw-link" href="{{ path('app_student_homework_show', {id: row.assignmentId}) }}">{{ row.actionLabel }} →</a>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <p class="shw-tz">Saatler Europe/Istanbul saat dilimindedir.</p>
+</section>
+{% endblock %}

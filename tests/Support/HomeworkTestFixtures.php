@@ -298,10 +298,54 @@ trait HomeworkTestFixtures
         return $rows;
     }
 
+    private function homeworkSubmissionManager(): \App\Service\Homework\HomeworkSubmissionManager
+    {
+        $manager = static::getContainer()->get(\App\Service\Homework\HomeworkSubmissionManager::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkSubmissionManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function homeworkStudentQuery(): \App\Service\Homework\HomeworkStudentQuery
+    {
+        $query = static::getContainer()->get(\App\Service\Homework\HomeworkStudentQuery::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkStudentQuery::class, $query);
+
+        return $query;
+    }
+
+    private function submissionRowCount(?Uuid $assignmentId = null): int
+    {
+        if (!$this->em->getConnection()->createSchemaManager()->tablesExist(['homework_submissions'])) {
+            return 0;
+        }
+        if (null === $assignmentId) {
+            return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_submissions');
+        }
+
+        return (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM homework_submissions WHERE assignment_id = :id',
+            ['id' => $assignmentId->toBinary()],
+        );
+    }
+
+    /**
+     * @return list<array{action: string, metadata: string}>
+     */
+    private function submissionAuditRows(): array
+    {
+        /** @var list<array{action: string, metadata: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT action, metadata FROM security_audit_events WHERE action LIKE 'homework_submission_%' ORDER BY occurred_at ASC, id ASC",
+        );
+
+        return $rows;
+    }
+
     private function cleanupHomework(): void
     {
         $connection = $this->em->getConnection();
-        foreach (['homework_recipients', 'homework_assignments'] as $table) {
+        foreach (['homework_submissions', 'homework_recipients', 'homework_assignments'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);
             }
