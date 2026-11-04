@@ -100,7 +100,7 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         self::assertSame(HomeworkText::BODY_MAX, HomeworkText::length($draft->getBody()));
         self::assertSame($max, $this->submissionRow($id)['body']);
 
-        $failure = $this->failure(fn () => $manager->saveDraft($s['users'][0], $id, $max.$emoji, 1));
+        $failure = $this->failure(static fn () => $manager->saveDraft($s['users'][0], $id, $max.$emoji, 1));
         self::assertSame(HomeworkSubmissionException::REASON_INVALID_INPUT, $failure->getReason());
         self::assertStringContainsString('en fazla 20.000 karakter', $failure->getFieldErrors()['body']);
         self::assertSame(1, $this->submissionRow($id)['revision_number'], 'rejected write must not bump the revision');
@@ -159,11 +159,11 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         $s['clock']->modify('2026-11-12 15:30:01');
 
         foreach ([
-            fn () => $manager->saveDraft($s['users'][0], $id, 'Geç taslak', 1),
-            fn () => $manager->submit($s['users'][0], $id, 'Geç teslim', 1, true),
+            static fn () => $manager->saveDraft($s['users'][0], $id, 'Geç taslak', 1),
+            static fn () => $manager->submit($s['users'][0], $id, 'Geç teslim', 1, true),
             // A student without any row cannot start a draft after the deadline either.
-            fn () => $manager->saveDraft($s['users'][1], $id, 'Geç ilk taslak', 0),
-            fn () => $manager->submit($s['users'][1], $id, 'Geç ilk teslim', 0, true),
+            static fn () => $manager->saveDraft($s['users'][1], $id, 'Geç ilk taslak', 0),
+            static fn () => $manager->submit($s['users'][1], $id, 'Geç ilk teslim', 0, true),
         ] as $attempt) {
             $failure = $this->failure($attempt);
             self::assertSame(HomeworkSubmissionException::REASON_DUE_PASSED, $failure->getReason());
@@ -190,7 +190,7 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         self::assertSame(2, $first->getRevisionNumber());
 
         foreach ([2, 0, 1] as $revision) {
-            $second = $this->failure(fn () => $manager->submit($s['users'][0], $id, 'İkinci teslim', $revision, true));
+            $second = $this->failure(static fn () => $manager->submit($s['users'][0], $id, 'İkinci teslim', $revision, true));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $second->getReason(), (string) $revision);
         }
 
@@ -304,7 +304,7 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
         $manager->submit($s['users'][0], $id, 'nihai metin', 1, true);
 
         foreach ([2, 1, 0] as $revision) {
-            $failure = $this->failure(fn () => $manager->saveDraft($s['users'][0], $id, 'taslağa dönüş', $revision));
+            $failure = $this->failure(static fn () => $manager->saveDraft($s['users'][0], $id, 'taslağa dönüş', $revision));
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $failure->getReason(), (string) $revision);
         }
 
