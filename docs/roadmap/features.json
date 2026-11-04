@@ -1109,14 +1109,16 @@
         "PR #194: X01 değerlendirme erişim kararı + MariaDB current_evaluation_id tutarlılık belgesi (yalnız docs; değerlendirme kodu/main merge/deploy/production kabulü YOK)",
         "Kod (öğretmen değerlendirme, feature/x01-homework-teacher-evaluate; main/deploy/production kabulü YOK): migrations/Version20261104200000.php (homework_evaluations + submissions.current_evaluation_id; bileşik FK same-submission; RESTRICT; backfill yok); src/Entity/HomeworkEvaluation.php; HomeworkSubmission.currentEvaluation; HomeworkEvaluationManager/TeacherEvaluationScope/TeacherSubmissionQuery; HomeworkEvaluationVoter; TeacherHomeworkController teslim/değerlendir; öğrenci detayda güncel etiket+feedback; denetim homework_evaluation_recorded (gövde yok)",
         "Testler (kod kanıtı; CI ayrı): tests/Service/HomeworkEvaluationManagerTest.php, HomeworkEvaluationConcurrencyTest.php + tests/bin/homework_evaluate_race_worker.php, tests/Controller/TeacherHomeworkEvaluationHttpTest.php, HomeworkTextTest feedback; browser teacher/student homework evaluation screenshots",
-        "Kapsam dışı / açık: dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik, canlı öğretmen ve canlı öğrenci kabulü"
+        "Kapsam dışı / açık: dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik, canlı öğretmen ve canlı öğrenci kabulü",
+        "PR #195: öğretmen değerlendirme dilimi (incelemede; main merge/deploy/production kabulü YOK)"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
         "https://github.com/testligtr-collab/testlig-net/pull/191",
         "https://github.com/testligtr-collab/testlig-net/pull/192",
         "https://github.com/testligtr-collab/testlig-net/pull/193",
-        "https://github.com/testligtr-collab/testlig-net/pull/194"
+        "https://github.com/testligtr-collab/testlig-net/pull/194",
+        "https://github.com/testligtr-collab/testlig-net/pull/195"
       ],
       "acceptance": "Durum partial: öğretmen taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme (submitted liste/detay, reviewed|needs_rework, append-only current_evaluation_id) kodda. Öğrenci enrollment öğretmen evaluate için şart değil (§4.4); öğretmen yetkisi bitince erişim kapanır; taslak öğretmene kapalı; Admin/SA/co-teacher yok; öğrenci yalnız kendi güncel sonucunu görür; GET yazmaz; puan/yeniden teslim yok. Dosya, bildirim, veli, yeniden/geç teslim ve canlı öğretmen/öğrenci kabulü AÇIK. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur.",
       "scope_decision": null
