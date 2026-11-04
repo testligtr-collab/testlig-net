@@ -52,13 +52,16 @@ async function assertTitleFits(page: Page): Promise<void> {
   }
 }
 
-async function screens(page: Page, info: TestInfo, route: string, path: string): Promise<void> {
+async function screens(page: Page, info: TestInfo, route: string, path: string, extra?: (page: Page) => Promise<void>): Promise<void> {
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await gotoOk(page, path);
     await assertLayout(page);
     await noFake(page);
     await assertTitleFits(page);
+    if (extra) {
+      await extra(page);
+    }
     if (viewport.width <= 768) {
       await touchTargets(page);
     }
@@ -131,6 +134,52 @@ test.describe('Student homework text submit', () => {
 
     await screens(page, info, 'detail-long', data.paths.studentHomeworkLong);
     await assertTitleFits(page);
+    await assertClean(page);
+  });
+});
+
+async function feedbackFits(page: Page): Promise<void> {
+  const overflowing = await page.evaluate(() => Array.from(document.querySelectorAll('[data-testid="shw-evaluation"], [data-testid="shw-evaluation"] .shw-feedback'))
+    .filter((node) => node instanceof HTMLElement && node.scrollWidth - node.clientWidth > 1)
+    .map((node) => `${node.className} ${node.scrollWidth - (node as HTMLElement).clientWidth}`));
+  expect(overflowing, 'teacher feedback overflow').toEqual([]);
+}
+
+test.describe('Student sees teacher evaluation', () => {
+  test('saved feedback, waiting, long text and draft-only', async ({ page }, info) => {
+    const data = manifest();
+    await login(page, data.users.evaluateStudentReviewed);
+    await screens(page, info, 'detail-feedback', data.paths.evaluateStudentDetail, feedbackFits);
+    const card = page.locator('[data-testid="shw-evaluation"]');
+    await expect(page.getByRole('heading', { level: 1, name: data.paths.evaluateTitle })).toBeVisible();
+    await expect(card.getByText('İncelendi')).toBeVisible();
+    await expect(card).toContainText('Duzenli ve dogru bir calisma.');
+    await expect(card).toContainText('Bu değerlendirme yeniden teslim hakkı vermez.');
+    await expect(card.locator('a, button, form, textarea')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Taslak kaydet' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Ödevi gönder' })).toHaveCount(0);
+
+    // screens() ends at 390px where Çıkış is inside the closed mobile nav; clear session instead.
+    await page.context().clearCookies();
+    await login(page, data.users.evaluateStudentWait);
+    await screens(page, info, 'detail-feedback-empty', data.paths.evaluateStudentDetail, feedbackFits);
+    await expect(card.getByText('Henüz değerlendirilmedi.')).toBeVisible();
+    await expect(card.getByText('İncelendi')).toHaveCount(0);
+
+    await page.context().clearCookies();
+    await login(page, data.users.evaluateStudentRework);
+    await screens(page, info, 'detail-feedback-long', data.paths.evaluateStudentDetail, feedbackFits);
+    await expect(card.getByText('Yeniden çalışılmalı')).toBeVisible();
+    await expect(card).toContainText('Uzun geri bildirim satiri');
+
+    // A draft-only student has no evaluation card and keeps the editable form.
+    await page.context().clearCookies();
+    await login(page, data.users.evaluateStudentDraft);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoOk(page, data.paths.evaluateStudentDetail);
+    await expect(card).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Taslak kaydet' })).toBeVisible();
+    await expect(page.locator('#shw-body')).toHaveValue(/Taslak olarak kalan yanit/);
     await assertClean(page);
   });
 });

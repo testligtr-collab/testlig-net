@@ -13,6 +13,7 @@ use App\Entity\HomeworkSubmission;
 use App\Entity\User;
 use App\Enum\AcademicYearStatus;
 use App\Enum\ClassroomStatus;
+use App\Enum\HomeworkEvaluationLabel;
 use App\Enum\HomeworkSubmissionStatus;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
@@ -21,6 +22,7 @@ use App\Enum\StudentEnrollmentStatus;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -147,12 +149,12 @@ final class HomeworkStudentQuery
             if (null !== $openEnrollment) {
                 $writableEnrollment = $this->scope->findOpenEnrollment($actor, $assignment, true, false);
 
-                return $this->detail($assignment, $submission, $now, true, null !== $writableEnrollment);
+                return $this->detail($actor, $assignment, $submission, $now, true, null !== $writableEnrollment);
             }
             if ($submission instanceof HomeworkSubmission
                 && HomeworkSubmissionStatus::Submitted === $submission->getStatus()
             ) {
-                return $this->detail($assignment, $submission, $now, false, false);
+                return $this->detail($actor, $assignment, $submission, $now, false, false);
             }
 
             return null;
@@ -160,7 +162,7 @@ final class HomeworkStudentQuery
 
         $ownSubmitted = $this->scope->findOwnSubmitted($actor, $assignmentId);
         if ($ownSubmitted instanceof HomeworkSubmission) {
-            return $this->detail($ownSubmitted->getAssignment(), $ownSubmitted, $now, false, false);
+            return $this->detail($actor, $ownSubmitted->getAssignment(), $ownSubmitted, $now, false, false);
         }
 
         return null;
@@ -214,6 +216,7 @@ final class HomeworkStudentQuery
     }
 
     private function detail(
+        User $actor,
         HomeworkAssignment $assignment,
         ?HomeworkSubmission $submission,
         \DateTimeImmutable $now,
@@ -224,12 +227,16 @@ final class HomeworkStudentQuery
         $duePassed = $now > $assignment->getDueAt();
         $submitted = false;
         $submittedAtLocal = null;
+        $evaluationLabelKey = null;
+        $evaluationLabelTr = null;
+        $feedback = null;
         if ($submission instanceof HomeworkSubmission
             && HomeworkSubmissionStatus::Submitted === $submission->getStatus()
         ) {
             $submitted = true;
             $submittedAt = $submission->getSubmittedAt();
             $submittedAtLocal = null !== $submittedAt ? $this->formatLocal($submittedAt) : null;
+            [$evaluationLabelKey, $evaluationLabelTr, $feedback] = $this->currentEvaluationParts($actor, $submission);
         }
         $writable = $inCurrentScope && $openScope && !$submitted && !$duePassed
             && $this->hierarchyActive($assignment);
@@ -258,7 +265,46 @@ final class HomeworkStudentQuery
             submitted: $submitted,
             submittedAtLocal: $submittedAtLocal,
             closedReason: $closedReason,
+            evaluationLabelKey: $evaluationLabelKey,
+            evaluationLabelTr: $evaluationLabelTr,
+            feedback: $feedback,
         );
+    }
+
+    /**
+     * Current evaluation of the actor's own submitted row only (joined on submission + student).
+     *
+     * @return array{0: ?string, 1: ?string, 2: ?string} label key, Turkish label, feedback
+     */
+    private function currentEvaluationParts(User $actor, HomeworkSubmission $submission): array
+    {
+        /** @var array{label: mixed, feedback: string|null}|null $row */
+        $row = $this->entityManager->createQueryBuilder()
+            ->select('e.label AS label', 'e.feedback AS feedback')
+            ->from(HomeworkSubmission::class, 's')
+            ->innerJoin('s.currentEvaluation', 'e')
+            ->andWhere('s.id = :submission')
+            ->andWhere('s.studentUser = :actor')
+            ->andWhere('s.status = :submitted')
+            ->setParameter('submission', $submission->getId(), 'uuid')
+            ->setParameter('actor', $actor->getId(), 'uuid')
+            ->setParameter('submitted', HomeworkSubmissionStatus::Submitted)
+            ->getQuery()
+            ->getOneOrNullResult(Query::HYDRATE_ARRAY);
+        if (null === $row) {
+            return [null, null, null];
+        }
+
+        $label = $row['label'];
+        if (!$label instanceof HomeworkEvaluationLabel) {
+            $label = HomeworkEvaluationLabel::tryFrom((string) $label);
+        }
+        if (null === $label) {
+            return [null, null, null];
+        }
+        $feedback = $row['feedback'];
+
+        return [$label->value, $label->labelTr(), null === $feedback || '' === trim($feedback) ? null : $feedback];
     }
 
     private function hierarchyActive(HomeworkAssignment $assignment): bool

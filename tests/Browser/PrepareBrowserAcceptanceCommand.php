@@ -135,6 +135,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly HomeworkDefinitionManager $homework,
         private readonly HomeworkAssignmentManager $homeworkAssignments,
         private readonly \App\Service\Homework\HomeworkSubmissionManager $homeworkSubmissions,
+        private readonly \App\Service\Homework\HomeworkEvaluationManager $homeworkEvaluations,
     ) {
         parent::__construct();
     }
@@ -740,6 +741,61 @@ final class PrepareBrowserAcceptanceCommand extends Command
             null,
         ));
         $studentHwLongAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwLongDef->getId(), 1, true);
+        // Evaluation slice: dedicated classroom, teacher and students so the counters above stay unchanged.
+        // One recipient per state: evaluated (reviewed), evaluated (needs_rework, long text), submitted, draft only.
+        $evaluateClassroom = $this->classrooms->create($year, $owner, 'Odev Degerlendirme Sinifi', GradeLevel::Grade1, 'browser_evaluate', 'D', 24);
+        $evaluateTeacher = $this->account('browser-teacher-evaluate@example.test', 'Deneme', 'Degerlendiren', UserRole::Teacher);
+        $evaluateTeacherMembership = $this->memberships->addMember($institution, $owner, $evaluateTeacher, InstitutionMembershipRole::Teacher, 'browser_evaluate');
+        $this->teacherAssignments->assign($evaluateClassroom, $owner, $evaluateTeacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_evaluate');
+        $evaluateStudents = [];
+        foreach ([
+            'reviewed' => ['browser-student-evaluate@example.test', 'Degerlendirilen'],
+            'rework' => ['browser-student-evaluate-rework@example.test', 'Yenidencalisan'],
+            'wait' => ['browser-student-evaluate-wait@example.test', 'Bekleyen'],
+            'draft' => ['browser-student-evaluate-draft@example.test', 'Taslakci'],
+        ] as $key => [$email, $lastName]) {
+            $evaluateStudent = $this->account($email, 'Deneme', $lastName, UserRole::Student);
+            $this->profiles->completeOnboarding($evaluateStudent, $this->profile(GradeLevel::Grade1));
+            $evaluateMembership = $this->memberships->addMember($institution, $owner, $evaluateStudent, InstitutionMembershipRole::Student, 'browser_evaluate');
+            $this->enrollments->enroll($evaluateClassroom, $owner, $evaluateMembership, 'browser_evaluate');
+            $evaluateStudents[$key] = $evaluateStudent;
+        }
+        $evaluateTitle = 'Degerlendirme calisma kagidi';
+        $evaluateDefinition = $this->homework->createDraft($evaluateTeacher, new HomeworkDraftInput(
+            $evaluateTitle,
+            "Verilen toplama islemlerini coz.\nCevaplarini aciklayarak yaz.",
+            $evaluateClassroom->getId()->toRfc4122(),
+            '2099-08-05',
+            '17:45',
+            null,
+        ));
+        $evaluateAssignment = $this->homeworkAssignments->assignToClassroom($evaluateTeacher, $evaluateDefinition->getId(), 1, true);
+        $evaluateAssignmentId = $evaluateAssignment->getId();
+        $evaluateBodies = [
+            'reviewed' => "Toplamalari adim adim yaptim.\nSonuclari kontrol ettim.",
+            'rework' => "Cevaplarimi yazdim ama aciklamadim.\n".str_repeat('K', 90),
+            'wait' => 'Henuz kontrol edilmemis yanitim.',
+        ];
+        $evaluateSubmissions = [];
+        foreach ($evaluateBodies as $key => $body) {
+            $evaluateDraftRow = $this->homeworkSubmissions->saveDraft($evaluateStudents[$key], $evaluateAssignmentId, $body, 0);
+            $evaluateSubmissions[$key] = $this->homeworkSubmissions->submit($evaluateStudents[$key], $evaluateAssignmentId, $body, $evaluateDraftRow->getRevisionNumber(), true);
+        }
+        $this->homeworkSubmissions->saveDraft($evaluateStudents['draft'], $evaluateAssignmentId, 'Taslak olarak kalan yanit.', 0);
+        $this->homeworkEvaluations->record(
+            $evaluateTeacher,
+            $evaluateSubmissions['reviewed']->getId(),
+            'reviewed',
+            "Duzenli ve dogru bir calisma.\nBoyle devam et.",
+            null,
+        );
+        $this->homeworkEvaluations->record(
+            $evaluateTeacher,
+            $evaluateSubmissions['rework']->getId(),
+            'needs_rework',
+            str_repeat("Uzun geri bildirim satiri dar ekranda tasmadan sarilmalidir.\n", 30).str_repeat('G', 120),
+            null,
+        );
         $longOwner = $this->account('browser-class-owner@example.test', 'Sinif', 'Sahibi', UserRole::Teacher);
         $longInstitution = $this->institutions->create($superAdmin, $longOwner, 'Uzun Adli Tarayici Egitim Kurumu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($longInstitution, $superAdmin, 'browser_activate');
@@ -841,6 +897,11 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'parentUnlinked' => 'browser-parent-empty@example.test',
                 'owner' => 'browser-owner@example.test',
                 'homeworkEmptyTeacher' => 'browser-teacher-homework@example.test',
+                'evaluateTeacher' => 'browser-teacher-evaluate@example.test',
+                'evaluateStudentReviewed' => 'browser-student-evaluate@example.test',
+                'evaluateStudentRework' => 'browser-student-evaluate-rework@example.test',
+                'evaluateStudentWait' => 'browser-student-evaluate-wait@example.test',
+                'evaluateStudentDraft' => 'browser-student-evaluate-draft@example.test',
             ],
             'paths' => [
                 'homeworkList' => '/ogretmen/odevler',
@@ -871,6 +932,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'studentHomeworkSubmittedTitle' => 'Dogayi gozlemliyorum',
                 'studentHomeworkOverdueTitle' => 'Suresi gecmis taslak odev',
                 'studentHomeworkEmptyList' => '/ogrenci/odevler',
+                'evaluateList' => '/ogretmen/odevler/'.$evaluateDefinition->getId()->toRfc4122(),
+                'evaluateTitle' => $evaluateTitle,
+                'evaluateSubmissionWait' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['wait']->getId()->toRfc4122(),
+                'evaluateSubmissionReviewed' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['reviewed']->getId()->toRfc4122(),
+                'evaluateSubmissionRework' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['rework']->getId()->toRfc4122(),
+                'evaluateStudentDetail' => '/ogrenci/odevler/'.$evaluateAssignmentId->toRfc4122(),
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
                 'publicCatalog' => '/dersler',
                 'publicGrade' => '/dersler/1',

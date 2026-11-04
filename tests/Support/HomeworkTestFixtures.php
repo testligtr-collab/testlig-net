@@ -12,6 +12,7 @@ use App\Entity\ClassroomStudentEnrollment;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\HomeworkAssignment;
 use App\Entity\HomeworkDefinition;
+use App\Entity\HomeworkSubmission;
 use App\Entity\Institution;
 use App\Entity\InstitutionMembership;
 use App\Entity\User;
@@ -364,9 +365,150 @@ trait HomeworkTestFixtures
         return $rows;
     }
 
+    private function homeworkEvaluationManager(): \App\Service\Homework\HomeworkEvaluationManager
+    {
+        $manager = static::getContainer()->get(\App\Service\Homework\HomeworkEvaluationManager::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkEvaluationManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function homeworkTeacherSubmissionQuery(): \App\Service\Homework\HomeworkTeacherSubmissionQuery
+    {
+        $query = static::getContainer()->get(\App\Service\Homework\HomeworkTeacherSubmissionQuery::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkTeacherSubmissionQuery::class, $query);
+
+        return $query;
+    }
+
+    /**
+     * Creates a draft in the context classroom and assigns it through the managers (the only
+     * supported write path). Defaults match draftInput(): due 2026-11-12 18:30 Europe/Istanbul,
+     * so the caller must have frozen the clock before 2026-11-12 15:30 UTC (see freezeClock()).
+     *
+     * @param array{teacher: User, classroom: Classroom} $ctx
+     */
+    private function assignClassroomHomework(
+        array $ctx,
+        string $title = 'Kesirler çalışma kâğıdı',
+        string $dueDate = '2026-11-12',
+        string $dueTime = '18:30',
+        string $description = 'Sayfa 12 ve 13’teki soruları çöz.',
+    ): HomeworkAssignment {
+        $definition = $this->homeworkManager()->createDraft(
+            $ctx['teacher'],
+            $this->draftInput($ctx['classroom'], $title, $description, $dueDate, $dueTime),
+        );
+
+        return $this->assignHomework($ctx['teacher'], $definition->getId(), 1);
+    }
+
+    /**
+     * One-shot student submit through HomeworkSubmissionManager (first write expects revision 0).
+     */
+    private function studentSubmit(User $student, HomeworkAssignment $assignment, string $body = 'Öğrencinin gönderdiği yanıt'): HomeworkSubmission
+    {
+        return $this->homeworkSubmissionManager()->submit($student, $assignment->getId(), $body, 0, true);
+    }
+
+    /**
+     * Student draft (never submitted) through HomeworkSubmissionManager.
+     */
+    private function studentDraft(User $student, HomeworkAssignment $assignment, string $body = 'Yarım kalan taslak'): HomeworkSubmission
+    {
+        return $this->homeworkSubmissionManager()->saveDraft($student, $assignment->getId(), $body, 0);
+    }
+
+    /**
+     * Ends the student's active enrollment (student "left the class"). Submitted work stays.
+     *
+     * @param array{owner: User, classroom: Classroom} $ctx
+     */
+    private function endStudentEnrollment(array $ctx, InstitutionMembership $studentMembership, string $reasonCode = 'left_class'): void
+    {
+        $this->enrollmentManager()->endEnrollment(
+            $this->activeEnrollment($ctx['classroom'], $studentMembership),
+            $ctx['owner'],
+            $reasonCode,
+        );
+    }
+
+    private function evaluationRowCount(?Uuid $submissionId = null): int
+    {
+        if (!$this->em->getConnection()->createSchemaManager()->tablesExist(['homework_evaluations'])) {
+            return 0;
+        }
+        if (null === $submissionId) {
+            return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_evaluations');
+        }
+
+        return (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM homework_evaluations WHERE submission_id = :id',
+            ['id' => $submissionId->toBinary()],
+        );
+    }
+
+    /**
+     * Raw evaluation rows of one submission, oldest first.
+     *
+     * @return list<array{id: string, label: string, feedback: ?string, supersedes: ?string, recorded_at: string, evaluator: string}>
+     */
+    private function evaluationRows(Uuid $submissionId): array
+    {
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            'SELECT id, label, feedback, supersedes_evaluation_id, recorded_at, evaluated_by_user_id FROM homework_evaluations WHERE submission_id = :id ORDER BY recorded_at ASC, id ASC',
+            ['id' => $submissionId->toBinary()],
+        );
+
+        return array_map(static fn (array $row): array => [
+            'id' => Uuid::fromBinary((string) $row['id'])->toRfc4122(),
+            'label' => (string) $row['label'],
+            'feedback' => null === $row['feedback'] ? null : (string) $row['feedback'],
+            'supersedes' => null === $row['supersedes_evaluation_id'] ? null : Uuid::fromBinary((string) $row['supersedes_evaluation_id'])->toRfc4122(),
+            'recorded_at' => (string) $row['recorded_at'],
+            'evaluator' => Uuid::fromBinary((string) $row['evaluated_by_user_id'])->toRfc4122(),
+        ], $rows);
+    }
+
+    /**
+     * Raw current-evaluation pointer of a submission (null when never evaluated).
+     */
+    private function currentEvaluationId(Uuid $submissionId): ?string
+    {
+        $value = $this->em->getConnection()->fetchOne(
+            'SELECT current_evaluation_id FROM homework_submissions WHERE id = :id',
+            ['id' => $submissionId->toBinary()],
+        );
+        if (false === $value || null === $value) {
+            return null;
+        }
+
+        return Uuid::fromBinary((string) $value)->toRfc4122();
+    }
+
+    /**
+     * @return list<array{action: string, metadata: string}>
+     */
+    private function evaluationAuditRows(): array
+    {
+        /** @var list<array{action: string, metadata: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT action, metadata FROM security_audit_events WHERE action = 'homework_evaluation_recorded' ORDER BY occurred_at ASC, id ASC",
+        );
+
+        return $rows;
+    }
+
     private function cleanupHomework(): void
     {
         $connection = $this->em->getConnection();
+        // Evaluations and the submission pointer reference each other (RESTRICT): break the cycle first.
+        if ($connection->createSchemaManager()->tablesExist(['homework_evaluations'])) {
+            $connection->executeStatement('UPDATE homework_submissions SET current_evaluation_id = NULL');
+            $connection->executeStatement('UPDATE homework_evaluations SET supersedes_evaluation_id = NULL');
+            $connection->executeStatement('DELETE FROM homework_evaluations');
+        }
         foreach (['homework_submissions', 'homework_recipients', 'homework_assignments'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

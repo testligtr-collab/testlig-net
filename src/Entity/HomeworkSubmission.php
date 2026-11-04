@@ -16,9 +16,10 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV7;
 
 /**
- * Student text draft/submit for one homework recipient. Not an evaluation.
+ * Student text draft/submit for one homework recipient.
+ * Current evaluation is a nullable pointer; evaluation rows are immutable.
  *
- * @internal prefer HomeworkSubmissionManager
+ * @internal prefer HomeworkSubmissionManager / HomeworkEvaluationManager
  */
 #[ORM\Entity(repositoryClass: HomeworkSubmissionRepository::class)]
 #[ORM\Table(name: 'homework_submissions')]
@@ -26,6 +27,7 @@ use Symfony\Component\Uid\UuidV7;
 #[ORM\UniqueConstraint(name: 'uniq_homework_sub_assignment_student', columns: ['assignment_id', 'student_user_id'])]
 #[ORM\Index(name: 'idx_homework_sub_student', columns: ['student_user_id'])]
 #[ORM\Index(name: 'idx_homework_sub_assignment', columns: ['assignment_id'])]
+#[ORM\Index(name: 'IDX_HW_SUB_CURRENT_EVAL', columns: ['current_evaluation_id'])]
 class HomeworkSubmission
 {
     public const BODY_MAX = 20000;
@@ -57,6 +59,10 @@ class HomeworkSubmission
 
     #[ORM\Column(name: 'revision_number', type: Types::INTEGER, options: ['unsigned' => true, 'default' => 1])]
     private int $revisionNumber = 1;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(name: 'current_evaluation_id', referencedColumnName: 'id', nullable: true, onDelete: 'RESTRICT')]
+    private ?HomeworkEvaluation $currentEvaluation = null;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private \DateTimeImmutable $createdAt;
@@ -173,5 +179,22 @@ class HomeworkSubmission
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return UtcInstant::ensure($this->updatedAt);
+    }
+
+    #[Ignore]
+    public function getCurrentEvaluation(): ?HomeworkEvaluation
+    {
+        return $this->currentEvaluation;
+    }
+
+    /**
+     * @internal prefer HomeworkEvaluationManager — only under submission WRITE lock.
+     */
+    public function assignCurrentEvaluation(HomeworkEvaluation $evaluation): void
+    {
+        if (!$evaluation->getSubmission()->getId()->equals($this->id)) {
+            throw new \LogicException('Evaluation submission mismatch.');
+        }
+        $this->currentEvaluation = $evaluation;
     }
 }

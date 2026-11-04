@@ -666,6 +666,155 @@ body.is-workspace {
     color: #0f6b3c;
 }
 
+/* Submission review + evaluation (teacher) */
+.is-workspace .hw-badge--awaiting {
+    background: #eef1f4;
+    color: var(--tl-ink-muted);
+}
+
+.is-workspace .hw-badge--submitted {
+    background: var(--hw-primary-soft);
+    color: var(--hw-primary-strong);
+}
+
+.is-workspace .hw-badge--evaluated {
+    background: #e7f6ee;
+    color: #0f6b3c;
+}
+
+.is-workspace .hw-badge--rework {
+    background: #fff3d6;
+    color: #7a4b00;
+}
+
+.is-workspace .hw-recipients-card {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.is-workspace .hw-recipients-card h2,
+.is-workspace .hw-recipients-card .hw-note {
+    margin: 0;
+}
+
+.is-workspace .hw-counters {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin: 0;
+}
+
+.is-workspace .hw-counters__item {
+    min-width: 0;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--hw-line);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace .hw-counters dt {
+    color: var(--tl-ink-muted);
+    font-size: 0.8125rem;
+}
+
+.is-workspace .hw-counters dd {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.is-workspace .hw-recipients {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.is-workspace .hw-recipient {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem 1rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--hw-line);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace .hw-recipient__main {
+    display: grid;
+    flex: 1 1 14rem;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.is-workspace .hw-recipient__name {
+    font-weight: 650;
+}
+
+.is-workspace .hw-recipient__side {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.is-workspace .hw-eval-side {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.is-workspace .hw-readonly {
+    max-height: 32rem;
+    overflow: auto;
+    padding: 0.75rem 0.9rem;
+    background: #f7f9fb;
+    border: 1px solid var(--hw-line);
+    border-radius: var(--tl-radius-md);
+}
+
+.is-workspace .hw-feedback {
+    margin: 0.5rem 0 0;
+}
+
+.is-workspace .hw-fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-width: 0;
+}
+
+.is-workspace .hw-fieldset legend {
+    margin-bottom: 0.4rem;
+    padding: 0;
+    font-weight: 650;
+}
+
+.is-workspace .hw-choice {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 2.75rem;
+}
+
+.is-workspace .hw-choice input {
+    width: 1.15rem;
+    height: 1.15rem;
+    flex: 0 0 auto;
+}
+
+@media (max-width: 480px) {
+    .is-workspace .hw-counters {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .is-workspace .hw-recipient__side {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
 .is-workspace .hw-head__actions {
     display: flex;
     flex-wrap: wrap;

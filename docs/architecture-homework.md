@@ -85,6 +85,17 @@ evision_number. |
 
 Kapsam dışı: değerlendirme, dosya (M18-local-pdf depends_on kalır), bildirim, veli, iptal, AssessmentAttempt.
 
+### 0.1d Öğretmen değerlendirmesi dilimi (bu branch'te uygulanıyor; branch `feature/x01-homework-teacher-evaluate`)
+
+Kod bu branch'te mevcuttur; main merge, deploy ve canlı kabul **açıktır** (CI production kabulü değildir). Değerlendirme yalnız etiket (`reviewed` / `needs_rework`) + isteğe bağlı geri bildirimdir (≤5.000 kod noktası; `needs_rework` için zorunlu); not/puan yoktur ve **yeniden teslim hakkı vermez**.
+
+| Konu | Kodda olan |
+|---|---|
+| Tablo / servis | homework_evaluations (append-only; `HomeworkSubmission.currentEvaluation` güncel kayıt); `HomeworkEvaluationManager::record` (stale `expected_current_evaluation_id` reddi, audit `homework_evaluation_recorded`); Version20261104200000. |
+| Erişim | Yalnız atayan + tanımı oluşturan öğretmen, açık sınıf/yıl; `HomeworkEvaluationVoter`; admin/SA/yardımcı öğretmen yok; öğrenci enrollment'ı aranmaz; kapsam dışı 404. |
+| Rotalar | GET `/ogretmen/odevler/teslim/{id}`, POST `.../degerlendir` (CSRF `teacher_homework_evaluate`; PRG; alan hataları 422, stale/çakışma 409 flash, form değerleri korunur). Atanmış ödev sayfasında alıcı/gönderen/değerlendirilen sayaçları ve alıcı listesi (taslak gövde yok). |
+| Öğrenci | Gönderilmiş detayda yalnız kendi güncel değerlendirmesi: "Henüz değerlendirilmedi" veya etiket + geri bildirim; yeniden teslim yok. |
+
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |
@@ -92,7 +103,7 @@ Kapsam dışı: değerlendirme, dosya (M18-local-pdf depends_on kalır), bildiri
 | `HomeworkAssignment` | **Kısmen uygulandı** (0.1b): yalnız `assigned`; dondurulmuş metin/due; 1:1 tanım. `closed`/`cancelled` ve atama taslağı **yok**. |
 | `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; öğrenci erişimi / liste **yok**. |
 | `HomeworkSubmission` | **Kısmen uygulandı** (0.1c): draft/submitted metin; evaluation yok. |
-| `HomeworkEvaluation` | **Önerilen.** Etiket + geri bildirim. |
+| `HomeworkEvaluation` | **Kısmen uygulanıyor** (0.1d, bu branch): etiket + geri bildirim, append-only; puan/yeniden teslim yok. |
 | `archived` tanım durumu | **Önerilen.** Bu dilimde yazılmaz. |
 
 ---

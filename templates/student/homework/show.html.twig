@@ -95,6 +95,23 @@
                     {% endif %}
                 {% endif %}
             </article>
+
+            {% if detail.submitted %}
+                <article class="shw-card shw-eval" aria-labelledby="shw-eval-heading" data-testid="shw-evaluation">
+                    <h2 id="shw-eval-heading">Öğretmen değerlendirmesi</h2>
+                    {% if detail.evaluationLabelKey %}
+                        <p class="shw-item__meta">
+                            <span class="shw-pill shw-pill--{{ detail.evaluationLabelKey == 'needs_rework' ? 'rework' : 'submitted' }}">{{ detail.evaluationLabelTr }}</span>
+                        </p>
+                        {% if detail.feedback %}
+                            <div class="shw-readonly shw-wrap shw-feedback">{{ detail.feedback|nl2br }}</div>
+                        {% endif %}
+                        <p class="shw-hint">Bu değerlendirme yeniden teslim hakkı vermez.</p>
+                    {% else %}
+                        <p class="shw-hint">Henüz değerlendirilmedi.</p>
+                    {% endif %}
+                </article>
+            {% endif %}
         </div>
 
         <aside class="shw-detail__side">

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Service\Homework;
 
 use App\Entity\HomeworkDefinition;
+use App\Entity\HomeworkEvaluation;
 use App\Entity\HomeworkSubmission;
+use App\Enum\HomeworkEvaluationLabel;
 
 /**
- * Plain-text rules for draft homework. Length is counted in Unicode code points (mb_strlen UTF-8),
+ * Plain-text rules for homework fields. Length is Unicode code points (mb_strlen UTF-8),
  * matching the browser counter. HTML and control characters are rejected, not stripped.
  */
 final class HomeworkText
@@ -19,6 +21,7 @@ final class HomeworkText
     public const DESCRIPTION_MAX = HomeworkDefinition::DESCRIPTION_MAX;
     public const BODY_MIN = 1;
     public const BODY_MAX = HomeworkSubmission::BODY_MAX;
+    public const FEEDBACK_MAX = HomeworkEvaluation::FEEDBACK_MAX;
 
     /**
      * @return string trimmed, valid title
@@ -56,6 +59,24 @@ final class HomeworkText
     public static function submittedBody(string $value): string
     {
         return self::plain($value, self::BODY_MIN, self::BODY_MAX, true, 'Yanıtın');
+    }
+
+    /**
+     * Teacher feedback. Empty string becomes null. needs_rework requires non-empty after trim.
+     *
+     * @return string|null normalized feedback or null when empty and allowed
+     *
+     * @throws \InvalidArgumentException with a Turkish message safe to show to the teacher
+     */
+    public static function feedback(string $value, HomeworkEvaluationLabel $label): ?string
+    {
+        $min = HomeworkEvaluationLabel::NeedsRework === $label ? 1 : 0;
+        $normalized = self::plain($value, $min, self::FEEDBACK_MAX, true, 'Geri bildirim');
+        if ('' === $normalized) {
+            return null;
+        }
+
+        return $normalized;
     }
 
     public static function length(string $value): int
