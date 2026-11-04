@@ -816,17 +816,19 @@ body.is-workspace {
 
 .is-workspace .hw-fieldset legend {
     display: block;
-    float: left;
-    width: 100%;
+    float: none;
     margin-bottom: 0.4rem;
     padding: 0;
     font-weight: 650;
 }
 
-.is-workspace .hw-fieldset::after {
-    content: '';
-    display: table;
-    clear: both;
+/* Inner wrapper avoids Chromium fieldset min-content overflow without legend float hacks. */
+.is-workspace .hw-choice-list {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
 }
 
 .is-workspace .hw-choice {

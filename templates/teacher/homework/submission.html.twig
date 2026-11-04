@@ -71,14 +71,16 @@
                 <fieldset class="hw-field hw-fieldset{% if errors.label is defined %} hw-field--error{% endif %}"
                           {% if errors.label is defined %}aria-invalid="true" aria-describedby="hw-label-error"{% endif %}>
                     <legend>Değerlendirme</legend>
-                    <label class="hw-choice">
-                        <input type="radio" name="label" value="reviewed"{% if values.label == 'reviewed' %} checked{% endif %} required>
-                        <span>İncelendi</span>
-                    </label>
-                    <label class="hw-choice">
-                        <input type="radio" name="label" value="needs_rework"{% if values.label == 'needs_rework' %} checked{% endif %} required>
-                        <span>Yeniden çalışılmalı</span>
-                    </label>
+                    <div class="hw-choice-list">
+                        <label class="hw-choice">
+                            <input type="radio" name="label" value="reviewed"{% if values.label == 'reviewed' %} checked{% endif %} required>
+                            <span>İncelendi</span>
+                        </label>
+                        <label class="hw-choice">
+                            <input type="radio" name="label" value="needs_rework"{% if values.label == 'needs_rework' %} checked{% endif %} required>
+                            <span>Yeniden çalışılmalı</span>
+                        </label>
+                    </div>
                     {% if errors.label is defined %}<p class="hw-error" id="hw-label-error">{{ errors.label }}</p>{% endif %}
                 </fieldset>
 
