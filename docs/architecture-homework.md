@@ -249,6 +249,7 @@ Repo kalıbı (ör. `LearningContent.current_revision_id`): ebeveyn satırda nul
    `FOREIGN KEY (supersedes_evaluation_id, submission_id) REFERENCES homework_evaluations (id, submission_id)`.
 3. Tüm FK’ler **RESTRICT**; hard delete yok; geçmiş satırlar korunur.
 4. Chicken-egg insert (LearningContent revision ile aynı fikir): önce evaluation INSERT, sonra aynı TX içinde submission işaretçisi UPDATE.
+5. Doctrine ORM bileşik FK’leri ifade edemez; `HomeworkEvaluationCompositeForeignKeyListener` (`postGenerateSchema`) migration’daki `FK_HW_EVAL_SUPERSEDES` / `FK_HW_SUB_CURRENT_EVAL_SAME` ile `doctrine:schema:validate` senkronunu korur.
 
 **Stale form:** istemci `expected_current_evaluation_id` gönderir — `null` = henüz değerlendirme yok (ilk kayıt); aksi halde TX içinde kilitli submission’ın `current_evaluation_id` ile **eşit** olmalı. Eşleşmezse sessiz overwrite yok; conflict / stale.
 

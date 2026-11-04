@@ -778,12 +778,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
         ];
         $evaluateSubmissions = [];
         foreach ($evaluateBodies as $key => $body) {
-            $student = $evaluateStudents[$key] ?? null;
-            if (!$student instanceof User) {
+            $evaluateStudent = $evaluateStudents[$key] ?? null;
+            if (!$evaluateStudent instanceof User) {
                 throw new \LogicException('Missing evaluate student fixture: '.$key);
             }
-            $evaluateDraftRow = $this->homeworkSubmissions->saveDraft($student, $evaluateAssignmentId, $body, 0);
-            $evaluateSubmissions[$key] = $this->homeworkSubmissions->submit($student, $evaluateAssignmentId, $body, $evaluateDraftRow->getRevisionNumber(), true);
+            $evaluateDraftRow = $this->homeworkSubmissions->saveDraft($evaluateStudent, $evaluateAssignmentId, $body, 0);
+            $evaluateSubmissions[$key] = $this->homeworkSubmissions->submit($evaluateStudent, $evaluateAssignmentId, $body, $evaluateDraftRow->getRevisionNumber(), true);
         }
         $draftStudent = $evaluateStudents['draft'] ?? null;
         if (!$draftStudent instanceof User) {
