@@ -65,17 +65,13 @@ final class HomeworkStudentQuery
             ->getQuery()
             ->getResult();
 
-        $assignmentIds = [];
-        foreach ($recipients as $recipient) {
-            $assignmentIds[] = $recipient->getAssignment()->getId()->toRfc4122();
-        }
-        $submissionsByAssignment = $this->submissionsByAssignmentIds($actor, $assignmentIds);
+        $submissionsByRecipient = $this->submissionsByRecipientIds($recipients);
         $openClassroomIds = $this->openClassroomIdsFor($actor);
 
         $rows = [];
         foreach ($recipients as $recipient) {
             $assignment = $recipient->getAssignment();
-            $submission = $submissionsByAssignment[$assignment->getId()->toRfc4122()] ?? null;
+            $submission = $submissionsByRecipient[$recipient->getId()->toRfc4122()] ?? null;
             $inScope = isset($openClassroomIds[$assignment->getClassroom()->getId()->toRfc4122()]);
             $submitted = $submission instanceof HomeworkSubmission
                 && HomeworkSubmissionStatus::Submitted === $submission->getStatus();
@@ -169,31 +165,28 @@ final class HomeworkStudentQuery
     }
 
     /**
-     * @param list<string> $assignmentIds
+     * @param list<HomeworkRecipient> $recipients
      *
      * @return array<string, HomeworkSubmission>
      */
-    private function submissionsByAssignmentIds(User $actor, array $assignmentIds): array
+    private function submissionsByRecipientIds(array $recipients): array
     {
-        if ([] === $assignmentIds) {
+        if ([] === $recipients) {
             return [];
         }
-        $ids = array_map(static fn (string $id): Uuid => Uuid::fromString($id), $assignmentIds);
+        $ids = array_map(static fn (HomeworkRecipient $recipient): Uuid => $recipient->getId(), $recipients);
         /** @var list<HomeworkSubmission> $rows */
         $rows = $this->entityManager->createQueryBuilder()
-            ->select('s', 'a')
+            ->select('s')
             ->from(HomeworkSubmission::class, 's')
-            ->innerJoin('s.assignment', 'a')
-            ->andWhere('s.studentUser = :actor')
-            ->andWhere('a.id IN (:ids)')
-            ->setParameter('actor', $actor->getId(), 'uuid')
+            ->andWhere('s.recipient IN (:ids)')
             ->setParameter('ids', $ids)
             ->getQuery()
             ->getResult();
 
         $map = [];
         foreach ($rows as $row) {
-            $map[$row->getAssignment()->getId()->toRfc4122()] = $row;
+            $map[$row->getRecipient()->getId()->toRfc4122()] = $row;
         }
 
         return $map;
