@@ -79,6 +79,9 @@ test.describe('Student homework text submit', () => {
     await expect(page.locator('.shw-due-note').filter({ hasText: /Teslim s.*resi sona erdi/ }).first()).toBeVisible();
     await screens(page, info, 'list-mixed', data.paths.studentHomeworkList);
 
+    // login() expects an anonymous /giris form; logout first (desktop + mobile both have CSRF).
+    await page.getByRole('button', { name: 'Çıkış' }).first().click();
+    await page.waitForURL('/');
     await login(page, data.users.otherStudent);
     await page.setViewportSize({ width: 1440, height: 900 });
     await gotoOk(page, data.paths.studentHomeworkEmptyList);

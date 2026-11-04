@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Entity\Classroom;
 use App\Entity\HomeworkAssignment;
 use App\Entity\InstitutionMembership;
 use App\Entity\User;
@@ -308,8 +309,9 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
             self::assertSame(HomeworkSubmissionException::REASON_ALREADY_SUBMITTED, $failure->getReason(), (string) $revision);
         }
 
+        // openDraft starts at revision 1; markSubmitted increments once → 2.
         self::assertSame(
-            ['body' => 'nihai metin', 'status' => 'submitted', 'revision_number' => 3, 'submitted_at' => '2026-11-10 09:00:00'],
+            ['body' => 'nihai metin', 'status' => 'submitted', 'revision_number' => 2, 'submitted_at' => '2026-11-10 09:00:00'],
             $this->submissionRow($id),
         );
         self::assertSame(1, $this->auditCount('homework_submission_draft_saved'));
@@ -497,9 +499,24 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
             'list must hydrate draft rows (typed studentUser load, not broken UUID IN)',
         );
 
-        $more = $this->assignExtra($s['ctx'], 3, 'Çok ödev');
-        $this->homeworkSubmissionManager()->submit($student, $more[0]->getId(), 'teslim', 0, true);
-        $this->homeworkSubmissionManager()->saveDraft($student, $extra[0]->getId(), 'iki', 0);
+        // clear() detached fixture entities; reload before further writes.
+        $this->rebindDeliveryFixtures();
+        $teacher = $this->users->findOneById($s['ctx']['teacher']->getId());
+        $classroom = $this->em->find(Classroom::class, $s['ctx']['classroom']->getId());
+        $membership = $this->em->find(InstitutionMembership::class, $s['ctx']['teacherMembership']->getId());
+        self::assertInstanceOf(User::class, $teacher);
+        self::assertInstanceOf(Classroom::class, $classroom);
+        self::assertInstanceOf(InstitutionMembership::class, $membership);
+        $liveCtx = [
+            'teacher' => $teacher,
+            'teacherMembership' => $membership,
+            'classroom' => $classroom,
+        ];
+        $writer = $this->users->findOneById($student->getId());
+        self::assertInstanceOf(User::class, $writer);
+        $more = $this->assignExtra($liveCtx, 3, 'Çok ödev');
+        $this->homeworkSubmissionManager()->submit($writer, $more[0]->getId(), 'teslim', 0, true);
+        $this->homeworkSubmissionManager()->saveDraft($writer, $extra[0]->getId(), 'iki', 0);
 
         $this->em->clear();
         $fresh = $this->users->findOneById($student->getId());

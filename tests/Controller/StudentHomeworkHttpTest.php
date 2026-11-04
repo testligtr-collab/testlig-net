@@ -340,6 +340,7 @@ final class StudentHomeworkHttpTest extends WebTestCase
     public function testAnonymousVisitorIsSentToLogin(): void
     {
         $s = $this->scenario('shh-anon');
+        self::ensureKernelShutdown();
         $client = static::createClient();
 
         foreach (['/ogrenci/odevler', '/ogrenci/odevler/'.$s['assignment']->getId()->toRfc4122()] as $path) {

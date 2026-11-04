@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Support;
 
 use App\Dto\HomeworkDraftInput;
+use App\Dto\StudentProfileRequest;
 use App\Entity\AcademicYear;
 use App\Entity\Classroom;
 use App\Entity\ClassroomStudentEnrollment;
@@ -21,6 +22,7 @@ use App\Enum\UserStatus;
 use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
+use App\Service\StudentProfileManager;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Clock\NativeClock;
@@ -65,6 +67,8 @@ trait HomeworkTestFixtures
             TeacherAssignmentRole::HomeroomTeacher,
             'assign_teacher',
         );
+        // activeUser defaults to ROLE_STUDENT; student routes require a completed profile.
+        $this->completeStudentOnboarding($teacher, $classroom);
 
         return [
             'owner' => $owner,
@@ -229,6 +233,8 @@ trait HomeworkTestFixtures
     private function enrollStudents(array $ctx, int $n): array
     {
         $memberships = [];
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
         for ($i = 1; $i <= $n; ++$i) {
             $student = $this->activeUser(\sprintf('hwstu-%s-%d@example.com', bin2hex(random_bytes(4)), $i));
             $membership = $this->membershipManager()->addMember(
@@ -239,10 +245,26 @@ trait HomeworkTestFixtures
                 'add_student',
             );
             $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $membership, 'enroll_student');
+            // HTTP /ogrenci/* routes require completed onboarding (StudentOnboardingSubscriber).
+            $dto = new StudentProfileRequest();
+            $dto->gradeLevel = $ctx['classroom']->getGradeLevel();
+            $profiles->completeOnboarding($student, $dto);
             $memberships[] = $membership;
         }
 
         return $memberships;
+    }
+
+    /**
+     * Fixture teachers are created with ROLE_STUDENT; student-area GETs still need onboarding done.
+     */
+    private function completeStudentOnboarding(User $user, Classroom $classroom): void
+    {
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
+        $dto = new StudentProfileRequest();
+        $dto->gradeLevel = $classroom->getGradeLevel();
+        $profiles->completeOnboarding($user, $dto);
     }
 
     /**
