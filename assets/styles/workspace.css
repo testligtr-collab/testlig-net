@@ -804,8 +804,6 @@ body.is-workspace {
 }
 
 .is-workspace .hw-fieldset {
-    display: grid;
-    gap: 0.35rem;
     margin: 0;
     padding: 0;
     border: 0;
@@ -817,24 +815,33 @@ body.is-workspace {
 }
 
 .is-workspace .hw-fieldset legend {
+    display: block;
+    float: left;
+    width: 100%;
     margin-bottom: 0.4rem;
     padding: 0;
     font-weight: 650;
 }
 
+.is-workspace .hw-fieldset::after {
+    content: '';
+    display: table;
+    clear: both;
+}
+
 .is-workspace .hw-choice {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.6rem;
     min-height: 2.75rem;
     min-width: 0;
     max-width: 100%;
+    box-sizing: border-box;
 }
 
 .is-workspace .hw-choice input {
     width: 1.15rem;
     height: 1.15rem;
-    margin-top: 0.55rem;
     flex: 0 0 auto;
 }
 
@@ -844,7 +851,6 @@ body.is-workspace {
     overflow-wrap: anywhere;
     word-break: break-word;
     line-height: 1.35;
-    padding-top: 0.55rem;
 }
 
 .is-workspace .hw-eval-form,

@@ -479,7 +479,9 @@ test('teacher reviews submissions: list states, unevaluated, saved, long feedbac
   for (const viewport of HOMEWORK_VIEWPORTS) {
     await page.setViewportSize(viewport);
     await gotoOk(page, data.paths.evaluateSubmissionWait);
-    await page.getByText('Yeniden çalışılmalı', { exact: true }).click();
+    const rework = page.getByRole('radio', { name: 'Yeniden çalışılmalı' });
+    await rework.scrollIntoViewIfNeeded();
+    await rework.check();
     await expect(page.locator('input[name="label"][value="needs_rework"]')).toBeChecked();
     await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
     await expect(page.locator('.hw-alert')).toContainText('Kaydedilemedi.');

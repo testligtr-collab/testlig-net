@@ -8,7 +8,6 @@ use App\Dto\HomeworkDraftInput;
 use App\Dto\StudentProfileRequest;
 use App\Dto\TeacherProfessionalProfileRequest;
 use App\Entity\CurriculumLearningOutcome;
-use App\Entity\HomeworkSubmission;
 use App\Entity\LearningDocumentAsset;
 use App\Entity\Location;
 use App\Entity\Subject;
@@ -791,21 +790,16 @@ final class PrepareBrowserAcceptanceCommand extends Command
             throw new \LogicException('Missing evaluate draft student fixture.');
         }
         $this->homeworkSubmissions->saveDraft($draftStudent, $evaluateAssignmentId, 'Taslak olarak kalan yanit.', 0);
-        $reviewedSubmission = $evaluateSubmissions['reviewed'] ?? null;
-        $reworkSubmission = $evaluateSubmissions['rework'] ?? null;
-        if (!$reviewedSubmission instanceof HomeworkSubmission || !$reworkSubmission instanceof HomeworkSubmission) {
-            throw new \LogicException('Missing evaluate submitted fixtures for seed evaluations.');
-        }
         $this->homeworkEvaluations->record(
             $evaluateTeacher,
-            $reviewedSubmission->getId(),
+            $evaluateSubmissions['reviewed']->getId(),
             'reviewed',
             "Duzenli ve dogru bir calisma.\nBoyle devam et.",
             null,
         );
         $this->homeworkEvaluations->record(
             $evaluateTeacher,
-            $reworkSubmission->getId(),
+            $evaluateSubmissions['rework']->getId(),
             'needs_rework',
             str_repeat("Uzun geri bildirim satiri dar ekranda tasmadan sarilmalidir.\n", 30).str_repeat('G', 120),
             null,
