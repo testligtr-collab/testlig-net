@@ -537,7 +537,7 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
 
     /**
      * @return array{
-     *     ctx: array{owner: User, sa: User, institution: \App\Entity\Institution, year: \App\Entity\AcademicYear, classroom: \App\Entity\Classroom, teacher: User, teacherMembership: InstitutionMembership},
+     *     ctx: array{owner: User, sa: User, institution: \App\Entity\Institution, year: \App\Entity\AcademicYear, classroom: Classroom, teacher: User, teacherMembership: InstitutionMembership},
      *     students: list<InstitutionMembership>,
      *     users: list<User>,
      *     assignment: HomeworkAssignment,
@@ -559,7 +559,7 @@ final class HomeworkSubmissionManagerTest extends KernelTestCase
     /**
      * More assignments for the classroom of an existing scenario (due 2026-12-01, clock stays frozen).
      *
-     * @param array{teacher: User, teacherMembership: InstitutionMembership, classroom: \App\Entity\Classroom} $ctx
+     * @param array{teacher: User, teacherMembership: InstitutionMembership, classroom: Classroom} $ctx
      *
      * @return list<HomeworkAssignment>
      */
