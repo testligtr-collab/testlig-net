@@ -70,16 +70,20 @@ test.describe('Student homework text submit', () => {
   test('mixed list and empty list', async ({ page }, info) => {
     const data = manifest();
     await login(page, data.users.student);
-    await screens(page, info, 'list-mixed', data.paths.studentHomeworkList);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoOk(page, data.paths.studentHomeworkList);
     await expect(page.getByRole('heading', { name: 'Ödevlerim' })).toBeVisible();
-    await expect(page.getByText('Teslim edilmedi').first()).toBeVisible();
-    await expect(page.getByText('Taslak').first()).toBeVisible();
-    await expect(page.getByText('Gönderildi').first()).toBeVisible();
-    await expect(page.getByText('Teslim süresi sona erdi').first()).toBeVisible();
+    await expect(page.locator('.shw-pill--none').first()).toBeVisible();
+    await expect(page.locator('.shw-pill--draft').first()).toBeVisible();
+    await expect(page.locator('.shw-pill--submitted').first()).toBeVisible();
+    await expect(page.locator('.shw-due-note').filter({ hasText: /Teslim s.*resi sona erdi/ }).first()).toBeVisible();
+    await screens(page, info, 'list-mixed', data.paths.studentHomeworkList);
 
     await login(page, data.users.otherStudent);
-    await screens(page, info, 'list-empty', data.paths.studentHomeworkEmptyList);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await gotoOk(page, data.paths.studentHomeworkEmptyList);
     await expect(page.getByText('Şu an görüntülenecek ödevin yok.')).toBeVisible();
+    await screens(page, info, 'list-empty', data.paths.studentHomeworkEmptyList);
     await assertClean(page);
   });
 
