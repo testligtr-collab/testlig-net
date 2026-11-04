@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Support;
 
 use App\Dto\HomeworkDraftInput;
+use App\Dto\StudentProfileRequest;
 use App\Entity\AcademicYear;
 use App\Entity\Classroom;
 use App\Entity\ClassroomStudentEnrollment;
@@ -21,6 +22,7 @@ use App\Enum\UserStatus;
 use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
+use App\Service\StudentProfileManager;
 use Symfony\Component\Clock\Clock;
 use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Clock\NativeClock;
@@ -65,6 +67,8 @@ trait HomeworkTestFixtures
             TeacherAssignmentRole::HomeroomTeacher,
             'assign_teacher',
         );
+        // activeUser defaults to ROLE_STUDENT; student routes require a completed profile.
+        $this->completeStudentOnboarding($teacher, $classroom);
 
         return [
             'owner' => $owner,
@@ -229,6 +233,8 @@ trait HomeworkTestFixtures
     private function enrollStudents(array $ctx, int $n): array
     {
         $memberships = [];
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
         for ($i = 1; $i <= $n; ++$i) {
             $student = $this->activeUser(\sprintf('hwstu-%s-%d@example.com', bin2hex(random_bytes(4)), $i));
             $membership = $this->membershipManager()->addMember(
@@ -239,10 +245,26 @@ trait HomeworkTestFixtures
                 'add_student',
             );
             $this->enrollmentManager()->enroll($ctx['classroom'], $ctx['owner'], $membership, 'enroll_student');
+            // HTTP /ogrenci/* routes require completed onboarding (StudentOnboardingSubscriber).
+            $dto = new StudentProfileRequest();
+            $dto->gradeLevel = $ctx['classroom']->getGradeLevel();
+            $profiles->completeOnboarding($student, $dto);
             $memberships[] = $membership;
         }
 
         return $memberships;
+    }
+
+    /**
+     * Fixture teachers are created with ROLE_STUDENT; student-area GETs still need onboarding done.
+     */
+    private function completeStudentOnboarding(User $user, Classroom $classroom): void
+    {
+        $profiles = static::getContainer()->get(StudentProfileManager::class);
+        self::assertInstanceOf(StudentProfileManager::class, $profiles);
+        $dto = new StudentProfileRequest();
+        $dto->gradeLevel = $classroom->getGradeLevel();
+        $profiles->completeOnboarding($user, $dto);
     }
 
     /**
@@ -298,10 +320,54 @@ trait HomeworkTestFixtures
         return $rows;
     }
 
+    private function homeworkSubmissionManager(): \App\Service\Homework\HomeworkSubmissionManager
+    {
+        $manager = static::getContainer()->get(\App\Service\Homework\HomeworkSubmissionManager::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkSubmissionManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function homeworkStudentQuery(): \App\Service\Homework\HomeworkStudentQuery
+    {
+        $query = static::getContainer()->get(\App\Service\Homework\HomeworkStudentQuery::class);
+        self::assertInstanceOf(\App\Service\Homework\HomeworkStudentQuery::class, $query);
+
+        return $query;
+    }
+
+    private function submissionRowCount(?Uuid $assignmentId = null): int
+    {
+        if (!$this->em->getConnection()->createSchemaManager()->tablesExist(['homework_submissions'])) {
+            return 0;
+        }
+        if (null === $assignmentId) {
+            return (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_submissions');
+        }
+
+        return (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM homework_submissions WHERE assignment_id = :id',
+            ['id' => $assignmentId->toBinary()],
+        );
+    }
+
+    /**
+     * @return list<array{action: string, metadata: string}>
+     */
+    private function submissionAuditRows(): array
+    {
+        /** @var list<array{action: string, metadata: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT action, metadata FROM security_audit_events WHERE action LIKE 'homework_submission_%' ORDER BY occurred_at ASC, id ASC",
+        );
+
+        return $rows;
+    }
+
     private function cleanupHomework(): void
     {
         $connection = $this->em->getConnection();
-        foreach (['homework_recipients', 'homework_assignments'] as $table) {
+        foreach (['homework_submissions', 'homework_recipients', 'homework_assignments'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);
             }

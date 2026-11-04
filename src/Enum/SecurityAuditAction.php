@@ -229,4 +229,6 @@ enum SecurityAuditAction: string
     case HomeworkDefinitionDraftCreated = 'homework_definition_draft_created';
     case HomeworkDefinitionDraftUpdated = 'homework_definition_draft_updated';
     case HomeworkAssignmentCreated = 'homework_assignment_created';
+    case HomeworkSubmissionDraftSaved = 'homework_submission_draft_saved';
+    case HomeworkSubmissionSubmitted = 'homework_submission_submitted';
 }

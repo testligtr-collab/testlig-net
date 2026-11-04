@@ -134,6 +134,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly AssessmentResultReportQuery $resultReport,
         private readonly HomeworkDefinitionManager $homework,
         private readonly HomeworkAssignmentManager $homeworkAssignments,
+        private readonly \App\Service\Homework\HomeworkSubmissionManager $homeworkSubmissions,
     ) {
         parent::__construct();
     }
@@ -690,6 +691,55 @@ final class PrepareBrowserAcceptanceCommand extends Command
             '08:05',
             null,
         ));
+        // Student homework slice: mixed statuses for browser-student (recipient of assignments).
+        $studentHwNone = $homeworkAssignment;
+        $studentHwDraftDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Okudugum kitabi anlatiyorum',
+            "Okudugun kitabi uc cumleyle anlat.\nOrnekler ver.",
+            $classroom->getId()->toRfc4122(),
+            '2099-07-08',
+            '17:00',
+            null,
+        ));
+        $studentHwDraftAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwDraftDef->getId(), 1, true);
+        $this->homeworkSubmissions->saveDraft($student, $studentHwDraftAsg->getId(), "Tabak yuvarlak bir sekle benzer.\nKitabin kapagi dikdortgene benzer.", 0);
+        $studentHwSubmittedDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Dogayi gozlemliyorum',
+            'Dogada gordugun uc canliyi yaz.',
+            $classroom->getId()->toRfc4122(),
+            '2099-07-02',
+            '18:00',
+            null,
+        ));
+        $studentHwSubmittedAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwSubmittedDef->getId(), 1, true);
+        $draftForSubmit = $this->homeworkSubmissions->saveDraft($student, $studentHwSubmittedAsg->getId(), 'Agacta kus gordum.', 0);
+        $this->homeworkSubmissions->submit($student, $studentHwSubmittedAsg->getId(), 'Agacta kus gordum.', $draftForSubmit->getRevisionNumber(), true);
+        $studentHwOverdueDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Suresi gecmis taslak odev',
+            'Bu odevin suresi tarayici testinde gecmis gorunecek.',
+            $classroom->getId()->toRfc4122(),
+            '2099-07-10',
+            '12:00',
+            null,
+        ));
+        $studentHwOverdueAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwOverdueDef->getId(), 1, true);
+        $this->homeworkSubmissions->saveDraft($student, $studentHwOverdueAsg->getId(), 'Taslak kaldı ama sure bitti.', 0);
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE homework_assignments SET due_at = :due WHERE id = :id',
+            [
+                'due' => '2020-01-01 12:00:00',
+                'id' => $studentHwOverdueAsg->getId()->toBinary(),
+            ],
+        );
+        $studentHwLongDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkLongTitle,
+            str_repeat("Ogrenci uzun metin alani tasmadan sarilmalidir.\n", 20).str_repeat('M', 80),
+            $classroom->getId()->toRfc4122(),
+            '2099-07-12',
+            '09:00',
+            null,
+        ));
+        $studentHwLongAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwLongDef->getId(), 1, true);
         $longOwner = $this->account('browser-class-owner@example.test', 'Sinif', 'Sahibi', UserRole::Teacher);
         $longInstitution = $this->institutions->create($superAdmin, $longOwner, 'Uzun Adli Tarayici Egitim Kurumu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($longInstitution, $superAdmin, 'browser_activate');
@@ -810,6 +860,17 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'homeworkAssignedRecipients' => (string) $homeworkAssignment->getRecipientCount(),
                 'homeworkZeroTitle' => $homeworkZeroTitle,
                 'homeworkLongTitle' => $homeworkLongTitle,
+                'studentHomeworkList' => '/ogrenci/odevler',
+                'studentHomeworkNone' => '/ogrenci/odevler/'.$studentHwNone->getId()->toRfc4122(),
+                'studentHomeworkDraft' => '/ogrenci/odevler/'.$studentHwDraftAsg->getId()->toRfc4122(),
+                'studentHomeworkSubmitted' => '/ogrenci/odevler/'.$studentHwSubmittedAsg->getId()->toRfc4122(),
+                'studentHomeworkOverdue' => '/ogrenci/odevler/'.$studentHwOverdueAsg->getId()->toRfc4122(),
+                'studentHomeworkLong' => '/ogrenci/odevler/'.$studentHwLongAsg->getId()->toRfc4122(),
+                'studentHomeworkNoneTitle' => $homeworkAssignedTitle,
+                'studentHomeworkDraftTitle' => 'Okudugum kitabi anlatiyorum',
+                'studentHomeworkSubmittedTitle' => 'Dogayi gozlemliyorum',
+                'studentHomeworkOverdueTitle' => 'Suresi gecmis taslak odev',
+                'studentHomeworkEmptyList' => '/ogrenci/odevler',
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
                 'publicCatalog' => '/dersler',
                 'publicGrade' => '/dersler/1',

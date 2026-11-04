@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Homework;
 
 use App\Entity\HomeworkDefinition;
+use App\Entity\HomeworkSubmission;
 
 /**
  * Plain-text rules for draft homework. Length is counted in Unicode code points (mb_strlen UTF-8),
@@ -16,6 +17,8 @@ final class HomeworkText
     public const TITLE_MAX = HomeworkDefinition::TITLE_MAX;
     public const DESCRIPTION_MIN = 1;
     public const DESCRIPTION_MAX = HomeworkDefinition::DESCRIPTION_MAX;
+    public const BODY_MIN = 1;
+    public const BODY_MAX = HomeworkSubmission::BODY_MAX;
 
     /**
      * @return string trimmed, valid title
@@ -33,6 +36,26 @@ final class HomeworkText
     public static function description(string $value): string
     {
         return self::plain($value, self::DESCRIPTION_MIN, self::DESCRIPTION_MAX, true, 'Ödev açıklaması');
+    }
+
+    /**
+     * Student draft body: empty string allowed after trim; whitespace-only becomes ''.
+     *
+     * @throws \InvalidArgumentException with a Turkish message safe to show to the student
+     */
+    public static function draftBody(string $value): string
+    {
+        return self::plain($value, 0, self::BODY_MAX, true, 'Yanıtın');
+    }
+
+    /**
+     * Student submitted body: trim after normalize; empty rejected.
+     *
+     * @throws \InvalidArgumentException with a Turkish message safe to show to the student
+     */
+    public static function submittedBody(string $value): string
+    {
+        return self::plain($value, self::BODY_MIN, self::BODY_MAX, true, 'Yanıtın');
     }
 
     public static function length(string $value): int

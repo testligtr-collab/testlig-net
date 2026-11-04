@@ -126,12 +126,12 @@ test('teacher mixed homework list, draft detail and edit screens at four widths'
   expect(list?.headers()['cache-control'] ?? '').toContain('no-store');
   await expect(page.getByRole('heading', { level: 1, name: 'Ödevlerim' })).toBeVisible();
   // Mixed list: Kesirler + uzun başlık + öğrencisiz sınıf taslağı, and one assigned homework.
-  await expectCounts(page, '3', '1');
+  await expectCounts(page, '3', '5');
   await expect(page.getByText(data.paths.homeworkTitle, { exact: true })).toBeVisible();
   await expect(page.getByText(data.paths.homeworkAssignedTitle, { exact: true })).toBeVisible();
   await expect(page.locator('.hw-badge--draft').first()).toHaveText('Taslak');
-  await expect(page.locator('.hw-badge--assigned')).toHaveCount(1);
-  await expect(page.locator('.hw-badge--assigned')).toHaveText('Atandı');
+  await expect(page.locator('.hw-badge--assigned')).toHaveCount(5);
+  await expect(page.locator('.hw-badge--assigned').first()).toHaveText('Atandı');
   await expect(page.locator('tr', { hasText: data.paths.homeworkAssignedTitle })).toContainText(`${data.paths.homeworkAssignedRecipients} alıcı`);
   await expect(page.getByRole('link', { name: 'Ödevlerim', exact: true }).first()).toBeVisible();
   await expect(page.getByText(data.paths.foreignTitle)).toHaveCount(0);
@@ -142,9 +142,9 @@ test('teacher mixed homework list, draft detail and edit screens at four widths'
   // Status filter splits assigned from draft rows while the counters stay real.
   await page.setViewportSize({ width: 1440, height: 900 });
   await gotoOk(page, `${data.paths.homeworkList}?durum=atandi`);
-  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody tr')).toHaveCount(5);
   await expect(page.locator('tbody')).toContainText(data.paths.homeworkAssignedTitle);
-  await expectCounts(page, '3', '1');
+  await expectCounts(page, '3', '5');
   await screens(page, info, 'odevler-atandi', `${data.paths.homeworkList}?durum=atandi`);
   await gotoOk(page, `${data.paths.homeworkList}?durum=taslak`);
   await expect(page.locator('tbody tr')).toHaveCount(3);
@@ -169,7 +169,7 @@ test('teacher mixed homework list, draft detail and edit screens at four widths'
   // Search narrows the list; the counters keep describing the whole authorized set.
   await gotoOk(page, `${data.paths.homeworkList}?q=kesirler`);
   await expect(page.locator('tbody tr')).toHaveCount(1);
-  await expectCounts(page, '3', '1');
+  await expectCounts(page, '3', '5');
   await expect(page.locator('[data-testid="hw-status-count"]')).toContainText('listelenen 1');
 
   await page.goto(data.paths.homeworkList);
@@ -271,7 +271,7 @@ test('teacher draft homework form validates, counts Unicode and never writes on 
   expect(outline).not.toBe('none');
 
   await gotoOk(page, data.paths.homeworkList);
-  await expectCounts(page, '3', '1');
+  await expectCounts(page, '3', '5');
   // Intentional 422 validation responses are expected above; clear watch notes before the clean check.
   const notes = (page as Page & { __notes?: string[] }).__notes;
   if (notes) {

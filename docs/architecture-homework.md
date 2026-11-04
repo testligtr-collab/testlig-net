@@ -1,6 +1,6 @@
 # X01 — Ödev ve proje (ürün / mimari karar)
 
-**Durum:** Önerilen mimari; **öğretmen taslak dilimi** ve **sınıfa atama + alıcı snapshot dilimi** koda alındı (aşağıdaki 0.1 ve 0.1b). Öğrenci teslimi ve değerlendirme henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen kabulü açıktır.  
+**Durum:** Önerilen mimari; **öğretmen taslak**, **sınıfa atama + alıcı snapshot** ve **öğrenci metin teslimi** dilimleri koda alındı (0.1, 0.1b, 0.1c). Öğretmen değerlendirmesi henüz yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen kabulü açıktır.  
 **Feature ID:** `X01-homework` (`partial` — taslak + atama dilimleri kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
 **Aktif uygulama işi:** `active_feature_ids` = `X01-homework`; `X10-admin-navigation` **partial** olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez).  
 **Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimi metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu bu dilime dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
@@ -63,13 +63,36 @@ Test kanıtı (kod kanıtı; CI ve canlı kabul ayrıdır): `tests/Service/Homew
 
 Kapsam dışı (bu dilimde de yok): öğrenci tarafı alıcı görünümü, teslim, değerlendirme, dosya/PDF (`M18-local-pdf` `depends_on` olarak kalır), atamayı geri alma/iptal.
 
+### 0.1c Uygulanan öğrenci metin teslimi dilimi (kodda; branch 
+eature/x01-homework-student-submit)
+
+Bu dilim 0.1b üzerine biner. Öğretmen değerlendirmesi, dosya, bildirim, veli ve yeniden/geç teslim **yoktur**. Main merge, deploy ve **canlı öğrenci/öğretmen kabulü açıktır**; CI production kabulü değildir.
+
+| Konu | Kodda olan |
+|---|---|
+| Tablo | homework_submissions (UNIQUE(recipient_id), UNIQUE(assignment_id, student_user_id); body MEDIUMTEXT; status draft\|submitted; submitted_at; revision_number; created/updated; tüm FK RESTRICT). Version20261104120000, geri alınabilir. Mevcut alıcılar için backfill **yok**. Evaluation tablosu **yok**. |
+| Entity / servis | HomeworkSubmission; HomeworkSubmissionManager::saveDraft/submit; HomeworkStudentQuery (liste/detay DTO); HomeworkStudentScope (güncel enrollment+üyelik; snapshot enrollment_id yetki değildir). |
+| Metin | HomeworkText::draftBody (boş OK) / submittedBody (trim sonrası boş red); ≤20.000 Unicode kod noktası; HTML/kontrol red; istemci homework_text.js aynı sayım. |
+| Erişim | Açık ödev/taslak: aktif+doğrulanmış öğrenci + kendi recipient + assignment assigned + aktif öğrenci üyeliği + **o sınıfta güncel** aktif enrollment + yazmada aktif kurum/sınıf/yıl. Ayrılma/transfer yazmayı kapatır. Kendi **submitted** kaydı ayrıldıktan sonra salt okunur (yeni yazma yok). Admin/SA/veli/moderatör/öğretmen otomatik erişim yok; öğretmen taslağı görmez. |
+| Son tarih | Inclusive: TX içinde ClockInterface; 
+ow <= dueAt kabul; 
+ow > dueAt ret. Süre dolması GET ile kalıcı status yapılmaz. |
+| Kilit | kurum WRITE → yıl WRITE → sınıf WRITE → assignment WRITE → recipient WRITE → (varsa) submission WRITE → güncel enrollment WRITE → membership WRITE. İlk oluşturma recipient kilidi + UNIQUE ile güvenli. |
+| Rotalar | GET /ogrenci/odevler, GET /ogrenci/odevler/{id}, POST .../taslak, POST .../gonder. GET yazmaz. CSRF student_homework_draft / student_homework_submit; gönderimde açık onay; 
+evision_number. |
+| UI | Öğrenci menüsünde **Ödevlerim**; liste (Teslim edilmedi/Taslak/Gönderildi); detayda dondurulmuş istem, taslak kaydet / onaylı gönder, gönderim sonrası salt okunur. |
+| Denetim | homework_submission_draft_saved / homework_submission_submitted (kimlik/durum/sürüm; gövde yok). |
+
+Kapsam dışı: değerlendirme, dosya (M18-local-pdf depends_on kalır), bildirim, veli, iptal, AssessmentAttempt.
+
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |
 |---|---|
 | `HomeworkAssignment` | **Kısmen uygulandı** (0.1b): yalnız `assigned`; dondurulmuş metin/due; 1:1 tanım. `closed`/`cancelled` ve atama taslağı **yok**. |
 | `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; öğrenci erişimi / liste **yok**. |
-| `HomeworkSubmission` / `HomeworkEvaluation` | **Önerilen.** Metin teslimi ve etiket + geri bildirim. |
+| `HomeworkSubmission` | **Kısmen uygulandı** (0.1c): draft/submitted metin; evaluation yok. |
+| `HomeworkEvaluation` | **Önerilen.** Etiket + geri bildirim. |
 | `archived` tanım durumu | **Önerilen.** Bu dilimde yazılmaz. |
 
 ---
