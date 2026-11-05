@@ -68,9 +68,12 @@
                 <input type="hidden" name="_token" value="{{ csrf_token(csrf_evaluate) }}">
                 <input type="hidden" name="expected_current_evaluation_id" value="{{ values.expected_current_evaluation_id }}">
 
-                <fieldset class="hw-field hw-fieldset{% if errors.label is defined %} hw-field--error{% endif %}"
-                          {% if errors.label is defined %}aria-invalid="true" aria-describedby="hw-label-error"{% endif %}>
-                    <legend>Değerlendirme</legend>
+                {# role=radiogroup avoids Chromium fieldset min-content width that collapses labels to 1ch. #}
+                <div class="hw-field hw-fieldset{% if errors.label is defined %} hw-field--error{% endif %}"
+                     role="radiogroup"
+                     aria-labelledby="hw-label-legend"
+                     {% if errors.label is defined %}aria-invalid="true" aria-describedby="hw-label-error"{% endif %}>
+                    <p class="hw-fieldset__legend" id="hw-label-legend">Değerlendirme</p>
                     <div class="hw-choice-list">
                         <label class="hw-choice">
                             <input type="radio" name="label" value="reviewed"{% if values.label == 'reviewed' %} checked{% endif %} required>
@@ -82,7 +85,7 @@
                         </label>
                     </div>
                     {% if errors.label is defined %}<p class="hw-error" id="hw-label-error">{{ errors.label }}</p>{% endif %}
-                </fieldset>
+                </div>
 
                 <div class="hw-field{% if errors.feedback is defined %} hw-field--error{% endif %}">
                     <div class="hw-field__row">

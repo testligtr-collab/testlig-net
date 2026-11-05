@@ -804,25 +804,22 @@ body.is-workspace {
 }
 
 .is-workspace .hw-fieldset {
+    display: grid;
+    gap: 0.35rem;
     margin: 0;
     padding: 0;
     border: 0;
-    /* Chromium keeps fieldset min-content width unless both are cleared. */
     min-width: 0;
-    min-inline-size: 0;
     max-width: 100%;
     width: 100%;
 }
 
-.is-workspace .hw-fieldset legend {
-    display: block;
-    float: none;
-    margin-bottom: 0.4rem;
+.is-workspace .hw-fieldset__legend {
+    margin: 0;
     padding: 0;
     font-weight: 650;
 }
 
-/* Inner wrapper avoids Chromium fieldset min-content overflow without legend float hacks. */
 .is-workspace .hw-choice-list {
     display: grid;
     gap: 0.35rem;
