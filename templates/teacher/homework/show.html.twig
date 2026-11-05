@@ -17,7 +17,7 @@
         <div class="hw-head__text">
             <h1 id="hw-heading" class="hw-wrap">{{ title }}</h1>
             {% if assignment %}
-                <p class="hw-sub"><span class="hw-badge hw-badge--assigned">Atandı</span> Ödev metni donduruldu. Öğrenci teslimi bu adımda yok.</p>
+                <p class="hw-sub"><span class="hw-badge hw-badge--assigned">Atandı</span> Ödev metni donduruldu. Gönderilen teslimleri aşağıdan inceleyip değerlendirebilirsin.</p>
             {% else %}
                 <p class="hw-sub"><span class="hw-badge hw-badge--draft">Taslak</span> Bu taslak öğrencilere atanmadı; öğrenciler göremez.</p>
             {% endif %}
@@ -82,7 +82,7 @@
                 <div><dt>Durum</dt><dd>{{ assignment ? 'Atandı' : 'Taslak' }}</dd></div>
                 {% if assignment %}
                     <div><dt>Atama zamanı</dt><dd>{{ assignment.assignedAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }}</dd></div>
-                    <div><dt>Alıcı sayısı</dt><dd data-testid="hw-recipient-count">{{ assignment.recipientCount }}</dd></div>
+                    <div><dt>Alıcı sayısı</dt><dd data-testid="hw-recipient-count">{{ stats ? stats.recipientCount : assignment.recipientCount }}</dd></div>
                 {% else %}
                     <div><dt>Sürüm</dt><dd>{{ definition.revisionNumber }}</dd></div>
                     <div><dt>Son güncelleme</dt><dd>{{ definition.updatedAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }}</dd></div>
@@ -90,6 +90,42 @@
             </dl>
         </aside>
     </div>
+
+    {% if assignment %}
+        <section class="hw-card hw-recipients-card" aria-labelledby="hw-recipients-heading" data-testid="hw-recipients">
+            <h2 id="hw-recipients-heading">Teslimler</h2>
+            {% if stats %}
+                <dl class="hw-counters" data-testid="hw-counters">
+                    <div class="hw-counters__item"><dt>Alıcı</dt><dd data-testid="hw-count-recipients">{{ stats.recipientCount }}</dd></div>
+                    <div class="hw-counters__item"><dt>Gönderen</dt><dd data-testid="hw-count-submitted">{{ stats.submittedCount }}</dd></div>
+                    <div class="hw-counters__item"><dt>Değerlendirilen</dt><dd data-testid="hw-count-evaluated">{{ stats.evaluatedCount }}</dd></div>
+                </dl>
+            {% endif %}
+            {% if recipient_rows is empty %}
+                <p class="hw-note" role="status">Teslim listesi şu an gösterilemiyor. Sınıf veya öğretmen ataman aktif olmayabilir.</p>
+            {% else %}
+                <ul class="hw-recipients">
+                    {% for row in recipient_rows %}
+                        <li class="hw-recipient" data-state="{{ row.stateKey }}">
+                            <div class="hw-recipient__main">
+                                <span class="hw-recipient__name hw-wrap">{{ row.studentDisplayName }}</span>
+                                {% if row.submittedAtLocal %}
+                                    <span class="hw-muted">Gönderim: {{ row.submittedAtLocal }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="hw-recipient__side">
+                                <span class="hw-badge hw-badge--{{ row.evaluationLabelKey == 'needs_rework' ? 'rework' : row.stateKey }}">{{ row.stateLabel }}</span>
+                                {% if row.canInspect and row.submissionId %}
+                                    <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homework_submission_show', {id: row.submissionId}) }}" aria-label="İncele: {{ row.studentDisplayName }}">İncele</a>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <p class="hw-note">Taslak yanıtlar öğretmene gösterilmez; yalnız gönderilen teslimler incelenebilir.</p>
+        </section>
+    {% endif %}
 
     <p class="hw-actions">
         <a class="btn hw-btn hw-btn--ghost" href="{{ path('app_teacher_homeworks') }}">Ödevlerime dön</a>

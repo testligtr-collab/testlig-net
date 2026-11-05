@@ -5,28 +5,37 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Dto\HomeworkDraftInput;
+use App\Dto\HomeworkTeacherSubmissionDetail;
 use App\Entity\HomeworkDefinition;
+use App\Entity\HomeworkSubmission;
 use App\Entity\User;
 use App\Exception\HomeworkDefinitionException;
+use App\Exception\HomeworkEvaluationException;
+use App\Repository\HomeworkSubmissionRepository;
 use App\Security\HomeworkDefinitionPermission;
+use App\Security\HomeworkEvaluationPermission;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
+use App\Service\Homework\HomeworkEvaluationManager;
 use App\Service\Homework\HomeworkTeacherScope;
+use App\Service\Homework\HomeworkTeacherSubmissionQuery;
 use App\Service\Homework\HomeworkText;
 use App\Time\UtcInstant;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Teacher homework: drafts, classroom assign with recipient snapshot. No student submit/evaluate.
+ * Teacher homework: drafts, classroom assign with recipient snapshot, submitted-work review and
+ * append-only evaluation (label + optional feedback). Evaluation never grants a resubmit.
  */
 #[Route('/ogretmen/odevler')]
 #[IsGranted('ROLE_USER')]
@@ -34,6 +43,7 @@ final class TeacherHomeworkController extends AbstractController
 {
     private const CSRF_DRAFT = 'teacher_homework_draft';
     private const CSRF_ASSIGN = 'teacher_homework_assign';
+    private const CSRF_EVALUATE = 'teacher_homework_evaluate';
     private const ID = '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
     public function __construct(
@@ -42,6 +52,9 @@ final class TeacherHomeworkController extends AbstractController
         private readonly HomeworkDefinitionQuery $query,
         private readonly HomeworkTeacherScope $scope,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
+        private readonly HomeworkTeacherSubmissionQuery $submissionQuery,
+        private readonly HomeworkEvaluationManager $evaluations,
+        private readonly HomeworkSubmissionRepository $submissions,
     ) {
     }
 
@@ -148,9 +161,18 @@ final class TeacherHomeworkController extends AbstractController
             }
         }
 
+        $stats = null;
+        $recipientRows = [];
+        if (null !== $assignment) {
+            $stats = $this->submissionQuery->statsFor($actor, $assignment);
+            $recipientRows = $this->submissionQuery->recipientRows($actor, $assignment) ?? [];
+        }
+
         return $this->noStore($this->render('teacher/homework/show.html.twig', [
             'definition' => $definition,
             'assignment' => $assignment,
+            'stats' => $stats,
+            'recipient_rows' => $recipientRows,
             'can_edit' => $canEdit,
             'can_assign' => $canAssign,
             'show_confirm' => $showConfirm && $canAssign,
@@ -158,6 +180,72 @@ final class TeacherHomeworkController extends AbstractController
             'errors' => $errors,
             'csrf_assign' => self::CSRF_ASSIGN,
         ]), $status);
+    }
+
+    #[Route('/teslim/{id}', name: 'app_teacher_homework_submission_show', methods: ['GET'], requirements: ['id' => self::ID])]
+    public function submissionShow(string $id): Response
+    {
+        $actor = $this->account();
+        $submission = $this->viewableSubmission(Uuid::fromString($id));
+        $detail = $this->submissionQuery->submittedDetail($actor, $submission->getId());
+        if (!$detail instanceof HomeworkTeacherSubmissionDetail) {
+            throw new NotFoundHttpException('Not Found');
+        }
+
+        return $this->noStore($this->renderSubmission($detail, $this->evaluationValuesFrom($detail), []));
+    }
+
+    #[Route('/teslim/{id}/degerlendir', name: 'app_teacher_homework_submission_evaluate', methods: ['POST'], requirements: ['id' => self::ID])]
+    public function submissionEvaluate(Request $request, string $id): Response
+    {
+        $actor = $this->account();
+        $this->assertCsrf($request, self::CSRF_EVALUATE);
+        $submissionId = Uuid::fromString($id);
+        $submission = $this->viewableSubmission($submissionId);
+        if (!$this->isGranted(HomeworkEvaluationPermission::EVALUATE, $submission)) {
+            throw new NotFoundHttpException('Not Found');
+        }
+
+        $values = $this->postedEvaluationValues($request);
+        $expected = null;
+        if ('' !== $values['expected_current_evaluation_id']) {
+            if (!Uuid::isValid($values['expected_current_evaluation_id'])) {
+                throw new BadRequestHttpException('Geçersiz istek.');
+            }
+            $expected = Uuid::fromString($values['expected_current_evaluation_id']);
+        }
+
+        try {
+            $this->evaluations->record($actor, $submissionId, $values['label'], $values['feedback'], $expected);
+            $this->addFlash('success', 'Değerlendirme kaydedildi. Bu değerlendirme yeniden teslim hakkı vermez.');
+
+            return $this->redirectToRoute('app_teacher_homework_submission_show', ['id' => $id]);
+        } catch (HomeworkEvaluationException $exception) {
+            $errors = [];
+            $status = Response::HTTP_CONFLICT;
+            switch ($exception->getReason()) {
+                case HomeworkEvaluationException::REASON_INVALID_INPUT:
+                    $errors = $exception->getFieldErrors();
+                    $status = Response::HTTP_UNPROCESSABLE_ENTITY;
+                    break;
+                case HomeworkEvaluationException::REASON_STALE:
+                case HomeworkEvaluationException::REASON_NOT_SUBMITTED:
+                case HomeworkEvaluationException::REASON_CONFLICT:
+                    $this->addFlash('error', $exception->getMessage());
+                    break;
+                default:
+                    throw new NotFoundHttpException('Not Found');
+            }
+        }
+
+        $detail = $this->submissionQuery->submittedDetail($actor, $submissionId);
+        if (!$detail instanceof HomeworkTeacherSubmissionDetail) {
+            throw new NotFoundHttpException('Not Found');
+        }
+        // A stale post must carry the fresh current evaluation id so a deliberate resubmit can succeed.
+        $values['expected_current_evaluation_id'] = $detail->currentEvaluationId ?? '';
+
+        return $this->noStore($this->renderSubmission($detail, $values, $errors), $status);
     }
 
     #[Route('/{id}/duzenle', name: 'app_teacher_homework_edit', methods: ['GET', 'POST'], requirements: ['id' => self::ID])]
@@ -188,6 +276,67 @@ final class TeacherHomeworkController extends AbstractController
         }
 
         return $this->noStore($this->renderForm('edit', $options, $values, $errors, $definition), $status);
+    }
+
+    /**
+     * Opaque 404 when the submission is missing or not viewable by this teacher.
+     */
+    private function viewableSubmission(Uuid $submissionId): HomeworkSubmission
+    {
+        $submission = $this->submissions->find($submissionId);
+        if (!$submission instanceof HomeworkSubmission
+            || !$this->isGranted(HomeworkEvaluationPermission::VIEW_SUBMITTED, $submission)
+        ) {
+            throw new NotFoundHttpException('Not Found');
+        }
+
+        return $submission;
+    }
+
+    /**
+     * @param array<string, string> $values
+     * @param array<string, string> $errors
+     */
+    private function renderSubmission(HomeworkTeacherSubmissionDetail $detail, array $values, array $errors): Response
+    {
+        return $this->render('teacher/homework/submission.html.twig', [
+            'detail' => $detail,
+            'values' => $values,
+            'errors' => $errors,
+            'feedback_max' => HomeworkText::FEEDBACK_MAX,
+            'csrf_evaluate' => self::CSRF_EVALUATE,
+        ]);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function evaluationValuesFrom(HomeworkTeacherSubmissionDetail $detail): array
+    {
+        return [
+            'label' => $detail->evaluationLabelKey ?? '',
+            'feedback' => $detail->feedback ?? '',
+            'expected_current_evaluation_id' => $detail->currentEvaluationId ?? '',
+        ];
+    }
+
+    /**
+     * @return array{label: string, feedback: string, expected_current_evaluation_id: string}
+     */
+    private function postedEvaluationValues(Request $request): array
+    {
+        $all = $request->request->all();
+        $read = static function (string $key) use ($all): string {
+            $raw = $all[$key] ?? '';
+
+            return \is_string($raw) ? str_replace(["\r\n", "\r"], "\n", $raw) : '';
+        };
+
+        return [
+            'label' => trim($read('label')),
+            'feedback' => $read('feedback'),
+            'expected_current_evaluation_id' => trim($read('expected_current_evaluation_id')),
+        ];
     }
 
     /**

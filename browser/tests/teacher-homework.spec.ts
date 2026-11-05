@@ -398,3 +398,125 @@ test('other roles and teachers without assignment do not see teacher draft homew
   await expect(page).toHaveURL(/\/giris$/);
   await anonymous.close();
 });
+
+async function evaluationTargets(page: Page): Promise<void> {
+  const small = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-page a.btn, .hw-page button, .hw-page .hw-choice, .hw-page textarea'))
+    .filter((node) => {
+      const box = node.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && box.height < 44;
+    })
+    .map((node) => `${node.tagName.toLowerCase()}.${node.className} ${Math.round(node.getBoundingClientRect().height)}`));
+  expect(small, 'evaluation targets under 44px').toEqual([]);
+}
+
+/** Long unbroken submission/feedback text must wrap inside its own card, not grow the page. */
+async function evaluationTextFits(page: Page): Promise<void> {
+  const overflowing = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-page .hw-prose, .hw-page .hw-wrap, .hw-page .hw-recipient__name'))
+    .filter((node) => node instanceof HTMLElement && node.scrollWidth - node.clientWidth > 1)
+    .map((node) => `${node.className} ${node.scrollWidth - (node as HTMLElement).clientWidth}`));
+  expect(overflowing, 'evaluation text overflow').toEqual([]);
+}
+
+async function evaluationScreens(page: Page, info: TestInfo, route: string, path: string): Promise<void> {
+  for (const viewport of HOMEWORK_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await gotoOk(page, path);
+    await assertLayout(page);
+    await evaluationTextFits(page);
+    if (viewport.width <= 768) {
+      await evaluationTargets(page);
+    }
+    await shot(page, info, 'teacher-homework', route, viewport.name);
+  }
+}
+
+test('teacher reviews submissions: list states, unevaluated, saved, long feedback and form error', async ({ page }, info) => {
+  const data = manifest();
+  await watch(page);
+  await login(page, data.users.evaluateTeacher);
+
+  // Submission list: draft-only recipient is not inspectable, the other three are.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.evaluateList);
+  await expect(page.getByRole('heading', { level: 1, name: data.paths.evaluateTitle })).toBeVisible();
+  await expect(page.locator('[data-testid="hw-count-recipients"]')).toHaveText('4');
+  await expect(page.locator('[data-testid="hw-count-submitted"]')).toHaveText('3');
+  await expect(page.locator('[data-testid="hw-count-evaluated"]')).toHaveText('2');
+  await expect(page.locator('.hw-recipient[data-state="evaluated"]')).toHaveCount(2);
+  await expect(page.locator('.hw-recipient[data-state="submitted"]')).toHaveCount(1);
+  await expect(page.locator('.hw-recipient[data-state="awaiting"]')).toHaveCount(1);
+  await expect(page.getByRole('link', { name: /^İncele:/ })).toHaveCount(3);
+  await evaluationScreens(page, info, 'degerlendirme-liste', data.paths.evaluateList);
+
+  // Unevaluated submission: read-only body, empty current evaluation, first-evaluation form.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.evaluateSubmissionWait);
+  await expect(page.getByText('Henüz değerlendirilmedi.')).toBeVisible();
+  await expect(page.locator('[data-testid="hw-submission-body"]')).toContainText('Henuz kontrol edilmemis yanitim.');
+  await expect(page.getByRole('button', { name: 'Kaydet', exact: true })).toBeVisible();
+  await expect(page.locator('[data-testid="hw-submission-body"] textarea, [data-testid="hw-submission-body"] input')).toHaveCount(0);
+  await expect(page.locator('input[name="expected_current_evaluation_id"]')).toHaveValue('');
+  // Native radiogroup: accessible name, visible focus, ArrowDown moves selection.
+  await expect(page.getByRole('radiogroup', { name: 'Değerlendirme' })).toBeVisible();
+  const reviewed = page.getByRole('radio', { name: 'İncelendi' });
+  const rework = page.getByRole('radio', { name: 'Yeniden çalışılmalı' });
+  await reviewed.focus();
+  await expect(reviewed).toBeFocused();
+  expect(await reviewed.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+  await page.keyboard.press('ArrowDown');
+  await expect(rework).toBeChecked();
+  await expect(reviewed).not.toBeChecked();
+  await evaluationScreens(page, info, 'degerlendirme-bekleyen', data.paths.evaluateSubmissionWait);
+
+  // Saved evaluation: current label and feedback shown, correction form offered.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.evaluateSubmissionReviewed);
+  const current = page.locator('[data-testid="hw-current-evaluation"]');
+  await expect(current.getByText('İncelendi')).toBeVisible();
+  await expect(current).toContainText('Duzenli ve dogru bir calisma.');
+  await expect(page.getByRole('button', { name: 'Yeni değerlendirme kaydet' })).toBeVisible();
+  await expect(page.locator('input[name="expected_current_evaluation_id"]')).not.toHaveValue('');
+  await evaluationScreens(page, info, 'degerlendirme-kayitli', data.paths.evaluateSubmissionReviewed);
+
+  // Long submission and long unbroken feedback wrap inside their cards.
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.evaluateSubmissionRework);
+  await expect(current.getByText('Yeniden çalışılmalı')).toBeVisible();
+  await expect(current).toContainText('Uzun geri bildirim satiri');
+  await evaluationScreens(page, info, 'degerlendirme-uzun', data.paths.evaluateSubmissionRework);
+
+  // Form error: "needs rework" without feedback is rejected server-side and writes nothing.
+  for (const viewport of HOMEWORK_VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await gotoOk(page, data.paths.evaluateSubmissionWait);
+    const rework = page.getByRole('radio', { name: 'Yeniden çalışılmalı' });
+    await rework.scrollIntoViewIfNeeded();
+    await rework.check();
+    await expect(page.locator('input[name="label"][value="needs_rework"]')).toBeChecked();
+    await page.getByRole('button', { name: 'Kaydet', exact: true }).click();
+    await expect(page.locator('.hw-alert')).toContainText('Kaydedilemedi.');
+    await expect(page.getByText('Geri bildirim boş olamaz.')).toBeVisible();
+    await expect(page.locator('input[name="label"][value="needs_rework"]')).toBeChecked();
+    await assertLayout(page);
+    await evaluationTextFits(page);
+    await shot(page, info, 'teacher-homework', 'degerlendirme-hata', viewport.name);
+  }
+  // The expected 422 response is logged by Chromium as a failed resource, not a page defect.
+  (page as Page & { __notes?: string[] }).__notes?.splice(0);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await gotoOk(page, data.paths.evaluateList);
+  await expect(page.locator('[data-testid="hw-count-evaluated"]')).toHaveText('2');
+  await expect(page.locator('.hw-recipient[data-state="submitted"]')).toHaveCount(1);
+  await assertClean(page);
+});
+
+test('student cannot open the teacher evaluation pages', async ({ page }) => {
+  const data = manifest();
+  await watch(page);
+  await login(page, data.users.evaluateStudentReviewed);
+  for (const path of [data.paths.evaluateList, data.paths.evaluateSubmissionReviewed, data.paths.evaluateSubmissionWait]) {
+    const response = await page.request.get(path);
+    expect([403, 404], path).toContain(response.status());
+  }
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Service;
 
+use App\Enum\HomeworkEvaluationLabel;
 use App\Service\Homework\HomeworkText;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -209,6 +210,101 @@ final class HomeworkTextTest extends TestCase
                 self::fail('HTML must be rejected.');
             } catch (\InvalidArgumentException $exception) {
                 self::assertSame('Yanıtın HTML içeremez.', $exception->getMessage());
+            }
+        }
+    }
+
+    public function testFeedbackLimitMatchesTheEvaluationEntity(): void
+    {
+        self::assertSame(\App\Entity\HomeworkEvaluation::FEEDBACK_MAX, HomeworkText::FEEDBACK_MAX);
+        self::assertSame(5000, HomeworkText::FEEDBACK_MAX);
+    }
+
+    /**
+     * @return iterable<string, array{HomeworkEvaluationLabel}>
+     */
+    public static function evaluationLabels(): iterable
+    {
+        yield 'reviewed' => [HomeworkEvaluationLabel::Reviewed];
+        yield 'needs_rework' => [HomeworkEvaluationLabel::NeedsRework];
+    }
+
+    #[DataProvider('blankBodies')]
+    public function testFeedbackIsOptionalForReviewedAndBlankBecomesNull(string $value): void
+    {
+        self::assertNull(HomeworkText::feedback($value, HomeworkEvaluationLabel::Reviewed));
+    }
+
+    #[DataProvider('blankBodies')]
+    public function testFeedbackIsRequiredForNeedsReworkAfterTrim(string $value): void
+    {
+        try {
+            HomeworkText::feedback($value, HomeworkEvaluationLabel::NeedsRework);
+            self::fail('needs_rework needs non-empty feedback.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame('Geri bildirim boş olamaz.', $exception->getMessage());
+        }
+    }
+
+    #[DataProvider('evaluationLabels')]
+    public function testFeedbackKeepsLineBreaksAndStoresLfOnly(HomeworkEvaluationLabel $label): void
+    {
+        $value = "  Aferin\r\n\tikinci satır\r\rüçüncü ğüşiöç  ";
+
+        self::assertSame("Aferin\n\tikinci satır\n\nüçüncü ğüşiöç", HomeworkText::feedback($value, $label));
+    }
+
+    #[DataProvider('evaluationLabels')]
+    public function testFeedbackLimitIsFiveThousandCodePointsNotBytes(HomeworkEvaluationLabel $label): void
+    {
+        $emoji = "\u{1F600}";
+        $max = str_repeat($emoji, HomeworkText::FEEDBACK_MAX);
+        self::assertSame(HomeworkText::FEEDBACK_MAX * 4, \strlen($max));
+        self::assertSame(HomeworkText::FEEDBACK_MAX, HomeworkText::length($max));
+        self::assertSame($max, HomeworkText::feedback($max, $label));
+
+        $turkish = str_repeat('ğ', HomeworkText::FEEDBACK_MAX);
+        self::assertSame($turkish, HomeworkText::feedback($turkish, $label));
+
+        try {
+            HomeworkText::feedback($max.'a', $label);
+            self::fail('One code point over the limit must be rejected.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertSame('Geri bildirim en fazla 5.000 karakter olabilir.', $exception->getMessage());
+        }
+    }
+
+    #[DataProvider('evaluationLabels')]
+    public function testFeedbackLengthIsMeasuredAfterTrimAndCrlfNormalization(HomeworkEvaluationLabel $label): void
+    {
+        $value = '  '.str_repeat('ş', HomeworkText::FEEDBACK_MAX - 2)."\r\n".'ç  ';
+
+        $feedback = HomeworkText::feedback($value, $label);
+        self::assertNotNull($feedback);
+        self::assertSame(HomeworkText::FEEDBACK_MAX, HomeworkText::length($feedback));
+    }
+
+    #[DataProvider('unsafeValues')]
+    public function testFeedbackRejectsHtmlControlAndInvalidUtf8ForBothLabels(string $value): void
+    {
+        foreach ([HomeworkEvaluationLabel::Reviewed, HomeworkEvaluationLabel::NeedsRework] as $label) {
+            try {
+                HomeworkText::feedback($value, $label);
+                self::fail('Unsafe feedback must be rejected, not stripped.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertStringStartsWith('Geri bildirim ', $exception->getMessage());
+            }
+        }
+    }
+
+    public function testFeedbackHtmlMessageIsSafeToShowToTheTeacher(): void
+    {
+        foreach ([HomeworkEvaluationLabel::Reviewed, HomeworkEvaluationLabel::NeedsRework] as $label) {
+            try {
+                HomeworkText::feedback('<img src=x onerror=alert(1)>', $label);
+                self::fail('HTML must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertSame('Geri bildirim HTML içeremez.', $exception->getMessage());
             }
         }
     }

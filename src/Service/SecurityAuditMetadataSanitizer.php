@@ -236,6 +236,10 @@ final class SecurityAuditMetadataSanitizer
         'definition_id',
         'assignment_id',
         // recipient_id already allowlisted for other domains; homework submit reuses it (no body).
+        // X01 evaluation (identifiers / label enum only; no submission or feedback body).
+        'submission_id',
+        'label',
+        'supersedes_evaluation_id',
     ];
 
     /**

@@ -1,11 +1,11 @@
 # X01 — Ödev ve proje (ürün / mimari karar)
 
-**Durum:** Önerilen mimari; **öğretmen taslak**, **sınıfa atama + alıcı snapshot** ve **öğrenci metin teslimi** dilimleri koda alındı (0.1, 0.1b, 0.1c). Öğretmen değerlendirme **erişim kararı ve MariaDB tutarlılık modeli belgede netleştirildi**; değerlendirme **uygulama kodu henüz yok**. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen/öğrenci kabulü açıktır.  
-**Feature ID:** `X01-homework` (`partial` — taslak + atama + öğrenci teslimi kodda; değerlendirme yalnız karar hazırlığı; main merge, deploy ve production kabulü ayrı kanıtlardır)  
+**Durum:** Önerilen mimari; **öğretmen taslak**, **sınıfa atama + alıcı snapshot**, **öğrenci metin teslimi** ve **öğretmen değerlendirme** dilimleri koda alındı (0.1–0.1d). Dosya/bildirim/veli/yeniden teslim yok. Bu belge çalışan ürün veya tamamlanmış kabul değildir; canlı öğretmen/öğrenci kabulü açıktır.  
+**Feature ID:** `X01-homework` (`partial` — taslak + atama + öğrenci teslimi + öğretmen değerlendirme kodda; main merge, deploy ve production kabulü ayrı kanıtlardır)  
 **Aktif uygulama işi:** `active_feature_ids` = `X01-homework`; `X10-admin-navigation` **partial** olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez).  
 **Bağımlılık kaydı:** `M18-local-pdf` roadmap’te `depends_on` olarak kalır. İlk uygulama dilimleri metin tabanlıdır; dosya yükleme, proje dosyası ve medya sunumu dahil değildir. Dosyalı teslim / rubrik sonraki dilimdir; bağımlılık sessizce silinmez.
 
-Bölüm 0 uygulanan dilimleri anlatır. Bölüm 1–10’daki Assignment/Recipient/Submission/Evaluation adlarından henüz Doctrine sınıfı olmayanlar **öneri** olarak kalır; uygulanmış gibi sunulmaz.
+Bölüm 0 uygulanan dilimleri anlatır. Bölüm 1–10 ile kod gerçeği çelişirse Bölüm 0 ve §4.4 / §3.4 kararları esas alınır.
 
 İlgili mevcut omurga (yeniden kurulmaz): `Institution`, `InstitutionMembership`, `AcademicYear`, `Classroom`, `ClassroomTeacherAssignment`, `ClassroomStudentEnrollment` — bkz. `docs/architecture.md` (2.5–2.6) ve `docs/architecture-auth-membership-onboarding.md`. Sınıf testi ataması `AssessmentDelivery` ayrı kalır (2.10). Assessment / Delivery / Attempt / Scoring yeniden yazılmaz. `AssessmentType::HomeworkBlueprint` tek başına çalışan ödev ürünü değildir.
 
@@ -81,9 +81,19 @@ Bu dilim 0.1b üzerine biner. Öğretmen değerlendirmesi, dosya, bildirim, veli
 
 Kapsam dışı: değerlendirme, dosya (M18-local-pdf depends_on kalır), bildirim, veli, iptal, AssessmentAttempt.
 
-### 0.1d Değerlendirme erişim kararı (yalnız belge; kod yok)
+### 0.1d Uygulanan öğretmen değerlendirme dilimi (kodda; branch `feature/x01-homework-teacher-evaluate`)
 
-Bu alt bölüm **ürün/mimari karardır**. `HomeworkEvaluation` entity, migration, route, voter veya UI **henüz yoktur**. Karar özeti: öğrenci ayrılsa/transfer olsa da `submitted` korunur; güncel yetkili atayan öğretmen öğrencinin güncel enrollment’ına bakmadan okuyup değerlendirebilir (§4.4, §3.4). MariaDB tek-güncel işaretçi modeli §3.4’tedir. Uygulama ayrı PR’da kanıtlanır.
+Bu dilim 0.1c + §4.4 / §3.4 kararları üzerine biner. Main merge, deploy ve **canlı öğretmen/öğrenci kabulü açıktır**; CI production kabulü değildir. Değerlendirme yalnız etiket (`reviewed` / `needs_rework`) + metin geri bildirimdir (≤5.000 kod noktası; `needs_rework` zorunlu); sayısal puan yok; **yeniden teslim / ek süre açmaz**.
+
+| Konu | Kodda olan |
+|---|---|
+| Tablo | `homework_evaluations` (immutable satırlar; RESTRICT; `uniq_hw_eval_id_submission`; `supersedes` bileşik FK aynı submission); `homework_submissions.current_evaluation_id` + bileşik FK `(current_evaluation_id, id) → (id, submission_id)`. `Version20261104200000`; backfill yok. Partial unique yok. |
+| Servis | `HomeworkEvaluationManager::record` (kurum→yıl→sınıf→assignment→recipient→submission kilit; öğretmen üyeliği/atama doğrulama; **öğrenci enrollment kilidi yok**); stale `expected_current_evaluation_id`; audit `homework_evaluation_recorded` (gövde yok). |
+| Erişim | Atayan + tanımı oluşturan öğretmen + güncel üyelik/sınıf ataması + açık kurum/sınıf/yıl; öğrenci ayrılsa da submitted okunur/değerlendirilir (§4.4); taslak öğretmene kapalı; Admin/SA/co-teacher yok. |
+| Rotalar | GET `/ogretmen/odevler/teslim/{id}`, POST `.../degerlendir` (CSRF `teacher_homework_evaluate`; PRG). Atanmış ödev: alıcı/gönderilmiş/değerlendirilmiş sayaçları + liste (taslak gövde yok). |
+| Öğrenci | Submitted detayda yalnız kendi güncel değerlendirmesi veya “Henüz değerlendirilmedi”; yazma/yeniden teslim yok. |
+
+Kapsam dışı (bu dilimde de yok): dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik.
 
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
@@ -91,8 +101,8 @@ Bu alt bölüm **ürün/mimari karardır**. `HomeworkEvaluation` entity, migrati
 |---|---|
 | `HomeworkAssignment` | **Kısmen uygulandı** (0.1b): yalnız `assigned`; dondurulmuş metin/due; 1:1 tanım. `closed`/`cancelled` ve atama taslağı **yok**. |
 | `HomeworkRecipient` | **Kısmen uygulandı** (0.1b): atama anı snapshot; tek başına yetki değil. |
-| `HomeworkSubmission` | **Kısmen uygulandı** (0.1c): draft/submitted metin; evaluation işaretçisi **yok**. |
-| `HomeworkEvaluation` | **Önerilen** (§3.4): etiket + geri bildirim; append-only; `current_evaluation_id` ile tek güncel. |
+| `HomeworkSubmission` | **Kısmen uygulandı** (0.1c+0.1d): draft/submitted metin; nullable `current_evaluation_id`. |
+| `HomeworkEvaluation` | **Kısmen uygulandı** (0.1d): etiket + geri bildirim; append-only; `current_evaluation_id` ile tek güncel. |
 | `archived` tanım durumu | **Önerilen.** Bu dilimde yazılmaz. |
 
 ---
@@ -239,6 +249,7 @@ Repo kalıbı (ör. `LearningContent.current_revision_id`): ebeveyn satırda nul
    `FOREIGN KEY (supersedes_evaluation_id, submission_id) REFERENCES homework_evaluations (id, submission_id)`.
 3. Tüm FK’ler **RESTRICT**; hard delete yok; geçmiş satırlar korunur.
 4. Chicken-egg insert (LearningContent revision ile aynı fikir): önce evaluation INSERT, sonra aynı TX içinde submission işaretçisi UPDATE.
+5. Doctrine ORM bileşik FK’leri ifade edemez; `HomeworkEvaluationCompositeForeignKeyListener` (`postGenerateSchema`) migration’daki `FK_HW_EVAL_SUPERSEDES_SAME` / `FK_HW_SUB_CURRENT_EVAL_SAME` ile `doctrine:schema:validate` senkronunu korur (basit `FK_HW_EVAL_SUPERSEDES` / `FK_HW_SUB_CURRENT_EVAL` JoinColumn’dan gelir).
 
 **Stale form:** istemci `expected_current_evaluation_id` gönderir — `null` = henüz değerlendirme yok (ilk kayıt); aksi halde TX içinde kilitli submission’ın `current_evaluation_id` ile **eşit** olmalı. Eşleşmezse sessiz overwrite yok; conflict / stale.
 

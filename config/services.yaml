@@ -179,6 +179,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\HomeworkEvaluationCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\LearningContentSchemaListener:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }

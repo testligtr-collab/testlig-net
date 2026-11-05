@@ -421,6 +421,8 @@ body.is-student-surface {
 .is-student-surface .shw-pill--none { background: var(--shw-danger-soft); color: var(--shw-danger); }
 .is-student-surface .shw-pill--draft { background: var(--shw-draft-soft); color: var(--shw-draft); }
 .is-student-surface .shw-pill--submitted { background: var(--shw-ok-soft); color: var(--shw-ok); }
+.is-student-surface .shw-pill--rework { background: var(--shw-draft-soft); color: var(--shw-draft); }
+.is-student-surface .shw-feedback { margin-top: 0.5rem; }
 
 .is-student-surface .shw-btn {
     min-height: 2.75rem;

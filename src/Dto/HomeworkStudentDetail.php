@@ -24,6 +24,9 @@ final readonly class HomeworkStudentDetail
         public bool $submitted,
         public ?string $submittedAtLocal,
         public string $closedReason,
+        public ?string $evaluationLabelKey = null,
+        public ?string $evaluationLabelTr = null,
+        public ?string $feedback = null,
     ) {
     }
 }

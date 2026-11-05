@@ -77,6 +77,12 @@ type Manifest = {
     homeworkAssignedRecipients: string;
     homeworkZeroTitle: string;
     homeworkLongTitle: string;
+    evaluateList: string;
+    evaluateTitle: string;
+    evaluateSubmissionWait: string;
+    evaluateSubmissionReviewed: string;
+    evaluateSubmissionRework: string;
+    evaluateStudentDetail: string;
   };
 };
 
