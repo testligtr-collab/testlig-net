@@ -528,7 +528,7 @@ body.is-workspace {
     gap: 0.25rem 0.75rem;
 }
 
-.is-workspace .hw-field input:not([type="hidden"]),
+.is-workspace .hw-field input:not([type="hidden"]):not([type="radio"]):not([type="checkbox"]),
 .is-workspace .hw-field select,
 .is-workspace .hw-field textarea {
     box-sizing: border-box;
@@ -548,7 +548,7 @@ body.is-workspace {
     line-height: 1.5;
 }
 
-.is-workspace .hw-field--error input,
+.is-workspace .hw-field--error input:not([type="radio"]):not([type="checkbox"]),
 .is-workspace .hw-field--error select,
 .is-workspace .hw-field--error textarea {
     border-color: var(--tl-danger);
@@ -839,13 +839,24 @@ body.is-workspace {
     min-height: 2.75rem;
 }
 
-.is-workspace .hw-choice input {
+/* Keep native radio size; do not inherit .hw-field text-input width/padding. */
+.is-workspace .hw-choice input[type="radio"] {
+    box-sizing: border-box;
     width: 1.15rem;
     height: 1.15rem;
+    min-width: 1.15rem;
+    min-height: 1.15rem;
+    max-width: 1.15rem;
+    margin: 0;
+    padding: 0;
     flex: 0 0 auto;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    appearance: auto;
 }
 
-/* Short Turkish labels must stay on one line; break-word/anywhere was stacking letters. */
+/* Short Turkish labels stay beside the control on one readable line. */
 .is-workspace .hw-choice span {
     flex: 1 1 auto;
     min-width: 0;
