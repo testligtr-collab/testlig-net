@@ -39,8 +39,9 @@ final class Version20261104200000 extends AbstractMigration
         $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_SUBMISSION FOREIGN KEY (submission_id) REFERENCES homework_submissions (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_USER FOREIGN KEY (evaluated_by_user_id) REFERENCES users (id) ON DELETE RESTRICT');
         $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_MEMBERSHIP FOREIGN KEY (evaluated_by_membership_id) REFERENCES institution_memberships (id) ON DELETE RESTRICT');
-        // Same-submission supersede chain (composite unique target uniq_hw_eval_id_submission).
-        $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_SUPERSEDES FOREIGN KEY (supersedes_evaluation_id, submission_id) REFERENCES homework_evaluations (id, submission_id) ON DELETE RESTRICT');
+        // Simple association FK (Doctrine JoinColumn) + same-submission composite (LearningContent pattern).
+        $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_SUPERSEDES FOREIGN KEY (supersedes_evaluation_id) REFERENCES homework_evaluations (id) ON DELETE RESTRICT');
+        $this->addSql('ALTER TABLE homework_evaluations ADD CONSTRAINT FK_HW_EVAL_SUPERSEDES_SAME FOREIGN KEY (supersedes_evaluation_id, submission_id) REFERENCES homework_evaluations (id, submission_id) ON DELETE RESTRICT');
 
         $this->addSql('ALTER TABLE homework_submissions ADD current_evaluation_id BINARY(16) DEFAULT NULL');
         $this->addSql('CREATE INDEX IDX_HW_SUB_CURRENT_EVAL ON homework_submissions (current_evaluation_id)');
@@ -56,6 +57,7 @@ final class Version20261104200000 extends AbstractMigration
         $this->addSql('DROP INDEX IDX_HW_SUB_CURRENT_EVAL ON homework_submissions');
         $this->addSql('ALTER TABLE homework_submissions DROP current_evaluation_id');
 
+        $this->addSql('ALTER TABLE homework_evaluations DROP FOREIGN KEY FK_HW_EVAL_SUPERSEDES_SAME');
         $this->addSql('ALTER TABLE homework_evaluations DROP FOREIGN KEY FK_HW_EVAL_SUPERSEDES');
         $this->addSql('ALTER TABLE homework_evaluations DROP FOREIGN KEY FK_HW_EVAL_MEMBERSHIP');
         $this->addSql('ALTER TABLE homework_evaluations DROP FOREIGN KEY FK_HW_EVAL_USER');

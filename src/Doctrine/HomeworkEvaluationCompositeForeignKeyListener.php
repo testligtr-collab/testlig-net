@@ -20,7 +20,7 @@ final class HomeworkEvaluationCompositeForeignKeyListener
         if ($schema->hasTable('homework_evaluations')) {
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $schema->getTable('homework_evaluations'),
-                'FK_HW_EVAL_SUPERSEDES',
+                'FK_HW_EVAL_SUPERSEDES_SAME',
                 'homework_evaluations',
                 ['supersedes_evaluation_id', 'submission_id'],
                 ['id', 'submission_id'],
