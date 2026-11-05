@@ -832,10 +832,11 @@ body.is-workspace {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    min-height: 2.75rem;
-    min-width: 0;
-    max-width: 100%;
     box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
 }
 
 .is-workspace .hw-choice input {
@@ -844,12 +845,14 @@ body.is-workspace {
     flex: 0 0 auto;
 }
 
+/* Short Turkish labels must stay on one line; break-word/anywhere was stacking letters. */
 .is-workspace .hw-choice span {
     flex: 1 1 auto;
     min-width: 0;
-    overflow-wrap: anywhere;
-    word-break: break-word;
     line-height: 1.35;
+    overflow-wrap: normal;
+    word-break: normal;
+    white-space: normal;
 }
 
 .is-workspace .hw-eval-form,
