@@ -456,6 +456,16 @@ test('teacher reviews submissions: list states, unevaluated, saved, long feedbac
   await expect(page.getByRole('button', { name: 'Kaydet', exact: true })).toBeVisible();
   await expect(page.locator('[data-testid="hw-submission-body"] textarea, [data-testid="hw-submission-body"] input')).toHaveCount(0);
   await expect(page.locator('input[name="expected_current_evaluation_id"]')).toHaveValue('');
+  // Native radiogroup: accessible name, visible focus, ArrowDown moves selection.
+  await expect(page.getByRole('radiogroup', { name: 'Değerlendirme' })).toBeVisible();
+  const reviewed = page.getByRole('radio', { name: 'İncelendi' });
+  const rework = page.getByRole('radio', { name: 'Yeniden çalışılmalı' });
+  await reviewed.focus();
+  await expect(reviewed).toBeFocused();
+  expect(await reviewed.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe('none');
+  await page.keyboard.press('ArrowDown');
+  await expect(rework).toBeChecked();
+  await expect(reviewed).not.toBeChecked();
   await evaluationScreens(page, info, 'degerlendirme-bekleyen', data.paths.evaluateSubmissionWait);
 
   // Saved evaluation: current label and feedback shown, correction form offered.
