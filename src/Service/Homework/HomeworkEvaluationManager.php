@@ -150,7 +150,8 @@ final class HomeworkEvaluationManager
                 // Same-submission current pointer is enforced by the composite FK
                 // (current_evaluation_id, id) → homework_evaluations(id, submission_id).
 
-                $label = HomeworkEvaluationLabel::tryFrom(trim($rawLabel));
+                // Exact allowlist only: trim() would strip "\0" and accept "reviewed\0" as reviewed.
+                $label = HomeworkEvaluationLabel::tryFrom($rawLabel);
                 if (null === $label) {
                     return HomeworkEvaluationException::invalidInput([
                         'label' => 'Geçerli bir değerlendirme etiketi seç.',
