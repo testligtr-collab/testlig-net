@@ -177,6 +177,10 @@ if [ "${1-}" = "-q" ] && [ "${2-}" = "--changelog" ]; then
   printf '%s\n' '- CVE-2026-109618 CVE-2026-109619 https://user:token@example.invalid/secret'
   exit 0
 fi
+if [ "${1-}" = "-qf" ]; then
+  printf '%s' 'lsphp83'
+  exit 0
+fi
 exit 0
 BASH);
             $this->write($root.'/usr/bin/composer', "#!/bin/bash\nprintf '%s\n' 'Composer version 2.11.0 2026-01-01 00:00:00'\n");
@@ -184,11 +188,11 @@ BASH);
             mkdir($proc, 0777, true);
             file_put_contents($proc.'/comm', "lsphp\n");
             if (!symlink('/usr/local/lsws/lsphp83/bin/lsphp', $proc.'/exe')) {
-              self::fail('symlink is required for the worker exe fixture');
+                self::fail('symlink is required for the worker exe fixture');
             }
             $output = $this->runInventory($root);
             $this->assertContract($output);
-            self::assertStringContainsString('web_worker exe=/usr/local/lsws/lsphp83/bin/lsphp deleted=no web_acceptance=no', $output);
+            self::assertStringContainsString('web_worker exe=/usr/local/lsws/lsphp83/bin/lsphp deleted=no package=lsphp83 web_acceptance=no', $output);
             self::assertStringContainsString('web_worker_exe_measured=yes', $output);
             self::assertStringContainsString('web_runtime_measured=no', $output);
             self::assertStringContainsString('composer_tool path=/usr/bin/composer version=2.11.0 web_acceptance=no', $output);

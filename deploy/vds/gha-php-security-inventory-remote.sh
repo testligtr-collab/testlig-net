@@ -506,6 +506,28 @@ report_release() {
   fi
 }
 
+package_owning() {
+  local path="$1" out="" status=127 name
+  if [ -n "$root" ]; then
+    if [ -f "$root/bin/rpm" ]; then
+      status=0
+      out="$(bash "$root/bin/rpm" -qf --qf '%{NAME}' "$path" 2>/dev/null)" || status=$?
+    fi
+  elif command -v rpm >/dev/null 2>&1; then
+    status=0
+    out="$(timeout 15 rpm -qf --qf '%{NAME}' "$path" 2>/dev/null)" || status=$?
+  fi
+  name="unknown"
+  if [ "$status" -eq 0 ]; then
+    name="$(printf '%s' "$out" | awk 'NR==1 { print; exit }')"
+    name="${name%%$'\r'*}"
+    if ! matches "$name" '^lsphp[0-9]+$'; then
+      name="unknown"
+    fi
+  fi
+  printf '%s' "$name"
+}
+
 report_workers() {
   local proc comm exe target deleted found=0 name
   proc="$(host_path "/proc")"
@@ -532,10 +554,10 @@ report_workers() {
         ;;
     esac
     if matches "$target" '^/usr/local/lsws/lsphp[0-9]+/bin/(lsphp|php)$'; then
-      echo "web_worker exe=${target} deleted=${deleted} web_acceptance=no"
+      echo "web_worker exe=${target} deleted=${deleted} package=$(package_owning "$target") web_acceptance=no"
       found=1
     else
-      echo "web_worker exe=unparsed deleted=unknown web_acceptance=no"
+      echo "web_worker exe=unparsed deleted=unknown package=unknown web_acceptance=no"
       found=1
     fi
   done
