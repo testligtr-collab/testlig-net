@@ -1308,9 +1308,400 @@ body.is-admin-panel {
     font-size: 1.3rem;
 }
 .is-admin-panel .admin-section-links[open] .admin-section-chevron { transform: rotate(90deg); }
+.is-admin-panel .admin-overview .admin-directory-card .admin-section-links[open] .admin-section-chevron { transform: rotate(-90deg); }
+.is-admin-panel .admin-directory-card--media:has(.admin-section-links[open]) {
+    background: #fff6f8;
+    border-color: #f4c9d3;
+    box-shadow: 0 8px 22px #e9405c0f;
+}
+.is-admin-panel .admin-directory-card--media .admin-section-links[open] > summary,
+.is-admin-panel .admin-directory-card--media .admin-section-links[open] > summary:hover {
+    background: transparent;
+}
+.is-admin-panel .admin-directory-card--media .admin-section-links__body {
+    border-top: 0;
+    padding: 0 0.85rem 0.9rem;
+}
+.is-admin-panel .admin-media-panel {
+    position: relative;
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.15rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid #f3c5d0;
+}
+.is-admin-panel .admin-media-panel::before,
+.is-admin-panel .admin-media-panel::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    background: transparent;
+}
+.is-admin-panel .admin-media-panel::before {
+    top: -1px;
+    border-right: 6px solid transparent;
+    border-left: 6px solid transparent;
+    border-bottom: 6px solid #fff6f8;
+}
+.is-admin-panel .admin-media-panel::after {
+    top: -2px;
+    border-right: 7px solid transparent;
+    border-left: 7px solid transparent;
+    border-bottom: 7px solid #f3c5d0;
+    z-index: 0;
+}
+.is-admin-panel .admin-media-panel::before { z-index: 1; }
+.is-admin-panel .admin-directory-card--media a.admin-media-link {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.75rem;
+    min-height: 4.6rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid transparent;
+    border-radius: 0.75rem;
+    color: #13213c;
+    text-decoration: none;
+    overflow: hidden;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link:focus-visible {
+    color: #13213c;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-media-link__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+}
+.is-admin-panel .admin-media-link__icon .admin-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+.is-admin-panel .admin-media-link__copy { min-width: 0; }
+.is-admin-panel .admin-media-link__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.45rem;
+}
+.is-admin-panel .admin-media-link__title {
+    font-size: 0.92rem;
+    font-weight: 750;
+    line-height: 1.3;
+    color: #13213c;
+}
+.is-admin-panel .admin-media-link__blurb {
+    display: block;
+    margin-top: 0.15rem;
+    color: #73829a;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-media-link__stage {
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #f1f4f8;
+    color: #66758c;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1.45;
+}
+.is-admin-panel .admin-media-link__arrow {
+    color: #8aa0b8;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents {
+    background: #f6f9fe;
+    border-color: #c5d8f6;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--documents:focus-visible {
+    background: #eaf2ff;
+    border-color: #a8c4f2;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos {
+    background: #f8f7fd;
+    border-color: #d9cef6;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--videos:focus-visible {
+    background: #f1ebfd;
+    border-color: #c4b0ef;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage {
+    background: #f3fcfb;
+    border-color: #b9e3df;
+}
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage:hover,
+.is-admin-panel .admin-directory-card--media a.admin-media-link--storage:focus-visible {
+    background: #e6f7f5;
+    border-color: #8fd4ce;
+}
+.is-admin-panel .admin-media-link--documents .admin-media-link__icon { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-media-link--videos .admin-media-link__icon { background: #f3eaff; color: #7a45d6; }
+.is-admin-panel .admin-media-link--storage .admin-media-link__icon { background: #e5f8f6; color: #12998f; }
 .is-admin-panel .admin-section-links__body {
     padding: 0.4rem 1rem 1rem;
     border-top: 1px solid #edf1f6;
+}
+.is-admin-panel .admin-overview .admin-directory-card {
+    --section-shell: #f7f9fc;
+    --section-line: #d5e0ec;
+    --section-notch: #d5e0ec;
+    --section-shadow: 0 8px 22px #284c7a0f;
+    --section-mini: #f7f9fc;
+    --section-mini-line: #d5e0ec;
+    --section-mini-hover: #eef3f8;
+    --section-mini-hover-line: #b9c9db;
+    --section-icon-bg: #eef2f6;
+    --section-icon: #445066;
+}
+.is-admin-panel .admin-overview .admin-directory-card--learning {
+    --section-shell: #f3fbf6;
+    --section-line: #b7e4c7;
+    --section-notch: #b7e4c7;
+    --section-shadow: 0 8px 22px #0f8a4b0f;
+    --section-mini: #f4fbf7;
+    --section-mini-line: #c9ead6;
+    --section-mini-hover: #e7f6ee;
+    --section-mini-hover-line: #8fd4a8;
+    --section-icon-bg: #e5f6ec;
+    --section-icon: #0f8a4b;
+}
+.is-admin-panel .admin-overview .admin-directory-card--people {
+    --section-shell: #f4f8ff;
+    --section-line: #c5d8f6;
+    --section-notch: #c5d8f6;
+    --section-shadow: 0 8px 22px #2f6fe40f;
+    --section-mini: #f7faff;
+    --section-mini-line: #d0dff8;
+    --section-mini-hover: #eaf2ff;
+    --section-mini-hover-line: #a8c4f2;
+    --section-icon-bg: #e7f1ff;
+    --section-icon: #2f6fe4;
+}
+.is-admin-panel .admin-overview .admin-directory-card--campus {
+    --section-shell: #f7f5fd;
+    --section-line: #d9cef6;
+    --section-notch: #d9cef6;
+    --section-shadow: 0 8px 22px #7136db0f;
+    --section-mini: #faf8ff;
+    --section-mini-line: #e0d7f8;
+    --section-mini-hover: #f3efff;
+    --section-mini-hover-line: #c4b0ef;
+    --section-icon-bg: #f3eaff;
+    --section-icon: #7136db;
+}
+.is-admin-panel .admin-overview .admin-directory-card--site {
+    --section-shell: #fff8f1;
+    --section-line: #f6d7b5;
+    --section-notch: #f6d7b5;
+    --section-shadow: 0 8px 22px #d2610d0f;
+    --section-mini: #fffaf5;
+    --section-mini-line: #f3dcc0;
+    --section-mini-hover: #fff1e4;
+    --section-mini-hover-line: #efc091;
+    --section-icon-bg: #fff0dc;
+    --section-icon: #d2610d;
+}
+.is-admin-panel .admin-overview .admin-directory-card--communication {
+    --section-shell: #f3fbfe;
+    --section-line: #b9e3f2;
+    --section-notch: #b9e3f2;
+    --section-shadow: 0 8px 22px #0b7ea80f;
+    --section-mini: #f6fcfe;
+    --section-mini-line: #c5e7f4;
+    --section-mini-hover: #e7f6fc;
+    --section-mini-hover-line: #8fd0e6;
+    --section-icon-bg: #e5f6fc;
+    --section-icon: #0b7ea8;
+}
+.is-admin-panel .admin-overview .admin-directory-card--interactive {
+    --section-shell: #f7f6ff;
+    --section-line: #d5d2f6;
+    --section-notch: #d5d2f6;
+    --section-shadow: 0 8px 22px #4d46c80f;
+    --section-mini: #f8f7ff;
+    --section-mini-line: #ddd9f8;
+    --section-mini-hover: #f0efff;
+    --section-mini-hover-line: #bdb6ef;
+    --section-icon-bg: #eeebff;
+    --section-icon: #4d46c8;
+}
+.is-admin-panel .admin-overview .admin-directory-card--commerce {
+    --section-shell: #fffaf0;
+    --section-line: #f0ddb0;
+    --section-notch: #f0ddb0;
+    --section-shadow: 0 8px 22px #9a6b100f;
+    --section-mini: #fffbf4;
+    --section-mini-line: #f0e2c0;
+    --section-mini-hover: #fff6e4;
+    --section-mini-hover-line: #e6cc8a;
+    --section-icon-bg: #fff3d6;
+    --section-icon: #9a6b10;
+}
+.is-admin-panel .admin-overview .admin-directory-card--integrations {
+    --section-shell: #f6f8fb;
+    --section-line: #cdd6e2;
+    --section-notch: #cdd6e2;
+    --section-shadow: 0 8px 22px #3d55700f;
+    --section-mini: #f8fafc;
+    --section-mini-line: #d5dee8;
+    --section-mini-hover: #eef3f8;
+    --section-mini-hover-line: #b7c5d6;
+    --section-icon-bg: #e8eef5;
+    --section-icon: #3d5570;
+}
+.is-admin-panel .admin-overview .admin-directory-card--system {
+    --section-shell: #f4f7fa;
+    --section-line: #c9d5e2;
+    --section-notch: #c9d5e2;
+    --section-shadow: 0 8px 22px #3e53680f;
+    --section-mini: #f7f9fb;
+    --section-mini-line: #d3dee8;
+    --section-mini-hover: #eef2f6;
+    --section-mini-hover-line: #b4c4d4;
+    --section-icon-bg: #e7eef5;
+    --section-icon: #3e5368;
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media):has(.admin-section-links[open]) {
+    background: var(--section-shell);
+    border-color: var(--section-line);
+    box-shadow: var(--section-shadow);
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links[open] > summary,
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links[open] > summary:hover {
+    background: transparent;
+}
+.is-admin-panel .admin-overview .admin-directory-card:not(.admin-directory-card--media) .admin-section-links__body {
+    border-top: 0;
+    padding: 0 0.85rem 0.9rem;
+}
+.is-admin-panel .admin-link-panel {
+    position: relative;
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.15rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--section-notch);
+}
+.is-admin-panel .admin-link-panel::before,
+.is-admin-panel .admin-link-panel::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 0;
+    height: 0;
+    transform: translateX(-50%);
+    background: transparent;
+}
+.is-admin-panel .admin-link-panel::before {
+    top: -1px;
+    border-right: 6px solid transparent;
+    border-left: 6px solid transparent;
+    border-bottom: 6px solid var(--section-shell);
+    z-index: 1;
+}
+.is-admin-panel .admin-link-panel::after {
+    top: -2px;
+    border-right: 7px solid transparent;
+    border-left: 7px solid transparent;
+    border-bottom: 7px solid var(--section-notch);
+    z-index: 0;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.75rem;
+    min-height: 4.6rem;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid var(--section-mini-line);
+    border-radius: 0.75rem;
+    background: var(--section-mini);
+    color: #13213c;
+    font-weight: 500;
+    text-decoration: none;
+    overflow: hidden;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:hover,
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:focus-visible {
+    border-color: var(--section-mini-hover-line);
+    background: var(--section-mini-hover);
+    color: #13213c;
+}
+.is-admin-panel .admin-overview .admin-directory-card a.admin-mini-link:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-mini-link__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.75rem;
+    background: var(--section-icon-bg);
+    color: var(--section-icon);
+}
+.is-admin-panel .admin-mini-link__icon .admin-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+}
+.is-admin-panel .admin-mini-link__copy { min-width: 0; }
+.is-admin-panel .admin-mini-link__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.45rem;
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-mini-link__title {
+    min-width: 0;
+    color: #13213c;
+    font-size: 0.92rem;
+    font-weight: 750;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__blurb {
+    display: block;
+    margin-top: 0.15rem;
+    color: #73829a;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__stage {
+    max-width: 100%;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #f1f4f8;
+    color: #66758c;
+    font-size: 0.68rem;
+    font-weight: 650;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-mini-link__arrow {
+    color: #8aa0b8;
+    font-size: 1.2rem;
+    line-height: 1;
 }
 .is-admin-panel .admin-all-sections {
     margin-top: 1.1rem;
@@ -1489,3 +1880,3586 @@ body.is-admin-panel {
     .is-admin-panel .admin-section-hub { padding: 1rem; }
     .is-admin-panel .admin-action-tiles { grid-template-columns: minmax(0, 1fr); }
 }
+
+.is-admin-panel .panel-content:has(.admin-user-page) {
+    overflow-x: clip;
+}
+.is-admin-panel .admin-user-page {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+    max-width: 100%;
+    contain: inline-size;
+}
+.is-admin-panel .admin-user-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+}
+.is-admin-panel .admin-user-head p {
+    margin: 0;
+    color: #66758c;
+    font-size: 0.95rem;
+}
+.is-admin-panel .admin-user-clear {
+    color: #1d6fb8;
+    font-weight: 650;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-user-clear:hover { text-decoration: underline; }
+.is-admin-panel .admin-user-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.85rem;
+}
+.is-admin-panel .admin-user-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+    box-shadow: 0 2px 8px #284c7a0c;
+}
+.is-admin-panel .admin-user-stat__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-user-stat__icon .admin-icon { width: 1.35rem; height: 1.35rem; }
+.is-admin-panel .admin-user-stat--total .admin-user-stat__icon { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-user-stat--active .admin-user-stat__icon { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-user-stat--pending .admin-user-stat__icon { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-user-stat--suspended .admin-user-stat__icon { background: #fde8ea; color: #d12b3a; }
+.is-admin-panel .admin-user-stat__copy { min-width: 0; }
+.is-admin-panel .admin-user-stat__label {
+    display: block;
+    color: #66758c;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-user-stat__value {
+    display: block;
+    margin-top: 0.1rem;
+    color: #16324f;
+    font-size: 1.55rem;
+    line-height: 1.15;
+}
+.is-admin-panel .admin-user-filters {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 1rem 1.05rem 1.1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+    box-shadow: 0 2px 8px #284c7a0c;
+}
+.is-admin-panel .admin-user-filters h2 {
+    margin: 0;
+    color: #16324f;
+    font-size: 1rem;
+}
+.is-admin-panel .admin-user-filters__fields {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1.7fr) repeat(3, minmax(0, 1fr)) auto;
+    gap: 0.75rem;
+    align-items: end;
+}
+.is-admin-panel .admin-user-search { position: relative; display: block; }
+.is-admin-panel .admin-user-search__icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    display: inline-flex;
+    color: #7a8b9c;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+.is-admin-panel .admin-user-search__icon .admin-icon { width: 1rem; height: 1rem; }
+.is-admin-panel .admin-user-search input { padding-left: 2.35rem; }
+.is-admin-panel .admin-user-filters label {
+    min-width: 0;
+    color: #3e5168;
+    font-weight: 650;
+}
+.is-admin-panel .admin-user-filters input,
+.is-admin-panel .admin-user-filters select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    border-color: #d5e0ec;
+    border-radius: 0.65rem;
+    background: #fff;
+}
+.is-admin-panel .admin-user-filters input:focus-visible,
+.is-admin-panel .admin-user-filters select:focus-visible,
+.is-admin-panel .admin-user-filters__submit:focus-visible,
+.is-admin-panel .admin-user-clear:focus-visible,
+.is-admin-panel .admin-user-detail:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-user-filters__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.85rem;
+}
+.is-admin-panel .admin-user-filters__submit {
+    display: inline-flex;
+    gap: 0.4rem;
+    border: 0;
+    background: #0f9d8e;
+    color: #fff;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-user-filters__submit .admin-icon { width: 1rem; height: 1rem; }
+.is-admin-panel .admin-user-filters__submit:hover,
+.is-admin-panel .admin-user-filters__submit:focus-visible {
+    background: #0c8578;
+    color: #fff;
+}
+.is-admin-panel .admin-user-filters select:has(option[value=""]:checked) { color: #66758c; }
+.is-admin-panel .admin-user-filters select option { color: #16324f; }
+.is-admin-panel .admin-user-list {
+    min-width: 0;
+    padding: 1rem 1.05rem 0.4rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+    box-shadow: 0 2px 8px #284c7a0c;
+}
+.is-admin-panel .admin-user-list__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    margin-bottom: 0.75rem;
+}
+.is-admin-panel .admin-user-list__head h2 {
+    margin: 0;
+    color: #16324f;
+    font-size: 1rem;
+}
+.is-admin-panel .admin-user-list__count {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: #eef2f8;
+    color: #53647d;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.is-admin-panel .admin-user-list .admin-table-wrap {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+.is-admin-panel .admin-user-table { width: 100%; min-width: 0; }
+.is-admin-panel .admin-user-table th {
+    background: #f7f9fc;
+    color: #53647d;
+    font-size: 0.78rem;
+}
+.is-admin-panel .admin-user-person__layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    min-width: 14rem;
+}
+.is-admin-panel .admin-user-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 750;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-user-avatar--blue { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-user-avatar--green { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-user-avatar--violet { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-user-avatar--amber { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-user-avatar--teal { background: #e5f8f6; color: #12998f; }
+.is-admin-panel .admin-user-avatar--rose { background: #ffe8ed; color: #e9405c; }
+.is-admin-panel .admin-user-person__copy { min-width: 0; }
+.is-admin-panel .admin-user-person__name,
+.is-admin-panel .admin-user-person__email,
+.is-admin-panel .admin-user-person__ref {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-user-person__name {
+    color: #16324f;
+    font-weight: 750;
+}
+.is-admin-panel .admin-user-person__email,
+.is-admin-panel .admin-user-person__ref {
+    color: #66758c;
+    font-size: 0.78rem;
+}
+.is-admin-panel .admin-user-roles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: 16rem;
+}
+.is-admin-panel .admin-user-role {
+    max-width: 100%;
+    padding: 0.12rem 0.55rem;
+    border-radius: 999px;
+    background: #f1f4f8;
+    color: #3e5168;
+    font-size: 0.75rem;
+    font-weight: 650;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-user-role--student { background: #f3eaff; color: #6d3ad6; }
+.is-admin-panel .admin-user-role--parent { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-user-role--teacher { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-user-role--admin { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-user-role--moderator { background: #e5f8f6; color: #0f8a80; }
+.is-admin-panel .admin-user-verify {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-user-verify .admin-icon { width: 1rem; height: 1rem; flex: 0 0 auto; }
+.is-admin-panel .admin-user-verify--yes { color: #0f8a4b; }
+.is-admin-panel .admin-user-verify--no { color: #9a4b12; }
+.is-admin-panel .admin-user-date {
+    color: #16324f;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-user-date__stack {
+    display: grid;
+    gap: 0.1rem;
+}
+.is-admin-panel .admin-user-date__stack span:last-child { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel .admin-user-detail {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid #d5e0ec;
+    border-radius: 0.65rem;
+    background: #fff;
+    color: #3e5168;
+    font-weight: 650;
+    text-decoration: none;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-user-detail:hover { background: #f7f9fc; color: #16324f; }
+.is-admin-panel .admin-user-list .admin-pagination {
+    margin-top: 0.35rem;
+    padding: 0.75rem 0 0.85rem;
+    border-top: 1px solid #e2eaf4;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-user-table { min-width: 52rem; }
+    .is-admin-panel .admin-user-table > tbody > tr > td {
+        display: table-cell;
+        border-bottom-color: transparent;
+    }
+    .is-admin-panel .admin-user-table > tbody > tr,
+    .is-admin-panel .admin-user-table > tbody > tr:hover {
+        background-image: linear-gradient(var(--tl-border), var(--tl-border));
+        background-repeat: no-repeat;
+        background-position: left bottom;
+        background-size: 100% 1px;
+    }
+    .is-admin-panel .admin-user-table > tbody > tr:hover {
+        background-color: #f7fafc;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-user-filters__fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-user-filters__actions { grid-column: 1 / -1; }
+    .is-admin-panel .admin-user-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-user-table,
+    .is-admin-panel .admin-user-table tbody,
+    .is-admin-panel .admin-user-table tr,
+    .is-admin-panel .admin-user-table td {
+        display: block;
+        width: auto;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-user-table tr {
+        padding: 0.85rem 0;
+        border-bottom: 1px solid #e2eaf4;
+    }
+    .is-admin-panel .admin-user-table td {
+        padding: 0.28rem 0;
+        border: 0;
+    }
+    .is-admin-panel .admin-user-table td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.15rem;
+        color: #66758c;
+        font-size: 0.72rem;
+        font-weight: 750;
+    }
+    .is-admin-panel .admin-user-person::before { content: none; }
+    .is-admin-panel .admin-user-person__layout { min-width: 0; }
+    .is-admin-panel .admin-user-roles { max-width: none; }
+    .is-admin-panel .admin-user-date { white-space: normal; }
+}
+@media (max-width: 767px) {
+    .is-admin-panel .admin-user-stats,
+    .is-admin-panel .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-user-filters__actions,
+    .is-admin-panel .admin-user-filters__submit { width: 100%; }
+}
+
+.is-admin-panel .panel-content:has(.admin-user-detail-page) {
+    overflow-x: clip;
+}
+.is-admin-panel .admin-user-detail-page {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+    max-width: 100%;
+    contain: inline-size;
+}
+.is-admin-panel .admin-user-detail-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+}
+.is-admin-panel .admin-user-detail-head p {
+    margin: 0.25rem 0 0;
+    color: #66758c;
+}
+.is-admin-panel .admin-user-detail-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-user-detail-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #16324f;
+    font-weight: 650;
+    text-decoration: none;
+}
+.is-admin-panel .admin-user-detail-profile,
+.is-admin-panel .admin-user-detail-card {
+    min-width: 0;
+    background: #fff;
+    border: 1px solid #e2eaf4;
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px rgba(22, 50, 79, 0.04);
+}
+.is-admin-panel .admin-user-detail-profile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem 1.5rem;
+    padding: 1.2rem 1.3rem;
+}
+.is-admin-panel .admin-user-detail-identity {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.9rem;
+    min-width: 0;
+    flex: 1 1 18rem;
+}
+.is-admin-panel .admin-user-detail-page .admin-user-avatar {
+    width: 4.4rem;
+    height: 4.4rem;
+    font-size: 1.25rem;
+}
+.is-admin-panel .admin-user-detail-identity__copy,
+.is-admin-panel .admin-user-detail-name,
+.is-admin-panel .admin-user-detail-email,
+.is-admin-panel .admin-user-detail-ref,
+.is-admin-panel .admin-user-detail-date,
+.is-admin-panel .admin-user-detail-meta,
+.is-admin-panel .admin-user-role-option span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-user-detail-name {
+    margin: 0;
+    color: #16324f;
+    font-size: 1.35rem;
+    line-height: 1.25;
+}
+.is-admin-panel .admin-user-detail-email,
+.is-admin-panel .admin-user-detail-ref {
+    margin: 0.15rem 0 0;
+    color: #66758c;
+}
+.is-admin-panel .admin-user-detail-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+.is-admin-panel .admin-user-detail-pills .admin-user-roles,
+.is-admin-panel .admin-user-detail-pills .admin-user-role {
+    max-width: 100%;
+}
+.is-admin-panel .admin-user-detail-meta {
+    display: grid;
+    gap: 0.85rem;
+    flex: 0 1 16rem;
+    margin: 0;
+}
+.is-admin-panel .admin-user-detail-meta dt {
+    color: #66758c;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-user-detail-meta dd {
+    margin: 0.2rem 0 0;
+}
+.is-admin-panel .admin-user-detail-forms {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-user-detail-card {
+    padding: 1.1rem 1.15rem 1.15rem;
+}
+.is-admin-panel .admin-user-detail-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-user-detail-card > p {
+    margin: 0.3rem 0 0.9rem;
+    color: #66758c;
+}
+.is-admin-panel .admin-user-detail-form {
+    display: grid;
+    gap: 0.85rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-user-detail-errors {
+    padding: 0.7rem 0.8rem;
+    border-radius: 0.7rem;
+    background: #fdecee;
+    color: #9f1239;
+}
+.is-admin-panel .admin-user-detail-errors ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+.is-admin-panel .admin-user-role-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+}
+.is-admin-panel .admin-user-role-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    min-width: 0;
+    margin: 0;
+    padding: 0.75rem 0.8rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.8rem;
+    background: #fff;
+    color: #16324f;
+    cursor: pointer;
+}
+.is-admin-panel .admin-user-role-option:has(input:checked) {
+    background: #e7f8f6;
+    border-color: #12a394;
+}
+.is-admin-panel .admin-user-role-option input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0.15rem 0 0;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-user-detail-current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.75rem;
+    background: #f4f7fb;
+}
+.is-admin-panel .admin-user-detail-current--success { background: #e8f7ee; }
+.is-admin-panel .admin-user-detail-current--warning { background: #fff4e5; }
+.is-admin-panel .admin-user-detail-current--danger { background: #fdecee; }
+.is-admin-panel .admin-user-detail-field {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-user-detail-field label,
+.is-admin-panel .admin-user-detail-confirm {
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-user-detail-page select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-user-detail-confirm {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 0;
+    font-weight: 550;
+}
+.is-admin-panel .admin-user-detail-confirm input {
+    width: 1rem;
+    height: 1rem;
+    margin: 0.15rem 0 0;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-user-detail-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.is-admin-panel .admin-user-detail-submit {
+    max-width: 100%;
+    padding: 0.65rem 1rem;
+    border: 0;
+    border-radius: 0.7rem;
+    background: #0f9d8e;
+    color: #fff;
+    font-weight: 750;
+    cursor: pointer;
+}
+.is-admin-panel .admin-user-detail-page :is(a, button, input, select):focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-user-detail-forms {
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+    }
+}
+@media (max-width: 767px) {
+    .is-admin-panel .admin-user-role-options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .is-admin-panel .admin-user-detail-head__actions,
+    .is-admin-panel .admin-user-detail-link,
+    .is-admin-panel .admin-user-detail-actions,
+    .is-admin-panel .admin-user-detail-submit {
+        width: 100%;
+    }
+    .is-admin-panel .admin-user-detail-actions {
+        justify-content: stretch;
+    }
+}
+
+.is-admin-panel .admin-user-stat--withdrawn .admin-user-stat__icon { background: #eef2f6; color: #526173; }
+.is-admin-panel .admin-user-stat--superseded .admin-user-stat__icon { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-teacher-app-page .admin-status,
+.is-admin-panel .admin-institution-app-page .admin-status {
+    white-space: nowrap;
+}
+.is-admin-panel .admin-teacher-app-page select[name="reason_code"],
+.is-admin-panel .admin-institution-app-page select[name="reason_code"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.7rem;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-teacher-dir-page .admin-user-table { min-width: 0; }
+.is-admin-panel .admin-teacher-dir-note {
+    margin: 0;
+    color: #66758c;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-teacher-dir-meta {
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-teacher-dir-meta span { display: block; }
+.is-admin-panel .admin-teacher-dir-page .admin-status { white-space: nowrap; }
+.is-admin-panel .admin-teacher-dir-page .admin-user-detail-card .admin-user-detail-meta {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+.is-admin-panel .admin-teacher-dir-relations {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-teacher-dir-relations li {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    min-width: 0;
+    padding-top: 0.65rem;
+    border-top: 1px solid #e2eaf4;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-teacher-dir-relations strong { color: #16324f; }
+
+.is-admin-panel .admin-teacher-app-hint {
+    margin: 0;
+    color: #66758c;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-teacher-app-reject,
+.is-admin-panel .admin-institution-app-reject {
+    background: #fff;
+    color: #9f1239;
+    border: 1px solid #f3c3cb;
+}
+.is-admin-panel .admin-teacher-app-facts,
+.is-admin-panel .admin-institution-app-facts {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0.9rem 0 0;
+}
+.is-admin-panel .admin-teacher-app-facts div,
+.is-admin-panel .admin-institution-app-facts div { min-width: 0; }
+.is-admin-panel .admin-teacher-app-facts dt,
+.is-admin-panel .admin-institution-app-facts dt {
+    color: #66758c;
+    font-size: 0.82rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-teacher-app-facts dd,
+.is-admin-panel .admin-institution-app-facts dd,
+.is-admin-panel .admin-institution-app-name {
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-teacher-app-page .admin-user-filters__fields,
+    .is-admin-panel .admin-institution-app-page .admin-user-filters__fields {
+        grid-template-columns: minmax(12rem, 1.7fr) minmax(0, 1fr) auto;
+    }
+}
+.is-admin-panel .admin-module-permission-page { min-width: 0; }
+.is-admin-panel .admin-module-permission-page .admin-user-table { min-width: 0; }
+.is-admin-panel .admin-module-permission-note {
+    margin: 0 0 1rem;
+    color: #526173;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-role-legend {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+}
+.is-admin-panel .admin-role-chip {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border-radius: 1rem;
+}
+.is-admin-panel .admin-role-chip h2 {
+    margin: 0;
+    font-size: 0.98rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-role-chip p {
+    margin: 0.25rem 0 0;
+    color: #526173;
+    font-size: 0.84rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-role-chip strong { color: #24364c; font-weight: 650; }
+.is-admin-panel .admin-role-chip__icon {
+    display: grid;
+    flex: 0 0 2.4rem;
+    place-items: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 999px;
+}
+.is-admin-panel .admin-role-chip__icon svg { width: 1.25rem; height: 1.25rem; }
+.is-admin-panel .admin-role-chip--moderator { background: #f6f1ff; }
+.is-admin-panel .admin-role-chip--moderator .admin-role-chip__icon { background: #efe6ff; color: #7b4fd4; }
+.is-admin-panel .admin-role-chip--admin { background: #eef6ff; }
+.is-admin-panel .admin-role-chip--admin .admin-role-chip__icon { background: #e3f0ff; color: #3b78d0; }
+.is-admin-panel .admin-role-chip--super { background: #fff6e8; }
+.is-admin-panel .admin-role-chip--super .admin-role-chip__icon { background: #ffefd4; color: #d5922a; }
+.is-admin-panel .admin-role-chip--teacher { background: #eefaf3; }
+.is-admin-panel .admin-role-chip--teacher .admin-role-chip__icon { background: #e1f6ea; color: #2f9a68; }
+.is-admin-panel .admin-permission-panel {
+    min-width: 0;
+    padding: 1.1rem 1.15rem 1.2rem;
+    border: 1px solid #e3ebf3;
+    border-radius: 1.1rem;
+    background: #fff;
+}
+.is-admin-panel .admin-permission-panel__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 0.75rem;
+    align-items: center;
+}
+.is-admin-panel .admin-permission-panel__head h2 { margin: 0; font-size: 1.15rem; }
+.is-admin-panel .admin-permission-count {
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    background: #eef3f8;
+    color: #5d6e82;
+    font-size: 0.78rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-permission-panel__hint {
+    margin: 0.35rem 0 0.9rem;
+    color: #66758c;
+}
+.is-admin-panel .admin-permission-search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-permission-search label { flex: 1 1 16rem; min-width: 0; }
+.is-admin-panel .admin-permission-search__field {
+    display: flex;
+    gap: 0.45rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0 0.8rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #8aa0b5;
+}
+.is-admin-panel .admin-permission-search__field svg { width: 1.05rem; height: 1.05rem; flex: 0 0 auto; }
+.is-admin-panel .admin-permission-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    padding: 0.7rem 0;
+    background: transparent;
+    color: #16324f;
+}
+.is-admin-panel .admin-permission-search__submit {
+    border: 0;
+    border-radius: 0.7rem;
+    padding: 0.7rem 1.15rem;
+    background: #14919b;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+}
+.is-admin-panel .admin-permission-search__clear {
+    color: #5d6e82;
+    font-weight: 650;
+    text-decoration: none;
+}
+.is-admin-panel .admin-permission-empty {
+    display: grid;
+    justify-items: center;
+    padding: 1.5rem 1rem 1.2rem;
+    text-align: center;
+}
+.is-admin-panel .admin-permission-empty__art svg { width: min(100%, 10rem); height: auto; }
+.is-admin-panel .admin-permission-empty h3 { margin: 0.4rem 0 0; }
+.is-admin-panel .admin-permission-empty p {
+    max-width: 28rem;
+    margin: 0.35rem 0 0;
+    color: #66758c;
+}
+.is-admin-panel .admin-permission-empty__link {
+    margin-top: 0.9rem;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid #d5e0ea;
+    border-radius: 0.7rem;
+    color: #24364c;
+    font-weight: 650;
+    text-decoration: none;
+}
+.is-admin-panel .admin-permission-footnote {
+    display: flex;
+    gap: 0.7rem;
+    align-items: flex-start;
+    margin-top: 0.9rem;
+    padding: 0.8rem 0.95rem;
+    border-radius: 0.9rem;
+    background: #eef7fb;
+    color: #3d5870;
+}
+.is-admin-panel .admin-permission-footnote span {
+    display: grid;
+    flex: 0 0 1.35rem;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border-radius: 999px;
+    background: #d7eef6;
+    color: #2f7f99;
+    font-size: 0.78rem;
+    font-weight: 750;
+}
+.is-admin-panel .admin-permission-footnote p { margin: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-module-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+}
+.is-admin-panel .admin-module-card {
+    min-width: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid #d7e1ec;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-module-card h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-module-card p,
+.is-admin-panel .admin-module-card label {
+    margin: 0.35rem 0 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-module-card label {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+.is-admin-panel .admin-module-lock,
+.is-admin-panel .admin-module-protected { color: #526173; }
+@media (min-width: 768px) {
+    .is-admin-panel .admin-role-legend,
+    .is-admin-panel .admin-module-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1200px) {
+    .is-admin-panel .admin-role-legend {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+@media (min-width: 1200px) {
+    .is-admin-panel .admin-module-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-stat--members .admin-user-stat__icon {
+    background: #f3eaff;
+    color: #7136db;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-filters__fields {
+        grid-template-columns: minmax(14rem, 1.7fr) minmax(9rem, 1fr) minmax(9rem, 1fr) auto;
+    }
+    .is-admin-panel .admin-branch-page .admin-user-filters__fields {
+        grid-template-columns: minmax(12rem, 1.5fr) minmax(8rem, 1fr) minmax(7rem, 0.85fr) minmax(7rem, 0.85fr) auto;
+    }
+    .is-admin-panel .admin-classroom-page .admin-user-filters__fields {
+        grid-template-columns: minmax(12rem, 1.4fr) minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(7rem, 0.8fr) auto;
+    }
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page, .admin-learning-content-page) .admin-institution-primary {
+    border: 0;
+    background: #079dbf;
+    color: #fff;
+    min-height: 2.75rem;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page, .admin-learning-content-page) .admin-institution-primary:hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page, .admin-learning-content-page) .admin-institution-primary:focus-visible {
+    background: #067f9b;
+    color: #fff;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-back,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-detail,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-filters__actions .btn {
+    min-height: 2.75rem;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.6rem;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status--active { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status--active::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #16a34a;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status--pending { background: #fff0dc; color: #d2610d; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status--suspended { background: #fde8ea; color: #d12b3a; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status--archived { background: #eef2f6; color: #53647d; }
+.is-admin-panel .admin-academic-year-page .admin-institution-status--planned,
+.is-admin-panel .admin-academic-year-page .admin-institution-status--closed { background: #eef2f6; color: #53647d; }
+.is-admin-panel .admin-academic-year-page .admin-institution-status--planned::before,
+.is-admin-panel .admin-academic-year-page .admin-institution-status--closed::before,
+.is-admin-panel .admin-classroom-page .admin-institution-status--archived::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #94a3b8;
+}
+.is-admin-panel .admin-classroom-page .admin-user-person__meta {
+    display: block;
+    color: #66758c;
+    font-size: 0.82rem;
+    font-weight: 550;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-classroom-page .admin-classroom-students {
+        width: 1%;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
+        text-align: left;
+    }
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-type {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.6rem;
+    padding: 0.1rem 0.55rem;
+    border-radius: 999px;
+    background: #e7f1ff;
+    color: #2f6fe4;
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-type--campus {
+    background: #f3eaff;
+    color: #7136db;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-date__stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    color: #3e5168;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-date__stack span:last-child { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-person__name,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-person__ref,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-name,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-facts dd {
+    overflow-wrap: anywhere;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager p { margin: 0; color: #66758c; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager div { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager [aria-disabled="true"] { opacity: 0.55; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager__current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border-radius: 0.7rem;
+    background: #079dbf;
+    color: #fff;
+    font-weight: 700;
+}
+.is-admin-panel .admin-institution-create {
+    display: grid;
+    grid-template-columns: minmax(0, 13fr) minmax(16rem, 7fr);
+    gap: 1.25rem;
+    align-items: start;
+}
+.is-admin-panel .admin-institution-create__main,
+.is-admin-panel .admin-institution-detail-grid { display: grid; gap: 1rem; }
+.is-admin-panel .admin-institution-detail-grid { grid-template-columns: minmax(0, 13fr) minmax(18rem, 7fr); gap: 1.25rem; }
+.is-admin-panel .admin-institution-card {
+    min-width: 0;
+    padding: 1.1rem 1.15rem 1.15rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(22, 50, 79, 0.04);
+}
+.is-admin-panel .admin-institution-card h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    color: #16324f;
+    font-size: 1.05rem;
+    font-weight: 750;
+}
+.is-admin-panel .admin-institution-heading-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-institution-heading-icon .admin-icon { width: 1.35rem; height: 1.35rem; }
+.is-admin-panel .admin-institution-heading-icon--blue { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-institution-heading-icon--violet { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-institution-heading-icon--teal { background: #e5f7fb; color: #079dbf; }
+.is-admin-panel .admin-institution-heading-icon--green { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-institution-heading-icon--amber { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-institution-field,
+.is-admin-panel .admin-owner-picker { display: grid; gap: 0.4rem; }
+.is-admin-panel .admin-institution-field { margin-bottom: 0.95rem; }
+.is-admin-panel .admin-institution-field label,
+.is-admin-panel .admin-owner-picker > label {
+    color: #3e5168;
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field input:not([type="checkbox"]),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status-form select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) #institution-owner-search {
+    appearance: none;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 10px;
+    background-color: #fff;
+    color: #16324f;
+    box-shadow: none;
+    font: inherit;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) #institution-owner-search { padding-left: 2.35rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status-form select {
+    padding-right: 2.4rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 7.5l5 5 5-5' fill='none' stroke='%2353647d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 1rem;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field input::placeholder,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) #institution-owner-search::placeholder { color: #8aa0b5; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field select:has(option[value=""]:checked),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status-form select:has(option[value=""]:checked) { color: #7b8da3; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field :is(input:not([type="checkbox"]), select):hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status-form select:hover,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) #institution-owner-search:hover { border-color: #b7c9dc; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field :is(input:not([type="checkbox"]), select):is(:focus, :focus-visible),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-status-form select:is(:focus, :focus-visible),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) #institution-owner-search:is(:focus, :focus-visible) {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+    border-color: #079dbf;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field:has(li) :is(input:not([type="checkbox"]), select),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-owner-picker:has(> ul:not([role="listbox"]) li) #institution-owner-search {
+    border-color: #c43b3b;
+    background-color: #fff8f8;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) input:not([type="checkbox"]),
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) select,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .btn {
+    width: 100%;
+    min-height: 2.75rem;
+    box-sizing: border-box;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-filters__actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-pager .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-profile__actions .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-detail,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-head .btn,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-detail-head .btn {
+    width: auto;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .form-error,
+.is-admin-panel .admin-institution-field li,
+.is-admin-panel .admin-owner-picker > ul:not([role="listbox"]) li,
+.is-admin-panel .admin-institution-card > ul li { color: #8a1f1f; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-card ul,
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-field ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+.is-admin-panel .admin-institution-confirm {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+.is-admin-panel .admin-institution-confirm input {
+    width: 1.15rem;
+    height: 1.15rem;
+    min-height: 1.15rem;
+    accent-color: #079dbf;
+}
+.is-admin-panel .admin-institution-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+.is-admin-panel .admin-institution-actions .btn,
+.is-admin-panel .admin-institution-detail,
+.is-admin-panel .admin-institution-tool,
+.is-admin-panel .admin-institution-status-form .admin-institution-primary {
+    border-radius: 10px;
+    font-weight: 700;
+}
+.is-admin-panel .admin-institution-actions .admin-institution-primary { min-width: 10.5rem; padding-inline: 1.25rem; }
+.is-admin-panel .admin-institution-actions .btn--ghost,
+.is-admin-panel .admin-institution-detail,
+.is-admin-panel .admin-institution-tool {
+    border: 1px solid #d5e2ee;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-institution-actions .btn--ghost:hover,
+.is-admin-panel .admin-institution-detail:hover,
+.is-admin-panel .admin-institution-tool:hover { background: #f4f8fc; color: #16324f; }
+.is-admin-panel .admin-institution-aside ol { display: grid; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.is-admin-panel .admin-institution-aside li { display: flex; align-items: flex-start; gap: 0.8rem; color: #3e5168; }
+.is-admin-panel .admin-institution-aside li strong { display: block; margin-bottom: 0.15rem; color: #16324f; }
+.is-admin-panel .admin-institution-aside .admin-institution-heading-icon { width: 2.5rem; height: 2.5rem; }
+.is-admin-panel .admin-institution-note,
+.is-admin-panel .admin-institution-footnote {
+    margin: 0.9rem 0 0;
+    padding: 0.75rem 0.8rem;
+    border-radius: 0.75rem;
+    background: #e8f6fb;
+    color: #0b6e99;
+}
+.is-admin-panel .admin-institution-profile-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.9rem 1rem;
+}
+.is-admin-panel .admin-institution-profile { display: flex; gap: 0.95rem; min-width: 0; flex: 1 1 auto; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-profile__icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    background: #e7f1ff;
+    color: #2f6fe4;
+}
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-institution-profile__icon .admin-icon { width: 1.8rem; height: 1.8rem; }
+.is-admin-panel .admin-institution-profile__copy,
+.is-admin-panel .admin-institution-profile__copy p,
+.is-admin-panel .admin-institution-facts dd,
+.is-admin-panel .admin-institution-metrics dd { min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-institution-profile__copy p { margin: 0.15rem 0 0; color: #66758c; }
+.is-admin-panel .admin-institution-profile__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.is-admin-panel .admin-institution-name { margin: 0; color: #16324f; font-size: 1.45rem; font-weight: 750; line-height: 1.25; overflow-wrap: anywhere; }
+.is-admin-panel .admin-institution-profile__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    margin-left: auto;
+}
+.is-admin-panel .admin-institution-tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.45rem 0.9rem;
+}
+.is-admin-panel .admin-institution-tool .admin-icon { width: 1.05rem; height: 1.05rem; color: #2f6fe4; }
+.is-admin-panel .admin-institution-detail { display: inline-flex; align-items: center; gap: 0.35rem; padding-inline: 0.9rem; }
+.is-admin-panel .admin-user-detail-profile:has(.admin-institution-metrics) { display: grid; gap: 1.1rem; }
+.is-admin-panel .admin-institution-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    padding-top: 0.35rem;
+    border-top: 1px solid #e8eef5;
+}
+.is-admin-panel .admin-institution-metrics > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: center;
+    min-width: 0;
+    padding: 0.85rem 1rem;
+    border-left: 1px solid #e8eef5;
+}
+.is-admin-panel .admin-institution-metrics > div:first-child { border-left: 0; padding-left: 0; }
+.is-admin-panel .admin-institution-metrics .admin-institution-heading-icon { grid-column: 1; grid-row: 1 / span 2; width: 2.5rem; height: 2.5rem; }
+.is-admin-panel .admin-institution-metrics dt { grid-column: 2; grid-row: 1; color: #66758c; font-size: 0.82rem; font-weight: 550; }
+.is-admin-panel .admin-institution-metrics dd { grid-column: 2; grid-row: 2; margin: 0.1rem 0 0; color: #16324f; font-size: 1.05rem; font-weight: 750; overflow-wrap: anywhere; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) :is(a, button):focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-institution-facts { display: grid; gap: 0.65rem; margin: 0; }
+.is-admin-panel .admin-institution-facts div {
+    display: grid;
+    grid-template-columns: minmax(7rem, 0.4fr) minmax(0, 1fr);
+    gap: 0.75rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid #e8eef5;
+}
+.is-admin-panel .admin-institution-facts dt { color: #66758c; font-weight: 550; }
+.is-admin-panel .admin-institution-facts dd { margin: 0; color: #16324f; font-weight: 700; }
+.is-admin-panel .admin-owner-picker { position: relative; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-owner-picker__value {
+    position: absolute;
+    width: 1px;
+    min-height: 0;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+.is-admin-panel .admin-owner-picker__hint { margin: 0; color: #66758c; font-size: 0.82rem; }
+.is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) ul.admin-owner-picker__results {
+    margin: 0;
+    padding: 0.3rem;
+    border: 1px solid #d5e0ec;
+    border-radius: 0.75rem;
+    background: #fff;
+    list-style: none;
+}
+.is-admin-panel .admin-owner-picker__results [role="option"] {
+    min-height: 2.75rem;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.55rem;
+    color: #16324f;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-owner-picker__results [role="option"].is-active,
+.is-admin-panel .admin-owner-picker__results [role="option"]:hover { background: #e8f6fb; }
+.is-admin-panel .admin-owner-picker__selected[hidden],
+.is-admin-panel .admin-owner-picker__results[hidden],
+.is-admin-panel .admin-owner-picker__empty[hidden] {
+    display: none;
+}
+.is-admin-panel .admin-owner-picker__selected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 10px;
+    background: #f4f8fc;
+}
+.is-admin-panel .admin-owner-picker__selected span { overflow-wrap: anywhere; }
+.is-admin-panel .admin-owner-picker__selected button {
+    min-height: 2.75rem;
+    border: 0;
+    background: transparent;
+    color: #0b6e99;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-institution-create,
+    .is-admin-panel .admin-institution-detail-grid,
+    .is-admin-panel :is(.admin-institution-page, .admin-branch-page, .admin-academic-year-page, .admin-classroom-page, .admin-curriculum-page) .admin-user-filters__fields { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-institution-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+    .is-admin-panel .admin-institution-metrics > div { border-left: 0; padding: 0.35rem 0; }
+    .is-admin-panel .admin-institution-profile__actions { margin-left: 0; justify-content: flex-start; }
+}
+@media (max-width: 767px) {
+    .is-admin-panel .admin-institution-metrics,
+    .is-admin-panel .admin-institution-facts div,
+    .is-admin-panel .admin-institution-profile-row { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-institution-profile-row { display: grid; }
+}
+
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stages {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    align-items: start;
+    margin: 0 0 0.75rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage {
+    min-width: 0;
+    border: 1px solid #d7e4ef;
+    border-radius: 16px;
+    background: #f4fbf7;
+    padding: 0.9rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage--ortaokul { background: #f3f8ff; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage--lise { background: #fff6f0; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage.is-selected { box-shadow: inset 0 0 0 2px #13b3b3; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 a { color: inherit; text-decoration: none; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage h2 a[aria-current="page"] { text-decoration: underline; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-stage p { margin: 0.35rem 0 0.7rem; color: #53647d; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grades { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.8rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 4.5rem;
+    min-height: 44px;
+    padding: 0.35rem 0.55rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 12px;
+    background: #fff;
+    color: #16324f;
+    text-decoration: none;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade small { color: #66758c; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected {
+    border-color: #0c7c7c;
+    background: #128f8f;
+    color: #fff;
+    box-shadow: 0 0 0 3px #b7ecec;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-grade.is-selected small { color: #e7f8f8; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-summary,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tree,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-catalog,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-subject {
+    min-width: 0;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(16rem, 0.8fr);
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-catalog-list {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0.6rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-catalog-list li {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid #d5e2ee;
+    border-radius: 12px;
+    background: #fff;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-catalog-list a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: #16324f;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin: 0 0 0.8rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts div {
+    min-width: 0;
+    padding: 0.7rem 0.8rem;
+    border-radius: 12px;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts dt { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-facts dd { margin: 0.15rem 0 0; overflow-wrap: anywhere; font-weight: 650; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node {
+    min-width: 0;
+    margin-top: 0.55rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 14px;
+    background: #fff;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node { padding: 0 0.8rem 0.15rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node > summary {
+    display: list-item;
+    min-height: 44px;
+    padding: 0.55rem 0.15rem;
+    cursor: pointer;
+    list-style-position: inside;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions > summary { padding-inline: 0.8rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    width: calc(100% - 1.4rem);
+    min-width: 0;
+    vertical-align: middle;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node__line span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions form,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-node > p { margin: 0.35rem 0 0.7rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions form {
+    display: grid;
+    gap: 0.45rem;
+    padding-bottom: 0.8rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions input:not([type="checkbox"]):not([type="hidden"]),
+.is-admin-panel .admin-curriculum-page .admin-curriculum-actions select {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+.is-admin-panel .admin-curriculum-page summary:focus,
+.is-admin-panel .admin-curriculum-page summary:focus-visible,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech > summary:focus,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech > summary:focus-visible {
+    outline: 2px solid #0b6e99 !important;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__identity { min-width: 0; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__head .admin-user-person__name {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__card-status,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__meta,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__open { display: none; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__meta {
+    margin: 0.15rem 0 0;
+    color: #53647d;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program__foot { position: relative; min-width: 0; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech {
+    min-width: 0;
+    margin: 0.1rem 0 0;
+    border: 0;
+    background: transparent;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech > summary {
+    display: list-item;
+    box-sizing: border-box;
+    width: fit-content;
+    max-width: 100%;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0.55rem 0.2rem;
+    cursor: pointer;
+    list-style-position: inside;
+    color: #3e5168;
+    font-size: 0.86rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel {
+    margin: 0.15rem 0 0.35rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 10px;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel dl {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.2rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel dt { color: #66758c; font-size: 0.78rem; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel dd { margin: 0; min-width: 0; }
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.86rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel p {
+    margin: 0.4rem 0 0;
+    color: #53647d;
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-status,
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-institution-detail {
+    white-space: nowrap;
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-institution-detail {
+    box-sizing: border-box;
+    min-height: 44px;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__subject,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__grade,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__version,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__status,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__action {
+        width: 1%;
+        white-space: nowrap;
+    }
+}
+.is-admin-panel .admin-curriculum-page .admin-curriculum-program-table a:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-stages,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-workspace,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-facts { grid-template-columns: 1fr; }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table td[data-label]::before { content: none; display: none; }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__subject,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__grade,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__version,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__status,
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-program__action { display: none; }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program__card-status { display: inline-flex; flex: 0 0 auto; }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program__meta { display: block; }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program__open {
+        display: inline-flex;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+    }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-program-table .admin-curriculum-tech > summary {
+        width: 100%;
+        padding-right: 9rem;
+    }
+    .is-admin-panel .admin-curriculum-page .admin-curriculum-tech__panel dl { grid-template-columns: minmax(0, 1fr); }
+}
+
+.is-admin-panel .admin-learning-content-page .panel-greeting { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-user-head > div { min-width: 0; flex: 1 1 16rem; }
+.is-admin-panel .admin-learning-content-page .admin-user-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-head__actions .btn,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-head__actions .admin-user-clear {
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-statusline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem;
+    align-items: center;
+}
+.is-admin-panel .admin-learning-content-page .admin-section {
+    margin-top: 1rem;
+    padding: 1rem 1.05rem 1.1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-learning-content-page .admin-section h2 { margin-top: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-filter,
+.is-admin-panel .admin-learning-content-page .admin-user-filters label,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create label,
+.is-admin-panel .admin-learning-content-page .admin-section label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-user-filters input,
+.is-admin-panel .admin-learning-content-page .admin-user-filters select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create input,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea,
+.is-admin-panel .admin-learning-content-page .admin-section input,
+.is-admin-panel .admin-learning-content-page .admin-section select,
+.is-admin-panel .admin-learning-content-page .admin-section textarea {
+    width: 100%;
+    max-width: 42rem;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-learning-content-page input[type="checkbox"] {
+    width: 1.25rem;
+    max-width: 1.25rem;
+    min-height: 1.25rem;
+}
+.is-admin-panel .admin-learning-content-page label:has(input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-learning-content-page textarea.revision-text,
+.is-admin-panel .admin-learning-content-page .admin-section textarea { min-height: 6.5rem; }
+.is-admin-panel .admin-learning-content-page .admin-section .btn,
+.is-admin-panel .admin-learning-content-page .admin-actions .btn { min-height: 2.75rem; }
+.is-admin-panel .admin-learning-content-page .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-links {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-links li {
+    padding: 0.75rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-links p { margin: 0.2rem 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tools {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.85rem;
+    align-items: start;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-block { margin-top: 0.75rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-readonly,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-readonly pre,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-readonly code { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-table { width: 100%; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content__identity { min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content__name { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content__card-status,
+.is-admin-panel .admin-learning-content-page .admin-learning-content__meta,
+.is-admin-panel .admin-learning-content-page .admin-learning-content__open { display: none; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content__head {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content__name { flex: 1 1 12rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content__foot { position: relative; min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech { min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech > summary {
+    min-height: 2.75rem;
+    display: list-item;
+    width: fit-content;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel { display: none; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech[open] .admin-learning-content-tech__panel {
+    display: block;
+    margin-top: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel div { display: contents; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dt { color: #66758c; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dd { margin: 0; min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-status,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-institution-detail {
+    white-space: nowrap;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-institution-detail { width: auto; }
+.is-admin-panel .admin-learning-content-page a:focus-visible,
+.is-admin-panel .admin-learning-content-page button:focus-visible,
+.is-admin-panel .admin-learning-content-page summary:focus-visible,
+.is-admin-panel .admin-learning-content-page input:focus-visible,
+.is-admin-panel .admin-learning-content-page select:focus-visible,
+.is-admin-panel .admin-learning-content-page textarea:focus-visible {
+    outline: 2px solid #0b6e99;
+    outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table th:not(:first-child),
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__type,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__relation,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__revision,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__status,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__updated,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__author,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__action {
+        width: 1%;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table th,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table td {
+        padding-top: 0.4rem;
+        padding-bottom: 0.4rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__status,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__updated,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__action {
+        vertical-align: middle;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech > summary {
+        min-height: 2rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__identity {
+        width: 46%;
+        min-width: 18rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__foot,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl {
+        width: 100%;
+        max-width: 100%;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl {
+        grid-template-columns: 8rem minmax(12rem, 1fr);
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dd {
+        min-width: 12rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel code {
+        display: block;
+        max-width: 100%;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-learning-content-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tools { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table tbody,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table tr,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table td { display: block; width: auto; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table tr {
+        position: relative;
+        padding: 0.85rem 0.9rem 0.75rem;
+        border-bottom: 1px solid #e2eaf4;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__type,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__relation,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__revision,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__status,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__updated,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__author,
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-table .admin-learning-content__action { display: none; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__card-status { display: inline-flex; flex: 0 0 auto; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__meta {
+        display: block;
+        margin: 0.35rem 0 0.5rem;
+        color: #66758c;
+        overflow-wrap: anywhere;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content__open {
+        display: inline-flex;
+        position: absolute;
+        top: 0;
+        right: 0;
+        z-index: 1;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech > summary {
+        width: 100%;
+        padding-right: 9rem;
+    }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-tech__panel dl { grid-template-columns: minmax(0, 1fr); }
+}
+
+.is-admin-panel .admin-learning-content-page .admin-learning-content-pin {
+    position: sticky;
+    top: 3.6rem;
+    z-index: 4;
+    margin-inline: -0.15rem;
+    padding: 0.15rem 0.15rem 0.35rem;
+    background: #f4f7fb;
+}
+.is-admin-panel .admin-learning-content-page .admin-user-head .panel-greeting { display: inline; margin-right: 0.65rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-statusline { display: inline-flex; vertical-align: middle; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-statusline dd { margin: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-cardhead {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 0 0 0.85rem;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-main,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-side,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create-side {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-side {
+    align-content: start;
+    align-self: start;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body {
+    padding: 1.25rem 1rem;
+    border-radius: 0.9rem;
+    background: #eef6fb;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h2,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h3,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body h4 { margin: 0.4rem 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body p,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body li { overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-preview__body p.admin-learning-content-callout__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex: 0 0 auto;
+    margin: 0;
+    color: #16324f;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.65rem 1rem;
+    margin: 0.85rem 0;
+    padding: 0.85rem 1rem;
+    border: 1px solid #d5e3ef;
+    border-radius: 0.75rem;
+    background: #fff;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--info { background: #f3f9fd; border-color: #c5dff0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--tip { background: #f1f8f4; border-color: #c6ead8; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--warning { background: #fff6ea; border-color: #f3d7b0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout--note { background: #f6f8fb; border-color: #d7e0ea; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: #0b6e99;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__icon .admin-icon {
+    width: 1.15rem;
+    height: 1.15rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body {
+    flex: 1 1 16rem;
+    min-width: min(100%, 16rem);
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body > :first-child { margin-top: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-callout__body > :last-child { margin-bottom: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-hint {
+    margin: 0.35rem 0 0;
+    color: #5c6d82;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next {
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next h2 { margin: 0 0 0.35rem; font-size: 1rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-gaps {
+    margin: 0.5rem 0 0;
+    padding-left: 1.1rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.7rem;
+    align-items: center;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li > span:nth-child(2) {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts strong { display: block; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-facts li span span { color: #52667d; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-relation-title { margin: 0 0 0.35rem; font-weight: 700; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold { min-width: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-learning-content-page .admin-section.admin-learning-content-fold > summary { margin-bottom: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel { display: none; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold[open] > .admin-learning-content-fold__panel {
+    display: block;
+    margin-top: 0.75rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dl {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 1fr);
+    gap: 0.4rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel > dl > div { display: contents; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dt { color: #66758c; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create input,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea { width: 100%; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create ul {
+    margin: 0.25rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: #9b2c2c;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create .help-text { color: #66758c; font-size: 0.9rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-form-actions .btn { width: auto; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject { max-width: 40rem; margin-inline: auto; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject .panel-greeting { display: flex; margin: 0; font-size: 1.5rem; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject__badge { margin: 0; }
+.is-admin-panel .admin-learning-content-page .admin-learning-content-note {
+    margin: 0.25rem 0 0;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.75rem;
+    background: #eef6fb;
+    color: #24506d;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-subject .admin-learning-content-form-actions { justify-content: flex-end; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-stage { grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 24rem); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-create-grid { grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 24rem); }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-facts li { grid-template-columns: auto minmax(0, 1fr); }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-facts li > .admin-status { grid-column: 2; justify-self: start; }
+    .is-admin-panel .admin-learning-content-page .admin-learning-content-fold__panel dl { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* Keep the learning-content forms consistent with the approved card layout. */
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create input:not([type="checkbox"]):not([type="hidden"]),
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create select,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea {
+    box-sizing: border-box;
+    max-width: none;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #cdd9e8;
+    border-radius: 0.65rem;
+    background: #fff;
+    color: #18324c;
+    font: inherit;
+    line-height: 1.5;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create textarea,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea {
+    resize: vertical;
+    min-height: 7rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create .admin-section > div {
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create label {
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create :is(input, select, textarea):focus-visible,
+.is-admin-panel .admin-learning-content-page .admin-learning-content-next textarea:focus-visible {
+    outline: 3px solid #0b8eab;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create [aria-invalid="true"],
+.is-admin-panel .admin-learning-content-page .admin-learning-content-create ul + :is(input, select, textarea) {
+    border-color: #bf3a3a;
+}
+
+.is-admin-panel .admin-question-page .panel-greeting { overflow-wrap: break-word; }
+.is-admin-panel .admin-question-page .admin-user-head > div { min-width: 0; flex: 1 1 16rem; }
+.is-admin-panel .admin-question-page .admin-user-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.is-admin-panel .admin-question-page .admin-question-head__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+.is-admin-panel .admin-question-page .admin-question-head__actions .btn,
+.is-admin-panel .admin-question-page .admin-question-head__actions .admin-user-clear { min-height: 2.75rem; }
+.is-admin-panel .admin-question-page .admin-question-hint {
+    margin: 0.35rem 0 0;
+    color: #5c6d82;
+    font-size: 0.875rem;
+    line-height: 1.45;
+}
+.is-admin-panel .admin-question-page .admin-question-statusline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.75rem;
+    align-items: center;
+}
+.is-admin-panel .admin-question-page .admin-section {
+    margin: 0;
+    padding: 1rem 1.05rem 1.1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-question-page .admin-section h2 { margin-top: 0; }
+.is-admin-panel .admin-question-page .admin-question-filter,
+.is-admin-panel .admin-question-page .admin-user-filters label,
+.is-admin-panel .admin-question-page .admin-section label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+    font-weight: 600;
+}
+.is-admin-panel .admin-question-page .admin-question-correct {
+    flex-direction: row;
+    align-items: center;
+    min-height: 2.75rem;
+    font-weight: 600;
+}
+.is-admin-panel .admin-question-page .admin-section :is(input:not([type="checkbox"]):not([type="hidden"]):not([type="radio"]), select, textarea),
+.is-admin-panel .admin-question-page .admin-user-filters :is(input, select) {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-height: 2.75rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #cdd9e8;
+    border-radius: 0.65rem;
+    background: #fff;
+    color: #18324c;
+    font: inherit;
+    line-height: 1.5;
+}
+.is-admin-panel .admin-question-page textarea { resize: vertical; min-height: 7rem; }
+.is-admin-panel .admin-question-page .admin-question-submit textarea { min-height: 4.5rem; }
+.is-admin-panel .admin-question-page .admin-question-correct input { width: 1.15rem; min-height: 1.15rem; }
+.is-admin-panel .admin-question-page :is(a, button, summary, input, select, textarea):focus-visible {
+    outline: 3px solid #0b8eab;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-question-page [aria-invalid="true"] { border-color: #bf3a3a; }
+.is-admin-panel .admin-question-page .admin-question-error,
+.is-admin-panel .admin-question-page .admin-question-field-error {
+    margin: 0 0 0.5rem;
+    color: #9b2c2c;
+    font-weight: 650;
+}
+.is-admin-panel .admin-question-page .admin-question-table { width: 100%; }
+.is-admin-panel .admin-question-page .admin-question__identity { min-width: 0; }
+.is-admin-panel .admin-question-page .admin-question__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+.is-admin-panel .admin-question-page .admin-question__name {
+    flex: 1 1 12rem;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: normal;
+}
+.is-admin-panel .admin-question-page .admin-question__card-status,
+.is-admin-panel .admin-question-page .admin-question__meta,
+.is-admin-panel .admin-question-page .admin-question__open,
+.is-admin-panel .admin-question-page .admin-question__usage-mobile { display: none; }
+.is-admin-panel .admin-question-page .admin-question__foot { position: relative; min-width: 0; }
+.is-admin-panel .admin-question-page .admin-question-tech { min-width: 0; }
+.is-admin-panel .admin-question-page .admin-question-tech > summary,
+.is-admin-panel .admin-question-page .admin-question-fold > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-question-page .admin-question-tech__panel,
+.is-admin-panel .admin-question-page .admin-question-fold__panel { display: none; }
+.is-admin-panel .admin-question-page .admin-question-tech[open] .admin-question-tech__panel,
+.is-admin-panel .admin-question-page .admin-question-fold[open] > .admin-question-fold__panel {
+    display: block;
+    margin-top: 0.35rem;
+}
+.is-admin-panel .admin-question-page .admin-question-tech__panel,
+.is-admin-panel .admin-question-page .admin-question-fold__panel {
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-question-page .admin-question-tech__panel dl,
+.is-admin-panel .admin-question-page .admin-question-fold__panel dl,
+.is-admin-panel .admin-question-page .admin-question-facts {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-question-page .admin-question-tech__panel div,
+.is-admin-panel .admin-question-page .admin-question-fold__panel div,
+.is-admin-panel .admin-question-page .admin-question-facts div { display: contents; }
+.is-admin-panel .admin-question-page .admin-question-tech__panel dt,
+.is-admin-panel .admin-question-page .admin-question-fold__panel dt,
+.is-admin-panel .admin-question-page .admin-question-facts dt { color: #66758c; font-weight: 650; }
+.is-admin-panel .admin-question-page .admin-question-tech__panel dd,
+.is-admin-panel .admin-question-page .admin-question-fold__panel dd,
+.is-admin-panel .admin-question-page .admin-question-facts dd { margin: 0; min-width: 0; overflow-wrap: break-word; }
+.is-admin-panel .admin-question-page .admin-question-stage {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-question-page .admin-question-main,
+.is-admin-panel .admin-question-page .admin-question-side {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    align-self: start;
+    min-width: 0;
+}
+.is-admin-panel .admin-question-page .admin-question-preview__body {
+    padding: 1rem;
+    border-radius: 0.9rem;
+    background: #eef6fb;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-question-page .admin-question-preview__body p,
+.is-admin-panel .admin-question-page .admin-question-preview__body li { overflow-wrap: break-word; }
+.is-admin-panel .admin-question-page .admin-question-answer {
+    display: inline-block;
+    margin-left: 0.4rem;
+    color: #0f6b45;
+    font-weight: 700;
+}
+.is-admin-panel .admin-question-page .admin-question-option {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-question-page .admin-question-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-question-page .admin-question-form-actions .btn,
+.is-admin-panel .admin-question-page .admin-question-submit .btn,
+.is-admin-panel .admin-question-page #add-option,
+.is-admin-panel .admin-question-page [data-remove-option] { min-height: 2.75rem; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-question-page .admin-question-stage { grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 24rem); }
+    .is-admin-panel .admin-question-page .admin-question-table th:not(:first-child),
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__relation,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__type,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__revision,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__status,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__action {
+        width: 1%;
+        white-space: nowrap;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+    .is-admin-panel .admin-question-page .admin-question-table th,
+    .is-admin-panel .admin-question-page .admin-question-table td { padding-top: 0.4rem; padding-bottom: 0.4rem; }
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__status,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__revision,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__action { vertical-align: middle; }
+    .is-admin-panel .admin-question-page .admin-question__identity { width: 46%; min-width: 18rem; }
+    .is-admin-panel .admin-question-page .admin-question-tech > summary { min-height: 2rem; }
+    .is-admin-panel .admin-question-page .admin-question__foot,
+    .is-admin-panel .admin-question-page .admin-question-tech,
+    .is-admin-panel .admin-question-page .admin-question-tech__panel,
+    .is-admin-panel .admin-question-page .admin-question-tech__panel dl { width: 100%; max-width: 100%; }
+    .is-admin-panel .admin-question-page .admin-question-tech__panel dl,
+    .is-admin-panel .admin-question-page .admin-question-fold__panel dl { grid-template-columns: 8rem minmax(12rem, 1fr); }
+    .is-admin-panel .admin-question-page .admin-question-tech__panel dd,
+    .is-admin-panel .admin-question-page .admin-question-fold__panel dd { min-width: 12rem; }
+    .is-admin-panel .admin-question-page .admin-question-tech__panel code,
+    .is-admin-panel .admin-question-page .admin-question-fold__panel code { display: block; max-width: 100%; overflow-wrap: break-word; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-question-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-question-page .admin-question-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-question-page .admin-question-table,
+    .is-admin-panel .admin-question-page .admin-question-table tbody,
+    .is-admin-panel .admin-question-page .admin-question-table tr,
+    .is-admin-panel .admin-question-page .admin-question-table td { display: block; width: auto; }
+    .is-admin-panel .admin-question-page .admin-question-table tr {
+        position: relative;
+        padding: 0.85rem 0.9rem 0.75rem;
+        border-bottom: 1px solid #e2eaf4;
+    }
+    .is-admin-panel .admin-question-page .admin-question__identity { padding-right: 7rem; }
+    .is-admin-panel .admin-question-page .admin-question-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__relation,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__difficulty,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__type,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__revision,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__status,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__usage,
+    .is-admin-panel .admin-question-page .admin-question-table .admin-question__action { display: none; }
+    .is-admin-panel .admin-question-page .admin-question__card-status { display: inline-flex; flex: 0 0 auto; }
+    .is-admin-panel .admin-question-page .admin-question__meta,
+    .is-admin-panel .admin-question-page .admin-question__usage-mobile { display: block; margin: 0.35rem 0 0.5rem; color: #52667d; }
+    .is-admin-panel .admin-question-page .admin-question__open {
+        display: inline-flex;
+        position: absolute;
+        top: 0;
+        right: 0;
+        min-height: 2.75rem;
+    }
+    .is-admin-panel .admin-question-page .admin-question-facts { grid-template-columns: minmax(0, 1fr); }
+}
+
+.is-admin-panel .admin-question-page .admin-question-kicker {
+    margin: 0 0 0.2rem;
+    color: #0b8eab;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.is-admin-panel .admin-question-page .admin-question-stem-layout {
+    display: grid;
+    gap: 0.75rem;
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-question-page .admin-question-stem-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 15.625rem);
+    gap: 0.75rem 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-question-page .admin-question-stem-field > .q-toolbar,
+.is-admin-panel .admin-question-page .admin-question-stem-field > .q-science { grid-column: 1 / -1; }
+.is-admin-panel .admin-question-page .q-field,
+.is-admin-panel .admin-question-page .admin-question-option,
+.is-admin-panel .admin-question-page .admin-question-image-box,
+.is-admin-panel .admin-question-page .q-toolbar,
+.is-admin-panel .admin-question-page .q-science,
+.is-admin-panel .admin-question-page .q-science-panel {
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-question-page .q-toolbar,
+.is-admin-panel .admin-question-page .q-science-tabs,
+.is-admin-panel .admin-question-page .q-science-panel {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    align-items: center;
+}
+.is-admin-panel .admin-question-page .q-science { display: grid; gap: 0.35rem; }
+.is-admin-panel .admin-question-page .q-science-panel[hidden] { display: none; }
+.is-admin-panel .admin-question-page .q-science-tabs { align-items: stretch; }
+.is-admin-panel .admin-question-page .q-science-panel { padding: 0.35rem; border-radius: 0.65rem; background: #f4f8fb; }
+.is-admin-panel .admin-question-page .q-toolbar button,
+.is-admin-panel .admin-question-page .q-science button {
+    min-height: 2.75rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid #cdd9e8;
+    border-radius: 0.45rem;
+    background: #fff;
+    color: #16324f;
+}
+.is-admin-panel .admin-question-page .q-science-tabs button { background: transparent; border-color: transparent; color: #52667d; font-weight: 700; }
+.is-admin-panel .admin-question-page .q-science-tabs button[aria-selected="true"] {
+    background: #0f9f8f;
+    border-color: #0c7f72;
+    color: #fff;
+}
+.is-admin-panel .admin-question-page .q-science button:focus-visible,
+.is-admin-panel .admin-question-page .q-toolbar button:focus-visible {
+    outline: 3px solid #0b3a4a;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-question-page .q-surface {
+    min-height: 4.75rem;
+    padding: 0.75rem;
+    border: 1px solid #cdd9e8;
+    border-radius: 0.65rem;
+    background: #fff;
+    overflow-wrap: break-word;
+}
+.is-admin-panel .admin-question-page .q-surface:focus { outline: 3px solid #0b8eab; outline-offset: 2px; }
+.is-admin-panel .admin-question-page .q-field { position: relative; min-width: 0; max-width: 100%; }
+.is-admin-panel .admin-question-page .admin-question-stage :is(select, input[type="file"]) {
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-question-page .admin-section .q-fallback,
+.is-admin-panel .admin-question-page .admin-section .q-fallback-label {
+    position: absolute;
+    width: 1px;
+    min-width: 0;
+    max-width: 1px;
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+.is-admin-panel .admin-question-page .q-chip,
+.is-admin-panel .admin-question-page .q-math,
+.is-admin-panel .admin-question-page .q-frac,
+.is-admin-panel .admin-question-page .q-sqrt,
+.is-admin-panel .admin-question-page .q-script,
+.is-admin-panel .admin-question-page .q-over {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.is-admin-panel .admin-question-page .q-chip {
+    display: inline-block;
+    margin: 0 0.15rem;
+    padding: 0.05rem 0.35rem;
+    border-radius: 0.35rem;
+    background: #e7f6f8;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-question-page .q-frac {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-question-page .q-num { border-bottom: 1px solid currentColor; }
+.is-admin-panel .admin-question-page .q-sqrt,
+.is-admin-panel .admin-question-page .q-over { white-space: nowrap; }
+.is-admin-panel .admin-question-page .q-over { border-top: 1px solid currentColor; }
+.is-admin-panel .admin-question-page .admin-question-stem-field > .q-surface { min-height: 15.625rem; }
+.is-admin-panel .admin-question-page .admin-question-image-box { display: grid; gap: 0.45rem; align-content: start; }
+.is-admin-panel .admin-question-page .admin-question-image-caption { margin: 0; color: #52667d; font-size: 0.82rem; font-weight: 700; }
+.is-admin-panel .admin-question-page .admin-question-file {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.65rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-question-page .admin-question-file__pick {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    min-height: 2.75rem;
+    min-width: 7.5rem;
+    padding: 0.35rem 0.9rem;
+    border: 1px solid #0b8eab;
+    border-radius: 0.55rem;
+    background: #fff;
+    color: #0b6f86;
+    font-weight: 700;
+}
+.is-admin-panel .admin-question-page .admin-question-file__pick input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    min-height: 2.75rem;
+    max-width: none;
+    opacity: 0;
+    cursor: pointer;
+}
+.is-admin-panel .admin-question-page .admin-question-file__name {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+.is-admin-panel .admin-question-page .admin-question-image-box[data-image-state="error"] .admin-question-file__pick { border-color: #9f1d1d; color: #9f1d1d; }
+.is-admin-panel .admin-question-page .admin-question-image-box[data-image-state="selected"] .admin-question-file__name,
+.is-admin-panel .admin-question-page .admin-question-image-box[data-image-state="kept"] .admin-question-file__name { color: #16324f; font-weight: 650; }
+.is-admin-panel .admin-question-page .admin-question-image-frame {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: min(15.625rem, 100%);
+    aspect-ratio: 1;
+    padding: 0.5rem;
+    border: 1px dashed #b7c6d8;
+    border-radius: 0.75rem;
+    background: #f7fbfe;
+    overflow: hidden;
+}
+.is-admin-panel .admin-question-page .admin-question-image-frame img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+.is-admin-panel .admin-question-page .admin-question-image-frame p { margin: 0; color: #66758c; text-align: center; }
+.is-admin-panel .admin-question-page .admin-question-option { position: relative; }
+.is-admin-panel .admin-question-page .admin-question-option__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-question-page .admin-question-option__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+    margin-left: auto;
+}
+.is-admin-panel .admin-question-page .admin-question-correct {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-question-page .admin-question-option__letter {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: #e7f6f8;
+    color: #0b6f86;
+    font-weight: 700;
+}
+.is-admin-panel .admin-question-page .admin-question-difficulty {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.is-admin-panel .admin-question-page .admin-question-difficulty legend { width: 100%; font-weight: 700; }
+.is-admin-panel .admin-question-page .admin-question-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0.2rem 0.8rem;
+    border: 2px solid transparent;
+    border-radius: 999px;
+    font-weight: 650;
+}
+.is-admin-panel .admin-question-page .admin-question-pill input { width: 1.05rem; height: 1.05rem; margin: 0; }
+.is-admin-panel .admin-question-page .admin-question-pill__state { display: none; }
+.is-admin-panel .admin-question-page .admin-question-pill:has(input:checked) .admin-question-pill__state { display: inline; font-size: 0.75rem; }
+.is-admin-panel .admin-question-page .admin-question-pill:focus-within { outline: 3px solid #0b3a4a; outline-offset: 2px; }
+.is-admin-panel .admin-question-page .admin-question-pill--easy { background: #e7f6ee; color: #146c43; }
+.is-admin-panel .admin-question-page .admin-question-pill--medium { background: #fff1e0; color: #9a4d00; }
+.is-admin-panel .admin-question-page .admin-question-pill--hard { background: #fdecec; color: #9f1d1d; }
+.is-admin-panel .admin-question-page .admin-question-pill--easy:has(input:checked) { border-color: #146c43; }
+.is-admin-panel .admin-question-page .admin-question-pill--medium:has(input:checked) { border-color: #9a4d00; }
+.is-admin-panel .admin-question-page .admin-question-pill--hard:has(input:checked) { border-color: #9f1d1d; }
+.is-admin-panel .admin-question-page .admin-question-usage summary { display: list-item; }
+.is-admin-panel .admin-question-page .admin-question-usage__list {
+    margin: 0.4rem 0 0;
+    padding-left: 1rem;
+}
+.is-admin-panel .admin-question-page .admin-question-usage__list li,
+.is-admin-panel .admin-question-page .admin-question__usage {
+    overflow-wrap: break-word;
+    word-break: normal;
+    white-space: normal;
+}
+.is-admin-panel .admin-question-page .admin-question-table .admin-question__usage {
+    width: auto;
+    min-width: 12rem;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-question-page .q-toolbar button,
+    .is-admin-panel .admin-question-page .q-science-panel button { min-height: 2rem; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-question-page .admin-question-stem-field { grid-template-columns: minmax(0, 1fr); }
+    .is-admin-panel .admin-question-page .admin-question-stem-field > .q-surface { min-height: 10rem; }
+}
+
+.is-admin-panel .admin-test-page .admin-user-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+.is-admin-panel .admin-test-page .admin-user-head p {
+    margin: 0.25rem 0 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-page .admin-test-primary {
+    border: 0;
+    background: #079dbf;
+    color: #fff;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-primary:hover,
+.is-admin-panel .admin-test-page .admin-test-primary:focus-visible {
+    background: #067f9b;
+    color: #fff;
+}
+.is-admin-panel .admin-test-page .admin-test-stat--draft .admin-user-stat__icon { background: #e7f1ff; color: #2f6fe4; }
+.is-admin-panel .admin-test-page .admin-test-stat--review .admin-user-stat__icon { background: #fff0dc; color: #d2610d; }
+.is-admin-panel .admin-test-page .admin-test-stat--published .admin-user-stat__icon { background: #e5f6ec; color: #0f8a4b; }
+.is-admin-panel .admin-test-page .admin-test-stat--archived .admin-user-stat__icon { background: #f3eaff; color: #7136db; }
+.is-admin-panel .admin-test-page .admin-test-note {
+    margin: 0.75rem 0 0;
+    color: #52667d;
+    font-size: 0.92rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+    align-items: end;
+}
+.is-admin-panel .admin-test-page .admin-test-filter label,
+.is-admin-panel .admin-test-page .admin-test-filters > label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-page .admin-test-filters__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters__actions .admin-user-clear {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-page .admin-test-filters select,
+.is-admin-panel .admin-test-page .admin-test-filters input[type="search"] { width: 100%; }
+.is-admin-panel .admin-test-page .admin-test-list {
+    margin-top: 0.85rem;
+    padding: 1rem 1.05rem 0.4rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-page .admin-test-list .admin-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.is-admin-panel .admin-test-page .admin-test-list h2 {
+    margin: 0 0 0.75rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-test-page .admin-test__name {
+    min-width: 0;
+    color: #16324f;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-page .admin-test__meta,
+.is-admin-panel .admin-test-page .admin-test__card-status,
+.is-admin-panel .admin-test-page .admin-test__open { display: none; }
+.is-admin-panel .admin-test-page .admin-test-tech { min-width: 0; margin-top: 0.35rem; }
+.is-admin-panel .admin-test-page .admin-test-tech > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel { display: none; }
+.is-admin-panel .admin-test-page .admin-test-tech[open] .admin-test-tech__panel {
+    display: block;
+    margin-top: 0.35rem;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel {
+    max-width: min(16rem, 100%);
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel dl {
+    display: grid;
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-test-page .admin-test-tech__panel dt { color: #52667d; }
+.is-admin-panel .admin-test-page .admin-test-tech__panel dd { min-width: 0; margin: 0; }
+.is-admin-panel .admin-test-page .admin-test-tech__panel code {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-test-page .admin-test-status--draft { background: #e7f1ff; color: #1f4f93; }
+.is-admin-panel .admin-test-page .admin-test-status--in_review { background: #fff4e5; color: #9a4d00; }
+.is-admin-panel .admin-test-page .admin-test-status--published { background: #e5f6ec; color: #146c43; }
+.is-admin-panel .admin-test-page .admin-test-status--archived { background: #f3eaff; color: #7136db; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-page .admin-test-filters {
+        grid-template-columns: minmax(14rem, 1.6fr) repeat(3, minmax(8rem, 1fr)) auto;
+    }
+    .is-admin-panel .admin-test-page .admin-test-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(1),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__identity { width: 42%; min-width: 0; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(2),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject { width: 16%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(3),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade { width: 10%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(4),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__status { width: 14%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(5),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__count { width: 7%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(6),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__action { width: 11%; }
+    .is-admin-panel .admin-test-page .admin-test-table th:nth-child(n+2),
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__subject,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__grade,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__status,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__count,
+    .is-admin-panel .admin-test-page .admin-test-table .admin-test__action {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .is-admin-panel .admin-test-page .admin-test-tech > summary { min-height: 2rem; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-test-page .admin-user-head { flex-direction: column; }
+    .is-admin-panel .admin-test-page .admin-user-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-page .admin-test-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-test-page .admin-test-table,
+    .is-admin-panel .admin-test-page .admin-test-table tbody,
+    .is-admin-panel .admin-test-page .admin-test-table tr,
+    .is-admin-panel .admin-test-page .admin-test-table td { display: block; width: auto; }
+    .is-admin-panel .admin-test-page .admin-test-table tr {
+        padding: 0.85rem 0.15rem 0.75rem;
+        border-bottom: 1px solid #e2eaf4;
+    }
+    .is-admin-panel .admin-test-page .admin-test-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__subject,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__grade,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__status,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__count,
+    .is-admin-panel .admin-test-page .admin-test-table td.admin-test__action { display: none; }
+    .is-admin-panel .admin-test-page .admin-test__head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+    .is-admin-panel .admin-test-page .admin-test__name { flex: 1 1 12rem; }
+    .is-admin-panel .admin-test-page .admin-test__card-status { display: inline-flex; }
+    .is-admin-panel .admin-test-page .admin-test__meta {
+        display: block;
+        margin: 0.35rem 0;
+        color: #52667d;
+    }
+    .is-admin-panel .admin-test-page .admin-test__open {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+        margin-top: 0.35rem;
+    }
+}
+@media (max-width: 640px) {
+    .is-admin-panel .admin-test-page .admin-user-stats { grid-template-columns: 1fr; }
+}
+
+.is-admin-panel .admin-test-editor__intro { margin-bottom: 1rem; }
+.is-admin-panel .admin-test-editor__intro p {
+    margin: 0.35rem 0 0;
+    max-width: 40rem;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-editor__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-editor__layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-test-editor__side,
+.is-admin-panel .admin-test-editor__main {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-editor__card {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-editor__card h2,
+.is-admin-panel .admin-test-editor__card-head h2 {
+    margin: 0;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-test-editor__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-editor__card-head p,
+.is-admin-panel .admin-test-editor__hint {
+    margin: 0.75rem 0 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-editor__card-head p { margin: 0; }
+.is-admin-panel .admin-test-editor__fields,
+.is-admin-panel .admin-test-editor__filters {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-test-editor label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-editor input,
+.is-admin-panel .admin-test-editor select,
+.is-admin-panel .admin-test-editor textarea {
+    width: 100%;
+    min-width: 0;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-editor select:focus-visible,
+.is-admin-panel .admin-test-editor textarea:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-editor .admin-test-primary {
+    border: 0;
+    background: #079dbf;
+    color: #fff;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor .admin-test-primary:hover,
+.is-admin-panel .admin-test-editor .admin-test-primary:focus-visible {
+    background: #067f9b;
+    color: #fff;
+}
+.is-admin-panel .admin-test-editor__facts {
+    display: grid;
+    gap: 0.55rem;
+    margin: 0.85rem 0 0;
+}
+.is-admin-panel .admin-test-editor__facts div {
+    display: grid;
+    grid-template-columns: 7rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-editor__facts dt { color: #52667d; }
+.is-admin-panel .admin-test-editor__facts dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech { min-width: 0; margin-top: 0.75rem; }
+.is-admin-panel .admin-test-editor .admin-test-tech > summary {
+    display: list-item;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
+    color: #3e5168;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech__panel {
+    display: none;
+    max-width: min(16rem, 100%);
+    margin-top: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid #d7e4ef;
+    border-radius: 0.65rem;
+    background: #f7fafc;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech[open] .admin-test-tech__panel { display: block; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dl {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+    gap: 0.35rem 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dt { color: #52667d; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel dd { min-width: 0; margin: 0; }
+.is-admin-panel .admin-test-editor .admin-test-tech__panel code {
+    display: block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    font-size: 0.82rem;
+}
+.is-admin-panel .admin-test-editor__items,
+.is-admin-panel .admin-test-editor__picks {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-item,
+.is-admin-panel .admin-test-pick {
+    min-width: 0;
+    padding: 0.85rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-item__stem,
+.is-admin-panel .admin-test-pick__stem {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-pick__stem { flex: 1 1 auto; }
+.is-admin-panel .admin-test-item__controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.is-admin-panel .admin-test-item__controls label { flex: 1 1 7rem; }
+.is-admin-panel .admin-test-editor__move {
+    flex: 1 1 7rem;
+    border: 1px solid #d7e4ef;
+    background: #fff;
+    color: #16324f;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor label.admin-test-pick__choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-height: 2.75rem;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-pick__choice input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.15rem;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-test-editor__empty {
+    margin: 0.85rem 0 0;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-editor__pager {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-test-editor__pager a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-editor__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+@media (min-width: 768px) {
+    .is-admin-panel .admin-test-editor__filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-editor__search-actions { grid-column: 1 / -1; }
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-editor__layout { grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem); }
+    .is-admin-panel .admin-test-editor__main { grid-column: 1; grid-row: 1; }
+    .is-admin-panel .admin-test-editor__side { grid-column: 2; grid-row: 1; }
+    .is-admin-panel .admin-test-editor__filters { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-editor .admin-test-tech > summary { min-height: 2rem; }
+}
+
+.is-admin-panel .admin-test-detail__head { flex-wrap: wrap; }
+.is-admin-panel .admin-test-detail__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__title h1 {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-detail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+.is-admin-panel .admin-test-detail__actions .btn,
+.is-admin-panel .admin-test-detail .admin-test-detail__danger,
+.is-admin-panel .admin-test-detail .admin-test-detail__ops > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__ops > summary {
+    width: fit-content;
+    max-width: 100%;
+    color: #1f6499;
+    font-weight: 650;
+    cursor: pointer;
+}
+.is-admin-panel .admin-test-detail a:focus-visible,
+.is-admin-panel .admin-test-detail button:focus-visible,
+.is-admin-panel .admin-test-detail summary:focus-visible,
+.is-admin-panel .admin-test-detail input:focus-visible,
+.is-admin-panel .admin-test-detail select:focus-visible,
+.is-admin-panel .admin-test-detail textarea:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-detail__layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-test-detail__main,
+.is-admin-panel .admin-test-detail__side {
+    display: grid;
+    gap: 0.85rem;
+    align-content: start;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__card {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-detail__card h2,
+.is-admin-panel .admin-test-detail__card h3 {
+    margin: 0;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-detail__card h2 { font-size: 1.05rem; }
+.is-admin-panel .admin-test-detail__card h3 { margin-top: 1rem; font-size: 0.98rem; }
+.is-admin-panel .admin-test-detail__card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-detail__card p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-detail__hint,
+.is-admin-panel .admin-test-detail__empty {
+    color: #52667d;
+}
+.is-admin-panel .admin-test-detail__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-detail__metrics li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__metric-icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-detail__metric-copy {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-test-detail__metric-copy span { color: #52667d; }
+.is-admin-panel .admin-test-detail__metric-copy strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-detail__questions,
+.is-admin-panel .admin-test-detail__placements {
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-detail__question {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: start;
+    min-width: 0;
+    padding: 0.8rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-detail__question p {
+    margin: 0.2rem 0 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail__index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: #eef3f8;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail__score {
+    color: #52667d;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-test-detail__instructions { overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail .admin-test-tech__panel { max-width: 100%; }
+.is-admin-panel .admin-test-detail .admin-test-detail__ops-panel { display: none; }
+.is-admin-panel .admin-test-detail .admin-test-detail__ops[open] > .admin-test-detail__ops-panel { display: block; }
+.is-admin-panel .admin-test-detail label {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-detail input,
+.is-admin-panel .admin-test-detail select,
+.is-admin-panel .admin-test-detail textarea {
+    width: 100%;
+    min-width: 0;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-detail label.admin-test-detail__check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    font-weight: 400;
+}
+.is-admin-panel .admin-test-detail label.admin-test-detail__check input {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: 0 0 auto;
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__danger {
+    border: 1px solid var(--tl-danger);
+    background: #fff;
+    color: var(--tl-danger);
+}
+.is-admin-panel .admin-test-detail .admin-test-detail__danger:hover,
+.is-admin-panel .admin-test-detail .admin-test-detail__danger:focus-visible {
+    background: var(--tl-danger-soft);
+    color: var(--tl-danger);
+}
+.is-admin-panel .admin-test-detail__placement {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    min-width: 0;
+    padding: 0.75rem 0;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-detail__placement > div { min-width: 0; flex: 1 1 12rem; }
+.is-admin-panel .admin-test-detail__placement p { margin: 0.2rem 0 0; }
+.is-admin-panel .admin-test-detail__placement-path { margin-top: 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail__placement code { overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-detail .stack-sm { margin-top: 0.85rem; }
+@media (min-width: 768px) {
+    .is-admin-panel .admin-test-detail__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-detail__layout { grid-template-columns: minmax(0, 1.85fr) minmax(16rem, 1fr); }
+    .is-admin-panel .admin-test-detail__metrics { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-detail__main { grid-column: 1; grid-row: 1; }
+    .is-admin-panel .admin-test-detail__side { grid-column: 2; grid-row: 1; }
+}
+
+.is-admin-panel .admin-test-preview {
+    width: min(100%, 48rem);
+    min-width: 0;
+}
+.is-admin-panel .admin-test-preview__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-preview__head { min-width: 0; margin-top: 0.35rem; }
+.is-admin-panel .admin-test-preview__kicker {
+    margin: 0;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-preview h1,
+.is-admin-panel .admin-test-preview h2,
+.is-admin-panel .admin-test-preview h3 {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-preview h1 { margin-top: 0.15rem; }
+.is-admin-panel .admin-test-preview h2 { margin-bottom: 0.65rem; font-size: 1.05rem; }
+.is-admin-panel .admin-test-preview h3 { font-size: 1rem; }
+.is-admin-panel .admin-test-preview__revision,
+.is-admin-panel .admin-test-preview__head > p:last-child { margin: 0.35rem 0 0; }
+.is-admin-panel .admin-test-preview a:focus-visible,
+.is-admin-panel .admin-test-preview summary:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-preview__metrics {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__metric,
+.is-admin-panel .admin-test-preview__card {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-preview__metric span {
+    display: block;
+    color: #52667d;
+}
+.is-admin-panel .admin-test-preview__metric strong {
+    display: block;
+    margin-top: 0.15rem;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-preview__card { margin-top: 0.85rem; }
+.is-admin-panel .admin-test-preview__questions-wrap { min-width: 0; margin-top: 0.85rem; }
+.is-admin-panel .admin-test-preview__questions {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__questions > li { margin: 0; }
+.is-admin-panel .admin-test-preview__question-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-preview__question-head p { margin: 0; color: #52667d; }
+.is-admin-panel .admin-test-preview__stem,
+.is-admin-panel .admin-test-preview__option-body,
+.is-admin-panel .admin-test-preview__instructions {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+.is-admin-panel .admin-test-preview__stem { margin-top: 0.75rem; }
+.is-admin-panel .admin-test-preview__stem p,
+.is-admin-panel .admin-test-preview__option-body p { margin: 0.35rem 0; }
+.is-admin-panel .admin-test-preview__choices {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0.85rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-preview__option {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0.65rem;
+    align-items: start;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.75rem;
+    background: #f8fbfd;
+}
+.is-admin-panel .admin-test-preview__letter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    background: #e7f6f8;
+    color: #1f6499;
+    font-weight: 700;
+}
+.is-admin-panel .admin-test-preview .q-math {
+    display: inline-block;
+    max-width: 100%;
+    overflow-x: auto;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-test-preview .q-math,
+.is-admin-panel .admin-test-preview .q-frac,
+.is-admin-panel .admin-test-preview .q-sqrt,
+.is-admin-panel .admin-test-preview .q-script,
+.is-admin-panel .admin-test-preview .q-over {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.is-admin-panel .admin-test-preview .admin-test-tech > summary { min-height: 2.75rem; }
+.is-admin-panel .admin-test-preview .admin-test-tech__panel { max-width: 100%; }
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-preview__metrics { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+.is-admin-panel .admin-test-results { min-width: 0; max-width: 100%; }
+.is-admin-panel .admin-test-results--detail { width: min(100%, 48rem); }
+.is-admin-panel .admin-test-results__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-results__head { min-width: 0; margin-top: 0.35rem; }
+.is-admin-panel .admin-test-results__kicker {
+    margin: 0;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-results h1,
+.is-admin-panel .admin-test-results h2,
+.is-admin-panel .admin-test-results h3 {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-results h1 { margin-top: 0.15rem; }
+.is-admin-panel .admin-test-results h2 { font-size: 1rem; }
+.is-admin-panel .admin-test-results h3 { margin-bottom: 0.35rem; font-size: 0.95rem; }
+.is-admin-panel .admin-test-results__head > p { margin: 0.35rem 0 0; overflow-wrap: anywhere; }
+.is-admin-panel .admin-test-results a:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-results__search,
+.is-admin-panel .admin-test-results__metric,
+.is-admin-panel .admin-test-results__question {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.85rem 1rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-test-results__search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: end;
+    margin-top: 1rem;
+}
+.is-admin-panel .admin-test-results__search label { flex: 1 1 16rem; min-width: 0; }
+.is-admin-panel .admin-test-results__search input { width: 100%; max-width: 100%; }
+.is-admin-panel .admin-test-results__metrics {
+    display: grid;
+    gap: 0.75rem;
+    margin: 1rem 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-results__metric span { display: block; color: #52667d; }
+.is-admin-panel .admin-test-results__metric strong {
+    display: block;
+    margin-top: 0.15rem;
+    overflow-wrap: anywhere;
+    color: #16324f;
+}
+.is-admin-panel .admin-test-results__table { width: 100%; }
+.is-admin-panel .admin-test-results__table th,
+.is-admin-panel .admin-test-results__table td:not(:first-child) .admin-result-field__value,
+.is-admin-panel .admin-test-results__open {
+    white-space: nowrap;
+    overflow-wrap: normal;
+}
+.is-admin-panel .admin-test-results__table th:first-child,
+.is-admin-panel .admin-test-results__table td:first-child { width: 40%; }
+.is-admin-panel .admin-test-results__name { overflow-wrap: anywhere; white-space: normal; }
+.is-admin-panel .admin-result-field__label { display: none; }
+.is-admin-panel .admin-result-field__counts {
+    display: block;
+    margin-top: 0.2rem;
+    color: #52667d;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-test-results__open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-results__questions {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-test-results__question-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.35rem 0.75rem;
+}
+.is-admin-panel .admin-test-results__question-head p { margin: 0; color: #52667d; }
+.is-admin-panel .admin-test-results__stem,
+.is-admin-panel .admin-test-results__answers,
+.is-admin-panel .admin-test-results__solution {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.55;
+}
+.is-admin-panel .admin-test-results__stem { margin-top: 0.75rem; }
+.is-admin-panel .admin-test-results__answers {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-test-results__answers p,
+.is-admin-panel .admin-test-results__stem p { margin: 0.35rem 0; }
+.is-admin-panel .admin-test-results__tag {
+    display: inline;
+    margin-right: 0.35rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-test-results__outcome { color: #16324f; font-weight: 650; }
+.is-admin-panel .admin-test-results__solution {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e2eaf4;
+}
+.is-admin-panel .admin-test-results .q-math {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-test-results .q-math:focus-visible {
+    outline: 2px solid var(--tl-focus);
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-test-results .q-math,
+.is-admin-panel .admin-test-results .q-frac,
+.is-admin-panel .admin-test-results .q-sqrt,
+.is-admin-panel .admin-test-results .q-script,
+.is-admin-panel .admin-test-results .q-over {
+    overflow-wrap: normal;
+    word-break: normal;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-test-results__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .is-admin-panel .admin-test-results--detail .admin-test-results__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-test-results__table,
+    .is-admin-panel .admin-test-results__table tbody,
+    .is-admin-panel .admin-test-results__table tr,
+    .is-admin-panel .admin-test-results__table td {
+        display: block;
+        width: auto;
+    }
+    .is-admin-panel .admin-test-results__table thead { display: none; }
+    .is-admin-panel .admin-test-results__table tr {
+        margin-bottom: 0.85rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.9rem;
+        background: #fff;
+    }
+    .is-admin-panel .admin-test-results__table td { padding: 0.35rem 0; border: 0; }
+    .is-admin-panel .admin-result-field__label {
+        display: block;
+        color: #52667d;
+        font-size: 0.85rem;
+    }
+    .is-admin-panel .admin-test-results .admin-test-results__table-wrap {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+        overflow: visible;
+    }
+}
+

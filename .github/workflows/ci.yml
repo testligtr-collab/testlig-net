@@ -16,7 +16,8 @@ concurrency:
 jobs:
   quality:
     name: Quality & tests
-    runs-on: ubuntu-latest
+    # Identity-window checks call chcon, which fails on the Ubuntu 26.04 runner image.
+    runs-on: ubuntu-24.04
 
     services:
       mariadb:
@@ -81,6 +82,9 @@ jobs:
 
       - name: Location cascade regression
         run: node --experimental-detect-module --import ./tests/js/register-stimulus-stub.mjs --test tests/js/location_cascade_controller.test.mjs
+
+      - name: Homework text counter regression
+        run: node --experimental-detect-module --test tests/js/homework_text.test.mjs
 
       - name: Setup PHP 8.3
         uses: shivammathur/setup-php@v2
@@ -157,7 +161,8 @@ jobs:
 
   browser-acceptance:
     name: Browser acceptance
-    runs-on: ubuntu-latest
+    # Playwright 1.55.1 cannot install Chromium system dependencies on Ubuntu 26.04.
+    runs-on: ubuntu-24.04
 
     services:
       mariadb:

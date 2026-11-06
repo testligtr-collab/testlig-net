@@ -1,6 +1,7 @@
 {% set route = app.request.attributes.get('_route')|default('') %}
 {% set courses = ['app_student_courses', 'app_student_course_subject', 'app_student_course_unit', 'app_student_course_topic'] %}
 {% set tests = ['app_student_tests', 'app_student_test_show', 'app_student_test_solve', 'app_student_test_result'] %}
+{% set homeworks = ['app_student_homeworks', 'app_student_homework_show', 'app_student_homework_draft', 'app_student_homework_submit'] %}
 <header class="site-header student-header" data-controller="mobile-nav">
     <div class="site-header__inner">
         {% include 'components/brand.html.twig' with {href: path('app_student_dashboard')} %}
@@ -9,6 +10,7 @@
             <a href="{{ path('app_student_dashboard') }}" {% if route == 'app_student_dashboard' %}aria-current="page"{% endif %}>Panel</a>
             <a href="{{ path('app_student_courses') }}" {% if route in courses %}aria-current="page"{% endif %}>Dersler</a>
             <a href="{{ path('app_student_tests') }}" {% if route in tests %}aria-current="page"{% endif %}>Testler</a>
+            <a href="{{ path('app_student_homeworks') }}" {% if route in homeworks %}aria-current="page"{% endif %}>Ödevlerim</a>
             <a href="{{ path('app_student_test_history') }}" {% if route == 'app_student_test_history' %}aria-current="page"{% endif %}>Geçmişim</a>
             <a href="{{ path('app_student_profile') }}" {% if route == 'app_student_profile' or route == 'app_student_onboarding' %}aria-current="page"{% endif %}>Profil</a>
             <a href="{{ path('app_account') }}" {% if route == 'app_account' or route == 'app_account_change_password' %}aria-current="page"{% endif %}>Hesabım</a>
@@ -47,6 +49,7 @@
             <a href="{{ path('app_student_dashboard') }}" {% if route == 'app_student_dashboard' %}aria-current="page"{% endif %}>Panel</a>
             <a href="{{ path('app_student_courses') }}" {% if route in courses %}aria-current="page"{% endif %}>Dersler</a>
             <a href="{{ path('app_student_tests') }}" {% if route in tests %}aria-current="page"{% endif %}>Testler</a>
+            <a href="{{ path('app_student_homeworks') }}" {% if route in homeworks %}aria-current="page"{% endif %}>Ödevlerim</a>
             <a href="{{ path('app_student_test_history') }}" {% if route == 'app_student_test_history' %}aria-current="page"{% endif %}>Geçmişim</a>
             <a href="{{ path('app_student_profile') }}" {% if route == 'app_student_profile' or route == 'app_student_onboarding' %}aria-current="page"{% endif %}>Profil</a>
             <a href="{{ path('app_account') }}" {% if route == 'app_account' or route == 'app_account_change_password' %}aria-current="page"{% endif %}>Hesabım</a>

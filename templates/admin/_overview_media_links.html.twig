@@ -1,0 +1,23 @@
+{% set order = ['documents', 'videos', 'storage'] %}
+{% set copy = {
+    documents: { icon: 'media_pdf', blurb: 'PDF ve eğitim materyalleri.' },
+    videos: { icon: 'media_play', blurb: 'Ders ve anlatım videoları.' },
+    storage: { icon: 'media_cloud', blurb: 'Dosyalar ve depolama alanı.' }
+} %}
+<div class="admin-media-panel">
+    {% for id in order %}
+        {% for item in items|filter(item => item.id == id) %}
+            <a class="admin-media-link admin-media-link--{{ item.id }}" href="{{ item.href }}">
+                <span class="admin-media-link__icon">{% include 'components/admin_icon.html.twig' with { icon: copy[item.id].icon } only %}</span>
+                <span class="admin-media-link__copy">
+                    <span class="admin-media-link__line">
+                        <span class="admin-media-link__title">{{ item.label }}</span>
+                        <span class="admin-media-link__stage">{{ item.stage == 'planned' ? 'Geliştirme aşamasında' : 'Çalışıyor' }}</span>
+                    </span>
+                    <span class="admin-media-link__blurb">{{ copy[item.id].blurb }}</span>
+                </span>
+                <span class="admin-media-link__arrow" aria-hidden="true">›</span>
+            </a>
+        {% endfor %}
+    {% endfor %}
+</div>

@@ -12,8 +12,8 @@ use App\Repository\QuestionRevisionOptionRepository;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * The single pending image referenced by the current question revision.
- * Zero or several references, or a foreign asset, is not scannable.
+ * Pending images referenced by one question revision.
+ * A foreign asset is not scannable. Ready is not granted here.
  */
 final class QuestionRevisionPendingImage
 {
@@ -25,8 +25,18 @@ final class QuestionRevisionPendingImage
 
     public function sole(Question $question, QuestionRevision $revision): ?Uuid
     {
+        $pending = $this->pending($question, $revision);
+
+        return 1 === \count($pending) ? $pending[0] : null;
+    }
+
+    /**
+     * @return list<Uuid>
+     */
+    public function pending(Question $question, QuestionRevision $revision): array
+    {
         if (!$revision->getQuestion()->getId()->equals($question->getId())) {
-            return null;
+            return [];
         }
         $ids = [];
         foreach ([$revision->getStemContent(), $revision->getExplanationContent()] as $document) {
@@ -35,23 +45,30 @@ final class QuestionRevisionPendingImage
         foreach ($this->options->findByRevision($revision) as $option) {
             $this->collect($option->getContent(), $ids);
         }
-        if (1 !== \count($ids)) {
-            return null;
+        $pending = [];
+        foreach ($ids as $assetId) {
+            if ($this->isPendingForQuestion($question, $assetId)) {
+                $pending[] = $assetId;
+            }
         }
-        $assetId = array_values($ids)[0];
+
+        return $pending;
+    }
+
+    private function isPendingForQuestion(Question $question, Uuid $assetId): bool
+    {
         try {
             $snapshot = $this->records->describeQuestionImage($assetId);
         } catch (LearningContentException) {
-            return null;
+            return false;
         }
         $institutionId = $question->getInstitution()?->getId();
         $sameInstitution = (null === $snapshot->institutionId && null === $institutionId)
             || ($snapshot->institutionId instanceof Uuid && $institutionId instanceof Uuid && $snapshot->institutionId->equals($institutionId));
-        if (!$snapshot->isPendingImage() || $snapshot->scope->value !== $question->getScope()->value || !$sameInstitution) {
-            return null;
-        }
 
-        return $assetId;
+        return $snapshot->isPendingImage()
+            && $snapshot->scope->value === $question->getScope()->value
+            && $sameInstitution;
     }
 
     /**

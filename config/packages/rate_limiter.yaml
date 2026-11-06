@@ -56,6 +56,61 @@ framework:
             limit: 10
             interval: '10 minutes'
 
+        admin_branch_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_branch_update:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_branch_status:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_academic_year_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_academic_year_activate:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_classroom_create:
+            policy: 'sliding_window'
+            limit: 5
+            interval: '10 minutes'
+
+        admin_classroom_revise:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_classroom_archive:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_curriculum_mutate:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '10 minutes'
+
+        admin_curriculum_publish:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
+        admin_curriculum_archive:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '10 minutes'
+
         admin_membership_mutate:
             policy: 'sliding_window'
             limit: 10
@@ -166,6 +221,50 @@ when@test:
             admin_institution_status:
                 policy: 'fixed_window'
                 limit: 5
+                interval: '10 minutes'
+            admin_branch_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_branch_update:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_branch_status:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_academic_year_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_academic_year_activate:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_create:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_revise:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_classroom_archive:
+                policy: 'fixed_window'
+                limit: 5
+                interval: '10 minutes'
+            admin_curriculum_mutate:
+                policy: 'fixed_window'
+                limit: 30
+                interval: '10 minutes'
+            admin_curriculum_publish:
+                policy: 'fixed_window'
+                limit: 20
+                interval: '10 minutes'
+            admin_curriculum_archive:
+                policy: 'fixed_window'
+                limit: 20
                 interval: '10 minutes'
             admin_membership_mutate:
                 policy: 'fixed_window'

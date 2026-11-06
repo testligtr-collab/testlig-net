@@ -1,0 +1,145 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Sınıf detayı — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_classrooms') }}">Sınıflar</a>
+        <span aria-hidden="true">/</span>
+        <span>Ref {{ classroom.shortRef }}</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = { 'active': 'Aktif', 'archived': 'Arşiv' } %}
+    <div class="admin-user-page admin-classroom-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Sınıf detayı</h1>
+                <p>{{ classroom.name }}</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_classrooms') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+        </header>
+
+        <div class="admin-institution-create">
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="classroom-facts">
+                    <h2 id="classroom-facts"><span class="admin-institution-heading-icon admin-institution-heading-icon--blue" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'classrooms' } only %}</span> Sınıf bilgileri</h2>
+                    <dl class="admin-institution-facts">
+                        <div>
+                            <dt>Sınıf adı</dt>
+                            <dd>{{ classroom.name }}</dd>
+                        </div>
+                        <div>
+                            <dt>Müfredat sınıf düzeyi</dt>
+                            <dd>{{ classroom.gradeLabel }}</dd>
+                        </div>
+                        <div>
+                            <dt>Şube kodu</dt>
+                            <dd>{{ classroom.sectionCode ?? 'Kod yok' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Kontenjan</dt>
+                            <dd>{{ classroom.capacity ?? 'Belirtilmemiş' }}</dd>
+                        </div>
+                        <div>
+                            <dt>Durum</dt>
+                            <dd><span class="admin-institution-status admin-institution-status--{{ classroom.status.value }}">{{ status_labels[classroom.status.value]|default(classroom.status.value) }}</span></dd>
+                        </div>
+                        <div>
+                            <dt>Kurum</dt>
+                            <dd><a href="{{ path('app_admin_institution_detail', { id: classroom.institutionId }) }}">{{ classroom.institutionName }}</a></dd>
+                        </div>
+                        <div>
+                            <dt>Akademik yıl</dt>
+                            <dd><a href="{{ path('app_admin_academic_year_detail', { id: classroom.academicYearId }) }}">{{ classroom.academicYearName }}</a></dd>
+                        </div>
+                        <div>
+                            <dt>Aktif öğrenci</dt>
+                            <dd data-classroom-students="active">{{ classroom.activeStudentCount }}</dd>
+                        </div>
+                        <div>
+                            <dt>Sonlanmış öğrenci kaydı</dt>
+                            <dd>{{ classroom.endedStudentCount }}</dd>
+                        </div>
+                    </dl>
+                    <p class="admin-institution-note">Sınıf adı ile müfredat sınıf düzeyi aynı kayıt değildir. Öğrenci adları bu ekranda listelenmez.</p>
+                </section>
+
+                <section class="admin-institution-card" aria-labelledby="classroom-teachers">
+                    <h2 id="classroom-teachers"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span> Öğretmen atamaları</h2>
+                    {% if classroom.teachers is empty %}
+                        <p>Öğretmen atanmamış</p>
+                    {% else %}
+                        <ul>
+                            {% for teacher in classroom.teachers %}
+                                <li>{{ teacher.name }} · {{ teacher.roleLabel }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    <p class="admin-institution-note">Sonlanmış atama: {{ classroom.endedTeacherCount }}. Sonlanmış atama aktif öğretmen sayılmaz ve adları burada gösterilmez.</p>
+                </section>
+            </div>
+
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="classroom-actions">
+                <h2 id="classroom-actions">İşlemler</h2>
+                {% if revise_form %}
+                    {{ form_start(revise_form) }}
+                        <h3>Temel bilgiler</h3>
+                        <div class="admin-institution-field">
+                            {{ form_label(revise_form.name) }}
+                            {{ form_widget(revise_form.name) }}
+                            {{ form_errors(revise_form.name) }}
+                        </div>
+                        <div class="admin-institution-field">
+                            {{ form_label(revise_form.capacity) }}
+                            {{ form_widget(revise_form.capacity, { attr: { inputmode: 'numeric' } }) }}
+                            {{ form_errors(revise_form.capacity) }}
+                        </div>
+                        {{ form_widget(revise_form.expectedUpdatedAt) }}
+                        <div class="admin-institution-field">
+                            {{ form_label(revise_form.reasonCode) }}
+                            {{ form_widget(revise_form.reasonCode) }}
+                            {{ form_errors(revise_form.reasonCode) }}
+                        </div>
+                        <div class="admin-institution-field">
+                            {{ form_widget(revise_form.confirm) }}
+                            {{ form_label(revise_form.confirm) }}
+                            {{ form_errors(revise_form.confirm) }}
+                        </div>
+                        {{ form_errors(revise_form) }}
+                        <div class="admin-institution-actions">
+                            <button class="btn admin-institution-primary" type="submit">Bilgileri kaydet</button>
+                        </div>
+                    {{ form_end(revise_form) }}
+                {% else %}
+                    <p class="admin-institution-note">Bu sınıf şu anki durumunda düzenlenemez.</p>
+                {% endif %}
+
+                {% if archive_form %}
+                    {{ form_start(archive_form) }}
+                        <h3>Arşiv</h3>
+                        <p class="admin-institution-note">Arşiv son durumdur. Sınıf yeniden açılamaz. Öğrenci, sınav ve geçmiş bağlantıları silinmez.</p>
+                        <div class="admin-institution-field">
+                            {{ form_label(archive_form.reasonCode) }}
+                            {{ form_widget(archive_form.reasonCode) }}
+                            {{ form_errors(archive_form.reasonCode) }}
+                        </div>
+                        <div class="admin-institution-field">
+                            {{ form_widget(archive_form.confirm) }}
+                            {{ form_label(archive_form.confirm) }}
+                            {{ form_errors(archive_form.confirm) }}
+                        </div>
+                        <div class="admin-institution-actions">
+                            <button class="btn admin-institution-primary" type="submit">Sınıfı arşivle</button>
+                        </div>
+                    {{ form_end(archive_form) }}
+                {% elseif classroom.status.value == 'archived' %}
+                    <p class="admin-institution-note">Bu sınıf arşivde. Yeniden açılamaz.</p>
+                {% endif %}
+            </aside>
+        </div>
+    </div>
+{% endblock %}

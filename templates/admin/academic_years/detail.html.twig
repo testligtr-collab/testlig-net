@@ -1,0 +1,86 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Akademik yıl detayı — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_academic_years') }}">Akademik yıllar</a>
+        <span aria-hidden="true">/</span>
+        <span>Ref {{ year.shortRef }}</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = { 'planned': 'Planlandı', 'active': 'Aktif', 'closed': 'Kapandı' } %}
+    {% set institution_labels = { 'pending': 'Beklemede', 'active': 'Aktif', 'suspended': 'Askıda', 'archived': 'Arşiv' } %}
+    <div class="admin-user-page admin-academic-year-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Akademik yıl detayı</h1>
+                <p>Kurum bağlantısı, tarih aralığı ve aktiflik.</p>
+            </div>
+            <a class="btn btn--ghost admin-institution-back" href="{{ path('app_admin_academic_years') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+        </header>
+
+        <section class="admin-institution-card admin-institution-profile" aria-labelledby="year-profile-name">
+            <div class="admin-institution-profile__main">
+                <span class="admin-institution-profile__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'calendar' } only %}</span>
+                <div>
+                    <h2 id="year-profile-name" class="admin-institution-name">{{ year.name }}</h2>
+                    <p>{{ year.institutionName }}</p>
+                    <p><span class="admin-institution-status admin-institution-status--{{ year.status.value }}">{{ status_labels[year.status.value]|default(year.status.value) }}</span></p>
+                </div>
+            </div>
+        </section>
+
+        <div class="admin-institution-create">
+            <div class="admin-institution-create__main">
+                <section class="admin-institution-card" aria-labelledby="year-facts">
+                    <h2 id="year-facts"><span class="admin-institution-heading-icon admin-institution-heading-icon--teal" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'institutions' } only %}</span> Bağlı kurum</h2>
+                    <dl class="admin-institution-facts">
+                        <div><dt>Kurum</dt><dd><a href="{{ path('app_admin_institution_detail', { id: year.institutionId }) }}">{{ year.institutionName }}</a></dd></div>
+                        <div><dt>Kurum durumu</dt><dd>{{ institution_labels[year.institutionStatus.value]|default(year.institutionStatus.value) }}</dd></div>
+                        <div><dt>Tarih aralığı</dt><dd>{{ year.rangeLabel }}</dd></div>
+                        <div><dt>Yıl durumu</dt><dd>{{ status_labels[year.status.value]|default(year.status.value) }}</dd></div>
+                    </dl>
+                    <p class="admin-institution-note">Kayıtlı yılın kurumu değiştirilemez.</p>
+                </section>
+            </div>
+            <aside class="admin-institution-card admin-institution-aside" aria-labelledby="year-activation">
+                <h2 id="year-activation">Aktif yıl</h2>
+                {% if year.activeYearId == year.id %}
+                    <p data-year-active>Bu yıl kurumun aktif yılıdır.</p>
+                {% elseif year.activeYearName %}
+                    <p data-year-active>Mevcut aktif yıl: {{ year.activeYearName }}. Aktifleştirme bu yılı kapatır.</p>
+                {% else %}
+                    <p data-year-active>Bu kurumda aktif akademik yıl yok.</p>
+                {% endif %}
+                {% if activate_form %}
+                    <p>Aktifleştirilecek yıl: {{ year.name }}.</p>
+                    {{ form_start(activate_form, { attr: { novalidate: 'novalidate' } }) }}
+                        <div class="admin-institution-field">
+                            {{ form_label(activate_form.reasonCode, 'Gerekçe') }}
+                            {{ form_widget(activate_form.reasonCode) }}
+                            {{ form_errors(activate_form.reasonCode) }}
+                        </div>
+                        <div class="admin-institution-field">
+                            {{ form_widget(activate_form.confirm) }}
+                            {{ form_label(activate_form.confirm) }}
+                            {{ form_errors(activate_form.confirm) }}
+                        </div>
+                        <div class="admin-institution-actions">
+                            <button class="btn admin-institution-primary" type="submit">Yılı aktifleştir</button>
+                        </div>
+                    {{ form_end(activate_form) }}
+                {% elseif year.status.value == 'closed' %}
+                    <p class="admin-institution-note">Kapalı bir yıl yeniden aktifleştirilemez.</p>
+                {% elseif year.institutionStatus.value != 'active' and year.status.value == 'planned' %}
+                    <p class="admin-institution-note">Aktif olmayan kurumda akademik yıl aktifleştirilemez.</p>
+                {% endif %}
+                <p class="admin-institution-note">Aktifleştirme sınıf, öğretmen ataması, öğrenci kaydı veya sonuç taşımaz.</p>
+            </aside>
+        </div>
+    </div>
+{% endblock %}

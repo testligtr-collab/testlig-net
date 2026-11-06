@@ -8,6 +8,7 @@ use App\Entity\CurriculumProgram;
 use App\Entity\User;
 use App\Enum\CurriculumStatus;
 use App\Enum\GradeLevel;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Repository\UserRepository;
@@ -16,6 +17,7 @@ use App\Security\RequestScopedInstitutionAuthLookup;
 use App\Service\CurriculumProgramManager;
 use App\Service\SubjectManager;
 use App\Service\UserFactory;
+use App\Service\UserModulePermissionManager;
 use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -86,20 +88,35 @@ final class CurriculumVoterTest extends KernelTestCase
         self::assertTrue($this->decide($sa, $attribute, $program));
     }
 
-    public function testAdminAndModeratorDeniedManage(): void
+    public function testAdminCanManageAndModeratorNeedsTheMatchingGrant(): void
     {
-        [, $program] = $this->publishedProgram('cv_adm');
+        [$sa, $program] = $this->publishedProgram('cv_adm');
         $admin = $this->activeUser('cv-admin@example.com');
         $admin->addGlobalRole(UserRole::Admin);
         $this->users->save($admin);
         $mod = $this->activeUser('cv-mod@example.com');
         $mod->addGlobalRole(UserRole::Moderator);
         $this->users->save($mod);
+        $contentOnly = $this->activeUser('cv-content@example.com');
+        $contentOnly->addGlobalRole(UserRole::Moderator);
+        $this->users->save($contentOnly);
 
-        self::assertFalse($this->decide($admin, CurriculumPermission::MANAGE, $program));
+        self::assertTrue($this->decide($admin, CurriculumPermission::MANAGE, $program));
+        self::assertTrue($this->decide($admin, CurriculumPermission::PUBLISH, $program));
+        self::assertTrue($this->decide($admin, CurriculumPermission::VIEW, $this->draftProgram('cv_adm_d')[1]));
         self::assertFalse($this->decide($mod, CurriculumPermission::PUBLISH, $program));
-        self::assertFalse($this->decide($admin, CurriculumPermission::VIEW, $this->draftProgram('cv_adm_d')[1]));
         self::assertFalse($this->decide($mod, CurriculumPermission::VIEW, $this->draftProgram('cv_adm_d2')[1]));
+
+        $grants = static::getContainer()->get(UserModulePermissionManager::class);
+        self::assertInstanceOf(UserModulePermissionManager::class, $grants);
+        $grants->replace($sa->getId(), $contentOnly->getId(), 0, [ModeratorModuleGrant::LearningContentManage->value]);
+        $grants->replace($sa->getId(), $mod->getId(), 0, [ModeratorModuleGrant::CurriculumManage->value]);
+        $this->resetLookup();
+
+        self::assertFalse($this->decide($contentOnly, CurriculumPermission::MANAGE, $program));
+        self::assertTrue($this->decide($mod, CurriculumPermission::MANAGE, $program));
+        self::assertFalse($this->decide($mod, CurriculumPermission::PUBLISH, $program));
+        self::assertFalse($this->decide($mod, CurriculumPermission::RETIRE, $program));
     }
 
     public function testPendingSuspendedUnverifiedDenied(): void

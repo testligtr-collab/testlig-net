@@ -7,6 +7,7 @@ namespace App\Enum;
 enum CurriculumContentStatus: string
 {
     case Active = 'active';
+    case Inactive = 'inactive';
     case Archived = 'archived';
 
     /**
@@ -15,7 +16,8 @@ enum CurriculumContentStatus: string
     public function allowedTransitions(): array
     {
         return match ($this) {
-            self::Active => [self::Archived],
+            self::Active => [self::Inactive, self::Archived],
+            self::Inactive => [self::Active, self::Archived],
             self::Archived => [],
         };
     }

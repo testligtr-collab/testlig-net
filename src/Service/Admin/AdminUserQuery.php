@@ -7,6 +7,7 @@ namespace App\Service\Admin;
 use App\Dto\AdminPagedResult;
 use App\Dto\AdminUserDetailView;
 use App\Dto\AdminUserListItemView;
+use App\Dto\AdminUserListSummary;
 use App\Entity\User;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
@@ -97,9 +98,8 @@ final class AdminUserQuery
                 // ROLE_USER is implicit; match users with empty stored global_roles.
                 $qb->andWhere('u.globalRoles = :emptyRoles')->setParameter('emptyRoles', []);
             } else {
-                $roleJson = json_encode($role->value, \JSON_THROW_ON_ERROR);
-                $qb->andWhere('JSON_CONTAINS(u.globalRoles, :roleJson) = 1')
-                    ->setParameter('roleJson', $roleJson);
+                $qb->andWhere('u.globalRoles LIKE :roleLike')
+                    ->setParameter('roleLike', '%"'.$role->value.'"%');
             }
         }
 
@@ -135,6 +135,33 @@ final class AdminUserQuery
         }
 
         return new AdminPagedResult($items, $page, $pageSize, $total);
+    }
+
+    public function summary(Uuid $actorId): AdminUserListSummary
+    {
+        $this->actorGuard->requireUsersView($actorId);
+
+        $result = $this->em->createQueryBuilder()
+            ->select('COUNT(u.id) AS total')
+            ->addSelect('SUM(CASE WHEN u.status = :active THEN 1 ELSE 0 END) AS activeCount')
+            ->addSelect('SUM(CASE WHEN u.status = :pending THEN 1 ELSE 0 END) AS pendingCount')
+            ->addSelect('SUM(CASE WHEN u.status = :suspended THEN 1 ELSE 0 END) AS suspendedCount')
+            ->from(User::class, 'u')
+            ->setParameter('active', UserStatus::Active)
+            ->setParameter('pending', UserStatus::PendingVerification)
+            ->setParameter('suspended', UserStatus::Suspended)
+            ->getQuery()
+            ->getSingleResult();
+        if (!\is_array($result)) {
+            throw new \RuntimeException('User summary query did not return a row.');
+        }
+
+        return new AdminUserListSummary(
+            $this->countValue($result['total'] ?? 0),
+            $this->countValue($result['activeCount'] ?? 0),
+            $this->countValue($result['pendingCount'] ?? 0),
+            $this->countValue($result['suspendedCount'] ?? 0),
+        );
     }
 
     public function getDetail(Uuid $actorId, Uuid $userId): AdminUserDetailView
@@ -204,6 +231,53 @@ final class AdminUserQuery
     }
 
     /**
+     * Active, verified accounts that can be chosen as an institution's first owner.
+     * The caller must already hold institution-create permission; this method checks it again.
+     *
+     * @return list<array{id: string, name: string, email: string}>
+     */
+    public function searchInstitutionOwnerCandidates(Uuid $actorId, string $rawQuery): array
+    {
+        $this->actorGuard->requireInstitutionsCreate($actorId);
+        try {
+            $term = AdminLikeEscape::normalizeSearch($rawQuery);
+        } catch (\InvalidArgumentException) {
+            throw CommerceException::invalidInput('Search query is too long.');
+        }
+        if (null === $term || mb_strlen($term) < 2) {
+            return [];
+        }
+
+        /** @var list<array{id: Uuid|string, firstName: string, lastName: string, email: string}> $rows */
+        $rows = $this->em->createQueryBuilder()
+            ->select('u.id AS id, u.firstName AS firstName, u.lastName AS lastName, u.email AS email')
+            ->from(User::class, 'u')
+            ->andWhere('u.status = :status')
+            ->andWhere('u.emailVerifiedAt IS NOT NULL')
+            ->andWhere("(u.firstName LIKE :q ESCAPE '!' OR u.lastName LIKE :q ESCAPE '!' OR u.email LIKE :q ESCAPE '!' OR u.normalizedEmail LIKE :q ESCAPE '!')")
+            ->setParameter('status', UserStatus::Active)
+            ->setParameter('q', AdminLikeEscape::containsPattern($term))
+            ->orderBy('u.lastName', 'ASC')
+            ->addOrderBy('u.firstName', 'ASC')
+            ->addOrderBy('u.id', 'ASC')
+            ->setMaxResults(8)
+            ->getQuery()
+            ->getArrayResult();
+
+        $results = [];
+        foreach ($rows as $row) {
+            $id = $row['id'];
+            $results[] = [
+                'id' => $id instanceof Uuid ? $id->toRfc4122() : (string) $id,
+                'name' => trim($row['firstName'].' '.$row['lastName']),
+                'email' => $row['email'],
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * @param array<string, mixed> $raw
      *
      * @return array<string, mixed>
@@ -219,6 +293,18 @@ final class AdminUserQuery
         }
 
         return $out;
+    }
+
+    private function countValue(mixed $value): int
+    {
+        if (\is_int($value)) {
+            return $value;
+        }
+        if (\is_float($value) || (\is_string($value) && is_numeric($value))) {
+            return (int) $value;
+        }
+
+        return 0;
     }
 
     private function parseBoolFilter(mixed $value): bool

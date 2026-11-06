@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Dto\AdminTeacherApplicationRow;
 use App\Entity\TeacherApplication;
 use App\Entity\User;
 use App\Enum\UserManagementFailureReason;
 use App\Exception\InvalidUserTransitionException;
 use App\Exception\OnboardingApplicationException;
+use App\Presentation\TeacherApplicationRejectReason;
 use App\Repository\TeacherApplicationRepository;
 use App\Security\AdminPermission;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Service\Admin\AdminNavBuilder;
+use App\Service\Admin\AdminTeacherApplicationQuery;
 use App\Service\TeacherApplicationManager;
 use App\Service\TeacherApplicationRoleGrant;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -34,29 +38,64 @@ final class AdminTeacherApplicationController extends AdminBaseController
         private readonly TeacherApplicationManager $applicationManager,
         private readonly TeacherApplicationRoleGrant $roleGrant,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly AdminTeacherApplicationQuery $applicationQuery,
     ) {
         parent::__construct($adminNavBuilder);
     }
 
     #[Route('/yonetim/ogretmen-basvurulari', name: 'app_admin_teacher_applications', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
-    public function list(): Response
+    public function list(Request $request): Response
     {
         $this->requireSuperAdmin();
+        $list = $this->applicationQuery->search($request->query->all());
 
         return $this->renderAdmin('admin/teacher_applications/list.html.twig', [
-            'applications' => $this->applications->findPendingOrdered(),
+            'summary' => $this->applicationQuery->summary(),
+            'result' => $list->result,
+            'filters' => $list->filters,
         ]);
     }
 
     #[Route('/yonetim/ogretmen-basvurulari/{id}', name: 'app_admin_teacher_application', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
-    public function detail(Uuid $id): Response
+    public function detail(Request $request, Uuid $id): Response
     {
         $this->requireSuperAdmin();
+        $application = $this->application($id);
+        $session = $request->getSession();
+        if (!$session instanceof FlashBagAwareSessionInterface) {
+            throw new \LogicException('Oturum flaş bilgisi taşımıyor.');
+        }
+        $reasonFlashes = $session->getFlashBag()->get('teacher_application_reason');
+        $reasonErrors = $session->getFlashBag()->get('teacher_application_reason_error');
+        $reasonMessages = $session->getFlashBag()->get('teacher_application_reason_message');
+        $postedReason = '';
+        foreach ($reasonFlashes as $reasonFlash) {
+            if (\is_string($reasonFlash)) {
+                $postedReason = $reasonFlash;
+                break;
+            }
+        }
+        $reasonError = '';
+        foreach ($reasonMessages as $reasonMessage) {
+            if (\is_string($reasonMessage)) {
+                $reasonError = $reasonMessage;
+                break;
+            }
+        }
 
         return $this->renderAdmin('admin/teacher_applications/detail.html.twig', [
-            'application' => $this->application($id),
+            'application' => $application,
+            'row' => AdminTeacherApplicationRow::fromApplication($application),
+            'posted_reason' => $postedReason,
+            'reason_invalid' => [] !== $reasonErrors,
+            'reason_error' => $reasonError,
+            'reject_reasons' => TeacherApplicationRejectReason::choices(),
+            'legacy_reason_label' => TeacherApplicationRejectReason::LEGACY_LABEL,
+            'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
+                ? $this->generateUrl('app_admin_audit')
+                : null,
         ]);
     }
 
@@ -89,9 +128,16 @@ final class AdminTeacherApplicationController extends AdminBaseController
             throw new AccessDeniedHttpException('Geçersiz istek.');
         }
         $this->application($id);
+        $posted = trim($request->request->getString('reason_code'));
+        if (mb_strlen($posted) > 64) {
+            $posted = mb_substr($posted, 0, 64);
+        }
+        if (!TeacherApplicationRejectReason::isAllowed($posted)) {
+            return $this->rejectChoiceFailure($id, $posted);
+        }
 
         try {
-            $this->applicationManager->markRejected($actor, $id, $request->request->getString('reason_code'));
+            $this->applicationManager->markRejected($actor, $id, $posted);
         } catch (OnboardingApplicationException $exception) {
             return $this->decisionFailure($id, $exception);
         }
@@ -145,6 +191,17 @@ final class AdminTeacherApplicationController extends AdminBaseController
         }
 
         return $application;
+    }
+
+    private function rejectChoiceFailure(Uuid $id, string $posted): Response
+    {
+        $message = TeacherApplicationRejectReason::invalidMessage($posted);
+        $this->addFlash('teacher_application_reason', $posted);
+        $this->addFlash('teacher_application_reason_error', '1');
+        $this->addFlash('teacher_application_reason_message', $message);
+        $this->addFlash('error', $message);
+
+        return $this->redirectToRoute('app_admin_teacher_application', ['id' => $id]);
     }
 
     private function decisionFailure(Uuid $id, OnboardingApplicationException $exception): Response

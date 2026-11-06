@@ -34,6 +34,7 @@ use App\Repository\CatalogTopicLessonRepository;
 use App\Repository\CatalogTopicRepository;
 use App\Repository\CurriculumLearningOutcomeRepository;
 use App\Repository\LearningContentAccessPolicyRepository;
+use App\Repository\LearningContentOutcomeAlignmentRepository;
 use App\Repository\SubjectRepository;
 use App\Security\AdminPermission;
 use App\Security\CatalogTopicLessonPermission;
@@ -64,6 +65,7 @@ final class AdminLearningContentController extends AdminBaseController
         private readonly SubjectRepository $subjects,
         private readonly CurriculumLearningOutcomeRepository $outcomes,
         private readonly LearningContentAccessPolicyRepository $policies,
+        private readonly LearningContentOutcomeAlignmentRepository $alignments,
         private readonly LearningContentRevisionFormMapper $revisionFormMapper,
         private readonly CatalogTopicLessonManager $placements,
         private readonly CatalogTopicLessonRepository $placementRepo,
@@ -81,7 +83,8 @@ final class AdminLearningContentController extends AdminBaseController
     public function index(Request $request): Response
     {
         try {
-            $result = $this->query->listContents($this->requireActorId(), [
+            $actorId = $this->requireActorId();
+            $result = $this->query->listContents($actorId, [
                 'q' => $request->query->getString('q'),
                 'status' => $request->query->getString('status'),
                 'subject_id' => $request->query->getString('subject_id'),
@@ -89,12 +92,14 @@ final class AdminLearningContentController extends AdminBaseController
                 'page' => $request->query->getInt('page', 1),
                 'page_size' => $request->query->getInt('page_size', 25),
             ]);
+            $statusCounts = $this->query->statusCounts($actorId);
         } catch (CommerceException $e) {
             $this->mapCommerceException($e);
         }
 
         return $this->renderAdmin('admin/learning_contents/list.html.twig', [
             'result' => $result,
+            'status_counts' => $statusCounts,
             'filters' => [
                 'q' => $request->query->getString('q'),
                 'status' => $request->query->getString('status'),
@@ -161,7 +166,7 @@ final class AdminLearningContentController extends AdminBaseController
         return $this->renderAdmin('admin/learning_contents/create.html.twig', [
             'form' => $form,
             'can_create_subject' => $this->isGranted(AdminPermission::ADMIN_PAYMENT_OPS),
-        ]);
+        ], $form->isSubmitted() && !$form->isValid() ? new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY) : null);
     }
 
     #[Route('/yonetim/icerikler/konu-alani/yeni', name: 'app_admin_learning_content_subject_new', methods: ['GET', 'POST'])]
@@ -196,7 +201,7 @@ final class AdminLearningContentController extends AdminBaseController
 
         return $this->renderAdmin('admin/learning_contents/subject_create.html.twig', [
             'form' => $form,
-        ]);
+        ], $form->isSubmitted() && !$form->isValid() ? new Response(status: Response::HTTP_UNPROCESSABLE_ENTITY) : null);
     }
 
     #[Route('/yonetim/icerikler/{id}', name: 'app_admin_learning_content', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -208,6 +213,7 @@ final class AdminLearningContentController extends AdminBaseController
         $placements = $this->placementRepo->findOrderedByLearningContent($content);
         $bindableTopics = $this->catalogTopics->findBindableForCanonicalSubject($content->getSubject());
         $revision = $content->getCurrentRevision();
+        $alignments = null !== $revision ? $this->alignments->findDetailedByRevision($revision) : [];
         $hasDraftPlacement = false;
         $hasPublishedPlacement = false;
         $canPublishPlacement = false;
@@ -232,6 +238,8 @@ final class AdminLearningContentController extends AdminBaseController
         return $this->renderAdmin('admin/learning_contents/detail.html.twig', [
             'content' => $content,
             'policy' => $policy,
+            'alignments' => $alignments,
+            'can_view_curriculum' => $this->isGranted(AdminPermission::ADMIN_CURRICULUM_VIEW),
             'placements' => $placements,
             'bindable_topics' => $bindableTopics,
             'suggested_positions' => $suggestedPositions,
@@ -266,6 +274,7 @@ final class AdminLearningContentController extends AdminBaseController
             'can_archive' => $this->isGranted(LearningContentPermission::ARCHIVE, $content),
             'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
                 && LearningContentStatus::Archived !== $content->getStatus(),
+            'preview_blocks' => $this->currentRevisionBlocks($revision),
         ]);
     }
 
@@ -740,16 +749,11 @@ final class AdminLearningContentController extends AdminBaseController
     {
         $content = $this->requireContent($id);
         $revision = $this->requireCurrentRevision($content);
-        $structured = $revision->getStructuredContent();
-        $blocks = $structured['blocks'] ?? [];
-        if (!\is_array($blocks)) {
-            $blocks = [];
-        }
 
         return $this->renderAdmin('admin/learning_contents/revision_preview.html.twig', [
             'content' => $content,
             'revision' => $revision,
-            'preview_blocks' => $blocks,
+            'preview_blocks' => $this->currentRevisionBlocks($revision),
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
         ]);
     }
@@ -983,6 +987,30 @@ final class AdminLearningContentController extends AdminBaseController
         }
 
         return $revision;
+    }
+
+    /**
+     * @return list<array<array-key, mixed>>
+     */
+    private function currentRevisionBlocks(?LearningContentRevision $revision): array
+    {
+        if (!$revision instanceof LearningContentRevision) {
+            return [];
+        }
+        $structured = $revision->getStructuredContent();
+        $blocks = $structured['blocks'] ?? [];
+        if (!\is_array($blocks)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($blocks as $block) {
+            if (\is_array($block)) {
+                $normalized[] = $block;
+            }
+        }
+
+        return $normalized;
     }
 
     private function assertRevisionCsrf(Request $request, string $id): void

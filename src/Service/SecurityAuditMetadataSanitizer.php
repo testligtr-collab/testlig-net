@@ -24,6 +24,10 @@ final class SecurityAuditMetadataSanitizer
         'bootstrap',
         'institution_type',
         'institution_id',
+        'institution_status',
+        'branch_id',
+        'branch_kind',
+        'previous_kind',
         'membership_role',
         'previous_membership_role',
         'new_membership_role',
@@ -226,6 +230,16 @@ final class SecurityAuditMetadataSanitizer
         'invitation_id',
         'enrollment_id',
         'grants_child_data_access',
+        'added_permissions',
+        'removed_permissions',
+        // X01 homework assignment snapshot (identifiers / counts only; no title or student names).
+        'definition_id',
+        'assignment_id',
+        // recipient_id already allowlisted for other domains; homework submit reuses it (no body).
+        // X01 evaluation (identifiers / label enum only; no submission or feedback body).
+        'submission_id',
+        'label',
+        'supersedes_evaluation_id',
     ];
 
     /**

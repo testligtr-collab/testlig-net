@@ -1,0 +1,49 @@
+{% macro inline(node) %}
+    {% import _self as view %}
+    {% if node.kind|default('') == 'text' %}
+        {% set marks = node.marks|default([]) %}
+        {% if 'bold' in marks %}<strong>{% endif %}
+        {% if 'italic' in marks %}<em>{% endif %}
+        {% if 'underline' in marks %}<u>{% endif %}
+        {{- node.text|default('') -}}
+        {% if 'underline' in marks %}</u>{% endif %}
+        {% if 'italic' in marks %}</em>{% endif %}
+        {% if 'bold' in marks %}</strong>{% endif %}
+    {% elseif node.kind|default('') == 'math' %}
+        <span class="q-math">{{ view.math(node.node|default({})) }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% macro math(node) %}
+    {% import _self as view %}
+    {% if node.kind|default('') == 'text' %}
+        {{- node.text|default('') -}}
+    {% elseif node.kind|default('') == 'row' %}
+        {% for child in node.children|default([]) %}{{ view.math(child) }}{% endfor %}
+    {% elseif node.kind|default('') == 'frac' %}
+        <span class="q-frac"><span class="q-num">{{ view.math(node.num|default({})) }}</span><span class="q-den">{{ view.math(node.den|default({})) }}</span></span>
+    {% elseif node.kind|default('') == 'sqrt' %}
+        <span class="q-sqrt">√<span class="q-sqrt-body">{{ view.math(node.body|default({})) }}</span></span>
+    {% elseif node.kind|default('') == 'sup' %}
+        <span class="q-script">{{ view.math(node.base|default({})) }}<sup>{{ view.math(node.exp|default({})) }}</sup></span>
+    {% elseif node.kind|default('') == 'sub' %}
+        <span class="q-script">{{ view.math(node.base|default({})) }}<sub>{{ view.math(node.exp|default({})) }}</sub></span>
+    {% elseif node.kind|default('') == 'over' %}
+        <span class="q-over">{{ view.math(node.body|default({})) }}</span>
+    {% endif %}
+{% endmacro %}
+
+{% import _self as view %}
+{% for block in blocks|default([]) %}
+    {% if block.kind|default('') == 'paragraph' %}
+        <p>{% for node in block.inlines|default([]) %}{{ view.inline(node) }}{% endfor %}</p>
+    {% elseif block.kind|default('') == 'list' %}
+        {% if block.ordered|default(false) %}<ol>{% else %}<ul>{% endif %}
+        {% for item in block.items|default([]) %}<li>{{ item }}</li>{% endfor %}
+        {% if block.ordered|default(false) %}</ol>{% else %}</ul>{% endif %}
+    {% elseif block.kind|default('') == 'math' %}
+        <p><span class="q-math">{{ view.math(block.node|default({})) }}</span></p>
+    {% elseif block.kind|default('') == 'image' %}
+        <p class="q-image-note">{{ block.note|default('') }}</p>
+    {% endif %}
+{% endfor %}

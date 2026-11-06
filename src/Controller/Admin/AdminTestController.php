@@ -24,8 +24,11 @@ use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
 use App\Enum\QuestionOrderMode;
+use App\Enum\QuestionScope;
+use App\Enum\QuestionStatus;
 use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
+use App\Enum\SubjectStatus;
 use App\Exception\AccessEntitlementException;
 use App\Exception\AssessmentException;
 use App\Exception\CatalogException;
@@ -34,6 +37,7 @@ use App\Presentation\ContentWorkflowReason;
 use App\Presentation\PlacementPosition;
 use App\Presentation\ResultPresentation;
 use App\Presentation\TestWorkflowProgress;
+use App\Question\Content\QuestionContentView;
 use App\Repository\AssessmentAccessPolicyRepository;
 use App\Repository\AssessmentItemRepository;
 use App\Repository\AssessmentRepository;
@@ -93,15 +97,56 @@ final class AdminTestController extends AdminBaseController
 
     #[Route('/yonetim/testler', name: 'app_admin_tests', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_TEST_VIEW)]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $actor = $this->requireActorUser();
+        $seeAll = $this->canSeeAll($actor);
+        $subjects = $this->subjects->findActiveOrdered();
+        $filters = $this->listFilters($request, $subjects);
+        $loaded = $this->assessments->findPlatformVisibleFiltered(
+            $actor,
+            $seeAll,
+            $filters['status'],
+            $filters['grade'],
+            $filters['subject'],
+            $filters['text'],
+            $filters['blocked'],
+        );
+        $rows = [];
+        foreach ($loaded as $loadedRow) {
+            $assessment = $loadedRow['assessment'];
+            $revision = $assessment->getCurrentRevision();
+            $rows[] = [
+                'id' => $assessment->getId()->toRfc4122(),
+                'title' => $revision?->getTitle() ?? 'Adsız test',
+                'code' => $assessment->getCode(),
+                'subject' => $assessment->getSubject()?->getName() ?? '—',
+                'grade' => $assessment->getGradeLevel()->value.'. sınıf',
+                'status' => $assessment->getStatus()->value,
+                'questions' => $loadedRow['questions'],
+            ];
+        }
 
         return $this->renderAdmin('admin/tests/list.html.twig', [
-            'assessments' => $this->assessments->findPlatformVisible($actor, $this->canSeeAll($actor)),
+            'rows' => $rows,
+            'counts' => $this->assessments->countPlatformVisibleByStatus($actor, $seeAll),
+            'matched' => $this->assessments->countPlatformVisibleFiltered(
+                $actor,
+                $seeAll,
+                $filters['status'],
+                $filters['grade'],
+                $filters['subject'],
+                $filters['text'],
+                $filters['blocked'],
+            ),
+            'subjects' => $subjects,
+            'filters' => [
+                'q' => $filters['text'],
+                'status' => $filters['status'] instanceof AssessmentStatus ? $filters['status']->value : '',
+                'subject_id' => $filters['subject'] instanceof Uuid ? $filters['subject']->toRfc4122() : '',
+                'grade' => $filters['grade'] instanceof GradeLevel ? (string) $filters['grade']->value : '',
+            ],
             'can_author' => $this->adminAuthorization->canAuthorTests($actor),
-            'status_labels' => $this->statusLabels(),
-            'type_labels' => $this->typeLabels(),
         ]);
     }
 
@@ -391,11 +436,24 @@ final class AdminTestController extends AdminBaseController
     {
         $assessment = $this->visibleAssessment($id);
         $revision = $this->currentRevision($assessment);
+        $rows = $this->previewRows($revision);
+        $instructions = $revision->getInstructions();
+        if (null !== $instructions && '' === trim($instructions)) {
+            $instructions = null;
+        }
 
         return $this->renderAdmin('admin/tests/preview.html.twig', [
+            'assessment_id' => $assessment->getId()->toRfc4122(),
+            'assessment_code' => $assessment->getCode(),
             'title' => $revision->getTitle(),
-            'instructions' => $revision->getInstructions(),
-            'rows' => $this->previewRows($revision),
+            'revision_label' => 'Sürüm '.$revision->getRevisionNumber(),
+            'instructions' => $instructions,
+            'subject_name' => $this->presentation->subjectName($assessment->getSubject()),
+            'grade_label' => $assessment->getGradeLevel()->value.'. sınıf',
+            'question_count' => \count($rows),
+            'total_points' => $this->presentation->points($this->totalPoints($rows)) ?? '0',
+            'duration_label' => $this->previewDurationLabel($revision),
+            'rows' => $this->presentPreviewRows($rows),
         ]);
     }
 
@@ -451,7 +509,7 @@ final class AdminTestController extends AdminBaseController
                 $input['subject'],
             );
         } catch (AssessmentException $exception) {
-            return $this->fail($exception, 'app_admin_test_new');
+            return $this->rejectEditor($request, $exception, null);
         }
 
         $this->addFlash('success', 'Taslak kaydedildi.');
@@ -487,7 +545,7 @@ final class AdminTestController extends AdminBaseController
                 $assessment->getSubject(),
             );
         } catch (AssessmentException $exception) {
-            return $this->fail($exception, 'app_admin_test_edit', ['id' => $assessment->getId()->toRfc4122()]);
+            return $this->rejectEditor($request, $exception, $assessment);
         }
 
         $this->addFlash('success', 'Taslak kaydedildi.');
@@ -537,22 +595,70 @@ final class AdminTestController extends AdminBaseController
         return $this->redirectToRoute('app_admin_test_show', $route);
     }
 
-    private function renderForm(Request $request, ?Assessment $assessment): Response
+    /**
+     * @param array{
+     *     title: string,
+     *     instructions: string,
+     *     duration: string,
+     *     grade: ?GradeLevel,
+     *     subject: ?Subject,
+     *     selected: list<array{position: string, code: string, points: string, stem: string, question_id: string}>,
+     *     filters: array{q: string, code: string, outcome: string, difficulty: string},
+     *     page: int
+     * }|null $replay
+     */
+    private function renderForm(Request $request, ?Assessment $assessment, ?array $replay = null): Response
     {
-        $subject = $assessment?->getSubject() ?? $this->subjectFromQuery($request);
-        $grade = $assessment?->getGradeLevel() ?? $this->gradeFromQuery($request);
         $revision = $assessment instanceof Assessment ? $this->currentRevision($assessment) : null;
-        $page = max(1, $request->query->getInt('page', 1));
+        if ($assessment instanceof Assessment) {
+            $subject = $assessment->getSubject();
+            $grade = $assessment->getGradeLevel();
+        } elseif (\is_array($replay)) {
+            $subject = $replay['subject'];
+            $grade = $replay['grade'];
+        } else {
+            $subject = $this->activeSubject($this->subjectFromQuery($request));
+            $grade = $this->gradeFromQuery($request);
+        }
+        $gradeRaw = '';
+        if (!$assessment instanceof Assessment && !$grade instanceof GradeLevel) {
+            $gradeRaw = $this->gradeRaw(\is_array($replay) ? $request->request->getString('grade') : $request->query->getString('grade'));
+        }
+        if (\is_array($replay)) {
+            $page = $replay['page'];
+            $filters = $replay['filters'];
+            $selected = $replay['selected'];
+            $values = [
+                'title' => $replay['title'],
+                'instructions' => $replay['instructions'],
+                'duration' => $replay['duration'],
+            ];
+        } else {
+            $page = max(1, $request->query->getInt('page', 1));
+            $filters = [
+                'q' => $this->boundText($request->query->getString('q'), 200),
+                'code' => $this->boundText($request->query->getString('code'), 32),
+                'outcome' => $this->boundText($request->query->getString('outcome'), 64),
+                'difficulty' => $this->difficultyValue($request->query->getString('difficulty')),
+            ];
+            $selected = $revision instanceof AssessmentRevision ? $this->itemRows($revision) : [];
+            $seconds = $revision?->getDurationSeconds();
+            $values = [
+                'title' => $revision?->getTitle() ?? '',
+                'instructions' => $revision?->getInstructions() ?? '',
+                'duration' => null !== $seconds ? (string) (int) ceil($seconds / 60) : '',
+            ];
+        }
         $picker = [];
         $pickerRows = [];
         if ($subject instanceof Subject && $grade instanceof GradeLevel) {
             $picker = $this->questions->searchPublishedPlatform(
                 $subject,
                 $grade,
-                trim($request->query->getString('code')),
-                trim($request->query->getString('q')),
-                QuestionDifficulty::tryFrom($request->query->getString('difficulty')),
-                trim($request->query->getString('outcome')),
+                $filters['code'],
+                $filters['q'],
+                QuestionDifficulty::tryFrom($filters['difficulty']),
+                $filters['outcome'],
                 self::PAGE_SIZE,
                 ($page - 1) * self::PAGE_SIZE,
             );
@@ -570,17 +676,14 @@ final class AdminTestController extends AdminBaseController
             'assessment' => $assessment,
             'revision' => $revision,
             'subjects' => $this->subjects->findActiveOrdered(),
-            'selected' => $revision instanceof AssessmentRevision ? $this->itemRows($revision) : [],
+            'selected' => $selected,
+            'values' => $values,
             'picker' => $pickerRows,
             'subject' => $subject,
             'grade' => $grade,
+            'grade_raw' => $gradeRaw,
             'page' => $page,
-            'filters' => [
-                'q' => $request->query->getString('q'),
-                'code' => $request->query->getString('code'),
-                'outcome' => $request->query->getString('outcome'),
-                'difficulty' => $request->query->getString('difficulty'),
-            ],
+            'filters' => $filters,
             'difficulty_labels' => [
                 'very_easy' => 'Çok kolay',
                 'easy' => 'Kolay',
@@ -671,7 +774,10 @@ final class AdminTestController extends AdminBaseController
             if (isset($seenIds[$item['question_id']])) {
                 throw AssessmentException::duplicateQuestion();
             }
-            if ($item['position'] < 1 || isset($seenPositions[$item['position']])) {
+            if ($item['position'] < 1) {
+                throw AssessmentException::invalidInput('position rejected');
+            }
+            if (isset($seenPositions[$item['position']])) {
                 throw AssessmentException::invalidInput('Duplicate item position.');
             }
             $seenIds[$item['question_id']] = true;
@@ -784,26 +890,56 @@ final class AdminTestController extends AdminBaseController
     }
 
     /**
-     * @return list<array{position: int, code: string, points: string, stem: list<string>, options: list<string>}>
+     * @return list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}>
      */
     private function previewRows(AssessmentRevision $revision): array
     {
+        $loaded = $this->items->findPreviewRows($revision->getId());
+        $revisionIds = [];
+        foreach ($loaded as $row) {
+            $revisionIds[$row['questionRevisionId']] = $row['questionRevisionId'];
+        }
+        $options = $this->options->findPreviewContents(array_values($revisionIds));
         $rows = [];
-        foreach ($this->orderedItems($revision) as $item) {
-            $options = [];
-            foreach ($this->options->findByRevision($item->getQuestionRevision()) as $option) {
-                $options[] = $this->plainLines($option->getContent())[0] ?? '';
+        foreach ($loaded as $row) {
+            $optionBlocks = [];
+            foreach ($options[$row['questionRevisionId']] ?? [] as $content) {
+                $optionBlocks[] = QuestionContentView::blocks($content, true);
             }
             $rows[] = [
-                'position' => $item->getPosition(),
-                'code' => $item->getQuestion()->getCode(),
-                'points' => $this->presentation->points($item->getPoints()) ?? $item->getPoints(),
-                'stem' => $this->plainLines($item->getQuestionRevision()->getStemContent()),
-                'options' => $options,
+                'position' => $row['position'],
+                'code' => $row['code'],
+                'points' => $row['points'],
+                'stem_blocks' => QuestionContentView::blocks($row['stemContent'], true),
+                'option_blocks' => $optionBlocks,
             ];
         }
 
         return $rows;
+    }
+
+    /**
+     * @param list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}> $rows
+     *
+     * @return list<array{position: int, code: string, points: string, stem_blocks: list<array<string, mixed>>, option_blocks: list<list<array<string, mixed>>>}>
+     */
+    private function presentPreviewRows(array $rows): array
+    {
+        foreach ($rows as $index => $row) {
+            $rows[$index]['points'] = $this->presentation->points($row['points']) ?? $row['points'];
+        }
+
+        return $rows;
+    }
+
+    private function previewDurationLabel(AssessmentRevision $revision): string
+    {
+        $seconds = $revision->getDurationSeconds();
+        if (null === $seconds) {
+            return 'Süre sınırı yok';
+        }
+
+        return (string) (int) ceil($seconds / 60).' dk';
     }
 
     /**
@@ -915,6 +1051,47 @@ final class AdminTestController extends AdminBaseController
         };
     }
 
+    /**
+     * @param list<Subject> $subjects
+     *
+     * @return array{status: ?AssessmentStatus, grade: ?GradeLevel, subject: ?Uuid, text: string, blocked: bool}
+     */
+    private function listFilters(Request $request, array $subjects): array
+    {
+        $status = AssessmentStatus::tryFrom($request->query->getString('status'));
+        $grade = GradeLevel::tryFrom($request->query->getInt('grade'));
+        if (0 === $request->query->getInt('grade') && !$request->query->has('grade')) {
+            $grade = null;
+        }
+        $text = trim($request->query->getString('q'));
+        if (mb_strlen($text) > 100) {
+            $text = mb_substr($text, 0, 100);
+        }
+        if ($this->hasMarkup($text)) {
+            $text = '';
+        }
+        $subjectRaw = strtolower($request->query->getString('subject_id'));
+        $subject = null;
+        $blocked = false;
+        if ('' !== $subjectRaw) {
+            foreach ($subjects as $item) {
+                if ($item->getId()->toRfc4122() === $subjectRaw) {
+                    $subject = $item->getId();
+                    break;
+                }
+            }
+            $blocked = !$subject instanceof Uuid;
+        }
+
+        return [
+            'status' => $status,
+            'grade' => $grade,
+            'subject' => $subject,
+            'text' => $text,
+            'blocked' => $blocked,
+        ];
+    }
+
     private function canSeeAll(User $actor): bool
     {
         $roles = $actor->getRoles();
@@ -948,9 +1125,210 @@ final class AdminTestController extends AdminBaseController
 
     private function gradeFromQuery(Request $request): ?GradeLevel
     {
-        $grade = GradeLevel::tryFrom($request->query->getInt('grade'));
+        if (!$request->query->has('grade')) {
+            return GradeLevel::Grade1;
+        }
 
-        return $grade instanceof GradeLevel ? $grade : null;
+        return GradeLevel::tryFrom($request->query->getInt('grade'));
+    }
+
+    private function rejectEditor(Request $request, AssessmentException $exception, ?Assessment $assessment): Response
+    {
+        if (!$this->keepsEditorInput($exception)) {
+            $route = $assessment instanceof Assessment ? 'app_admin_test_edit' : 'app_admin_test_new';
+            $params = $assessment instanceof Assessment ? ['id' => $assessment->getId()->toRfc4122()] : [];
+
+            return $this->fail($exception, $route, $params);
+        }
+        $this->addFlash('error', $this->failureMessage($exception));
+        $response = $this->renderForm($request, $assessment, $this->editorReplay($request, $assessment));
+        if ($this->getParameter('kernel.debug')) {
+            $response->headers->set('X-Test-Failure', $exception->getMessage());
+        }
+
+        return $response;
+    }
+
+    private function keepsEditorInput(AssessmentException $exception): bool
+    {
+        return match ($exception->getReason()) {
+            AssessmentFailureReason::InvalidInput,
+            AssessmentFailureReason::EmptySection,
+            AssessmentFailureReason::EmptyAssessment,
+            AssessmentFailureReason::DuplicateQuestion,
+            AssessmentFailureReason::QuestionNotPublished,
+            AssessmentFailureReason::QuestionScopeMismatch,
+            AssessmentFailureReason::QuestionRevisionMismatch,
+            AssessmentFailureReason::GradeMismatch,
+            AssessmentFailureReason::SubjectMismatch,
+            AssessmentFailureReason::InvalidPoints,
+            AssessmentFailureReason::NotFound,
+            AssessmentFailureReason::ScopeMismatch => true,
+            default => false,
+        };
+    }
+
+    /**
+     * @return array{
+     *     title: string,
+     *     instructions: string,
+     *     duration: string,
+     *     grade: ?GradeLevel,
+     *     subject: ?Subject,
+     *     selected: list<array{position: string, code: string, points: string, stem: string, question_id: string}>,
+     *     filters: array{q: string, code: string, outcome: string, difficulty: string},
+     *     page: int
+     * }
+     */
+    private function editorReplay(Request $request, ?Assessment $assessment): array
+    {
+        $grade = $assessment?->getGradeLevel() ?? GradeLevel::tryFrom($request->request->getInt('grade'));
+        $subject = $assessment instanceof Assessment ? $assessment->getSubject() : $this->activeSubject($this->postedSubject($request));
+        $page = $request->request->getInt('search_page', 1);
+
+        return [
+            'title' => $this->displayText($request->request->getString('title'), 200),
+            'instructions' => $this->displayText($request->request->getString('instructions'), 10000),
+            'duration' => $this->durationRaw($request->request->getString('duration_minutes')),
+            'grade' => $grade,
+            'subject' => $subject,
+            'selected' => $this->replayRows($request, $grade, $subject),
+            'filters' => [
+                'q' => $this->boundText($request->request->getString('search_q'), 200),
+                'code' => $this->boundText($request->request->getString('search_code'), 32),
+                'outcome' => $this->boundText($request->request->getString('search_outcome'), 64),
+                'difficulty' => $this->difficultyValue($request->request->getString('search_difficulty')),
+            ],
+            'page' => max(1, min(50, $page)),
+        ];
+    }
+
+    /**
+     * @return list<array{position: string, code: string, points: string, stem: string, question_id: string}>
+     */
+    private function replayRows(Request $request, ?GradeLevel $grade, ?Subject $subject): array
+    {
+        $rows = [];
+        $seen = [];
+        foreach ($request->request->all('items') as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+            $questionId = isset($row['question_id']) && \is_string($row['question_id']) ? strtolower($row['question_id']) : '';
+            if (isset($seen[$questionId])) {
+                continue;
+            }
+            $resolved = $this->selectableRow(
+                $questionId,
+                $grade,
+                $subject,
+                isset($row['position']) && (\is_string($row['position']) || \is_int($row['position'])) ? (string) $row['position'] : '',
+                isset($row['points']) && \is_string($row['points']) ? $row['points'] : '',
+            );
+            if (null === $resolved) {
+                continue;
+            }
+            $seen[$questionId] = true;
+            $rows[] = $resolved;
+        }
+        foreach ($request->request->all('add_ids') as $added) {
+            if (!\is_string($added)) {
+                continue;
+            }
+            $questionId = strtolower($added);
+            if (isset($seen[$questionId])) {
+                continue;
+            }
+            $resolved = $this->selectableRow($questionId, $grade, $subject, (string) (\count($rows) + 1), '1');
+            if (null === $resolved) {
+                continue;
+            }
+            $seen[$questionId] = true;
+            $rows[] = $resolved;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array{position: string, code: string, points: string, stem: string, question_id: string}|null
+     */
+    private function selectableRow(string $questionId, ?GradeLevel $grade, ?Subject $subject, string $position, string $points): ?array
+    {
+        if (!$grade instanceof GradeLevel || !$subject instanceof Subject || 1 !== preg_match('/^[0-9a-fA-F-]{36}$/', $questionId)) {
+            return null;
+        }
+        $question = $this->questions->findOneById(Uuid::fromString($questionId));
+        if (!$question instanceof Question
+            || QuestionScope::Platform !== $question->getScope()
+            || QuestionStatus::Published !== $question->getStatus()
+            || $question->getGradeLevel() !== $grade
+            || !$question->getSubject()->getId()->equals($subject->getId())) {
+            return null;
+        }
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (!$revision instanceof QuestionRevision) {
+            return null;
+        }
+
+        return [
+            'position' => 1 === preg_match('/^\d{1,4}$/', trim($position)) ? trim($position) : '',
+            'code' => $question->getCode(),
+            'points' => $this->pointsRaw($points),
+            'stem' => $this->plainLines($revision->getStemContent())[0] ?? '',
+            'question_id' => $question->getId()->toRfc4122(),
+        ];
+    }
+
+    private function displayText(string $value, int $max): string
+    {
+        $value = trim($value);
+        if (mb_strlen($value) > $max) {
+            $value = mb_substr($value, 0, $max);
+        }
+
+        return $value;
+    }
+
+    private function boundText(string $value, int $max): string
+    {
+        return $this->hasMarkup($value) ? '' : $this->displayText($value, $max);
+    }
+
+    private function durationRaw(string $value): string
+    {
+        $value = trim($value);
+
+        return 1 === preg_match('/^\d{1,4}$/', $value) ? $value : '';
+    }
+
+    private function pointsRaw(string $value): string
+    {
+        $value = trim($value);
+        if ('' === $value || \strlen($value) > 16 || 1 === preg_match('/[\x00-\x1F<>]/', $value)) {
+            return '';
+        }
+
+        return $value;
+    }
+
+    private function gradeRaw(string $value): string
+    {
+        $value = trim($value);
+
+        return 1 === preg_match('/^\d{1,2}$/', $value) ? $value : '';
+    }
+
+    private function activeSubject(?Subject $subject): ?Subject
+    {
+        return $subject instanceof Subject && SubjectStatus::Active === $subject->getStatus() ? $subject : null;
+    }
+
+    private function difficultyValue(string $value): string
+    {
+        $difficulty = QuestionDifficulty::tryFrom($value);
+
+        return $difficulty instanceof QuestionDifficulty ? $difficulty->value : '';
     }
 
     private function assertEditorCsrf(Request $request): void
@@ -979,6 +1357,18 @@ final class AdminTestController extends AdminBaseController
         if (AssessmentFailureReason::InvalidInput === $exception->getReason()
             && str_contains($exception->getMessage(), 'Duplicate item position')) {
             return 'Aynı sıra numarası iki kez kullanılamaz.';
+        }
+        if (AssessmentFailureReason::InvalidInput === $exception->getReason() && str_contains($exception->getMessage(), 'markup')) {
+            return 'Başlık ve yönerge düz metin olmalıdır.';
+        }
+        if (AssessmentFailureReason::InvalidInput === $exception->getReason() && str_contains($exception->getMessage(), 'duration')) {
+            return 'Süre 1 ile 360 dakika arasında olmalıdır.';
+        }
+        if (AssessmentFailureReason::InvalidInput === $exception->getReason() && str_contains($exception->getMessage(), 'position rejected')) {
+            return 'Sıra 1 veya daha büyük olmalıdır.';
+        }
+        if (AssessmentFailureReason::InvalidInput === $exception->getReason() && str_contains($exception->getMessage(), 'grade or subject')) {
+            return 'Sınıf ve ders seçilmelidir.';
         }
 
         return match ($exception->getReason()) {

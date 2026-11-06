@@ -1,0 +1,113 @@
+{% extends 'teacher/layout.html.twig' %}
+
+{% block title %}{{ detail.studentDisplayName }} teslimi - {{ detail.title }} - Testlig{% endblock %}
+
+{% block teacher_content %}
+{% set has_evaluation = detail.currentEvaluationId is not null %}
+<section class="hw-page" aria-labelledby="hw-heading" data-controller="homework-evaluate" data-homework-evaluate-feedback-max-value="{{ feedback_max }}">
+    <nav class="hw-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_teacher_homeworks') }}">Ödevlerim</a>
+        <span aria-hidden="true">/</span>
+        <a class="hw-wrap" href="{{ path('app_teacher_homework_show', {id: detail.definitionId}) }}">{{ detail.title }}</a>
+        <span aria-hidden="true">/</span>
+        <span class="hw-wrap">{{ detail.studentDisplayName }}</span>
+    </nav>
+
+    <header class="hw-head">
+        <div class="hw-head__text">
+            <h1 id="hw-heading" class="hw-wrap">{{ detail.studentDisplayName }}</h1>
+            <p class="hw-sub">
+                <span class="hw-badge hw-badge--submitted">Gönderildi</span>
+                {{ detail.classroomName }} · {{ detail.submittedAtLocal }} <span class="hw-muted">(Europe/Istanbul)</span>
+            </p>
+        </div>
+    </header>
+
+    {% if errors is not empty %}
+        <div class="hw-alert" role="alert" tabindex="-1">
+            <strong>Kaydedilemedi.</strong> Aşağıdaki alanları düzeltip tekrar dene.
+        </div>
+    {% endif %}
+
+    <div class="hw-layout">
+        <div class="hw-main">
+            <article class="hw-card" aria-labelledby="hw-prompt-heading">
+                <h2 id="hw-prompt-heading">Ödev açıklaması</h2>
+                <div class="hw-prose" data-testid="hw-frozen-prompt">{{ detail.description }}</div>
+            </article>
+
+            <article class="hw-card" aria-labelledby="hw-body-heading">
+                <h2 id="hw-body-heading">Öğrencinin yanıtı</h2>
+                <div class="hw-prose hw-readonly" data-testid="hw-submission-body" tabindex="0" role="region" aria-labelledby="hw-body-heading">{{ detail.body }}</div>
+                <p class="hw-hint">Salt okunur. Gönderilen yanıt değiştirilemez.</p>
+            </article>
+        </div>
+
+        <aside class="hw-aside hw-eval-side">
+            <section class="hw-card" aria-labelledby="hw-current-heading" data-testid="hw-current-evaluation">
+                <h2 id="hw-current-heading">Güncel değerlendirme</h2>
+                {% if has_evaluation %}
+                    <p><span class="hw-badge hw-badge--{{ detail.evaluationLabelKey == 'needs_rework' ? 'rework' : 'evaluated' }}">{{ detail.evaluationLabelTr }}</span></p>
+                    {% if detail.feedback %}
+                        <div class="hw-prose hw-feedback">{{ detail.feedback }}</div>
+                    {% else %}
+                        <p class="hw-muted">Geri bildirim yazılmadı.</p>
+                    {% endif %}
+                    {% if detail.evaluatedAtLocal %}
+                        <p class="hw-hint">Kaydedilme: {{ detail.evaluatedAtLocal }} (Europe/Istanbul)</p>
+                    {% endif %}
+                {% else %}
+                    <p class="hw-muted">Henüz değerlendirilmedi.</p>
+                {% endif %}
+            </section>
+
+            <form class="hw-card hw-form hw-eval-form" method="post" novalidate
+                  action="{{ path('app_teacher_homework_submission_evaluate', {id: detail.submissionId}) }}"
+                  aria-labelledby="hw-eval-heading">
+                <h2 id="hw-eval-heading">{{ has_evaluation ? 'Yeni değerlendirme' : 'Değerlendir' }}</h2>
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf_evaluate) }}">
+                <input type="hidden" name="expected_current_evaluation_id" value="{{ values.expected_current_evaluation_id }}">
+
+                {# role=radiogroup avoids Chromium fieldset min-content width that collapses labels to 1ch. #}
+                <div class="hw-field hw-fieldset{% if errors.label is defined %} hw-field--error{% endif %}"
+                     role="radiogroup"
+                     aria-labelledby="hw-label-legend"
+                     {% if errors.label is defined %}aria-invalid="true" aria-describedby="hw-label-error"{% endif %}>
+                    <p class="hw-fieldset__legend" id="hw-label-legend">Değerlendirme</p>
+                    <div class="hw-choice-list">
+                        <label class="hw-choice">
+                            <input type="radio" name="label" value="reviewed"{% if values.label == 'reviewed' %} checked{% endif %} required>
+                            <span>İncelendi</span>
+                        </label>
+                        <label class="hw-choice">
+                            <input type="radio" name="label" value="needs_rework"{% if values.label == 'needs_rework' %} checked{% endif %} required>
+                            <span>Yeniden çalışılmalı</span>
+                        </label>
+                    </div>
+                    {% if errors.label is defined %}<p class="hw-error" id="hw-label-error">{{ errors.label }}</p>{% endif %}
+                </div>
+
+                <div class="hw-field{% if errors.feedback is defined %} hw-field--error{% endif %}">
+                    <div class="hw-field__row">
+                        <label for="hw-feedback">Geri bildirim</label>
+                        <span class="hw-counter" id="hw-feedback-counter" data-homework-evaluate-target="counter" aria-live="polite">{{ values.feedback|trim|length }} / {{ feedback_max }}</span>
+                    </div>
+                    <textarea id="hw-feedback" name="feedback" rows="8"
+                              data-homework-evaluate-target="feedback" data-action="input->homework-evaluate#refresh"
+                              aria-describedby="hw-feedback-hint hw-feedback-counter{% if errors.feedback is defined %} hw-feedback-error{% endif %}"
+                              {% if errors.feedback is defined %}aria-invalid="true"{% endif %}>{{ values.feedback }}</textarea>
+                    {% if errors.feedback is defined %}<p class="hw-error" id="hw-feedback-error">{{ errors.feedback }}</p>{% endif %}
+                    <p class="hw-hint" id="hw-feedback-hint">"İncelendi" için isteğe bağlı; "Yeniden çalışılmalı" için zorunlu. En fazla {{ feedback_max|number_format(0, ',', '.') }} karakter.</p>
+                </div>
+
+                <p class="hw-note hw-note--strong">Bu değerlendirme yeniden teslim hakkı vermez.</p>
+
+                <div class="hw-form-actions">
+                    <button type="submit" class="btn hw-btn hw-btn--primary">{{ has_evaluation ? 'Yeni değerlendirme kaydet' : 'Kaydet' }}</button>
+                    <a class="btn hw-btn hw-btn--ghost" href="{{ path('app_teacher_homework_show', {id: detail.definitionId}) }}">Teslim listesine dön</a>
+                </div>
+            </form>
+        </aside>
+    </div>
+</section>
+{% endblock %}

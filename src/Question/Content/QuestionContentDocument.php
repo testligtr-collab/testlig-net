@@ -59,6 +59,26 @@ final class QuestionContentDocument
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function export(): array
+    {
+        $decoded = json_decode(json_encode($this->toArray(), \JSON_THROW_ON_ERROR), true, 16, \JSON_THROW_ON_ERROR);
+        if (!\is_array($decoded)) {
+            throw new \InvalidArgumentException('Invalid question document.');
+        }
+        $exported = [];
+        foreach ($decoded as $key => $value) {
+            if (!\is_string($key)) {
+                throw new \InvalidArgumentException('Invalid question document.');
+            }
+            $exported[$key] = $value;
+        }
+
+        return $exported;
+    }
+
     public static function paragraph(string $text): self
     {
         return new self(self::SCHEMA_VERSION, [

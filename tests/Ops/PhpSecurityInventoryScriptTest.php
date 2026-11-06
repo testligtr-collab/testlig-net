@@ -87,6 +87,11 @@ CONF);
             self::assertStringContainsString('lsphp83_security_update_package=lsphp83-8.3.36-1.el9.x86_64', $output);
             self::assertStringContainsString('release_sha=67324b3d18fa541b164601e75e87d5e8ae57cfb6', $output);
             self::assertStringContainsString('release_name=absent', $output);
+            self::assertStringContainsString('web_worker=absent', $output);
+            self::assertStringContainsString('web_worker_exe_measured=no', $output);
+            self::assertStringContainsString('composer_tool=absent', $output);
+            self::assertStringContainsString('lsphp83_changelog_cve id=CVE-2026-109618 present=no', $output);
+            self::assertStringContainsString('lsphp83_changelog_cve id=CVE-2026-109619 present=no', $output);
             self::assertStringNotContainsString('super-secret-value', $output);
             self::assertStringNotContainsString('SECRET', $output);
             self::assertStringNotContainsString('do-not-print', $output);
@@ -120,6 +125,9 @@ CONF);
             self::assertStringContainsString('configured_php_handler=none', $output);
             self::assertStringContainsString('lsphp83_security_update=unknown', $output);
             self::assertStringContainsString('lsphp83_security_update_reason=repo_query_failed', $output);
+            self::assertStringContainsString('web_worker=absent', $output);
+            self::assertStringContainsString('composer_tool=absent', $output);
+            self::assertStringContainsString('lsphp83_changelog_cve=unknown', $output);
             self::assertStringContainsString('php_inventory_complete=yes', $output);
             self::assertStringNotContainsString('super-secret-value', $output);
         } finally {
@@ -154,6 +162,45 @@ CONF);
             self::assertStringNotContainsString('token', $output);
             self::assertStringNotContainsString('https://', $output);
             self::assertStringNotContainsString('@', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testWorkerExeComposerAndChangelogStayAllowlisted(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $this->write($root.'/bin/rpm', <<<'BASH'
+#!/bin/bash
+if [ "${1-}" = "-q" ] && [ "${2-}" = "--changelog" ]; then
+  printf '%s\n' '- CVE-2026-109618 CVE-2026-109619 https://user:token@example.invalid/secret'
+  exit 0
+fi
+if [ "${1-}" = "-qf" ]; then
+  printf '%s' 'lsphp83'
+  exit 0
+fi
+exit 0
+BASH);
+            $this->write($root.'/usr/bin/composer', "#!/bin/bash\nprintf '%s\n' 'Composer version 2.11.0 2026-01-01 00:00:00'\n");
+            $proc = $root.'/proc/4242';
+            mkdir($proc, 0777, true);
+            file_put_contents($proc.'/comm', "lsphp\n");
+            if (!symlink('/usr/local/lsws/lsphp83/bin/lsphp', $proc.'/exe')) {
+                self::fail('symlink is required for the worker exe fixture');
+            }
+            $output = $this->runInventory($root);
+            $this->assertContract($output);
+            self::assertStringContainsString('web_worker exe=/usr/local/lsws/lsphp83/bin/lsphp deleted=no package=lsphp83 web_acceptance=no', $output);
+            self::assertStringContainsString('web_worker_exe_measured=yes', $output);
+            self::assertStringContainsString('web_runtime_measured=no', $output);
+            self::assertStringContainsString('composer_tool path=/usr/bin/composer version=2.11.0 web_acceptance=no', $output);
+            self::assertStringContainsString('lsphp83_changelog_cve id=CVE-2026-109618 present=yes', $output);
+            self::assertStringContainsString('lsphp83_changelog_cve id=CVE-2026-109619 present=yes', $output);
+            self::assertStringNotContainsString('token', $output);
+            self::assertStringNotContainsString('4242', $output);
+            self::assertStringNotContainsString('https://', $output);
         } finally {
             $this->removeTree($root);
         }
@@ -240,7 +287,8 @@ BASH);
         self::assertStringContainsString('label=cli', $script);
         self::assertStringContainsString('exposure=not_measured', $script);
         self::assertStringContainsString('--cacheonly', $script);
-        self::assertSame(3, substr_count($script, '</dev/null'));
+        self::assertSame(4, substr_count($script, '</dev/null'));
+        self::assertStringContainsString('"$bin" --version </dev/null 2>/dev/null', $script);
         self::assertStringNotContainsString('phpinfo', $script);
         self::assertStringNotContainsString('printenv', $script);
         self::assertStringNotContainsString('.env', $script);
@@ -319,6 +367,13 @@ BASH);
             'lsphp83_security_update_package=',
             'release_sha=',
             'release_name=',
+            'web_worker ',
+            'web_worker=',
+            'web_worker_exe_measured=',
+            'composer_tool ',
+            'composer_tool=',
+            'lsphp83_changelog_cve ',
+            'lsphp83_changelog_cve=',
         ];
         $lines = preg_split("/\R/", trim($output));
         self::assertIsArray($lines);

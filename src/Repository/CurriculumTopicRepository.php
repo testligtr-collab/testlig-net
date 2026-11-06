@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
 use App\Enum\CurriculumContentStatus;
@@ -85,6 +86,24 @@ class CurriculumTopicRepository extends ServiceEntityRepository
             ->setParameter('status', CurriculumContentStatus::Active)
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    /**
+     * @return list<CurriculumTopic>
+     */
+    public function findByProgram(CurriculumProgram $program): array
+    {
+        /** @var list<CurriculumTopic> $rows */
+        $rows = $this->createQueryBuilder('t')
+            ->join('t.unit', 'u')
+            ->andWhere('u.program = :program')
+            ->setParameter('program', $program->getId(), 'uuid')
+            ->orderBy('u.position', 'ASC')
+            ->addOrderBy('t.position', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        return $rows;
     }
 
     /**

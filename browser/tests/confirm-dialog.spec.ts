@@ -55,6 +55,7 @@ test('in-app confirm dialog gates publish without a native window.confirm', asyn
   await expect(page.getByRole('button', { name: 'Yayımla' })).toBeFocused();
   await expect(page.getByRole('definition').filter({ hasText: 'İncelemede' })).toBeVisible();
 
+  await page.getByRole('button', { name: 'Yönetim işlemleri' }).click();
   await page.getByRole('button', { name: 'Arşivle' }).click();
   await expect(page.getByRole('dialog', { name: 'İşlemi onayla' })).toBeVisible();
   await expect(page.getByText('Arşivleme geri alınamaz. Devam edilsin mi?')).toBeVisible();

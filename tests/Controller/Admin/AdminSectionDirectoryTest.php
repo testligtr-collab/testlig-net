@@ -24,6 +24,41 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('#admin-nav-shortcuts', 'Geliştirme aşamasında');
         self::assertSelectorTextContains('#admin-nav-shortcuts', 'Çalışıyor');
+        $mediaLinks = $client->getCrawler()->filter('article.admin-directory-card--media a.admin-media-link');
+        self::assertCount(3, $mediaLinks);
+        self::assertSame('/yonetim/bolum/dokumanlar', $mediaLinks->eq(0)->attr('href'));
+        self::assertStringContainsString('PDF ve eğitim materyalleri.', $mediaLinks->eq(0)->text());
+        self::assertStringContainsString('Geliştirme aşamasında', $mediaLinks->eq(0)->text());
+        self::assertSame('/yonetim/bolum/videolar', $mediaLinks->eq(1)->attr('href'));
+        self::assertStringContainsString('Ders ve anlatım videoları.', $mediaLinks->eq(1)->text());
+        self::assertSame('/yonetim/bolum/medya', $mediaLinks->eq(2)->attr('href'));
+        self::assertStringContainsString('Dosyalar ve depolama alanı.', $mediaLinks->eq(2)->text());
+        self::assertSame(0, $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-media-link')->count());
+        self::assertSame(0, $client->getCrawler()->filter('article.admin-directory-card--media a.admin-mini-link')->count());
+        $learningLinks = $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-mini-link');
+        self::assertGreaterThan(0, $learningLinks->count());
+        self::assertSame($learningLinks->count(), $learningLinks->filter('svg')->count());
+        self::assertContains('/yonetim/sorular', $learningLinks->extract(['href']));
+        self::assertContains('/yonetim/bolum/odevler', $learningLinks->extract(['href']));
+        $roleLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/rol-yetkileri"]');
+        self::assertCount(1, $roleLink);
+        self::assertStringContainsString('Rol ve modül izinleri', $roleLink->text());
+        self::assertStringContainsString('Moderatör hesabına platform yazma izni vermek.', $roleLink->text());
+        self::assertStringContainsString('Çalışıyor', $roleLink->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $roleLink->text());
+        $usersLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/kullanicilar"]');
+        self::assertCount(1, $usersLink);
+        self::assertStringContainsString('Çalışıyor', $usersLink->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $usersLink->text());
+        $teacherLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/ogretmenler"]');
+        self::assertCount(1, $teacherLink);
+        self::assertStringContainsString('Öğretmenler', $teacherLink->text());
+        self::assertStringContainsString('Çalışıyor', $teacherLink->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $teacherLink->text());
+        $operationsLink = $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/bolum/operasyon"]');
+        self::assertCount(1, $operationsLink);
+        self::assertStringContainsString('Yedekleme ve operasyon durumu', $operationsLink->text());
+        self::assertStringContainsString('Geliştirme aşamasında', $operationsLink->text());
 
         foreach (AdminSectionCatalog::all() as $section) {
             $href = '/yonetim/bolum/'.$section['key'];
@@ -38,6 +73,22 @@ final class AdminSectionDirectoryTest extends WebTestCase
             self::assertSelectorNotExists('button:contains("Oluştur")');
         }
 
+        $client->request('GET', '/yonetim/bolum/ogretmenler');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', '/yonetim/bolum/subeler');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', '/yonetim/subeler');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Şube ve kampüsler');
+        $client->request('GET', '/yonetim/ogretmenler');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Öğretmenler');
+        $client->request('GET', '/yonetim/bolum/rol-izinleri');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', '/yonetim/rol-yetkileri');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Rol ve modül izinleri');
+
         $client->request('GET', '/yonetim/bolum/yok');
         self::assertResponseStatusCodeSame(404);
     }
@@ -50,9 +101,28 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('a[href="/yonetim/haberler"]');
         self::assertSelectorExists('a[href="/yonetim/kullanicilar"]');
+        self::assertGreaterThan(0, $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/haberler"]')->count());
+        self::assertSame(0, $client->getCrawler()->filter('a.admin-mini-link[href^="/yonetim/bolum/"]')->count());
+        self::assertSame(0, $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/odemeler"]')->count());
+        self::assertStringContainsString('Çalışıyor', $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/kullanicilar"]')->text());
+        self::assertStringContainsString('Çalışıyor', $client->getCrawler()->filter('a.admin-mini-link[href="/yonetim/ogretmenler"]')->text());
         self::assertSelectorNotExists('a[href="/yonetim/bolum/subeler"]');
+        self::assertSelectorNotExists('a[href="/yonetim/subeler"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/dokumanlar"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/videolar"]');
+        self::assertSelectorNotExists('a[href="/yonetim/bolum/medya"]');
+        self::assertSelectorNotExists('article.admin-directory-card--media');
         self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
+        self::assertSelectorNotExists('a[href="/yonetim/rol-yetkileri"]');
+        $client->request('GET', '/yonetim/ogretmenler');
+        self::assertResponseIsSuccessful();
+        $client->request('GET', '/yonetim/rol-yetkileri');
+        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', '/yonetim/bolum/ogretmenler');
+        self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/bolum/subeler');
+        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', '/yonetim/subeler');
         self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/haberler');
         self::assertResponseIsSuccessful();
@@ -76,6 +146,10 @@ final class AdminSectionDirectoryTest extends WebTestCase
         $this->login($teacher, 'section_dir_teacher@example.com', UserRole::Teacher);
         $teacher->request('GET', '/yonetim/bolum/simulasyonlar');
         self::assertResponseStatusCodeSame(403);
+        $teacher->request('GET', '/yonetim/ogretmenler');
+        self::assertResponseStatusCodeSame(403);
+        $teacher->request('GET', '/yonetim/rol-yetkileri');
+        self::assertResponseStatusCodeSame(403);
         $teacher->request('GET', '/calisma-alani');
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('.panel-nav-group--education');
@@ -84,6 +158,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
 
         $anon = $this->browser();
         $anon->request('GET', '/yonetim/bolum/simulasyonlar');
+        self::assertResponseRedirects('/giris');
+        $anon->request('GET', '/yonetim/rol-yetkileri');
         self::assertResponseRedirects('/giris');
     }
 

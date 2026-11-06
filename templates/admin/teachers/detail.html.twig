@@ -1,0 +1,155 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Öğretmen detayı — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_teachers') }}">Öğretmenler</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ teacher.shortRef }}</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set role_labels = {
+        'ROLE_USER': 'Kullanıcı',
+        'ROLE_STUDENT': 'Öğrenci',
+        'ROLE_PARENT': 'Veli',
+        'ROLE_TEACHER': 'Öğretmen',
+        'ROLE_EXPERT_TEACHER': 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER': 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER': 'Kurum yöneticisi',
+        'ROLE_MODERATOR': 'Moderatör',
+        'ROLE_ADMIN': 'Yönetici',
+        'ROLE_SUPER_ADMIN': 'Süper Yönetici'
+    } %}
+    {% set role_tones = {
+        'ROLE_STUDENT': 'student',
+        'ROLE_PARENT': 'parent',
+        'ROLE_TEACHER': 'teacher',
+        'ROLE_EXPERT_TEACHER': 'teacher',
+        'ROLE_HEAD_TEACHER': 'teacher',
+        'ROLE_INSTITUTION_MANAGER': 'admin',
+        'ROLE_MODERATOR': 'moderator',
+        'ROLE_ADMIN': 'admin',
+        'ROLE_SUPER_ADMIN': 'admin'
+    } %}
+    {% set month_labels = {
+        '1': 'Oca', '2': 'Şub', '3': 'Mar', '4': 'Nis', '5': 'May', '6': 'Haz',
+        '7': 'Tem', '8': 'Ağu', '9': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara'
+    } %}
+    {% set created_month = teacher.createdAt|utc_present('n') %}
+    <div class="admin-user-detail-page admin-teacher-dir-page">
+        <header class="admin-user-detail-head">
+            <div>
+                <h1 class="panel-greeting">Öğretmen detayı</h1>
+                <p>Hesap, kayıtlı mesleki profil ve mevcut kurum bağlantıları. Profil onayı, üyelik ve sınıf ataması bu adreste yapılmaz.</p>
+            </div>
+            <div class="admin-user-detail-head__actions">
+                <a class="admin-user-detail-link" href="{{ path('app_admin_teachers') }}">
+                    <span aria-hidden="true">←</span>
+                    Listeye dön
+                </a>
+                {% if user_href %}
+                    <a class="admin-user-detail-link" href="{{ user_href }}">Kullanıcı detayı</a>
+                {% endif %}
+                {% if audit_href %}
+                    <a class="admin-user-detail-link" href="{{ audit_href }}">
+                        {% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}
+                        İşlem geçmişi
+                    </a>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="admin-user-detail-profile" aria-label="Hesap özeti">
+            <div class="admin-user-detail-identity">
+                <span class="admin-user-avatar admin-user-avatar--{{ teacher.avatarTone() }}" aria-hidden="true">{{ teacher.initials() }}</span>
+                <div class="admin-user-detail-identity__copy">
+                    <h2 class="admin-user-detail-name">{{ teacher.displayName() }}</h2>
+                    <p class="admin-user-detail-email">{{ teacher.email }}</p>
+                    <p class="admin-user-detail-ref">Ref {{ teacher.shortRef }}</p>
+                    <div class="admin-user-detail-pills">
+                        {% if teacher.status.value == 'suspended' %}
+                            {% include 'admin/_status.html.twig' with { code: teacher.status.value, variant: 'danger' } only %}
+                        {% else %}
+                            {% include 'admin/_status.html.twig' with { code: teacher.status.value } only %}
+                        {% endif %}
+                        <span class="admin-user-verify admin-user-verify--{{ teacher.emailVerified ? 'yes' : 'no' }}">
+                            {{ teacher.emailVerified ? 'Doğrulandı' : 'Doğrulanmadı' }}
+                        </span>
+                        {% for role in teacher.globalRoles %}
+                            <span class="admin-user-role admin-user-role--{{ role_tones[role]|default('user') }}">{{ role_labels[role]|default('Diğer / eski kayıt') }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <dl class="admin-user-detail-meta">
+                <div>
+                    <dt>Kayıt</dt>
+                    <dd>{{ teacher.createdAt|utc_present('j') }} {{ month_labels[created_month]|default(created_month) }} {{ teacher.createdAt|utc_present('Y') }}</dd>
+                </div>
+                <div>
+                    <dt>E-posta doğrulama</dt>
+                    <dd>{{ teacher.emailVerified ? 'Doğrulandı' : 'Doğrulanmadı' }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section class="admin-user-detail-card" aria-labelledby="teacher-profile-heading">
+            <h2 id="teacher-profile-heading">Mesleki profil</h2>
+            <p class="admin-teacher-dir-note">Kayıtlı branş, sınıf ve okul öğretmenin kendi profilinden gelir. Kayıt yokluğu onay durumu değildir.</p>
+            <dl class="admin-user-detail-meta">
+                <div>
+                    <dt>Branş</dt>
+                    <dd>{{ teacher.subjectLabel }}</dd>
+                </div>
+                <div>
+                    <dt>Sınıf seviyeleri</dt>
+                    <dd>{{ teacher.gradeLabel }}</dd>
+                </div>
+                <div>
+                    <dt>Okul</dt>
+                    <dd>{{ teacher.schoolLabel }}</dd>
+                </div>
+            </dl>
+        </section>
+
+        {% if teacher.membershipsVisible %}
+            <section class="admin-user-detail-card" aria-labelledby="teacher-membership-heading">
+                <h2 id="teacher-membership-heading">Kurum üyelikleri</h2>
+                {% if teacher.memberships is empty %}
+                    <p>Kurum üyeliği yok.</p>
+                {% else %}
+                    <ul class="admin-teacher-dir-relations">
+                        {% for membership in teacher.memberships %}
+                            <li>
+                                <strong>{{ membership.institution }}</strong>
+                                <span>{{ membership.role }}</span>
+                                <span>{{ membership.status }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
+            <section class="admin-user-detail-card" aria-labelledby="teacher-assignment-heading">
+                <h2 id="teacher-assignment-heading">Aktif sınıf atamaları</h2>
+                {% if teacher.assignments is empty %}
+                    <p>Aktif sınıf ataması yok.</p>
+                {% else %}
+                    <ul class="admin-teacher-dir-relations">
+                        {% for assignment in teacher.assignments %}
+                            <li>
+                                <strong>{{ assignment.classroom }}</strong>
+                                <span>{{ assignment.institution }}</span>
+                                <span>{{ assignment.role }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

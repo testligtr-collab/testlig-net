@@ -17,12 +17,14 @@ use App\Entity\ClassroomTeacherActiveGuard;
 use App\Entity\ClassroomTeacherAssignment;
 use App\Entity\CourseTeacherActiveGuard;
 use App\Entity\CourseTeacherAssignment;
+use App\Entity\CurriculumAccessGate;
 use App\Entity\CurriculumLearningOutcome;
 use App\Entity\CurriculumProgram;
 use App\Entity\CurriculumTopic;
 use App\Entity\CurriculumUnit;
 use App\Entity\Institution;
 use App\Entity\InstitutionActiveAcademicYearGuard;
+use App\Entity\InstitutionBranch;
 use App\Entity\InstitutionMembership;
 use App\Entity\LearningContent;
 use App\Entity\LearningContentRevision;
@@ -76,6 +78,13 @@ final class InstitutionalFreshEntityLoader
         return $entity instanceof Institution ? $entity : null;
     }
 
+    public function findFreshLockedInstitutionBranch(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?InstitutionBranch
+    {
+        $entity = $this->findFresh(InstitutionBranch::class, $id, $lockMode);
+
+        return $entity instanceof InstitutionBranch ? $entity : null;
+    }
+
     public function findFreshLockedMembership(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?InstitutionMembership
     {
         $entity = $this->findFresh(InstitutionMembership::class, $id, $lockMode);
@@ -102,6 +111,13 @@ final class InstitutionalFreshEntityLoader
         $entity = $this->findFresh(Subject::class, $id, $lockMode);
 
         return $entity instanceof Subject ? $entity : null;
+    }
+
+    public function findFreshLockedCurriculumAccessGate(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumAccessGate
+    {
+        $entity = $this->findFresh(CurriculumAccessGate::class, $id, $lockMode);
+
+        return $entity instanceof CurriculumAccessGate ? $entity : null;
     }
 
     public function findFreshLockedCurriculumProgram(Uuid $id, LockMode $lockMode = LockMode::PESSIMISTIC_WRITE): ?CurriculumProgram

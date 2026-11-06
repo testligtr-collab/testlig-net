@@ -155,10 +155,49 @@ final class AdminLearningContentQuery
                 createdById: $author->getId(),
                 accessClass: $policy instanceof LearningContentAccessPolicy ? $policy->getAccessClass()->value : null,
                 updatedAt: $content->getUpdatedAt(),
+                currentRevisionNumber: $content->getCurrentRevisionNumber(),
+                publishedRevisionNumber: $content->getPublishedRevisionNumber(),
+                scope: $content->getScope(),
             );
         }
 
         return new AdminPagedResult($items, $page, $pageSize, $total);
+    }
+
+    /**
+     * Status totals for the same rows the actor may list. Independent of the page filters.
+     *
+     * @return array{total: int, draft: int, in_review: int, published: int, archived: int}
+     */
+    public function statusCounts(Uuid $actorId): array
+    {
+        $actor = $this->actorGuard->withFreshActor(
+            $actorId,
+            $this->adminAuthorization->assertCanViewLearningContentWorkspace(...),
+        );
+        $qb = $this->em->createQueryBuilder()
+            ->select('c.status AS status', 'COUNT(c.id) AS total')
+            ->from(LearningContent::class, 'c')
+            ->groupBy('c.status');
+        if ($this->isTeacherOnly($actor)) {
+            $qb->andWhere('IDENTITY(c.createdBy) = :actorId')
+                ->setParameter('actorId', $actor->getId(), 'uuid');
+        }
+
+        /** @var list<array{status: mixed, total: mixed}> $rows */
+        $rows = $qb->getQuery()->getArrayResult();
+        $counts = ['total' => 0, 'draft' => 0, 'in_review' => 0, 'published' => 0, 'archived' => 0];
+        foreach ($rows as $row) {
+            $status = $row['status'];
+            $key = $status instanceof \BackedEnum ? (string) $status->value : (\is_string($status) ? $status : '');
+            $value = (int) $row['total'];
+            if (isset($counts[$key]) && 'total' !== $key) {
+                $counts[$key] = $value;
+            }
+            $counts['total'] += $value;
+        }
+
+        return $counts;
     }
 
     public function requireVisibleContent(Uuid $actorId, Uuid $contentId): LearningContent

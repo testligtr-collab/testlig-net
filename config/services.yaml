@@ -179,6 +179,10 @@ services:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
 
+    App\Doctrine\HomeworkEvaluationCompositeForeignKeyListener:
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchema }
+
     App\Doctrine\LearningContentSchemaListener:
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchema }
@@ -372,6 +376,14 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\CurriculumProgramManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumAccessGateManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\CurriculumStudentAccess:
             public: true
             autowire: true
             autoconfigure: true
@@ -999,6 +1011,22 @@ when@test:
             autowire: true
             autoconfigure: true
         App\Service\Admin\AdminNavBuilder:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkDefinitionManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkAssignmentManager:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkDefinitionQuery:
+            public: true
+            autowire: true
+            autoconfigure: true
+        App\Service\Homework\HomeworkTeacherScope:
             public: true
             autowire: true
             autoconfigure: true

@@ -506,10 +506,117 @@ report_release() {
   fi
 }
 
+package_owning() {
+  local path="$1" out="" status=127 name
+  if [ -n "$root" ]; then
+    if [ -f "$root/bin/rpm" ]; then
+      status=0
+      out="$(bash "$root/bin/rpm" -qf --qf '%{NAME}' "$path" 2>/dev/null)" || status=$?
+    fi
+  elif command -v rpm >/dev/null 2>&1; then
+    status=0
+    out="$(timeout 15 rpm -qf --qf '%{NAME}' "$path" 2>/dev/null)" || status=$?
+  fi
+  name="unknown"
+  if [ "$status" -eq 0 ]; then
+    name="$(printf '%s' "$out" | awk 'NR==1 { print; exit }')"
+    name="${name%%$'\r'*}"
+    if ! matches "$name" '^lsphp[0-9]+$'; then
+      name="unknown"
+    fi
+  fi
+  printf '%s' "$name"
+}
+
+report_workers() {
+  local proc comm exe target deleted found=0 name
+  proc="$(host_path "/proc")"
+  if [ ! -d "$proc" ]; then
+    echo "web_worker=absent"
+    echo "web_worker_exe_measured=no"
+    return 0
+  fi
+  shopt -s nullglob
+  for comm in "$proc"/[0-9]*/comm; do
+    [ -r "$comm" ] || continue
+    name="$(tr -d '\r\n' < "$comm")"
+    case "$name" in
+      lsphp|lsphp83|php) ;;
+      *) continue ;;
+    esac
+    exe="${comm%/comm}/exe"
+    target="$(readlink "$exe" 2>/dev/null || true)"
+    deleted="no"
+    case "$target" in
+      *' (deleted)')
+        deleted="yes"
+        target="${target%' (deleted)'}"
+        ;;
+    esac
+    if matches "$target" '^/usr/local/lsws/lsphp[0-9]+/bin/(lsphp|php)$'; then
+      echo "web_worker exe=${target} deleted=${deleted} package=$(package_owning "$target") web_acceptance=no"
+      found=1
+    else
+      echo "web_worker exe=unparsed deleted=unknown package=unknown web_acceptance=no"
+      found=1
+    fi
+  done
+  if [ "$found" -eq 0 ]; then
+    echo "web_worker=none"
+    echo "web_worker_exe_measured=no"
+  else
+    echo "web_worker_exe_measured=yes"
+  fi
+}
+
+report_composer_tool() {
+  local bin raw version status
+  bin="$(host_path "/usr/bin/composer")"
+  if [ ! -f "$bin" ]; then
+    echo "composer_tool=absent"
+    return 0
+  fi
+  raw="$(run_limited 12 "$bin" --version </dev/null 2>/dev/null)"
+  status=$?
+  version="unreadable"
+  if [ "$status" -eq 0 ]; then
+    version="$(printf '%s\n' "$raw" | awk 'NR==1 && $1=="Composer" && $2=="version" && $3 ~ /^[0-9]+\.[0-9]+\.[0-9]+$/ { print $3; exit }')"
+    [ -n "$version" ] || version="unreadable"
+  fi
+  echo "composer_tool path=/usr/bin/composer version=${version} web_acceptance=no"
+}
+
+report_cve_markers() {
+  local out="" status=127 id
+  if [ -n "$root" ]; then
+    if [ -f "$root/bin/rpm" ]; then
+      status=0
+      out="$(bash "$root/bin/rpm" -q --changelog lsphp83 2>/dev/null)" || status=$?
+    fi
+  elif command -v rpm >/dev/null 2>&1; then
+    status=0
+    out="$(timeout 20 rpm -q --changelog lsphp83 2>/dev/null)" || status=$?
+  fi
+  if [ "$status" -ne 0 ]; then
+    echo "lsphp83_changelog_cve=unknown"
+    return 0
+  fi
+  for id in CVE-2026-109618 CVE-2026-109619; do
+    if printf '%s\n' "$out" | grep -F -q -- "$id"; then
+      echo "lsphp83_changelog_cve id=${id} present=yes"
+    else
+      echo "lsphp83_changelog_cve id=${id} present=no"
+    fi
+  done
+}
+
 report_packages
 report_filesystem_ini
 scan_configs
 report_cli
+report_workers
+report_composer_tool
+report_cve_markers
 report_repos
 report_security_update
 report_release

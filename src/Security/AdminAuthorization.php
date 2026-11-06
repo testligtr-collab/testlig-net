@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Security;
 
 use App\Entity\User;
+use App\Enum\CurriculumOperation;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Exception\CommerceException;
 use App\Service\ActiveVerifiedUserPolicy;
@@ -20,6 +22,8 @@ final class AdminAuthorization
     public function __construct(
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
         private readonly CommerceAuthorization $commerceAuthorization,
+        private readonly UserModulePermissionPolicy $modulePermissions,
+        private readonly CurriculumActorPolicy $curriculumActors,
     ) {
     }
 
@@ -107,6 +111,30 @@ final class AdminAuthorization
     public function assertCanManageInstitutions(User $actor): void
     {
         $this->assertCanCreateInstitutions($actor);
+    }
+
+    public function assertCanViewBranches(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
+    public function assertCanViewAcademicYears(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
+    }
+
+    public function assertCanViewClassrooms(User $actor): void
+    {
+        $this->assertActiveVerified($actor);
+        if (!$this->activeVerifiedUserPolicy->isSuperAdmin($actor)) {
+            throw CommerceException::unauthorized();
+        }
     }
 
     /**
@@ -217,6 +245,11 @@ final class AdminAuthorization
         return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
     }
 
+    public function canManageModulePermissions(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
     public function canRequeueDeadLetter(User $actor): bool
     {
         return $this->canOperatePayments($actor);
@@ -247,6 +280,51 @@ final class AdminAuthorization
         return $this->canCreateInstitutions($actor);
     }
 
+    public function canViewBranches(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canCreateBranches(User $actor): bool
+    {
+        return $this->canViewBranches($actor);
+    }
+
+    public function canManageBranches(User $actor): bool
+    {
+        return $this->canViewBranches($actor);
+    }
+
+    public function canViewAcademicYears(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canCreateAcademicYears(User $actor): bool
+    {
+        return $this->canViewAcademicYears($actor);
+    }
+
+    public function canManageAcademicYears(User $actor): bool
+    {
+        return $this->canViewAcademicYears($actor);
+    }
+
+    public function canViewClassrooms(User $actor): bool
+    {
+        return $this->activeVerifiedUserPolicy->isActiveVerifiedSuperAdmin($actor);
+    }
+
+    public function canCreateClassrooms(User $actor): bool
+    {
+        return $this->canViewClassrooms($actor);
+    }
+
+    public function canManageClassrooms(User $actor): bool
+    {
+        return $this->canViewClassrooms($actor);
+    }
+
     public function canViewMemberships(User $actor): bool
     {
         return $this->canCreateInstitutions($actor);
@@ -255,6 +333,31 @@ final class AdminAuthorization
     public function canManageMemberships(User $actor): bool
     {
         return $this->canCreateInstitutions($actor);
+    }
+
+    public function canViewCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::View);
+    }
+
+    public function canManageCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Manage);
+    }
+
+    public function canPublishCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Publish);
+    }
+
+    public function canArchiveCurriculum(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Archive);
+    }
+
+    public function canChangeCurriculumAvailability(User $actor): bool
+    {
+        return $this->curriculumActors->allows($actor, CurriculumOperation::Availability);
     }
 
     public function canViewCatalog(User $actor): bool
@@ -293,14 +396,15 @@ final class AdminAuthorization
 
     public function canManageLearningContentWorkspace(User $actor): bool
     {
-        return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
+        return ($this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
             && $this->hasAnyRole($actor, [
                 UserRole::SuperAdmin,
                 UserRole::Admin,
                 UserRole::HeadTeacher,
                 UserRole::ExpertTeacher,
                 UserRole::Teacher,
-            ]);
+            ]))
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::LearningContentManage);
     }
 
     /**
@@ -330,10 +434,17 @@ final class AdminAuthorization
 
     public function canAuthorTests(User $actor): bool
     {
-        return $this->canAuthorQuestions($actor);
+        return $this->canAuthorByExistingRole($actor)
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::AssessmentAuthor);
     }
 
     public function canAuthorQuestions(User $actor): bool
+    {
+        return $this->canAuthorByExistingRole($actor)
+            || $this->modulePermissions->allows($actor, ModeratorModuleGrant::QuestionManage);
+    }
+
+    private function canAuthorByExistingRole(User $actor): bool
     {
         return $this->activeVerifiedUserPolicy->isActiveAndVerified($actor)
             && $this->hasAnyRole($actor, [

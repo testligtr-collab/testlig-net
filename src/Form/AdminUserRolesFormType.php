@@ -18,6 +18,19 @@ use Symfony\Component\Uid\Uuid;
  */
 final class AdminUserRolesFormType extends AbstractType
 {
+    private const ROLE_LABELS = [
+        'ROLE_USER' => 'Kullanıcı',
+        'ROLE_STUDENT' => 'Öğrenci',
+        'ROLE_PARENT' => 'Veli',
+        'ROLE_TEACHER' => 'Öğretmen',
+        'ROLE_EXPERT_TEACHER' => 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER' => 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER' => 'Kurum yöneticisi',
+        'ROLE_MODERATOR' => 'Moderatör',
+        'ROLE_ADMIN' => 'Yönetici',
+        'ROLE_SUPER_ADMIN' => 'Süper Yönetici',
+    ];
+
     public function getBlockPrefix(): string
     {
         return 'admin_user_roles';
@@ -29,7 +42,7 @@ final class AdminUserRolesFormType extends AbstractType
         $choices = $options['assignable_roles'];
         $choiceMap = [];
         foreach ($choices as $value) {
-            $choiceMap[$value] = $value;
+            $choiceMap[self::ROLE_LABELS[$value] ?? $value] = $value;
         }
 
         $builder
@@ -41,13 +54,16 @@ final class AdminUserRolesFormType extends AbstractType
                 'required' => false,
             ])
             ->add('reasonCode', ChoiceType::class, [
-                'label' => 'Gerekçe',
+                'label' => 'Değişiklik gerekçesi',
                 'choices' => [
                     'Yetki ayarı' => AdminUserRolesRequest::REASON_PRIVILEGE_ADJUSTMENT,
                     'Destek yükseltmesi' => AdminUserRolesRequest::REASON_SUPPORT_ESCALATION,
                     'Politika uygulaması' => AdminUserRolesRequest::REASON_POLICY_ENFORCEMENT,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'setter' => static function (AdminUserRolesRequest $request, mixed $value): void {
+                    $request->reasonCode = \is_string($value) ? $value : '';
+                },
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Rol değişikliğini onaylıyorum',

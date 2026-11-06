@@ -149,7 +149,7 @@ final class AssessmentResultReportQuery
         $student = $attempt->getUser();
         $revision = $attempt->getAssessmentRevision();
 
-        $scored = $this->results->readScored($attempt);
+        $scored = $this->results->readScored($attempt, true);
         $questions = [];
         if (null !== $scored) {
             foreach ($scored['questions'] as $question) {
@@ -160,6 +160,9 @@ final class AssessmentResultReportQuery
                     $question['correct_answer'],
                     $question['label'],
                     $question['explanation'],
+                    $question['points'],
+                    $question['stem_blocks'],
+                    $question['explanation_blocks'],
                 );
             }
         }

@@ -53,7 +53,8 @@ final class AdminNavBuilder
         $canShell = $this->adminAuthorization->canAccessAdminShell($actor);
         $canContent = $this->adminAuthorization->canViewLearningContentWorkspace($actor);
         $classroomCount = $this->workspaceSummary->activeClassroomCount($actor);
-        $workspaceShell = !$canShell && ($canContent || $classroomCount > 0);
+        $canCurriculum = $this->adminAuthorization->canViewCurriculum($actor);
+        $workspaceShell = !$canShell && ($canContent || $canCurriculum || $classroomCount > 0);
 
         $canUsers = $this->adminAuthorization->canViewUsers($actor);
         $canInstitutions = $this->adminAuthorization->canViewInstitutions($actor);
@@ -68,6 +69,10 @@ final class AdminNavBuilder
 
         if ($canUsers) {
             $items[] = $this->item('users', 'Kullanıcılar', 'app_admin_users', $currentPath, '/yonetim/kullanicilar');
+            $items[] = $this->item('teachers', 'Öğretmenler', 'app_admin_teachers', $currentPath, '/yonetim/ogretmenler', false, 'users');
+        }
+        if ($this->adminAuthorization->canManageModulePermissions($actor)) {
+            $items[] = $this->item('role_permissions', 'Rol ve modül izinleri', 'app_admin_module_permissions', $currentPath, '/yonetim/rol-yetkileri', false, 'users');
         }
         if ($this->adminAuthorization->canManageMemberships($actor)) {
             $items[] = $this->item('teacher_applications', 'Öğretmen başvuruları', 'app_admin_teacher_applications', $currentPath, '/yonetim/ogretmen-basvurulari');
@@ -76,9 +81,25 @@ final class AdminNavBuilder
         if ($canInstitutions) {
             $items[] = $this->item('institutions', 'Kurumlar', 'app_admin_institutions', $currentPath, '/yonetim/kurumlar');
         }
+        if ($this->adminAuthorization->canViewBranches($actor)) {
+            $items[] = $this->item('branches', 'Şube ve kampüsler', 'app_admin_branches', $currentPath, '/yonetim/subeler', false, 'institutions');
+        }
+        if ($this->adminAuthorization->canViewAcademicYears($actor)) {
+            $items[] = $this->item('academic_years', 'Akademik yıllar', 'app_admin_academic_years', $currentPath, '/yonetim/akademik-yillar', false, 'calendar');
+        }
+        if ($this->adminAuthorization->canViewClassrooms($actor)) {
+            $items[] = $this->item('classes', 'Sınıflar', 'app_admin_classrooms', $currentPath, '/yonetim/siniflar', false, 'classrooms');
+        }
 
-        if ($this->adminAuthorization->canViewCatalog($actor)) {
-            $items[] = $this->item('catalog', 'Müfredat', 'app_admin_catalog', $currentPath, '/yonetim/mufredat');
+        if ($canCurriculum || $this->adminAuthorization->canViewCatalog($actor)) {
+            $route = $canCurriculum ? 'app_admin_curriculum' : 'app_admin_catalog';
+            $prefix = $canCurriculum ? '/yonetim/programlar' : '/yonetim/mufredat';
+            $item = $this->item('curriculum', 'Müfredat Yönetimi', $route, $currentPath, $prefix, false, 'catalog');
+            $related = $canCurriculum ? '/yonetim/mufredat' : '/yonetim/programlar';
+            if (!$item['current'] && ($currentPath === $related || str_starts_with($currentPath, $related.'/'))) {
+                $item['current'] = true;
+            }
+            $items[] = $item;
         }
 
         if ($this->adminAuthorization->canViewLearningContentWorkspace($actor)) {
@@ -150,14 +171,14 @@ final class AdminNavBuilder
             ? [
                 ['id' => 'general', 'label' => 'Genel', 'ids' => ['dashboard', 'system']],
                 ['id' => 'management', 'label' => 'Yönetim', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'institutions']],
-                ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
+                ['id' => 'education', 'label' => 'Eğitim', 'ids' => ['catalog', 'curriculum', 'learning_contents', 'questions', 'tests', 'classrooms', 'teacher_profile']],
                 ['id' => 'operations', 'label' => 'Operasyon', 'ids' => ['payments', 'webhooks', 'reconciliations', 'audit']],
             ]
             : [
                 ['id' => 'overview', 'label' => 'Genel Bakış', 'ids' => ['dashboard']],
                 ['id' => 'people', 'label' => 'Kullanıcılar ve Yetkiler', 'ids' => ['users', 'teacher_applications', 'institution_applications', 'teachers', 'role_permissions']],
                 ['id' => 'campus', 'label' => 'Kurum ve Sınıf', 'ids' => ['institutions', 'branches', 'academic_years', 'classes', 'classrooms']],
-                ['id' => 'learning', 'label' => 'Eğitim', 'ids' => ['catalog', 'learning_contents', 'questions', 'tests', 'assignments', 'reports', 'teacher_profile']],
+                ['id' => 'learning', 'label' => 'Eğitim', 'ids' => ['catalog', 'curriculum', 'learning_contents', 'questions', 'tests', 'assignments', 'reports', 'teacher_profile']],
                 ['id' => 'media', 'label' => 'Medya', 'ids' => ['storage', 'documents', 'videos']],
                 ['id' => 'interactive', 'label' => 'Etkileşimli Eğitim', 'ids' => ['simulations', 'games', 'live_lessons', 'qna', 'guidance', 'gamification']],
                 ['id' => 'communication', 'label' => 'İletişim', 'ids' => ['messages', 'notifications', 'support']],
@@ -209,7 +230,7 @@ final class AdminNavBuilder
     /**
      * @return array{id: string, label: string, href: string, current: bool, icon: string, stage: string}
      */
-    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false): array
+    private function item(string $id, string $label, string $route, string $currentPath, ?string $pathPrefix = null, bool $exact = false, ?string $icon = null): array
     {
         $href = $this->urlGenerator->generate($route);
         $prefix = rtrim($pathPrefix ?? $href, '/');
@@ -222,7 +243,7 @@ final class AdminNavBuilder
             'label' => $label,
             'href' => $href,
             'current' => $current,
-            'icon' => $this->icons->resolve($id),
+            'icon' => $this->icons->resolve($icon ?? $id),
             'stage' => 'ready',
         ];
     }

@@ -23,7 +23,7 @@ final class QuestionBankCompositeForeignKeyListener
                 'curriculum_topics',
                 ['topic_id', 'unit_id'],
                 ['id', 'unit_id'],
-                ['onDelete' => 'CASCADE'],
+                ['onDelete' => 'RESTRICT'],
             );
             CompositeForeignKeySchemaHelper::ensureForeignKey(
                 $table,
@@ -31,7 +31,7 @@ final class QuestionBankCompositeForeignKeyListener
                 'curriculum_units',
                 ['unit_id', 'curriculum_program_id'],
                 ['id', 'curriculum_program_id'],
-                ['onDelete' => 'CASCADE'],
+                ['onDelete' => 'RESTRICT'],
             );
         }
 

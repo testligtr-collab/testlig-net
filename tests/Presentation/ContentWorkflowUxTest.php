@@ -24,6 +24,10 @@ final class ContentWorkflowUxTest extends TestCase
         self::assertSame('Ücretsiz', $labels->label('access', 'free'));
         self::assertSame('Platform geneli', $labels->label('scope', 'platform'));
         self::assertSame('Bilgi', $labels->label('callout', 'info'));
+        self::assertSame('Uyarı', $labels->label('callout', 'warning'));
+        self::assertSame('İpucu', $labels->label('callout', 'tip'));
+        self::assertSame('Not', $labels->label('callout', 'note'));
+        self::assertSame('other', $labels->label('callout', 'other'));
         self::assertSame('custom_value', $labels->label('status', 'custom_value'));
     }
 

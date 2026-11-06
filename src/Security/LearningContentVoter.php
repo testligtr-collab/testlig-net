@@ -9,9 +9,11 @@ use App\Entity\User;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentStatus;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\UserRole;
 use App\Security\Authorization\LearningContentAuthorizationSnapshot;
 use App\Security\Authorization\MembershipAuthorizationSnapshot;
+use App\Security\Authorization\UserAuthorizationSnapshot;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Authorization\Voter\Voter;
 
@@ -32,6 +34,7 @@ final class LearningContentVoter extends Voter
 {
     public function __construct(
         private readonly RequestScopedInstitutionAuthLookup $authLookup,
+        private readonly UserModulePermissionPolicy $modulePermissions,
     ) {
     }
 
@@ -65,7 +68,7 @@ final class LearningContentVoter extends Voter
         }
 
         if (LearningContentPermission::CREATE === $attribute && null === $subject) {
-            return $this->mayCreateWithoutSubject($user->roles);
+            return $this->mayCreateWithoutSubject($user);
         }
 
         if (!$subject instanceof LearningContent) {
@@ -78,7 +81,7 @@ final class LearningContentVoter extends Voter
         }
 
         if (LearningContentScope::Platform === $content->scope) {
-            return $this->platformAllows($attribute, $user->roles, $user->id->equals($content->createdById), $content);
+            return $this->platformAllows($attribute, $user, $user->id->equals($content->createdById), $content);
         }
 
         if (null === $content->institutionId) {
@@ -101,31 +104,28 @@ final class LearningContentVoter extends Voter
         );
     }
 
-    /**
-     * @param list<string> $roles
-     */
-    private function mayCreateWithoutSubject(array $roles): bool
+    private function mayCreateWithoutSubject(UserAuthorizationSnapshot $user): bool
     {
-        return \in_array(UserRole::HeadTeacher->value, $roles, true)
-            || \in_array(UserRole::ExpertTeacher->value, $roles, true)
-            || \in_array(UserRole::Teacher->value, $roles, true)
-            || \in_array(UserRole::Admin->value, $roles, true);
+        return \in_array(UserRole::HeadTeacher->value, $user->roles, true)
+            || \in_array(UserRole::ExpertTeacher->value, $user->roles, true)
+            || \in_array(UserRole::Teacher->value, $user->roles, true)
+            || \in_array(UserRole::Admin->value, $user->roles, true)
+            || $this->modulePermissions->snapshotAllows($user, ModeratorModuleGrant::LearningContentManage);
     }
 
-    /**
-     * @param list<string> $roles
-     */
     private function platformAllows(
         string $attribute,
-        array $roles,
+        UserAuthorizationSnapshot $user,
         bool $isAuthor,
         LearningContentAuthorizationSnapshot $content,
     ): bool {
+        $roles = $user->roles;
         $isHeadOrExpert = \in_array(UserRole::HeadTeacher->value, $roles, true)
             || \in_array(UserRole::ExpertTeacher->value, $roles, true);
         $isTeacher = \in_array(UserRole::Teacher->value, $roles, true);
         $isAdmin = \in_array(UserRole::Admin->value, $roles, true);
         $isModerator = \in_array(UserRole::Moderator->value, $roles, true);
+        $granted = $this->modulePermissions->snapshotAllows($user, ModeratorModuleGrant::LearningContentManage);
 
         return match ($attribute) {
             LearningContentPermission::VIEW_METADATA => $content->isPublished()
@@ -133,17 +133,19 @@ final class LearningContentVoter extends Voter
                 || $isAdmin
                 || $isModerator
                 || ($isTeacher && $isAuthor),
-            LearningContentPermission::CREATE => $isHeadOrExpert || $isTeacher || $isAdmin,
+            LearningContentPermission::CREATE => $isHeadOrExpert || $isTeacher || $isAdmin || $granted,
             LearningContentPermission::MANAGE,
             LearningContentPermission::ATTACH_ASSET,
             LearningContentPermission::MANAGE_ALIGNMENT => $isHeadOrExpert
                 || $isAdmin
+                || $granted
                 || ($isTeacher && $isAuthor && \in_array($content->status, [
                     LearningContentStatus::Draft,
                     LearningContentStatus::InReview,
                 ], true)),
             LearningContentPermission::SUBMIT_REVIEW => $isHeadOrExpert
                 || $isAdmin
+                || $granted
                 || ($isTeacher && $isAuthor && LearningContentStatus::Draft === $content->status),
             LearningContentPermission::RETURN_DRAFT => $isHeadOrExpert || $isAdmin || $isModerator,
             LearningContentPermission::PUBLISH,

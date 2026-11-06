@@ -4,19 +4,23 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Dto\AdminInstitutionApplicationRow;
 use App\Entity\InstitutionApplication;
 use App\Entity\User;
 use App\Enum\InstitutionFailureReason;
 use App\Exception\InstitutionOperationException;
 use App\Exception\OnboardingApplicationException;
+use App\Presentation\InstitutionApplicationRejectReason;
 use App\Repository\InstitutionApplicationRepository;
 use App\Security\AdminPermission;
 use App\Service\ActiveVerifiedUserPolicy;
+use App\Service\Admin\AdminInstitutionApplicationQuery;
 use App\Service\Admin\AdminNavBuilder;
 use App\Service\InstitutionApplicationInstitutionCreate;
 use App\Service\InstitutionApplicationManager;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
@@ -34,29 +38,70 @@ final class AdminInstitutionApplicationController extends AdminBaseController
         private readonly InstitutionApplicationManager $applicationManager,
         private readonly InstitutionApplicationInstitutionCreate $institutionCreate,
         private readonly ActiveVerifiedUserPolicy $activeVerifiedUserPolicy,
+        private readonly AdminInstitutionApplicationQuery $applicationQuery,
     ) {
         parent::__construct($adminNavBuilder);
     }
 
     #[Route('/yonetim/kurum-basvurulari', name: 'app_admin_institution_applications', methods: ['GET'])]
     #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
-    public function list(): Response
+    public function list(Request $request): Response
     {
         $this->requireSuperAdmin();
+        $list = $this->applicationQuery->search($request->query->all());
 
         return $this->renderAdmin('admin/institution_applications/list.html.twig', [
-            'applications' => $this->applications->findPendingOrdered(),
+            'summary' => $this->applicationQuery->summary(),
+            'result' => $list->result,
+            'filters' => $list->filters,
         ]);
     }
 
     #[Route('/yonetim/kurum-basvurulari/{id}', name: 'app_admin_institution_application', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
     #[IsGranted(AdminPermission::ADMIN_USERS_VIEW)]
-    public function detail(Uuid $id): Response
+    public function detail(Request $request, Uuid $id): Response
     {
         $this->requireSuperAdmin();
+        $application = $this->application($id);
+        $session = $request->getSession();
+        if (!$session instanceof FlashBagAwareSessionInterface) {
+            throw new \LogicException('Oturum flaş bilgisi taşımıyor.');
+        }
+        $reasonFlashes = $session->getFlashBag()->get('institution_application_reason');
+        $reasonErrors = $session->getFlashBag()->get('institution_application_reason_error');
+        $reasonMessages = $session->getFlashBag()->get('institution_application_reason_message');
+        $postedReason = '';
+        foreach ($reasonFlashes as $reasonFlash) {
+            if (\is_string($reasonFlash)) {
+                $postedReason = $reasonFlash;
+                break;
+            }
+        }
+        $reasonError = '';
+        foreach ($reasonMessages as $reasonMessage) {
+            if (\is_string($reasonMessage)) {
+                $reasonError = $reasonMessage;
+                break;
+            }
+        }
+        $created = $application->getCreatedInstitution();
+        $institutionHref = null;
+        if (null !== $created && $this->isGranted(AdminPermission::ADMIN_INSTITUTIONS_VIEW)) {
+            $institutionHref = $this->generateUrl('app_admin_institution_detail', ['id' => $created->getId()]);
+        }
 
         return $this->renderAdmin('admin/institution_applications/detail.html.twig', [
-            'application' => $this->application($id),
+            'application' => $application,
+            'row' => AdminInstitutionApplicationRow::fromApplication($application),
+            'posted_reason' => $postedReason,
+            'reason_invalid' => [] !== $reasonErrors,
+            'reason_error' => $reasonError,
+            'reject_reasons' => InstitutionApplicationRejectReason::choices(),
+            'legacy_reason_label' => InstitutionApplicationRejectReason::LEGACY_LABEL,
+            'institution_href' => $institutionHref,
+            'audit_href' => $this->isGranted(AdminPermission::ADMIN_AUDIT_VIEW)
+                ? $this->generateUrl('app_admin_audit')
+                : null,
         ]);
     }
 
@@ -89,9 +134,16 @@ final class AdminInstitutionApplicationController extends AdminBaseController
             throw new AccessDeniedHttpException('Geçersiz istek.');
         }
         $this->application($id);
+        $posted = trim($request->request->getString('reason_code'));
+        if (mb_strlen($posted) > 64) {
+            $posted = mb_substr($posted, 0, 64);
+        }
+        if (!InstitutionApplicationRejectReason::isAllowed($posted)) {
+            return $this->rejectChoiceFailure($id, $posted);
+        }
 
         try {
-            $this->applicationManager->markRejected($actor, $id, $request->request->getString('reason_code'));
+            $this->applicationManager->markRejected($actor, $id, $posted);
         } catch (OnboardingApplicationException $exception) {
             return $this->decisionFailure($id, $exception);
         }
@@ -145,6 +197,17 @@ final class AdminInstitutionApplicationController extends AdminBaseController
         }
 
         return $application;
+    }
+
+    private function rejectChoiceFailure(Uuid $id, string $posted): Response
+    {
+        $message = InstitutionApplicationRejectReason::invalidMessage($posted);
+        $this->addFlash('institution_application_reason', $posted);
+        $this->addFlash('institution_application_reason_error', '1');
+        $this->addFlash('institution_application_reason_message', $message);
+        $this->addFlash('error', $message);
+
+        return $this->redirectToRoute('app_admin_institution_application', ['id' => $id]);
     }
 
     private function decisionFailure(Uuid $id, OnboardingApplicationException $exception): Response

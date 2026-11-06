@@ -18,6 +18,9 @@ enum SecurityAuditAction: string
     case StatusChanged = 'status_changed';
     case SuperAdminBootstrapped = 'super_admin_bootstrapped';
     case InstitutionCreated = 'institution_created';
+    case InstitutionBranchCreated = 'institution_branch_created';
+    case InstitutionBranchUpdated = 'institution_branch_updated';
+    case InstitutionBranchStatusChanged = 'institution_branch_status_changed';
     case InstitutionStatusChanged = 'institution_status_changed';
     case InstitutionMemberAdded = 'institution_member_added';
     case InstitutionMemberRoleChanged = 'institution_member_role_changed';
@@ -47,9 +50,13 @@ enum SecurityAuditAction: string
     case SubjectCreated = 'subject_created';
     case SubjectUpdated = 'subject_updated';
     case SubjectArchived = 'subject_archived';
+    case SubjectDeleted = 'subject_deleted';
+    case CurriculumAccessGateUpdated = 'curriculum_access_gate_updated';
     case CurriculumCreated = 'curriculum_created';
+    case CurriculumProgramUpdated = 'curriculum_program_updated';
     case CurriculumPublished = 'curriculum_published';
     case CurriculumRetired = 'curriculum_retired';
+    case CurriculumDraftDeleted = 'curriculum_draft_deleted';
     case CurriculumCloned = 'curriculum_cloned';
     case CurriculumUnitCreated = 'curriculum_unit_created';
     case CurriculumUnitUpdated = 'curriculum_unit_updated';
@@ -218,4 +225,11 @@ enum SecurityAuditAction: string
     case LinkCodeRevoked = 'link_code_revoked';
     case ParentLinkActivated = 'parent_link_activated';
     case ParentLinkRevoked = 'parent_link_revoked';
+    case ModulePermissionChanged = 'module_permission_changed';
+    case HomeworkDefinitionDraftCreated = 'homework_definition_draft_created';
+    case HomeworkDefinitionDraftUpdated = 'homework_definition_draft_updated';
+    case HomeworkAssignmentCreated = 'homework_assignment_created';
+    case HomeworkSubmissionDraftSaved = 'homework_submission_draft_saved';
+    case HomeworkSubmissionSubmitted = 'homework_submission_submitted';
+    case HomeworkEvaluationRecorded = 'homework_evaluation_recorded';
 }

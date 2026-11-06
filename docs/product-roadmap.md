@@ -56,11 +56,11 @@ PR #112 kurum test ekranını main’e aldı. PR #114 merge SHA ff4cd745b4e479ed
 | M03 | Kullanıcı yönetimi: toplu importer, grup/geçiş, moderator permissions | Rol/durum/üyelik yönetimi mevcut | Toplu kullanıcı aktarımı, grup geçiş yönetimi, ayrıntılı moderatör modül izinleri |
 | M04 | Kurum: başvuru, onay, kurum yönetimi ve panel | Kurum/üyelik/panel mevcut; başvuru kısmi | Başvuru karar ekranı ve onay sonrası provisioning; kurum alanlarını ihtiyaç bazlı tamamla |
 | M05 | Şube: InstitutionBranch, banka hesabı, hierarchy | Şube/kampüs ürün modeli bulunamadı | Kurum → şube/kampüs ilişkisi, izolasyon ve operasyon ekranları; banka verisi ayrı mahremiyet kapsamı |
-| M06 | Sınıf: TeacherClass + Classroom; öğretmene ait bağımsız sınıf | Kurum sınıfı mevcut | Bireysel öğretmenin kurumsuz sınıfı ve katılım kodu V2'de karşılanmıyor; çift eski modeli kopyalamadan karar ver |
+| M06 | Sınıf: TeacherClass + Classroom; öğretmene ait bağımsız sınıf | Kurum sınıfı ve süper yönetici sınıf listesi mevcut | Bireysel öğretmenin kurumsuz sınıfı ve katılım kodu V2'de karşılanmıyor; çift eski modeli kopyalamadan karar ver |
 | M07 | Öğretmen: profil, panel, not, mesaj, rapor, canlı ders talebi | İçerik çalışma alanı ve kurum sınıf raporu mevcut | Mesleki profil/onay zinciri, öğrenciye özel öğretmen notu, takvim, mesaj, canlı ders talepleri |
 | M08 | Öğrenci: öğrenme, sınav, oyun, simülasyon, Q&A, ödeme, canlı ders | Katalog/öğrenme/test/sonuç/continue mevcut | İçerik etkinlik/ilerleme takibi ve diğer ürün modülleri |
 | M09 | Veli: çocuk link, rapor, aktivite, mesaj, bildirim | Bağlantı/çocuk/test özeti mevcut | Çalışma etkinliği raporu, mesaj ve bildirim; ödeme/paket görünümü ayrıca |
-| M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si; tüm hedef seviyelerde içerik envanteri |
+| M10 | Müfredat: taxonomy, grade, subject, topics, importer | Katalog, canonical eşleme ve pedagojik domain/import mevcut | Genel program/kazanım yönetim UI'si açık kararla durur; tüm hedef seviyelerde içerik envanteri |
 | M11 | Soru havuzu: öğretmen/kurum soruları, import, AI PDF/Word | Platform editörü + CSV/paket mevcut; kurum soru ekranı main’de | AI destekli PDF/Word çıkarımı; production soru yazımı ve pilot ayrı |
 | M12 | Sınav: platform, öğretmen, kurum, öğrenci ve API | Platform ve kurum teslimat/öğrenci akışı mevcut; kurum test yazımı main’de | Gerçek pilot; bağımsız öğretmen sınıfı; manuel değerlendirme ürün yüzeyi ve API |
 | M13 | Raporlama: öğrenci/öğretmen/kurum/admin, achievement | Sonuç/geçmiş ve sınıf raporu mevcut; analytics domain hazır | Kazanım/madde/öğrenci gelişimi ekranları, güvenli filtreler ve dışa aktarma |
@@ -94,7 +94,7 @@ M18'deki V1 kanıtı ADMIN'in platform medya depolama yönetimidir. “Her kulla
 | Kurum/sınıf katılım kodu | ClassStudentAuth / TeacherClassJoin | Güvenli e-posta davetleri mevcut; kodla girişten farklı |
 | Başvuru onayı | V1 TeacherApproval / InstitutionRegistration approval | V2 başvuru göndermesi ve decision service var; TeacherApplicationManager::markApproved rol vermez; tam yönetim/onay zinciri eksik |
 | Baş/uzman öğretmen özel paneli | /panel/head ve /panel/expert | V2 rol yetkileri ve ortak içerik çalışma alanı mevcut; özel ekip/kuyruk/talep dashboard'ları ayrıca |
-| Moderatöre modül bazlı izin verme | AdminModulePermission | V2 voter/rol matrisi mevcut; admin tarafından düzenlenen aynı modül izin ürünü yok |
+| Moderatöre modül bazlı izin verme | AdminModulePermission | Süper yönetici `/yonetim/rol-yetkileri` adresinden moderatöre üç platform yazma izni verir. Yayın, ödeme, denetim ve kurum üyeliği devredilmez. Diğer modül izinleri açıktır. |
 | Kurum toplu öğrenci/üye aktarımı | BulkUserImporter / branch import | Soru CSV importundan farklı; kurum kullanıcı aktarımı eksik |
 | Öğretmen notları ve geri bildirim | StudentTeacherNote | Sınıf sonuç tablosu not/geri bildirim sistemi değildir |
 | Deneme üyeliği | StudentRegistrationTrialApplicator / TrialAccess | V2 free policy lisanssız kaynak erişimidir; süreli trial ürünü değildir |
@@ -118,7 +118,7 @@ Bu satırlar “V1'de çalışıyordu” diye raporlanmaz. 5 Ekim devir özetind
 |---|---|---|
 | Yanlış defteri, favori/not, kazanım haritası, adaptif tekrar | Ayrı ürün karşılığı bulunamadı; scoring/outcome temeli var | Öğrenme ilerlemesi ve pedagojik geri bildirim paketi |
 | Günlük çalışma planı ve son ders | Ders ziyaret/ilerleme modeli yok | Test “Devam et”i yeniden yazmadan ders ilerlemesi ekle |
-| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir | Atama/teslim/öğretmen değerlendirme döngüsü |
+| Ödev/proje, dosya teslimi, geç teslim, rubrik | Domain enum veya preview tam ödev ürünü değildir; karar: `docs/architecture-homework.md` (taslak+atama+öğrenci teslimi kodda; değerlendirme erişim/MariaDB modeli belgede; değerlendirme kodu yok) | Atama/teslim/öğretmen değerlendirme döngüsü |
 | Oyunlaştırma: seri, görev, rozet/seviye/ödül | Ürün karşılığı bulunamadı | Eğitsel oyun motorundan ayrı motivasyon modülü |
 | Rehberlik | Ayrıntılı akış kararı eksik | Yaş/rol/mahremiyet kapsamı netleştirilip planlanacak |
 | Manuel değerlendirme, itiraz/regrade/release politika UI | Domain temeli mevcut; genel HTTP ürün akışı tamamlanmamış | Yeni puanlama motoru değil mevcut manager'ların güvenli yüzeyi |
@@ -157,7 +157,7 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 ## 7. Mevcut açık kabul ve korunacak kayıtlar
 
-- Aktif uygulama işi X10-admin-navigation. M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
+- Aktif uygulama işi X01-homework (taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda; dosya/veli/bildirim ve canlı kabul açık). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
 
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.
@@ -208,6 +208,7 @@ https://github.com/testligtr-collab/testlig-net/tree/2a615f1113126ad5b023b4a2893
 - docs/architecture-learning-content.md
 - docs/architecture-commerce-payment.md
 - docs/architecture-admin-operations-panel.md (ilk aşama sınırları güncel feature yokluğu sanılmadı)
+- docs/architecture-homework.md (X01 önerilen mimari; taslak/atama/öğrenci teslimi kodda; §4.4 öğretmen değerlendirme erişimi + §3.4 MariaDB `current_evaluation_id` modeli belgede; değerlendirme kodu yok)
 
 PR #112:
 https://github.com/testligtr-collab/testlig-net/pull/112

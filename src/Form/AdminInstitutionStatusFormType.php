@@ -7,6 +7,7 @@ namespace App\Form;
 use App\Dto\AdminInstitutionStatusRequest;
 use App\Enum\InstitutionStatus;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -45,7 +46,14 @@ final class AdminInstitutionStatusFormType extends AbstractType
             ->add('action', ChoiceType::class, [
                 'label' => 'Yeni durum',
                 'choices' => $actions,
+                'choice_label' => static fn (string $action): string => match ($action) {
+                    AdminInstitutionStatusRequest::ACTION_ACTIVATE => 'Aktif',
+                    AdminInstitutionStatusRequest::ACTION_SUSPEND => 'Askıda',
+                    AdminInstitutionStatusRequest::ACTION_ARCHIVE => 'Arşiv',
+                    default => $action,
+                },
                 'placeholder' => 'İşlem seçin',
+                'empty_data' => '',
             ])
             ->add('reasonCode', ChoiceType::class, [
                 'label' => 'Gerekçe',
@@ -55,11 +63,22 @@ final class AdminInstitutionStatusFormType extends AbstractType
                     'Operatör' => AdminInstitutionStatusRequest::REASON_OPERATOR,
                 ],
                 'placeholder' => 'Gerekçe seçin',
+                'empty_data' => '',
             ])
             ->add('confirm', CheckboxType::class, [
                 'label' => 'Kurum durum değişikliğini onaylıyorum',
                 'required' => true,
             ]);
+        $builder->get('action')->addModelTransformer(self::blankString());
+        $builder->get('reasonCode')->addModelTransformer(self::blankString());
+    }
+
+    private static function blankString(): CallbackTransformer
+    {
+        return new CallbackTransformer(
+            static fn (mixed $value): mixed => $value,
+            static fn (mixed $value): string => \is_string($value) ? $value : '',
+        );
     }
 
     public function configureOptions(OptionsResolver $resolver): void

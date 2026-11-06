@@ -1,0 +1,139 @@
+{% extends 'student/layout.html.twig' %}
+
+{% block title %}{{ detail.title }} — Ödevlerim — Testlig{% endblock %}
+
+{% block student_content %}
+<section class="shw-page" data-controller="homework-submit" data-homework-submit-body-max-value="{{ body_max }}">
+    <p class="shw-back">
+        <a href="{{ path('app_student_homeworks') }}">← Ödevlerime dön</a>
+    </p>
+
+    <header class="shw-head shw-head--detail">
+        <div class="shw-head__text">
+            <h1 class="shw-wrap">{{ detail.title }}</h1>
+            <p class="shw-item__meta">
+                <span class="shw-pill shw-pill--class">{{ detail.classroomName }}</span>
+                <span class="shw-pill shw-pill--{{ detail.statusKey }}">{{ detail.statusLabel }}</span>
+            </p>
+        </div>
+    </header>
+
+    {% for message in app.flashes('success') %}
+        <div class="shw-alert shw-alert--ok" role="status" tabindex="-1">{{ message }}</div>
+    {% endfor %}
+
+    {% if form_error is defined and form_error %}
+        <div class="shw-alert" role="alert" tabindex="-1">{{ form_error }}</div>
+    {% endif %}
+
+    <div class="shw-detail">
+        <div class="shw-detail__main">
+            <article class="shw-card">
+                <h2>Ödevin</h2>
+                <div class="shw-prompt shw-wrap">{{ detail.description|nl2br }}</div>
+            </article>
+
+            <article class="shw-card">
+                <h2>Yanıtın</h2>
+                {% if detail.submitted %}
+                    <div class="shw-readonly shw-wrap">{{ detail.body|nl2br }}</div>
+                    {% if detail.submittedAtLocal %}
+                        <p class="shw-hint">Gönderim: {{ detail.submittedAtLocal }} (Europe/Istanbul)</p>
+                    {% endif %}
+                {% elseif detail.writable %}
+                    <form id="shw-draft-form" method="post" action="{{ path('app_student_homework_draft', {id: detail.assignmentId}) }}" class="shw-form">
+                        <input type="hidden" name="_token" value="{{ csrf_token('student_homework_draft') }}">
+                        <input type="hidden" name="revision" value="{{ values.revision }}">
+                        <label class="sr-only" for="shw-body">Yanıtın</label>
+                        <textarea
+                            id="shw-body"
+                            name="body"
+                            rows="12"
+                            maxlength="80000"
+                            data-homework-submit-target="body"
+                            data-action="input->homework-submit#refresh"
+                            aria-describedby="shw-body-help shw-body-counter{% if errors.body|default(false) %} shw-body-error{% endif %}"
+                            {% if errors.body|default(false) %}aria-invalid="true"{% endif %}
+                        >{{ values.body }}</textarea>
+                        {% if errors.body|default(false) %}
+                            <p id="shw-body-error" class="shw-field-error">{{ errors.body }}</p>
+                        {% endif %}
+                        <div class="shw-form__meta" id="shw-body-help">
+                            <span>En fazla {{ body_max|number_format(0, ',', '.') }} karakter</span>
+                            <span data-homework-submit-target="counter" id="shw-body-counter" class="shw-counter">0 / {{ body_max }}</span>
+                        </div>
+                        <p class="shw-hint">Taslak kaydetmek ödevini göndermez.</p>
+                        <div class="shw-actions">
+                            <button type="submit" class="btn shw-btn shw-btn--ghost" form="shw-draft-form">Taslak kaydet</button>
+                        </div>
+                    </form>
+
+                    <form id="shw-submit-form" method="post" action="{{ path('app_student_homework_submit', {id: detail.assignmentId}) }}" class="shw-form shw-form--submit">
+                        <input type="hidden" name="_token" value="{{ csrf_token('student_homework_submit') }}">
+                        <input type="hidden" name="revision" value="{{ values.revision }}">
+                        <input type="hidden" name="body" data-homework-submit-target="submitBody" value="{{ values.body }}">
+                        <label class="shw-check">
+                            <input type="checkbox" name="confirm_submit" value="1" {% if values.confirm %}checked{% endif %}>
+                            <span>Gönderdikten sonra yanıtımı değiştiremeyeceğimi anladım.</span>
+                        </label>
+                        {% if errors.confirm|default(false) %}
+                            <p class="shw-field-error">{{ errors.confirm }}</p>
+                        {% endif %}
+                        <div class="shw-actions">
+                            <button type="submit" class="btn shw-btn shw-btn--primary" data-action="homework-submit#syncBody">Ödevi gönder</button>
+                        </div>
+                        <p class="shw-warn" role="note">Ödevini bir kez gönderebilirsin.</p>
+                    </form>
+                {% else %}
+                    {% if detail.body != '' %}
+                        <div class="shw-readonly shw-wrap">{{ detail.body|nl2br }}</div>
+                    {% else %}
+                        <p class="shw-hint">Henüz yanıt yok.</p>
+                    {% endif %}
+                    {% if detail.closedReason %}
+                        <p class="shw-warn" role="status">{{ detail.closedReason }}</p>
+                    {% endif %}
+                {% endif %}
+            </article>
+
+            {% if detail.submitted %}
+                <article class="shw-card shw-eval" aria-labelledby="shw-eval-heading" data-testid="shw-evaluation">
+                    <h2 id="shw-eval-heading">Öğretmen değerlendirmesi</h2>
+                    {% if detail.evaluationLabelKey %}
+                        <p class="shw-item__meta">
+                            <span class="shw-pill shw-pill--{{ detail.evaluationLabelKey == 'needs_rework' ? 'rework' : 'submitted' }}">{{ detail.evaluationLabelTr }}</span>
+                        </p>
+                        {% if detail.feedback %}
+                            <div class="shw-readonly shw-wrap shw-feedback">{{ detail.feedback|nl2br }}</div>
+                        {% endif %}
+                        <p class="shw-hint">Bu değerlendirme yeniden teslim hakkı vermez.</p>
+                    {% else %}
+                        <p class="shw-hint">Henüz değerlendirilmedi.</p>
+                    {% endif %}
+                </article>
+            {% endif %}
+        </div>
+
+        <aside class="shw-detail__side">
+            <article class="shw-card">
+                <h2>Teslim bilgileri</h2>
+                <dl class="shw-dl">
+                    <div>
+                        <dt>Sınıf</dt>
+                        <dd>{{ detail.classroomName }}</dd>
+                    </div>
+                    <div>
+                        <dt>Son teslim</dt>
+                        <dd>{{ detail.dueAtLocal }} <span class="shw-hint">(Europe/Istanbul)</span></dd>
+                    </div>
+                    <div>
+                        <dt>Durum</dt>
+                        <dd><span class="shw-pill shw-pill--{{ detail.statusKey }}">{{ detail.statusLabel }}</span></dd>
+                    </div>
+                </dl>
+                <p class="shw-hint">Son teslim tarihinden sonra kaydetme ve gönderme kapanır.</p>
+            </article>
+        </aside>
+    </div>
+</section>
+{% endblock %}

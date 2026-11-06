@@ -142,4 +142,25 @@ class Subject
         $this->status = SubjectStatus::Archived;
         $this->updatedAt = $now;
     }
+
+    #[Ignore]
+    public function deactivate(\DateTimeImmutable $now): void
+    {
+        $this->transitionTo(SubjectStatus::Inactive, $now);
+    }
+
+    #[Ignore]
+    public function reactivate(\DateTimeImmutable $now): void
+    {
+        $this->transitionTo(SubjectStatus::Active, $now);
+    }
+
+    private function transitionTo(SubjectStatus $target, \DateTimeImmutable $now): void
+    {
+        if (!$this->status->canTransitionTo($target)) {
+            throw SubjectException::invalidTransition();
+        }
+        $this->status = $target;
+        $this->updatedAt = $now;
+    }
 }

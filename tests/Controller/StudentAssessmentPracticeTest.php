@@ -414,8 +414,17 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
         $detail = (string) $admin->getResponse()->getContent();
         self::assertStringContainsString('Doğru cevap', $detail);
+        self::assertStringContainsString('Öğrencinin cevabı', $detail);
         self::assertStringContainsString('Bir nedir? B', $detail);
         self::assertStringContainsString('Cozum metni', $detail);
+        self::assertStringContainsString('admin-test-results__question', $detail);
+        self::assertStringContainsString('Sonuç listesine dön', $detail);
+        self::assertStringContainsString('page=1', $detail);
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1?q=Ay&page=1');
+        $linked = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString('q=Ay', $linked);
+        self::assertStringContainsString('page=1', $linked);
+        self::assertStringContainsString('Sonuç listesine dön', $linked);
         self::assertStringNotContainsString('practice-history@example.com', $detail);
         self::assertStringNotContainsString('opt_', $detail);
         $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/9');
@@ -448,11 +457,220 @@ final class StudentAssessmentPracticeTest extends WebTestCase
         $studentAdmin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
         self::assertResponseStatusCodeSame(403);
 
+        $this->createPrivileged('practice-report-head@example.com', UserRole::HeadTeacher);
+        self::ensureKernelShutdown();
+        $head = static::createClient();
+        $this->login($head, 'practice-report-head@example.com');
+        $head->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+        $head->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->createPrivileged('practice-report-expert@example.com', UserRole::ExpertTeacher);
+        self::ensureKernelShutdown();
+        $expert = static::createClient();
+        $this->login($expert, 'practice-report-expert@example.com');
+        $expert->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+        $expert->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
+        self::assertResponseStatusCodeSame(403);
+
+        $this->createPrivileged('practice-report-parent@example.com', UserRole::Parent);
+        self::ensureKernelShutdown();
+        $parent = static::createClient();
+        $this->login($parent, 'practice-report-parent@example.com');
+        $parent->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        self::assertResponseStatusCodeSame(403);
+        $parent->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
+        self::assertResponseStatusCodeSame(403);
+
         self::ensureKernelShutdown();
         $empty = static::createClient();
         $this->login($empty, 'p62-ed@example.com');
         $empty->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar?q=');
         self::assertResponseIsSuccessful();
+    }
+
+    public function testAdminResultListKeepsUnscoredAttemptsAndClosedAnswers(): void
+    {
+        $seed = $this->seed('rstat');
+        $openUser = $this->createActive('rstat-open@example.com', UserRole::Student);
+        $this->completeOnboarding($openUser, GradeLevel::Grade1);
+        $cancelledUser = $this->createActive('rstat-cancel@example.com', UserRole::Student);
+        $this->completeOnboarding($cancelledUser, GradeLevel::Grade1);
+
+        $client = static::createClient();
+        $this->login($client, 'rstat-open@example.com');
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$seed['main']);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $open = $this->attemptFor($this->freshUser('rstat-open@example.com'), $seed['main']);
+        self::assertSame(AssessmentAttemptStatus::InProgress, $open->getStatus());
+
+        self::ensureKernelShutdown();
+        $admin = static::createClient();
+        $this->login($admin, 'rstat-ed@example.com');
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar/1');
+        $closed = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString('Bu deneme henüz tamamlanmadı.', $closed);
+        self::assertStringNotContainsString('Doğru cevap', $closed);
+        self::assertStringNotContainsString('Çözüm', $closed);
+        self::assertStringNotContainsString('opt_', $closed);
+        self::assertSame(
+            AssessmentAttemptStatus::InProgress,
+            $this->attemptFor($this->freshUser('rstat-open@example.com'), $seed['main'])->getStatus(),
+        );
+
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        $openList = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString('Devam ediyor', $openList);
+        self::assertStringContainsString('İncele', $openList);
+        self::assertStringContainsString('page=1', $openList);
+        self::assertStringContainsString('—', $openList);
+        self::assertStringNotContainsString('henüz sonuç yok', $openList);
+        self::assertStringNotContainsString('Doğru cevap', $openList);
+
+        self::ensureKernelShutdown();
+        $cancelClient = static::createClient();
+        $this->login($cancelClient, 'rstat-cancel@example.com');
+        $crawler = $cancelClient->request('GET', '/ogrenci/testler/'.$seed['main']);
+        $cancelClient->submit($crawler->filter('#student-test-start')->form());
+        $cancelClient->followRedirect();
+        $attempt = $this->attemptFor($this->freshUser('rstat-cancel@example.com'), $seed['main']);
+        /** @var AssessmentAttemptManager $manager */
+        $manager = static::getContainer()->get(AssessmentAttemptManager::class);
+        $manager->cancel($attempt, $this->freshUser('rstat-sa@example.com'), 'report_cancel', 'cancelled_by_admin');
+
+        self::ensureKernelShutdown();
+        $admin = static::createClient();
+        $this->login($admin, 'rstat-ed@example.com');
+        $admin->request('GET', '/yonetim/testler/'.$seed['hidden'].'/sonuclar');
+        $mixed = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString('İptal', $mixed);
+        self::assertStringContainsString('Devam ediyor', $mixed);
+        self::assertStringNotContainsString('henüz sonuç yok', $mixed);
+        self::assertStringNotContainsString('Aramanla eşleşen sonuç yok', $mixed);
+        /** @var AssessmentRepository $assessments */
+        $assessments = static::getContainer()->get(AssessmentRepository::class);
+        $other = $assessments->findOneBy(['code' => $seed['other']]);
+        self::assertInstanceOf(Assessment::class, $other);
+        $admin->request('GET', '/yonetim/testler/'.$other->getId()->toRfc4122().'/sonuclar/1');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testAdminResultDetailRendersFormattedStemInsideTheCompletedRun(): void
+    {
+        $this->seed('rfmt');
+        self::bootKernel();
+        $author = $this->freshUser('rfmt-sa@example.com');
+        $publisher = $this->freshUser('rfmt-ed@example.com');
+        /** @var \App\Repository\SubjectRepository $subjects */
+        $subjects = static::getContainer()->get(\App\Repository\SubjectRepository::class);
+        $subject = $subjects->findOneBy(['code' => 'rfmt_s']);
+        self::assertInstanceOf(Subject::class, $subject);
+        /** @var \App\Repository\CurriculumLearningOutcomeRepository $outcomes */
+        $outcomes = static::getContainer()->get(\App\Repository\CurriculumLearningOutcomeRepository::class);
+        $outcome = $outcomes->findOneBy(['code' => 'rfmt_lo']);
+        self::assertInstanceOf(CurriculumLearningOutcome::class, $outcome);
+        /** @var QuestionManager $questions */
+        $questions = static::getContainer()->get(QuestionManager::class);
+        /** @var AssessmentManager $assessments */
+        $assessments = static::getContainer()->get(AssessmentManager::class);
+        $stem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+            ['type' => 'paragraph', 'inlines' => [
+                ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
+            ]],
+            ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi']],
+            ['type' => 'math', 'latex' => '\\frac{3}{4}+123456789012345678901234567890'],
+        ]);
+        $explanation = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+            ['type' => 'paragraph', 'text' => 'Cozum satiri'],
+        ]);
+        $question = $questions->createDraftQuestion(
+            $author,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            $stem,
+            $explanation->toArray(),
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'create_q_rich_stem',
+        );
+        $questions->submitForReview($question, $author, 'ready_for_review');
+        $questions->publish($question, $publisher, 'publish_approved');
+        $assessment = $this->publishAssessment($assessments, $author, $publisher, $subject, GradeLevel::Grade1, 'Bicimli sonuc testi', null, null, [
+            [$question, '2.50', '0.00'],
+        ]);
+        $code = $assessment->getCode();
+        $id = $assessment->getId()->toRfc4122();
+        self::ensureKernelShutdown();
+
+        self::bootKernel();
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        /** @var UserAccountLifecycle $lifecycle */
+        $lifecycle = static::getContainer()->get(UserAccountLifecycle::class);
+        $student = $factory->createAndPersist('rfmt-student@example.com', 'Guclu-Parola-123!', str_repeat('Uzunad', 8), 'Kaydi', UserRole::Student);
+        $lifecycle->markEmailVerifiedAndActivate($student);
+        self::ensureKernelShutdown();
+        $this->completeOnboarding($student, GradeLevel::Grade1);
+
+        $client = static::createClient();
+        $this->login($client, 'rfmt-student@example.com');
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code);
+        $client->submit($crawler->filter('#student-test-start')->form());
+        $client->followRedirect();
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/cevap', [
+            '_token' => (string) $crawler->filter('#student-test-answer input[name="_token"]')->attr('value'),
+            'position' => '1',
+            'choice' => '2',
+            'expected_version' => (string) $crawler->filter('input[name="expected_version"]')->attr('value'),
+        ]);
+        $client->followRedirect();
+        $crawler = $client->request('GET', '/ogrenci/testler/'.$code.'/coz?s=1');
+        $client->request('POST', '/ogrenci/testler/'.$code.'/bitir', [
+            '_token' => (string) $crawler->filter('#student-test-finish input[name="_token"]')->attr('value'),
+            'confirm' => '1',
+        ]);
+        $client->followRedirect();
+
+        self::ensureKernelShutdown();
+        $admin = static::createClient();
+        $this->login($admin, 'rfmt-ed@example.com');
+        $admin->request('GET', '/yonetim/testler/'.$id.'/sonuclar');
+        $list = (string) $admin->getResponse()->getContent();
+        self::assertStringContainsString(str_repeat('Uzunad', 8), $list);
+        self::assertStringContainsString('İncele', $list);
+        self::assertStringNotContainsString('rfmt-student@example.com', $list);
+        $admin->request('GET', '/yonetim/testler/'.$id.'/sonuclar/1');
+        $detail = (string) $admin->getResponse()->getContent();
+        self::assertMatchesRegularExpression('/<strong>\s*Kalın kök\s*<\/strong>/', $detail);
+        self::assertMatchesRegularExpression('/<em>\s*eğik devam\s*<\/em>/', $detail);
+        self::assertStringContainsString('Liste maddesi', $detail);
+        self::assertStringContainsString('q-frac', $detail);
+        self::assertStringContainsString('123456789012345678901234567890', $detail);
+        self::assertStringContainsString('Çözüm', $detail);
+        self::assertStringContainsString('Cozum satiri', $detail);
+        self::assertStringContainsString('Öğrencinin cevabı', $detail);
+        self::assertStringContainsString('Doğru cevap', $detail);
+        self::assertStringNotContainsString('opt_', $detail);
+        self::assertStringNotContainsString('correctStableKey', $detail);
+        self::assertStringNotContainsString('ciphertext', $detail);
+        self::assertStringNotContainsString('rfmt-student@example.com', $detail);
+        self::assertSame(
+            AssessmentAttemptStatus::Submitted,
+            $this->attemptFor($this->freshUser('rfmt-student@example.com'), $code)->getStatus(),
+        );
     }
 
     public function testDashboardContinueCardBindsOwnedInProgressAndHidesOthers(): void

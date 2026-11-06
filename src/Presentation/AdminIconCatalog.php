@@ -19,6 +19,7 @@ final class AdminIconCatalog
         'system',
         'users',
         'institutions',
+        'calendar',
         'catalog',
         'learning_contents',
         'questions',
@@ -29,6 +30,11 @@ final class AdminIconCatalog
         'reconciliations',
         'audit',
         'account',
+        'media_page',
+        'media_pdf',
+        'media_play',
+        'media_cloud',
+        'archive',
         self::DEFAULT,
     ];
 

@@ -1,0 +1,131 @@
+{% extends 'teacher/layout.html.twig' %}
+
+{% set is_edit = mode == 'edit' %}
+{% block title %}{{ is_edit ? 'Taslağı düzenle' : 'Yeni ödev' }} - Ödevlerim - Testlig{% endblock %}
+
+{% block teacher_content %}
+{% set selected_label = '' %}
+{% for option in classrooms %}{% if option.id == values.classroom %}{% set selected_label = option.label(with_institution) %}{% endif %}{% endfor %}
+<section class="hw-page" aria-labelledby="hw-heading">
+    <nav class="hw-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_teacher_homeworks') }}">Ödevlerim</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ is_edit ? 'Taslağı düzenle' : 'Yeni ödev' }}</span>
+    </nav>
+
+    <header class="hw-head">
+        <div class="hw-head__text">
+            <h1 id="hw-heading">{{ is_edit ? 'Taslağı düzenle' : 'Yeni ödev' }}</h1>
+            <p class="hw-sub">Ödev taslağını hazırla. Taslak kaydetmek öğrencilere atama yapmaz.</p>
+        </div>
+    </header>
+
+    {% if errors is not empty %}
+        <div class="hw-alert" role="alert" tabindex="-1">
+            <strong>Kaydedilemedi.</strong> Aşağıdaki alanları düzeltip tekrar dene.
+        </div>
+    {% endif %}
+
+    {% if classrooms is empty %}
+        <div class="hw-card hw-empty" role="status">
+            <h2>Taslak açabileceğin aktif sınıf yok</h2>
+            <p>Aktif bir sınıfa öğretmen olarak atandığında ödev taslağı oluşturabilirsin.</p>
+            <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homeworks') }}">Ödevlerime dön</a>
+        </div>
+    {% else %}
+    <form method="post" novalidate class="hw-form" data-controller="homework-draft"
+          data-homework-draft-title-max-value="{{ title_max }}"
+          data-homework-draft-description-max-value="{{ description_max }}"
+          action="{{ is_edit ? path('app_teacher_homework_edit', {id: definition.id.toRfc4122}) : path('app_teacher_homework_new') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token(csrf_intent) }}">
+        {% if is_edit %}<input type="hidden" name="revision" value="{{ values.revision }}">{% endif %}
+
+        <div class="hw-layout">
+            <div class="hw-main">
+                <section class="hw-card" aria-labelledby="hw-info-heading">
+                    <h2 id="hw-info-heading">Ödev bilgileri</h2>
+
+                    <div class="hw-field{% if errors.title is defined %} hw-field--error{% endif %}">
+                        <div class="hw-field__row">
+                            <label for="hw-title">Ödev başlığı</label>
+                            <span class="hw-counter" id="hw-title-counter" data-homework-draft-target="titleCounter" aria-live="polite">{{ values.title|trim|length }} / {{ title_max }}</span>
+                        </div>
+                        <input id="hw-title" type="text" name="title" value="{{ values.title }}" required autocomplete="off"
+                               data-homework-draft-target="title" data-action="input->homework-draft#refresh"
+                               aria-describedby="hw-title-counter{% if errors.title is defined %} hw-title-error{% endif %}"
+                               {% if errors.title is defined %}aria-invalid="true"{% endif %}>
+                        {% if errors.title is defined %}<p class="hw-error" id="hw-title-error">{{ errors.title }}</p>{% endif %}
+                    </div>
+
+                    <div class="hw-field{% if errors.description is defined %} hw-field--error{% endif %}">
+                        <div class="hw-field__row">
+                            <label for="hw-description">Ödev açıklaması</label>
+                            <span class="hw-counter" id="hw-description-counter" data-homework-draft-target="descriptionCounter" aria-live="polite">{{ values.description|trim|length }} / {{ description_max }}</span>
+                        </div>
+                        <textarea id="hw-description" name="description" rows="10" required
+                                  data-homework-draft-target="description" data-action="input->homework-draft#refresh"
+                                  aria-describedby="hw-description-counter{% if errors.description is defined %} hw-description-error{% endif %}"
+                                  {% if errors.description is defined %}aria-invalid="true"{% endif %}>{{ values.description }}</textarea>
+                        {% if errors.description is defined %}<p class="hw-error" id="hw-description-error">{{ errors.description }}</p>{% endif %}
+                    </div>
+                </section>
+
+                <section class="hw-card" aria-labelledby="hw-due-heading">
+                    <h2 id="hw-due-heading">Sınıf ve son teslim</h2>
+
+                    <div class="hw-field{% if errors.classroom is defined %} hw-field--error{% endif %}">
+                        <label for="hw-classroom">Sınıf</label>
+                        <select id="hw-classroom" name="classroom" required
+                                data-homework-draft-target="classroom" data-action="change->homework-draft#refresh"
+                                {% if errors.classroom is defined %}aria-invalid="true" aria-describedby="hw-classroom-error"{% endif %}>
+                            <option value="">Sınıf seç</option>
+                            {% for option in classrooms %}
+                                <option value="{{ option.id }}"{% if option.id == values.classroom %} selected{% endif %}>{{ option.label(with_institution) }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.classroom is defined %}<p class="hw-error" id="hw-classroom-error">{{ errors.classroom }}</p>{% endif %}
+                        <p class="hw-hint">Sınıf yalnızca taslak hazırlığı içindir; öğrenci erişimi vermez.</p>
+                    </div>
+
+                    <div class="hw-field-grid">
+                        <div class="hw-field{% if errors.due is defined %} hw-field--error{% endif %}">
+                            <label for="hw-due-date">Son teslim tarihi</label>
+                            <input id="hw-due-date" type="date" name="due_date" value="{{ values.due_date }}" required
+                                   data-homework-draft-target="dueDate" data-action="input->homework-draft#refresh change->homework-draft#refresh"
+                                   aria-describedby="hw-due-hint{% if errors.due is defined %} hw-due-error{% endif %}"
+                                   {% if errors.due is defined %}aria-invalid="true"{% endif %}>
+                        </div>
+                        <div class="hw-field{% if errors.due is defined %} hw-field--error{% endif %}">
+                            <label for="hw-due-time">Son teslim saati</label>
+                            <input id="hw-due-time" type="time" name="due_time" value="{{ values.due_time }}" required
+                                   data-homework-draft-target="dueTime" data-action="input->homework-draft#refresh change->homework-draft#refresh"
+                                   aria-describedby="hw-due-hint{% if errors.due is defined %} hw-due-error{% endif %}"
+                                   {% if errors.due is defined %}aria-invalid="true"{% endif %}>
+                        </div>
+                    </div>
+                    {% if errors.due is defined %}<p class="hw-error" id="hw-due-error">{{ errors.due }}</p>{% endif %}
+                    <p class="hw-hint" id="hw-due-hint">Saat dilimi: Europe/Istanbul (Türkiye saati). Son teslim zamanı gelecekte olmalı.</p>
+                </section>
+
+                <div class="hw-form-actions">
+                    <button type="submit" class="btn hw-btn hw-btn--primary">Taslak kaydet</button>
+                    <a class="btn hw-btn hw-btn--ghost" href="{{ is_edit ? path('app_teacher_homework_show', {id: definition.id.toRfc4122}) : path('app_teacher_homeworks') }}">Vazgeç</a>
+                </div>
+            </div>
+
+            <aside class="hw-card hw-aside" aria-labelledby="hw-summary-heading">
+                <h2 id="hw-summary-heading">Taslak özeti</h2>
+                <dl class="hw-summary" aria-live="polite">
+                    <div><dt>Başlık</dt><dd class="hw-wrap" data-homework-draft-target="summaryTitle">{{ values.title|trim is not empty ? values.title|trim : '—' }}</dd></div>
+                    <div><dt>Sınıf</dt><dd data-homework-draft-target="summaryClassroom">{{ selected_label is not empty ? selected_label : '—' }}</dd></div>
+                    <div><dt>Son teslim</dt><dd data-homework-draft-target="summaryDue">{% if values.due_date is not empty and values.due_time is not empty %}{{ values.due_date|split('-')|reverse|join('.') }} {{ values.due_time }}{% else %}—{% endif %}</dd></div>
+                    <div><dt>Durum</dt><dd>Taslak</dd></div>
+                </dl>
+                <p class="hw-note hw-note--strong">Taslak kaydetmek öğrencilere atama yapmaz.</p>
+                <p class="hw-note">Yayımladıktan sonra ödev metni değiştirilemez.</p>
+            </aside>
+        </div>
+    </form>
+    {% endif %}
+</section>
+{% endblock %}

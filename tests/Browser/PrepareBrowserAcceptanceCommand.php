@@ -4,16 +4,24 @@ declare(strict_types=1);
 
 namespace App\Tests\Browser;
 
+use App\Dto\HomeworkDraftInput;
 use App\Dto\StudentProfileRequest;
+use App\Dto\TeacherProfessionalProfileRequest;
+use App\Entity\CurriculumLearningOutcome;
 use App\Entity\LearningDocumentAsset;
+use App\Entity\Location;
+use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AssessmentScope;
 use App\Enum\AssessmentType;
 use App\Enum\GradeLevel;
+use App\Enum\InstitutionBranchKind;
 use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionType;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentType;
+use App\Enum\LocationLevel;
+use App\Enum\ModeratorModuleGrant;
 use App\Enum\NavigationMode;
 use App\Enum\OptionOrderMode;
 use App\Enum\QuestionDifficulty;
@@ -31,7 +39,10 @@ use App\Repository\QuestionRevisionRepository;
 use App\Repository\UserRepository;
 use App\Service\AcademicYearManager;
 use App\Service\AccessPackageManager;
+use App\Service\AssessmentAttemptManager;
 use App\Service\AssessmentManager;
+use App\Service\AssessmentResultReportQuery;
+use App\Service\CatalogTopicAssessmentManager;
 use App\Service\CatalogTopicLessonManager;
 use App\Service\CatalogWriteService;
 use App\Service\ClassroomManager;
@@ -41,6 +52,11 @@ use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
 use App\Service\CurriculumUnitManager;
+use App\Service\Homework\HomeworkAssignmentManager;
+use App\Service\Homework\HomeworkDefinitionManager;
+use App\Service\InstitutionApplicationManager;
+use App\Service\InstitutionBranchCreator;
+use App\Service\InstitutionBranchStatusManager;
 use App\Service\InstitutionCreator;
 use App\Service\InstitutionMembershipManager;
 use App\Service\InstitutionStatusManager;
@@ -48,9 +64,17 @@ use App\Service\LearningContentManager;
 use App\Service\LearningDocumentManager;
 use App\Service\ParentStudentLinkCodeManager;
 use App\Service\QuestionManager;
+use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
+use App\Service\TeacherApplicationManager;
+use App\Service\TeacherProfessionalProfileManager;
 use App\Service\UserFactory;
+use App\Service\UserModulePermissionManager;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Clock\Clock;
+use Symfony\Component\Clock\MockClock;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -87,9 +111,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly CatalogTopicLessonManager $placements,
         private readonly QuestionManager $questions,
         private readonly AssessmentManager $assessments,
+        private readonly CatalogTopicAssessmentManager $assessmentPlacements,
         private readonly QuestionRevisionRepository $questionRevisions,
         private readonly InstitutionCreator $institutions,
         private readonly InstitutionStatusManager $institutionStatus,
+        private readonly InstitutionBranchCreator $branches,
+        private readonly InstitutionBranchStatusManager $branchStatus,
         private readonly InstitutionMembershipManager $memberships,
         private readonly AcademicYearManager $years,
         private readonly ClassroomManager $classrooms,
@@ -97,6 +124,18 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly ClassroomStudentEnrollmentManager $enrollments,
         private readonly StudentProfileManager $profiles,
         private readonly ParentStudentLinkCodeManager $parentLinks,
+        private readonly TeacherApplicationManager $teacherApplications,
+        private readonly InstitutionApplicationManager $institutionApplications,
+        private readonly TeacherProfessionalProfileManager $professionalProfiles,
+        private readonly UserModulePermissionManager $modulePermissions,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly StudentAssessmentPractice $practice,
+        private readonly AssessmentAttemptManager $attemptManager,
+        private readonly AssessmentResultReportQuery $resultReport,
+        private readonly HomeworkDefinitionManager $homework,
+        private readonly HomeworkAssignmentManager $homeworkAssignments,
+        private readonly \App\Service\Homework\HomeworkSubmissionManager $homeworkSubmissions,
+        private readonly \App\Service\Homework\HomeworkEvaluationManager $homeworkEvaluations,
     ) {
         parent::__construct();
     }
@@ -113,6 +152,12 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $admin = $this->account('browser-admin@example.test', 'Deneme', 'Yonetici', UserRole::Admin);
         $teacher = $this->account('browser-teacher@example.test', 'Deneme', 'Ogretmen', UserRole::Teacher);
         $this->account('browser-moderator@example.test', 'Deneme', 'Moderator', UserRole::Moderator);
+        $permissionModerator = $this->account(
+            'browser-moderator-'.str_repeat('a', 24).'@example.test',
+            str_repeat('Uzunad', 6),
+            str_repeat('Soyad', 6),
+            UserRole::Moderator,
+        );
         $this->account('browser-expert@example.test', 'Deneme', 'Uzman', UserRole::ExpertTeacher);
         $this->account('browser-teacher-empty@example.test', 'Deneme', 'Bosogretmen', UserRole::Teacher);
         $student = $this->account('browser-student@example.test', 'Deneme', 'Ogrenci', UserRole::Student);
@@ -125,11 +170,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->profiles->completeOnboarding($otherStudent, $this->profile(GradeLevel::Grade1));
 
         $subject = $this->subjects->create($superAdmin, 'browser_subj', 'Tarayici dersi', 'browser_create');
-        $program = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade1, 'browser_prog', 'Tarayici programi', '1.0', 'browser_create');
+        $program = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade1, 'browser_prog_uzun_teknik_kod_satiri_tasmadan_sarilir', 'Tarayici programi uzun kart basligi durum etiketiyle carpismaz ve dar ekranda alt satira iner', '1.0', 'browser_create');
         $curriculumUnit = $this->curriculumUnits->create($program, $superAdmin, 'browser_u', 'Tarayici unite', 1, 'browser_create');
         $curriculumTopic = $this->curriculumTopics->createRoot($curriculumUnit, $superAdmin, 'browser_t', 'Tarayici konu', 1, 'browser_create');
         $outcome = $this->outcomes->create($curriculumTopic, $superAdmin, 'browser_lo', 'Tarayici kazanimi', 1, 'browser_create');
         $this->programs->publish($program, $superAdmin, 'browser_publish');
+        $draftProgram = $this->programs->createDraft($subject, $superAdmin, GradeLevel::Grade2, 'browser_draft', 'Tarayici taslak', '1.0', 'browser_create');
+        $curriculumModerator = $this->account('browser-curriculum-moderator@example.test', 'Deneme', 'Mufredat', UserRole::Moderator);
+        $this->modulePermissions->replace($superAdmin->getId(), $curriculumModerator->getId(), 0, [ModeratorModuleGrant::CurriculumView->value]);
 
         $catalogSubject = $this->catalog->createSubject(GradeLevel::Grade1, 'Matematik', null, 1, 'matematik');
         $this->catalog->assignCanonicalSubject($superAdmin, $catalogSubject->getId(), $subject->getId(), 'browser_map');
@@ -177,8 +225,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
             $subject,
             GradeLevel::Grade1,
             LearningContentType::TopicExplanation,
-            'browser_draft',
-            'Duzenlenen anlatim',
+            'browser_draft_uzun_teknik_kod_satiri_tasmadan_sarilir',
+            'Duzenlenen anlatim uzun baslik durum etiketiyle carpismaz ve dar ekranda kendi alaninda sarilir',
             null,
             LearningContentDocument::fromArray([
                 'schemaVersion' => 1,
@@ -301,6 +349,230 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $this->assessments->submitForReview($assessment, $teacher, 'browser_submit');
         $this->assessments->publish($assessment, $admin, 'browser_publish');
         $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
+        $longQuestion = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph('Uzun test sorusu'),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_long',
+        );
+        $this->questions->submitForReview($longQuestion, $teacher, 'browser_submit_long');
+        $this->questions->publish($longQuestion, $admin, 'browser_publish_long');
+        $longRevision = $this->questionRevisions->findForQuestionNumber($longQuestion, $longQuestion->getCurrentRevisionNumber());
+        if (null === $longRevision) {
+            $output->writeln('Long test question revision was not found.');
+
+            return Command::FAILURE;
+        }
+        $longDraft = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Uzun platform testi basligi dar ekranda kartta ve masaustunde teknik kodun yaninda sarilir ve tasmadan devam eder.',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $longQuestion->getId(),
+                    'questionRevisionId' => $longRevision->getId(),
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_long',
+            $subject,
+        );
+        $detailItems = [];
+        for ($index = 1; $index <= 10; ++$index) {
+            $stem = 'Detay sorusu '.$index.' Uzun soru satiri sag kartin yuksekligine karismaz ve kendi alaninda sarilir.';
+            $item = $this->detailItem($teacher, $admin, $subject, $outcome, $stem, $index);
+            if (null === $item) {
+                $output->writeln('Detail question revision was not found.');
+
+                return Command::FAILURE;
+            }
+            $detailItems[] = $item;
+        }
+        $detailTitle = 'Uzun detay testi basligi soru listesi uzarken sag kartlar kendi yuksekliginde kalir ve teknik kod satir kirarak sarilir.';
+        $detailAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            $detailTitle,
+            null,
+            'Her soru icin bir secenek isaretleyin.',
+            900,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => $detailItems,
+            ]],
+            'browser_test_detail',
+            $subject,
+        );
+        $this->assessments->submitForReview($detailAssessment, $teacher, 'browser_submit_detail');
+        $this->assessments->publish($detailAssessment, $admin, 'browser_publish_detail');
+        $this->assessmentPlacements->create(
+            $admin,
+            $topic->getId(),
+            $detailAssessment->getId(),
+            'Toplama',
+            null,
+            0,
+            'browser_place',
+            'toplama-test-detay',
+        );
+        $reviewItem = $this->detailItem($teacher, $admin, $subject, $outcome, 'Inceleme sorusu kok', 11);
+        if (null === $reviewItem) {
+            $output->writeln('Review question revision was not found.');
+
+            return Command::FAILURE;
+        }
+        $reviewAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Inceleme testi',
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $reviewItem['questionId'],
+                    'questionRevisionId' => $reviewItem['questionRevisionId'],
+                    'position' => 1,
+                    'points' => '1.00',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_review',
+            $subject,
+        );
+        $this->assessments->submitForReview($reviewAssessment, $teacher, 'browser_submit_review');
+
+        $previewPlain = $this->previewQuestion(
+            $teacher,
+            $admin,
+            $subject,
+            $outcome,
+            QuestionContentDocument::paragraph('Duz onizleme sorusu'),
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            'browser_q_preview_plain',
+            1,
+            '1.00',
+        );
+        $previewRich = $this->previewQuestion(
+            $teacher,
+            $admin,
+            $subject,
+            $outcome,
+            new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                ['type' => 'paragraph', 'inlines' => [
+                    ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                    ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
+                ]],
+                ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
+                ['type' => 'math', 'latex' => '\\frac{3}{4}+1234567890123456789012345678901234567890'],
+            ]),
+            [
+                ['stableKey' => 'opt_a', 'content' => new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Birinci paragraf'],
+                    ]],
+                    ['type' => 'paragraph', 'inlines' => [
+                        ['type' => 'text', 'text' => 'Ikinci paragraf tamami'],
+                    ]],
+                ]), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph(str_repeat('Uzunsecenek', 8).' sonu'), 'position' => 2],
+            ],
+            'browser_q_preview_rich',
+            2,
+            '2.50',
+        );
+        if (null === $previewPlain || null === $previewRich) {
+            $output->writeln('Preview question revision was not found.');
+
+            return Command::FAILURE;
+        }
+        $previewTitle = 'Uzun onizleme basligi dar ekranda kartin icinde sarilir ve formulle secenekler kart disina tasmaz.';
+        $previewAssessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            $previewTitle,
+            null,
+            null,
+            null,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [$previewPlain, $previewRich],
+            ]],
+            'browser_test_preview',
+            $subject,
+        );
 
         $draftQuestion = $this->questions->createDraftQuestion(
             $teacher,
@@ -309,10 +581,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
             $subject,
             GradeLevel::Grade1,
             QuestionType::SingleChoice,
-            QuestionContentDocument::paragraph('Editor sorusu'),
+            QuestionContentDocument::paragraph('Editor sorusu uzun metin durum etiketiyle carpismaz ve dar ekranda kendi alaninda sarilir. '.str_repeat('Satir devam eder. ', 12)),
             null,
             [
-                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Birinci secenek'), 'position' => 1],
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Birinci secenek uzun yanit metni kendi satirinda sarilir ve eylemle carpismaz'), 'position' => 1],
                 ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Ikinci secenek'), 'position' => 2],
             ],
             ['correctStableKey' => 'opt_a'],
@@ -343,6 +615,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
 
         $institution = $this->institutions->create($superAdmin, $owner, 'Tarayici Okulu', InstitutionType::School, 'browser_create');
         $this->institutionStatus->activate($institution, $superAdmin, 'browser_activate');
+        $activeBranch = $this->branches->create($superAdmin, $institution->getId(), 'Merkez Sube', 'MRK-01', InstitutionBranchKind::Branch, 'browser_create');
+        $this->branchStatus->activate($activeBranch->getId(), $superAdmin, 'browser_activate');
+        $pendingCampus = $this->branches->create($superAdmin, $institution->getId(), 'Uzun Adli Bekleyen Kampus', 'UZUN-01', InstitutionBranchKind::Campus, 'browser_create');
         $year = $this->years->createPlanned(
             $institution,
             $owner,
@@ -352,6 +627,17 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_create',
         );
         $this->years->activate($year, $owner, 'browser_activate');
+        $plannedYear = $this->years->createPlanned(
+            $institution,
+            $superAdmin,
+            '2027-2028',
+            new \DateTimeImmutable('2027-09-01'),
+            new \DateTimeImmutable('2028-06-15'),
+            'browser_create',
+        );
+        $quietOwner = $this->account('browser-year-owner@example.test', 'Yil', 'Sahibi', UserRole::Teacher);
+        $quietInstitution = $this->institutions->create($superAdmin, $quietOwner, 'Tarayici Akademisi', InstitutionType::School, 'browser_create');
+        $this->institutionStatus->activate($quietInstitution, $superAdmin, 'browser_activate');
         $classroom = $this->classrooms->create($year, $owner, 'Sinif A', GradeLevel::Grade1, 'browser_create', 'A', 24);
         $teacherMembership = $this->memberships->addMember($institution, $owner, $teacher, InstitutionMembershipRole::Teacher, 'browser_create');
         $studentMembership = $this->memberships->addMember($institution, $owner, $student, InstitutionMembershipRole::Student, 'browser_create');
@@ -360,9 +646,248 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $endedAssignment = $this->teacherAssignments->assign($endedClassroom, $owner, $teacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_create');
         $this->teacherAssignments->endAssignment($endedAssignment, $owner, 'browser_end');
         $this->enrollments->enroll($classroom, $owner, $studentMembership, 'browser_create');
+        // Separate classroom so Sinif A teacher counts in admin-classrooms browser tests stay unchanged.
+        $homeworkEmptyClassroom = $this->classrooms->create($year, $owner, 'Odev Bos Sinifi', GradeLevel::Grade1, 'browser_homework', 'O', 24);
+        $homeworkEmptyTeacher = $this->account('browser-teacher-homework@example.test', 'Deneme', 'Odevsiz', UserRole::Teacher);
+        $homeworkEmptyMembership = $this->memberships->addMember($institution, $owner, $homeworkEmptyTeacher, InstitutionMembershipRole::Teacher, 'browser_homework');
+        $this->teacherAssignments->assign($homeworkEmptyClassroom, $owner, $homeworkEmptyMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_homework');
+        $homeworkTitle = 'Kesirler calisma kagidi';
+        $homeworkDraft = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkTitle,
+            "Sayfa 12 ve 13 deki sorulari coz.\nCevaplarini defterine yaz.",
+            $classroom->getId()->toRfc4122(),
+            '2099-06-15',
+            '18:30',
+            null,
+        ));
+        // Mixed list for the assign slice: one draft already assigned to Sinif A (real recipient snapshot
+        // from the enrolled student), the two drafts above, and a zero-recipient draft.
+        $homeworkAssignedTitle = 'Atanmis ondalik calisma kagidi';
+        $homeworkAssigned = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkAssignedTitle,
+            "Ondalik sayilari siralayan alistirmalari coz.\nSonuclari kontrol et.",
+            $classroom->getId()->toRfc4122(),
+            '2099-06-20',
+            '10:00',
+            null,
+        ));
+        $homeworkAssignment = $this->homeworkAssignments->assignToClassroom($teacher, $homeworkAssigned->getId(), 1, true);
+        // Teacher also assists the (student-less) homework classroom so the zero-recipient confirm screen is reachable.
+        $this->teacherAssignments->assign($homeworkEmptyClassroom, $owner, $teacherMembership, TeacherAssignmentRole::AssistantTeacher, 'browser_homework');
+        $homeworkZeroTitle = 'Ogrencisiz sinif odevi';
+        $homeworkZero = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkZeroTitle,
+            'Bu siniftaki ogrenci olmadigi icin atanamaz.',
+            $homeworkEmptyClassroom->getId()->toRfc4122(),
+            '2099-06-25',
+            '09:00',
+            null,
+        ));
+        $homeworkLongTitle = trim(str_repeat('Cok uzun odev basligi ', 5)).' ParcalanmayanKelime'.str_repeat('X', 20);
+        $homeworkLong = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkLongTitle,
+            str_repeat("Uzun aciklama satiri ve sozcukleri dar ekranda tasmadan sarilmalidir.\n", 40).str_repeat('U', 140),
+            $classroom->getId()->toRfc4122(),
+            '2099-06-16',
+            '08:05',
+            null,
+        ));
+        // Student homework slice: mixed statuses for browser-student (recipient of assignments).
+        $studentHwNone = $homeworkAssignment;
+        $studentHwDraftDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Okudugum kitabi anlatiyorum',
+            "Okudugun kitabi uc cumleyle anlat.\nOrnekler ver.",
+            $classroom->getId()->toRfc4122(),
+            '2099-07-08',
+            '17:00',
+            null,
+        ));
+        $studentHwDraftAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwDraftDef->getId(), 1, true);
+        $this->homeworkSubmissions->saveDraft($student, $studentHwDraftAsg->getId(), "Tabak yuvarlak bir sekle benzer.\nKitabin kapagi dikdortgene benzer.", 0);
+        $studentHwSubmittedDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Dogayi gozlemliyorum',
+            'Dogada gordugun uc canliyi yaz.',
+            $classroom->getId()->toRfc4122(),
+            '2099-07-02',
+            '18:00',
+            null,
+        ));
+        $studentHwSubmittedAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwSubmittedDef->getId(), 1, true);
+        $draftForSubmit = $this->homeworkSubmissions->saveDraft($student, $studentHwSubmittedAsg->getId(), 'Agacta kus gordum.', 0);
+        $this->homeworkSubmissions->submit($student, $studentHwSubmittedAsg->getId(), 'Agacta kus gordum.', $draftForSubmit->getRevisionNumber(), true);
+        $studentHwOverdueDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            'Suresi gecmis taslak odev',
+            'Bu odevin suresi tarayici testinde gecmis gorunecek.',
+            $classroom->getId()->toRfc4122(),
+            '2099-07-10',
+            '12:00',
+            null,
+        ));
+        $studentHwOverdueAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwOverdueDef->getId(), 1, true);
+        $this->homeworkSubmissions->saveDraft($student, $studentHwOverdueAsg->getId(), 'Taslak kaldı ama sure bitti.', 0);
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE homework_assignments SET due_at = :due WHERE id = :id',
+            [
+                'due' => '2020-01-01 12:00:00',
+                'id' => $studentHwOverdueAsg->getId()->toBinary(),
+            ],
+        );
+        $studentHwLongDef = $this->homework->createDraft($teacher, new HomeworkDraftInput(
+            $homeworkLongTitle,
+            str_repeat("Ogrenci uzun metin alani tasmadan sarilmalidir.\n", 20).str_repeat('M', 80),
+            $classroom->getId()->toRfc4122(),
+            '2099-07-12',
+            '09:00',
+            null,
+        ));
+        $studentHwLongAsg = $this->homeworkAssignments->assignToClassroom($teacher, $studentHwLongDef->getId(), 1, true);
+        // Evaluation slice: dedicated classroom, teacher and students so the counters above stay unchanged.
+        // One recipient per state: evaluated (reviewed), evaluated (needs_rework, long text), submitted, draft only.
+        $evaluateClassroom = $this->classrooms->create($year, $owner, 'Odev Degerlendirme Sinifi', GradeLevel::Grade1, 'browser_evaluate', 'D', 24);
+        $evaluateTeacher = $this->account('browser-teacher-evaluate@example.test', 'Deneme', 'Degerlendiren', UserRole::Teacher);
+        $evaluateTeacherMembership = $this->memberships->addMember($institution, $owner, $evaluateTeacher, InstitutionMembershipRole::Teacher, 'browser_evaluate');
+        $this->teacherAssignments->assign($evaluateClassroom, $owner, $evaluateTeacherMembership, TeacherAssignmentRole::HomeroomTeacher, 'browser_evaluate');
+        $evaluateStudents = [];
+        foreach ([
+            'reviewed' => ['browser-student-evaluate@example.test', 'Degerlendirilen'],
+            'rework' => ['browser-student-evaluate-rework@example.test', 'Yenidencalisan'],
+            'wait' => ['browser-student-evaluate-wait@example.test', 'Bekleyen'],
+            'draft' => ['browser-student-evaluate-draft@example.test', 'Taslakci'],
+        ] as $key => [$email, $lastName]) {
+            $evaluateStudent = $this->account($email, 'Deneme', $lastName, UserRole::Student);
+            $this->profiles->completeOnboarding($evaluateStudent, $this->profile(GradeLevel::Grade1));
+            $evaluateMembership = $this->memberships->addMember($institution, $owner, $evaluateStudent, InstitutionMembershipRole::Student, 'browser_evaluate');
+            $this->enrollments->enroll($evaluateClassroom, $owner, $evaluateMembership, 'browser_evaluate');
+            $evaluateStudents[$key] = $evaluateStudent;
+        }
+        $evaluateTitle = 'Degerlendirme calisma kagidi';
+        $evaluateDefinition = $this->homework->createDraft($evaluateTeacher, new HomeworkDraftInput(
+            $evaluateTitle,
+            "Verilen toplama islemlerini coz.\nCevaplarini aciklayarak yaz.",
+            $evaluateClassroom->getId()->toRfc4122(),
+            '2099-08-05',
+            '17:45',
+            null,
+        ));
+        $evaluateAssignment = $this->homeworkAssignments->assignToClassroom($evaluateTeacher, $evaluateDefinition->getId(), 1, true);
+        $evaluateAssignmentId = $evaluateAssignment->getId();
+        $evaluateBodies = [
+            'reviewed' => "Toplamalari adim adim yaptim.\nSonuclari kontrol ettim.",
+            'rework' => "Cevaplarimi yazdim ama aciklamadim.\n".str_repeat('K', 90),
+            'wait' => 'Henuz kontrol edilmemis yanitim.',
+        ];
+        $evaluateSubmissions = [];
+        foreach ($evaluateBodies as $key => $body) {
+            $evaluateStudent = $evaluateStudents[$key] ?? null;
+            if (!$evaluateStudent instanceof User) {
+                throw new \LogicException('Missing evaluate student fixture: '.$key);
+            }
+            $evaluateDraftRow = $this->homeworkSubmissions->saveDraft($evaluateStudent, $evaluateAssignmentId, $body, 0);
+            $evaluateSubmissions[$key] = $this->homeworkSubmissions->submit($evaluateStudent, $evaluateAssignmentId, $body, $evaluateDraftRow->getRevisionNumber(), true);
+        }
+        $draftStudent = $evaluateStudents['draft'] ?? null;
+        if (!$draftStudent instanceof User) {
+            throw new \LogicException('Missing evaluate draft student fixture.');
+        }
+        $this->homeworkSubmissions->saveDraft($draftStudent, $evaluateAssignmentId, 'Taslak olarak kalan yanit.', 0);
+        $this->homeworkEvaluations->record(
+            $evaluateTeacher,
+            $evaluateSubmissions['reviewed']->getId(),
+            'reviewed',
+            "Duzenli ve dogru bir calisma.\nBoyle devam et.",
+            null,
+        );
+        $this->homeworkEvaluations->record(
+            $evaluateTeacher,
+            $evaluateSubmissions['rework']->getId(),
+            'needs_rework',
+            str_repeat("Uzun geri bildirim satiri dar ekranda tasmadan sarilmalidir.\n", 30).str_repeat('G', 120),
+            null,
+        );
+        $longOwner = $this->account('browser-class-owner@example.test', 'Sinif', 'Sahibi', UserRole::Teacher);
+        $longInstitution = $this->institutions->create($superAdmin, $longOwner, 'Uzun Adli Tarayici Egitim Kurumu', InstitutionType::School, 'browser_create');
+        $this->institutionStatus->activate($longInstitution, $superAdmin, 'browser_activate');
+        $longYear = $this->years->createPlanned(
+            $longInstitution,
+            $superAdmin,
+            '2025-2026',
+            new \DateTimeImmutable('2025-09-01'),
+            new \DateTimeImmutable('2026-06-15'),
+            'browser_create',
+        );
+        $this->years->activate($longYear, $superAdmin, 'browser_activate');
+        $longClassroom = $this->classrooms->create(
+            $longYear,
+            $superAdmin,
+            'Cok Uzun Adli Besinci Sinif Subesi',
+            GradeLevel::Grade5,
+            'browser_create',
+            'UZUN-5',
+            32,
+        );
 
         $issued = $this->parentLinks->issue($student);
         $this->parentLinks->redeem($parent, $issued->displayCode, '127.0.0.1');
+
+        $detailUser = $this->account(
+            'browser-detail-'.str_repeat('a', 40).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Teacher,
+        );
+        $detailUser->addGlobalRole(UserRole::Parent);
+        $detailUser->addGlobalRole(UserRole::ExpertTeacher);
+        $detailUser->addGlobalRole(UserRole::HeadTeacher);
+        $this->users->save($detailUser);
+        $detailMembership = $this->memberships->addMember($institution, $owner, $detailUser, InstitutionMembershipRole::Teacher, 'browser_detail_teacher');
+        $this->teacherAssignments->assign($classroom, $owner, $detailMembership, TeacherAssignmentRole::AssistantTeacher, 'browser_detail_assign');
+        $profileNow = new \DateTimeImmutable('2026-10-23T12:00:00+00:00');
+        $province = Location::create(LocationLevel::Province, 'Tarayici Ili', null, $profileNow);
+        $district = Location::create(LocationLevel::District, 'Tarayici Ilcesi', $province, $profileNow);
+        $school = Location::create(LocationLevel::School, 'Tarayici Okulu', $district, $profileNow);
+        $this->entityManager->persist($province);
+        $this->entityManager->persist($district);
+        $this->entityManager->persist($school);
+        $this->entityManager->flush();
+        $profileRequest = new TeacherProfessionalProfileRequest();
+        $profileRequest->subject = $subject;
+        $profileRequest->gradeLevels = [GradeLevel::Grade5, GradeLevel::Grade6];
+        $profileRequest->provinceId = $province->getId()->toRfc4122();
+        $profileRequest->districtId = $district->getId()->toRfc4122();
+        $profileRequest->schoolId = $school->getId()->toRfc4122();
+        $this->professionalProfiles->save($teacher, $profileRequest);
+        $applicant = $this->account(
+            'browser-teacher-app-'.str_repeat('a', 20).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Student,
+        );
+        $teacherApplication = $this->teacherApplications->submit($applicant);
+        $institutionApplicant = $this->account(
+            'browser-institution-app-'.str_repeat('a', 16).'@example.test',
+            str_repeat('Uzunad', 8),
+            str_repeat('Soyad', 8),
+            UserRole::Student,
+        );
+        $institutionApplication = $this->institutionApplications->submit(
+            $institutionApplicant,
+            str_repeat('UzunKurum', 8),
+            InstitutionType::School,
+        );
+        $this->institutions->create(
+            $superAdmin,
+            $owner,
+            'Uzun Adli Bekleyen Kurs Merkezi',
+            InstitutionType::CourseCenter,
+            'browser_create',
+        );
+
+        $resultScreens = $this->resultScreens($superAdmin, $admin, $teacher, $subject, $outcome, $detailAssessment->getId()->toRfc4122());
+        if (null === $resultScreens) {
+            $output->writeln('Synthetic result attempts could not be prepared.');
+
+            return Command::FAILURE;
+        }
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -371,6 +896,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'admin' => 'browser-admin@example.test',
                 'teacher' => 'browser-teacher@example.test',
                 'moderator' => 'browser-moderator@example.test',
+                'curriculumModerator' => 'browser-curriculum-moderator@example.test',
                 'expert' => 'browser-expert@example.test',
                 'emptyTeacher' => 'browser-teacher-empty@example.test',
                 'student' => 'browser-student@example.test',
@@ -378,8 +904,48 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'parent' => 'browser-parent@example.test',
                 'parentUnlinked' => 'browser-parent-empty@example.test',
                 'owner' => 'browser-owner@example.test',
+                'homeworkEmptyTeacher' => 'browser-teacher-homework@example.test',
+                'evaluateTeacher' => 'browser-teacher-evaluate@example.test',
+                'evaluateStudentReviewed' => 'browser-student-evaluate@example.test',
+                'evaluateStudentRework' => 'browser-student-evaluate-rework@example.test',
+                'evaluateStudentWait' => 'browser-student-evaluate-wait@example.test',
+                'evaluateStudentDraft' => 'browser-student-evaluate-draft@example.test',
             ],
             'paths' => [
+                'homeworkList' => '/ogretmen/odevler',
+                'homeworkNew' => '/ogretmen/odevler/yeni',
+                'homeworkDetail' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122(),
+                'homeworkEdit' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122().'/duzenle',
+                'homeworkLongDetail' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122(),
+                'homeworkLongEdit' => '/ogretmen/odevler/'.$homeworkLong->getId()->toRfc4122().'/duzenle',
+                'homeworkTitle' => $homeworkTitle,
+                'homeworkConfirm' => '/ogretmen/odevler/'.$homeworkDraft->getId()->toRfc4122().'?ata=1',
+                'homeworkAssignedDetail' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122(),
+                'homeworkAssignedEdit' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122().'/duzenle',
+                'homeworkAssignedConfirm' => '/ogretmen/odevler/'.$homeworkAssigned->getId()->toRfc4122().'?ata=1',
+                'homeworkZeroDetail' => '/ogretmen/odevler/'.$homeworkZero->getId()->toRfc4122(),
+                'homeworkZeroConfirm' => '/ogretmen/odevler/'.$homeworkZero->getId()->toRfc4122().'?ata=1',
+                'homeworkAssignedTitle' => $homeworkAssignedTitle,
+                'homeworkAssignedRecipients' => (string) $homeworkAssignment->getRecipientCount(),
+                'homeworkZeroTitle' => $homeworkZeroTitle,
+                'homeworkLongTitle' => $homeworkLongTitle,
+                'studentHomeworkList' => '/ogrenci/odevler',
+                'studentHomeworkNone' => '/ogrenci/odevler/'.$studentHwNone->getId()->toRfc4122(),
+                'studentHomeworkDraft' => '/ogrenci/odevler/'.$studentHwDraftAsg->getId()->toRfc4122(),
+                'studentHomeworkSubmitted' => '/ogrenci/odevler/'.$studentHwSubmittedAsg->getId()->toRfc4122(),
+                'studentHomeworkOverdue' => '/ogrenci/odevler/'.$studentHwOverdueAsg->getId()->toRfc4122(),
+                'studentHomeworkLong' => '/ogrenci/odevler/'.$studentHwLongAsg->getId()->toRfc4122(),
+                'studentHomeworkNoneTitle' => $homeworkAssignedTitle,
+                'studentHomeworkDraftTitle' => 'Okudugum kitabi anlatiyorum',
+                'studentHomeworkSubmittedTitle' => 'Dogayi gozlemliyorum',
+                'studentHomeworkOverdueTitle' => 'Suresi gecmis taslak odev',
+                'studentHomeworkEmptyList' => '/ogrenci/odevler',
+                'evaluateList' => '/ogretmen/odevler/'.$evaluateDefinition->getId()->toRfc4122(),
+                'evaluateTitle' => $evaluateTitle,
+                'evaluateSubmissionWait' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['wait']->getId()->toRfc4122(),
+                'evaluateSubmissionReviewed' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['reviewed']->getId()->toRfc4122(),
+                'evaluateSubmissionRework' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['rework']->getId()->toRfc4122(),
+                'evaluateStudentDetail' => '/ogrenci/odevler/'.$evaluateAssignmentId->toRfc4122(),
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
                 'publicCatalog' => '/dersler',
                 'publicGrade' => '/dersler/1',
@@ -388,17 +954,61 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'publicDraft' => '/dersler/1/taslak-ders',
                 'testCode' => $assessment->getCode(),
                 'revision' => '/yonetim/icerikler/'.$draft->getId()->toRfc4122().'/revision',
+                'draftDetail' => '/yonetim/icerikler/'.$draft->getId()->toRfc4122(),
                 'reviewDetail' => '/yonetim/icerikler/'.$review->getId()->toRfc4122(),
                 'confirmDetail' => '/yonetim/icerikler/'.$confirm->getId()->toRfc4122(),
+                'publishedDetail' => '/yonetim/icerikler/'.$published->getId()->toRfc4122(),
                 'questionEdit' => '/yonetim/sorular/'.$draftQuestion->getId()->toRfc4122().'/duzenle',
                 'questionReview' => '/yonetim/sorular/'.$reviewQuestion->getId()->toRfc4122(),
+                'questionPublished' => '/yonetim/sorular/'.$publishedQuestion->getId()->toRfc4122(),
                 'questionSubjectCode' => 'browser_subj',
                 'questionOutcomeCode' => 'browser_lo',
                 'classroomName' => 'Sinif A',
                 'contentTitle' => 'Toplama anlatimi',
                 'testTitle' => 'Toplama testi',
+                'testDraftEdit' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122().'/duzenle',
+                'testDraft' => '/yonetim/testler/'.$longDraft->getId()->toRfc4122(),
+                'testPublishedDetail' => '/yonetim/testler/'.$detailAssessment->getId()->toRfc4122(),
+                'testPreview' => '/yonetim/testler/'.$previewAssessment->getId()->toRfc4122().'/gorunum',
+                'testResults' => $resultScreens['list'],
+                'testResultsEmpty' => $resultScreens['empty'],
+                'testResultCompleted' => $resultScreens['completed'],
+                'testResultOpen' => $resultScreens['open'],
+                'testResultExpired' => $resultScreens['expired'],
+                'testResultExpiredClosed' => $resultScreens['expiredClosed'],
+                'testResultStudent' => $resultScreens['student'],
+                'testReview' => '/yonetim/testler/'.$reviewAssessment->getId()->toRfc4122(),
                 'foreignTitle' => 'Gizli admin taslagi',
                 'endedClassroom' => 'Eski Sinif',
+                'userDetail' => '/yonetim/kullanicilar/'.$detailUser->getId()->toRfc4122(),
+                'teachers' => '/yonetim/ogretmenler',
+                'teacher' => '/yonetim/ogretmenler/'.$detailUser->getId()->toRfc4122(),
+                'teacherApplications' => '/yonetim/ogretmen-basvurulari',
+                'teacherApplication' => '/yonetim/ogretmen-basvurulari/'.$teacherApplication->getId()->toRfc4122(),
+                'institutionApplications' => '/yonetim/kurum-basvurulari',
+                'institutionApplication' => '/yonetim/kurum-basvurulari/'.$institutionApplication->getId()->toRfc4122(),
+                'institutions' => '/yonetim/kurumlar',
+                'institutionNew' => '/yonetim/kurumlar/yeni',
+                'institution' => '/yonetim/kurumlar/'.$institution->getId()->toRfc4122(),
+                'branches' => '/yonetim/subeler',
+                'branchNew' => '/yonetim/subeler/yeni?kurum='.$institution->getId()->toRfc4122(),
+                'branch' => '/yonetim/subeler/'.$activeBranch->getId()->toRfc4122(),
+                'branchPending' => '/yonetim/subeler/'.$pendingCampus->getId()->toRfc4122(),
+                'academicYears' => '/yonetim/akademik-yillar',
+                'academicYearNew' => '/yonetim/akademik-yillar/yeni?kurum='.$institution->getId()->toRfc4122(),
+                'academicYear' => '/yonetim/akademik-yillar/'.$plannedYear->getId()->toRfc4122(),
+                'academicYearActive' => '/yonetim/akademik-yillar/'.$year->getId()->toRfc4122(),
+                'classrooms' => '/yonetim/siniflar',
+                'classroomNew' => '/yonetim/siniflar/yeni?kurum='.$institution->getId()->toRfc4122().'&yil='.$year->getId()->toRfc4122(),
+                'classroom' => '/yonetim/siniflar/'.$classroom->getId()->toRfc4122(),
+                'classroomEmpty' => '/yonetim/siniflar/'.$endedClassroom->getId()->toRfc4122(),
+                'classroomLong' => '/yonetim/siniflar/'.$longClassroom->getId()->toRfc4122(),
+                'curriculum' => '/yonetim/programlar',
+                'curriculumNew' => '/yonetim/programlar/yeni',
+                'curriculumProgram' => '/yonetim/programlar/'.$program->getId()->toRfc4122(),
+                'curriculumDraft' => '/yonetim/programlar/'.$draftProgram->getId()->toRfc4122(),
+                'modulePermissions' => '/yonetim/rol-yetkileri',
+                'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
@@ -433,6 +1043,242 @@ final class PrepareBrowserAcceptanceCommand extends Command
         return $user;
     }
 
+    /**
+     * @param list<array{stableKey: string, content: QuestionContentDocument, position: int}> $options
+     *
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
+     */
+    private function previewQuestion(
+        User $teacher,
+        User $admin,
+        Subject $subject,
+        CurriculumLearningOutcome $outcome,
+        QuestionContentDocument $stem,
+        array $options,
+        string $reason,
+        int $position,
+        string $points,
+    ): ?array {
+        $question = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            $stem,
+            null,
+            $options,
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            $reason,
+        );
+        $this->questions->submitForReview($question, $teacher, $reason.'_submit');
+        $this->questions->publish($question, $admin, $reason.'_publish');
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (null === $revision) {
+            return null;
+        }
+
+        return [
+            'questionId' => $question->getId(),
+            'questionRevisionId' => $revision->getId(),
+            'position' => $position,
+            'points' => $points,
+            'penaltyPoints' => '0.00',
+            'required' => true,
+        ];
+    }
+
+    /**
+     * @return array{questionId: \Symfony\Component\Uid\Uuid, questionRevisionId: \Symfony\Component\Uid\Uuid, position: int, points: string, penaltyPoints: string, required: true}|null
+     */
+    private function detailItem(User $teacher, User $admin, Subject $subject, CurriculumLearningOutcome $outcome, string $stem, int $position): ?array
+    {
+        $question = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            QuestionContentDocument::paragraph($stem),
+            null,
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_a'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_detail_'.$position,
+        );
+        $this->questions->submitForReview($question, $teacher, 'browser_submit_detail');
+        $this->questions->publish($question, $admin, 'browser_publish_detail');
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (null === $revision) {
+            return null;
+        }
+
+        return [
+            'questionId' => $question->getId(),
+            'questionRevisionId' => $revision->getId(),
+            'position' => $position,
+            'points' => '1.00',
+            'penaltyPoints' => '0.00',
+            'required' => true,
+        ];
+    }
+
+    /**
+     * @return array{list: string, empty: string, completed: string, open: string, expired: string, expiredClosed: string, student: string}|null
+     */
+    private function resultScreens(User $superAdmin, User $admin, User $teacher, Subject $subject, CurriculumLearningOutcome $outcome, string $emptyAssessmentId): ?array
+    {
+        $stem = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+            ['type' => 'paragraph', 'inlines' => [
+                ['type' => 'text', 'text' => 'Kalın kök ', 'marks' => ['bold']],
+                ['type' => 'text', 'text' => 'eğik devam', 'marks' => ['italic']],
+            ]],
+            ['type' => 'list', 'style' => 'bullet', 'items' => ['Liste maddesi bir', 'Liste maddesi iki']],
+            ['type' => 'math', 'latex' => '\\frac{3}{4}+1234567890123456789012345678901234567890'],
+        ]);
+        $explanation = new QuestionContentDocument(QuestionContentDocument::SCHEMA_VERSION, [
+            ['type' => 'paragraph', 'text' => 'Cozum satiri'],
+            ['type' => 'math', 'latex' => 'a+b'],
+        ]);
+        $question = $this->questions->createDraftQuestion(
+            $teacher,
+            QuestionScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            QuestionType::SingleChoice,
+            $stem,
+            $explanation->toArray(),
+            [
+                ['stableKey' => 'opt_a', 'content' => QuestionContentDocument::paragraph('Bir'), 'position' => 1],
+                ['stableKey' => 'opt_b', 'content' => QuestionContentDocument::paragraph('Iki'), 'position' => 2],
+            ],
+            ['correctStableKey' => 'opt_b'],
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            QuestionDifficulty::Easy,
+            'browser_q_result',
+        );
+        $this->questions->submitForReview($question, $teacher, 'browser_submit_result');
+        $this->questions->publish($question, $admin, 'browser_publish_result');
+        $revision = $this->questionRevisions->findForQuestionNumber($question, $question->getCurrentRevisionNumber());
+        if (null === $revision) {
+            return null;
+        }
+        $assessment = $this->assessments->createDraftAssessment(
+            $teacher,
+            AssessmentScope::Platform,
+            null,
+            AssessmentType::Quiz,
+            GradeLevel::Grade1,
+            'Sentetik sonuc testi',
+            null,
+            'Sentetik sonuc yonerge',
+            600,
+            NavigationMode::Free,
+            QuestionOrderMode::Fixed,
+            OptionOrderMode::Fixed,
+            ResultReleasePolicy::Manual,
+            null,
+            [[
+                'title' => 'Bolum',
+                'instructions' => null,
+                'position' => 1,
+                'durationSeconds' => null,
+                'questionOrderMode' => QuestionOrderMode::Fixed,
+                'items' => [[
+                    'questionId' => $question->getId(),
+                    'questionRevisionId' => $revision->getId(),
+                    'position' => 1,
+                    'points' => '2.50',
+                    'penaltyPoints' => '0.00',
+                    'required' => true,
+                ]],
+            ]],
+            'browser_test_result',
+            $subject,
+        );
+        $this->assessments->submitForReview($assessment, $teacher, 'browser_submit_result');
+        $this->assessments->publish($assessment, $admin, 'browser_publish_result');
+        $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::Free, 'browser_free');
+
+        $studentName = str_repeat('Uzunad', 6);
+        $done = $this->account('browser-result-done@example.test', $studentName, 'Kaydi', UserRole::Student);
+        $open = $this->account('browser-result-open@example.test', 'Devam', 'Eden', UserRole::Student);
+        $cancelled = $this->account('browser-result-cancel@example.test', 'Iptal', 'Edilen', UserRole::Student);
+        $expired = $this->account('browser-result-expired@example.test', 'Sure', 'Doldu', UserRole::Student);
+        $expiredClosed = $this->account('browser-result-expired-open@example.test', 'Bos', 'Deneme', UserRole::Student);
+        $this->profiles->completeOnboarding($done, $this->profile(GradeLevel::Grade1));
+        $this->profiles->completeOnboarding($open, $this->profile(GradeLevel::Grade1));
+        $this->profiles->completeOnboarding($cancelled, $this->profile(GradeLevel::Grade1));
+        $this->profiles->completeOnboarding($expired, $this->profile(GradeLevel::Grade1));
+        $this->profiles->completeOnboarding($expiredClosed, $this->profile(GradeLevel::Grade1));
+
+        $code = $assessment->getCode();
+        $this->practice->start($done, GradeLevel::Grade1, $code);
+        $this->practice->saveChoice($done, GradeLevel::Grade1, $code, 1, 2, 0);
+        $this->practice->finish($done, GradeLevel::Grade1, $code);
+        $this->practice->start($open, GradeLevel::Grade1, $code);
+        $cancelledAttempt = $this->practice->start($cancelled, GradeLevel::Grade1, $code);
+        $this->attemptManager->cancel($cancelledAttempt, $superAdmin, 'browser_cancel', 'cancelled_by_admin');
+        $expiredAttempt = $this->practice->start($expired, GradeLevel::Grade1, $code);
+        $this->practice->saveChoice($expired, GradeLevel::Grade1, $code, 1, 2, 0);
+        $closedAttempt = $this->practice->start($expiredClosed, GradeLevel::Grade1, $code);
+        $deadline = $closedAttempt->getExpiresAt() > $expiredAttempt->getExpiresAt()
+            ? $closedAttempt->getExpiresAt()
+            : $expiredAttempt->getExpiresAt();
+        $clock = new MockClock($deadline->modify('+1 minute'));
+        Clock::set($clock);
+        try {
+            $this->attemptManager->expire($expiredAttempt, 'browser_expire');
+            $this->attemptManager->expire($closedAttempt, 'browser_expire');
+            $this->practice->finish($expired, GradeLevel::Grade1, $code);
+        } finally {
+            Clock::set(new NativeClock());
+        }
+        $this->access->setAssessmentAccessPolicy($assessment, $admin, ResourceAccessClass::EntitlementRequired, 'browser_entitlement');
+
+        $completedRank = null;
+        $openRank = null;
+        $expiredRank = null;
+        $expiredClosedRank = null;
+        foreach ($this->resultReport->page($assessment, 1, null)->items as $row) {
+            if (str_contains($row->studentName, $studentName)) {
+                $completedRank = $row->rank;
+            }
+            if ('Devam Eden' === $row->studentName) {
+                $openRank = $row->rank;
+            }
+            if ('Sure Doldu' === $row->studentName) {
+                $expiredRank = $row->rank;
+            }
+            if ('Bos Deneme' === $row->studentName) {
+                $expiredClosedRank = $row->rank;
+            }
+        }
+        if (null === $completedRank || null === $openRank || null === $expiredRank || null === $expiredClosedRank) {
+            return null;
+        }
+        $id = $assessment->getId()->toRfc4122();
+
+        return [
+            'list' => '/yonetim/testler/'.$id.'/sonuclar',
+            'empty' => '/yonetim/testler/'.$emptyAssessmentId.'/sonuclar',
+            'completed' => '/yonetim/testler/'.$id.'/sonuclar/'.$completedRank.'?page=1',
+            'open' => '/yonetim/testler/'.$id.'/sonuclar/'.$openRank.'?page=1',
+            'expired' => '/yonetim/testler/'.$id.'/sonuclar/'.$expiredRank.'?page=1',
+            'expiredClosed' => '/yonetim/testler/'.$id.'/sonuclar/'.$expiredClosedRank.'?page=1',
+            'student' => $studentName.' Kaydi',
+        ];
+    }
+
     private function profile(GradeLevel $grade): StudentProfileRequest
     {
         $dto = new StudentProfileRequest();
@@ -460,10 +1306,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'blocks' => [
                 ['type' => 'heading', 'level' => 2, 'text' => 'Toplama'],
                 ['type' => 'paragraph', 'text' => 'Iki sayiyi toplariz'],
-                ['type' => 'list', 'items' => ['Bir', 'Iki']],
+                ['type' => 'callout', 'variant' => 'info', 'blocks' => [
+                    ['type' => 'paragraph', 'text' => 'Bilgi kutusu metni dar bir sutuna sikismadan, etiketin yaninda okunur.'],
+                ]],
                 ['type' => 'callout', 'variant' => 'tip', 'blocks' => [
                     ['type' => 'paragraph', 'text' => 'Once onluklari yaz'],
                 ]],
+                ['type' => 'paragraph', 'text' => 'Uzun onizleme paragrafi. Iki sayiyi toplarken once onluklari, sonra birlikleri yazariz. Bu satir sag kartlarin yuksekligini olcmek icin kasitli olarak uzundur. '.str_repeat('Satir devam eder. ', 18)],
+                ['type' => 'list', 'items' => ['Bir', 'Iki']],
                 ['type' => 'quote', 'text' => 'Toplama biriktirmektir'],
                 ['type' => 'math', 'latex' => '2 + 2 = 4'],
                 [

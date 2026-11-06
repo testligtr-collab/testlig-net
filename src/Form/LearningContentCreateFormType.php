@@ -36,7 +36,7 @@ final class LearningContentCreateFormType extends AbstractType
         $builder
             ->add('code', TextType::class, [
                 'label' => 'Kısa kod',
-                'help' => 'Öğrenci bu kodu görmez. Kısa ve anlaşılır bir kod yazın.',
+                'help' => 'Öğrenciye gösterilmez.',
                 'attr' => ['maxlength' => 64],
             ])
             ->add('title', TextType::class, [
@@ -55,7 +55,7 @@ final class LearningContentCreateFormType extends AbstractType
             ])
             ->add('gradeLevel', EnumType::class, [
                 'class' => GradeLevel::class,
-                'label' => 'Sınıf seviyesi',
+                'label' => 'Sınıf düzeyi',
                 'choice_label' => static fn (GradeLevel $g): string => \sprintf('%d. sınıf', $g->value),
             ])
             ->add('subjectId', ChoiceType::class, [
@@ -64,9 +64,10 @@ final class LearningContentCreateFormType extends AbstractType
                 'placeholder' => 'Seçin…',
             ])
             ->add('learningOutcomeId', ChoiceType::class, [
-                'label' => 'Birincil öğrenme kazanımı',
+                'label' => 'Kazanım',
+                'help' => 'Seçim bu taslağın ilk sürümüne bağlanır. Yayını açmaz.',
                 'choices' => $outcomeChoices,
-                'placeholder' => 'Seçin…',
+                'placeholder' => 'Kazanım seçin',
             ]);
     }
 

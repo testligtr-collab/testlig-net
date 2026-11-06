@@ -1,0 +1,17 @@
+{% if not can_view_tests %}
+    <p class="admin-question-usage__empty">Kullanım bilgisine erişiminiz yok</p>
+{% elseif usages is empty %}
+    <p class="admin-question-usage__empty">Henüz kullanılmadı</p>
+{% else %}
+    <ul class="admin-question-usage__list">
+        {% for usage in usages %}
+            <li>
+                <a href="{{ path('app_admin_test_show', {id: usage.assessment_id}) }}">{{ usage.title }}</a>
+                <span>Test sürümü #{{ usage.assessment_revision }}</span>
+                <span>Soru sürümü #{{ usage.question_revision }}</span>
+                <span>Konum {{ usage.position }}</span>
+                <span>{{ usage.current ? 'Güncel sürüm' : 'Eski sürüm' }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}

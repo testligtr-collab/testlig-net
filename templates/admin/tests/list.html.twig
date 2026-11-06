@@ -4,43 +4,133 @@
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
-        {% if workspace_shell|default(false) %}
-            {% include 'admin/_crumb_root.html.twig' %}
-            <span aria-hidden="true">/</span>
-        {% endif %}
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
         <span>Testler</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Testler</h1>
-        {% if can_author %}
-            <a class="btn btn--cta" href="{{ path('app_admin_test_new') }}">Yeni test</a>
+    <div class="admin-user-page admin-test-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Testler</h1>
+                <p>Platform testlerini ve yayın süreçlerini yönetin.</p>
+            </div>
+            {% if can_author %}
+                <a class="btn admin-test-primary" href="{{ path('app_admin_test_new') }}"><span aria-hidden="true">+ </span>Yeni test</a>
+            {% endif %}
+        </header>
+
+        <section class="admin-user-stats" aria-label="Test özeti">
+            <article class="admin-user-stat admin-test-stat admin-test-stat--draft">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'questions' } only %}</span>
+                <span class="admin-user-stat__copy"><span class="admin-user-stat__label">Taslak</span><strong class="admin-user-stat__value" data-test-summary="draft">{{ counts.draft }}</strong></span>
+            </article>
+            <article class="admin-user-stat admin-test-stat admin-test-stat--review">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'clock' } only %}</span>
+                <span class="admin-user-stat__copy"><span class="admin-user-stat__label">İncelemede</span><strong class="admin-user-stat__value" data-test-summary="in_review">{{ counts.in_review }}</strong></span>
+            </article>
+            <article class="admin-user-stat admin-test-stat admin-test-stat--published">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy"><span class="admin-user-stat__label">Yayında</span><strong class="admin-user-stat__value" data-test-summary="published">{{ counts.published }}</strong></span>
+            </article>
+            <article class="admin-user-stat admin-test-stat admin-test-stat--archived">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'archive' } only %}</span>
+                <span class="admin-user-stat__copy"><span class="admin-user-stat__label">Arşiv</span><strong class="admin-user-stat__value" data-test-summary="archived">{{ counts.archived }}</strong></span>
+            </article>
+        </section>
+        <p class="admin-test-note">Sayaçlar filtrelerden bağımsızdır.</p>
+
+        <form method="get" class="admin-filters admin-test-filters" action="{{ path('app_admin_tests') }}" aria-label="Testleri filtrele">
+            <div class="admin-test-filter">
+                <label for="test-filter-q">Test adı veya kod</label>
+                <div class="admin-user-search">
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="test-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Test adı veya kod">
+                </div>
+            </div>
+            <label for="test-filter-subject">Ders
+                <select id="test-filter-subject" name="subject_id">
+                    <option value="">Tümü</option>
+                    {% for subject in subjects %}
+                        <option value="{{ subject.id.toRfc4122 }}" {% if filters.subject_id|default('') == subject.id.toRfc4122 %}selected{% endif %}>{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label for="test-filter-grade">Sınıf
+                <select id="test-filter-grade" name="grade">
+                    <option value="">Tümü</option>
+                    {% for g in 1..12 %}
+                        <option value="{{ g }}" {% if filters.grade|default('') == (g ~ '') %}selected{% endif %}>{{ g }}. sınıf</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label for="test-filter-status">Durum
+                <select id="test-filter-status" name="status">
+                    <option value="">Tümü</option>
+                    {% for s in ['draft', 'in_review', 'published', 'archived'] %}
+                        {% set status = admin_status(s) %}
+                        <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="admin-test-filters__actions">
+                <button type="submit" class="btn admin-test-primary">{% include 'components/admin_icon.html.twig' with { icon: 'filter' } only %} Filtrele</button>
+                <a class="admin-user-clear" href="{{ path('app_admin_tests') }}">Temizle</a>
+            </div>
+        </form>
+
+        {% if counts.total == 0 %}
+            {% include 'components/empty_state.html.twig' with { title: 'Test yok', body: 'Henüz görebildiğiniz bir test yok.' } %}
+        {% elseif rows is empty %}
+            {% include 'components/empty_state.html.twig' with { title: 'Sonuç yok', body: 'Bu filtreye uyan test yok.' } %}
+        {% else %}
+            {% if matched > 100 %}
+                <p class="admin-test-note">Listede en yeni 100 kayıt görünüyor. Filtreye uyan kayıt sayısı {{ matched }}.</p>
+            {% endif %}
+            <section class="admin-test-list" aria-labelledby="test-list-heading">
+                <h2 id="test-list-heading">Test listesi</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-test-table">
+                        <thead>
+                            <tr>
+                                <th>Test</th>
+                                <th>Ders</th>
+                                <th>Sınıf</th>
+                                <th>Durum</th>
+                                <th>Soru</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                {% set status = admin_status(row.status) %}
+                                <tr>
+                                    <td class="admin-test__identity">
+                                        <div class="admin-test__head">
+                                            <span class="admin-test__name">{{ row.title }}</span>
+                                            <span class="admin-status admin-test-status admin-test-status--{{ row.status }} admin-test__card-status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                        </div>
+                                        <p class="admin-test__meta">{{ row.subject }} · {{ row.grade }} · {{ row.questions }} soru</p>
+                                        <details class="admin-test-tech">
+                                            <summary role="button">Teknik bilgiler</summary>
+                                            <div class="admin-test-tech__panel">
+                                                <dl>
+                                                    <div><dt>Teknik kod</dt><dd><code>{{ row.code }}</code></dd></div>
+                                                </dl>
+                                            </div>
+                                        </details>
+                                        <a class="admin-test__open" href="{{ path('app_admin_test_show', {id: row.id}) }}">İncele <span aria-hidden="true">→</span></a>
+                                    </td>
+                                    <td class="admin-test__subject">{{ row.subject }}</td>
+                                    <td class="admin-test__grade">{{ row.grade }}</td>
+                                    <td class="admin-test__status"><span class="admin-status admin-test-status admin-test-status--{{ row.status }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span></td>
+                                    <td class="admin-test__count">{{ row.questions }}</td>
+                                    <td class="admin-test__action"><a href="{{ path('app_admin_test_show', {id: row.id}) }}">İncele <span aria-hidden="true">→</span></a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
         {% endif %}
     </div>
-
-    {% if assessments is empty %}
-        {% include 'components/empty_state.html.twig' with { title: 'Test yok', body: 'Henüz görebildiğiniz bir test yok.' } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Test</th>
-                        <th>Sınıf</th>
-                        <th>Durum</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for assessment in assessments %}
-                        <tr>
-                            <td>{{ assessment.currentRevision ? assessment.currentRevision.title : 'Adsız test' }}</td>
-                            <td>{{ assessment.gradeLevel.value }}. sınıf</td>
-                            <td><span class="ws-badge">{{ status_labels[assessment.status.value] }}</span></td>
-                            <td><a href="{{ path('app_admin_test_show', {id: assessment.id.toRfc4122}) }}">{% if assessment.status.value == 'draft' and can_author %}Düzenle{% elseif assessment.status.value == 'in_review' %}İncele{% else %}Görüntüle{% endif %}</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
 {% endblock %}

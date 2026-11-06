@@ -10,7 +10,8 @@ use App\Entity\User;
 use App\Question\Image\QuestionRevisionPendingImage;
 
 /**
- * Scans only the pending image linked to the question revision that was shown.
+ * Scans each pending image linked to the question revision that was shown.
+ * A clean verdict is the only path that marks that asset ready.
  */
 final class QuestionImageScanAction
 {
@@ -22,13 +23,19 @@ final class QuestionImageScanAction
 
     public function scan(User $actor, Question $question, QuestionRevision $revision): string
     {
-        $assetId = $this->images->sole($question, $revision);
-        if (null === $assetId) {
+        $assetIds = $this->images->pending($question, $revision);
+        if ([] === $assetIds) {
             return QuestionImageScanMessage::ineligible();
         }
+        $message = QuestionImageScanMessage::forVerdict(QuestionImageScanVerdict::Clean);
+        foreach ($assetIds as $assetId) {
+            $verdict = $this->scanner->scanPendingQuestionImage($actor, $assetId);
+            $message = QuestionImageScanMessage::forVerdict($verdict);
+            if (QuestionImageScanVerdict::Clean !== $verdict) {
+                return $message;
+            }
+        }
 
-        return QuestionImageScanMessage::forVerdict(
-            $this->scanner->scanPendingQuestionImage($actor, $assetId),
-        );
+        return $message;
     }
 }

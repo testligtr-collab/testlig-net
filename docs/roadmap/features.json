@@ -1,10 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-21",
+  "updated_at": "2026-11-03",
   "baseline_main_sha": "2a615f1113126ad5b023b4a2893f35e021c5ec7d",
   "active_feature_ids": [
-    "X10-admin-navigation",
-    "M27-news"
+    "X01-homework"
   ],
   "features": [
     {
@@ -31,15 +30,20 @@
       "evidence": [
         "src/Controller/OnboardingApplicationController.php",
         "src/Controller/Admin/AdminTeacherApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen öğretmen başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay öğretmen rolü vermez. Onaylı başvurudan ayrı POST, UserGlobalRoleManager::addRole ile yalnız ROLE_TEACHER verir.",
-        "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. Onaylı başvurudan ayrı POST, InstitutionCreator ile pending kurum ve owner üyeliği oluşturup başvuruya bağlar. Aktivasyon ve manager üyeliği bu dilimde yok."
+        "src/Controller/Admin/AdminInstitutionApplicationController.php: yalnız aktif ve doğrulanmış SuperAdmin bekleyen kurum başvurusunu mevcut markApproved ve markRejected ile onaylar veya reddeder. Onay kurum, üyelik veya rol vermez. Onaylı başvurudan ayrı POST, InstitutionCreator ile pending kurum ve owner üyeliği oluşturup başvuruya bağlar. Aktivasyon ve manager üyeliği bu dilimde yok.",
+        "src/Controller/Admin/AdminTeacherApplicationController.php: /yonetim/ogretmen-basvurulari mevcut SuperAdmin kuyruğunu gerçek sayaç, arama, durum filtresi ve sayfalama ile gösterir. Onay markApproved ile başvuruyu approved yapar ve rol vermez. Ret markRejected ile decision_reason_code kaydeder. Öğretmen rolü yalnız ayrı POST ile bir kez verilir. Kurum üyeliği ve sınıf ataması verilmez. CI ekran görüntüsü canlı kabul değildir.",
+        "src/Presentation/TeacherApplicationRejectReason.php: ret formu doğrulanmış kodları Türkçe etiketle seçtirir. incomplete_documents etiketi Eksik belgelerdir. Boş veya katalog dışı değer markRejected çağrılmaz ve audit yazılmaz. Eski tanınmayan kod Diğer / eski kayıt olarak okunur. Onay ve ayrı öğretmen rolü verme aynı kalır.",
+        "src/Controller/Admin/AdminInstitutionApplicationController.php: /yonetim/kurum-basvurulari mevcut SuperAdmin kuyruğunu gerçek sayaç, kurum adı veya başvuran araması, durum filtresi ve sayfalama ile gösterir. Onay markApproved ile başvuruyu approved yapar; kurum, üyelik veya rol vermez. Ret seçimi InstitutionApplicationRejectReason ile doğrulanır; incomplete_documents etiketi Eksik belgelerdir. Boş veya katalog dışı değer markRejected çağırmaz. Kurum oluşturma ayrı POST ile InstitutionCreator üzerinden pending kurum ve owner üyeliği kurar. Aktivasyon ve manager üyeliği bu dilimde yok. CI ekran görüntüsü canlı kabul değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/116",
         "https://github.com/testligtr-collab/testlig-net/pull/117",
         "https://github.com/testligtr-collab/testlig-net/pull/118",
-        "https://github.com/testligtr-collab/testlig-net/pull/119"
+        "https://github.com/testligtr-collab/testlig-net/pull/119",
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/164"
       ],
-      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır.",
+      "acceptance": "Dar dilim: SuperAdmin öğretmen ve kurum başvuru kuyrukları, onaylı öğretmen başvurusundan ayrı ROLE_TEACHER verme ve onaylı kurum başvurusundan ayrı pending kurum ile owner üyeliği. Öğretmen ve kurum kuyrukları mevcut adreslerde gerçek kayıtlarla incelenebilir. Bütün başvuru ürünü tamamlanmış sayılmaz. Mesleki profil, kurum aktivasyonu ve manager üyelik provisioning açık kalır. Production kabulü ayrıdır. CI ekran görüntüsü canlı kabul değildir.",
       "scope_decision": null
     },
     {
@@ -134,9 +138,14 @@
       "source": "src/Controller/Admin/AdminUserController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/Admin/AdminUserController.php"
+        "src/Controller/Admin/AdminUserController.php",
+        "Kullanıcı listesi özet sayaçları filtrelerden bağımsız ve mevcut görüntüleme yetkisiyle gerçek kayıtlardan gelir. Arama, durum, rol ve doğrulama filtreleri aynı GET parametrelerinde kalır. Rol ve durum değiştirme bu görsel dilimde değişmedi. Kullanıcı yönetiminin bütün kapsamı tamamlanmış değildir. Ekran görüntüsü canlı görsel kabul değildir.",
+        "Kullanıcı tablosunda tarih hücresi masaüstünde tablo hücresi olarak kalır. Tarih ve saat iç kapsayıcıda alt alta durur. Satır ayırıcısı satırın kendi çizgisidir. Bu hizalama kullanıcı yönetiminin bütün kapsamını tamamlamaz.",
+        "Kullanıcı detayı profil özeti, rol kartları ve durum kartıyla yeniden düzenlendi. Rol ve durum formlarının adları, CSRF niyeti, izinli seçenekler ve başarılı kayıt yönlendirmesi aynı kaldı. Bu görsel dilim kullanıcı yönetiminin bütün kapsamını tamamlamaz."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/162"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -172,14 +181,27 @@
       "id": "M03-module-permissions",
       "module": "M03",
       "title": "Moderatör modül izin yönetimi",
-      "status": "planned",
+      "status": "partial",
       "source": "V1: AdminModulePermission",
       "depends_on": [],
       "evidence": [
-        "V1: AdminModulePermission"
+        "Süper yönetici /yonetim/rol-yetkileri adresinde moderatör hesaplarına learning_content.manage, question.manage ve assessment.author izinlerini verir veya kaldırır. İzin menü, route ve platform işlem servisinde aynı UserModulePermissionPolicy ile uygulanır. Yayın, arşiv, ödeme, denetim, kurum üyeliği ve global rol bu ekrandan verilmez. Canlı görsel kabul yapılmadı.",
+        "Aynı ekran curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinlerini ayrı satırlarda verir. İçerik, soru ve test izni müfredat izni vermez. Yayın izni oluşturma izninden çıkmaz. Moderatör kendi iznini veremez. Canlı görsel kabul yapılmadı.",
+        "Aynı ekrana curriculum.availability satırı eklendi. Bu izin ünite, konu ve kazanımı pasif yapar veya yeniden aktif eder. Oluşturma, yayın ve arşiv vermez. Arşiv izni pasiflik vermez. Canlı görsel kabul yapılmadı.",
+        "curriculum.availability dersi, programın öğrenci erişimini ve sabit kademe ile sınıf düzeyi kapılarını da pasif yapar veya yeniden açar. curriculum.archive kullanılmamış aktif dersi siler veya dersi arşivler. Bu izinler birbirinden çıkmaz. Canlı görsel kabul yapılmadı.",
+        "Kullanıcı 1-12 ağacı dosyaya alındı. İzin kataloğu değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Program ve katalog ekranlarının sadeleşmesi izin kataloğunu değiştirmez. curriculum.view, curriculum.manage, curriculum.publish, curriculum.availability ve curriculum.archive ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Tek Müfredat Yönetimi girişi izin kataloğunu değiştirmez. Katalog izni olmayan kullanıcı katalog satırlarını görmez. Beş müfredat izni ayrı kalır.",
+        "Liste, rol kartları, moderatör hesap paneli, arama ve boş durum düzenini kullanır. Hesap varsa gerçek satırlar görünür. Adres, katalog ve kayıt kuralları aynıdır. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/166",
+        "https://github.com/testligtr-collab/testlig-net/pull/167",
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176"
+      ],
+      "acceptance": "Aktif doğrulanmış süper yönetici moderatör hesabının üç platform yazma iznini ve beş ayrı müfredat iznini yönetir. Düz yönetici, moderatör ve diğer roller bu ekranı kullanamaz. Mevcut rol erişimi ve kurum üyeliği şartı durur. Ödeme, denetim ve canlı kabul açıktır.",
       "scope_decision": null
     },
     {
@@ -190,9 +212,14 @@
       "source": "src/Controller/InstitutionWorkspaceController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php"
+        "src/Controller/InstitutionWorkspaceController.php",
+        "Süper yönetici /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} ekranlarında mevcut kurum listesini, InstitutionCreator ile beklemede kurum ve ilk sahip üyeliğini, InstitutionStatusManager ile izinli durum geçişini kullanır. Hesap seçimi AdminUserQuery::searchInstitutionOwnerCandidates sonucunu UUID ile yeniden çözer. Şube, sınıf ve kurum çalışma alanı bu ekranlarda tamamlanmaz. Canlı görsel kabul yapılmadı.",
+        "Yeni kurum ve kurum detayının kart ikonları, form alanları ve profil özeti yönetim kabuğunun içinde referansa yaklaştırıldı. Arama adı veya slug olarak kalır. Yeni kurum beklemede oluşur. Bu düzen yeni ürün kabiliyeti veya canlı kabul değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/169",
+        "https://github.com/testligtr-collab/testlig-net/pull/170"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -200,14 +227,17 @@
       "id": "M05-branches",
       "module": "M05",
       "title": "Kurum şube/kampüs yönetimi",
-      "status": "planned",
-      "source": "V1: InstitutionBranch / Hierarchy",
+      "status": "partial",
+      "source": "src/Entity/InstitutionBranch.php",
       "depends_on": [],
       "evidence": [
-        "V1: InstitutionBranch / Hierarchy"
+        "V1: InstitutionBranch / Hierarchy",
+        "Süper yönetici /yonetim/subeler, /yonetim/subeler/yeni, /yonetim/subeler/{id} ve /yonetim/subeler/{id}/durum ekranlarında tek InstitutionBranch kaydını kullanır. Kayıt zorunlu institution_id ile bir kuruma bağlıdır; kod aynı kurumda benzersizdir. Yeni kayıt beklemede oluşur ve üyelik, rol veya sınıf erişimi vermez. Aktifleştirme bağlı kurum aktif değilse reddedilir. Sınıf taşıma, öğrenci atama, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü açıktır."
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/171"
+      ],
+      "acceptance": "İlk süper yönetici dilimi liste, oluşturma, düzenleme ve durum geçişini kapsar. Sınıf taşıma, üyelik delegasyonu, banka bilgisi, hiyerarşi ve production kabulü ayrı kanıt ister.",
       "scope_decision": null
     },
     {
@@ -232,9 +262,12 @@
       "source": "src/Controller/InstitutionWorkspaceController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php"
+        "src/Controller/InstitutionWorkspaceController.php",
+        "Süper yönetici sınıf listesi, oluşturma, detay, ad/kontenjan güncelleme ve arşiv /yonetim/siniflar adresindedir. Kayıt mevcut Classroom modelini kullanır ve aktif oluşur. Kurum ile akademik yıl sunucuda aynı kuruma ait olacak şekilde yeniden çözülür. Oluşturma üyelik, rol, öğretmen ataması veya öğrenci kaydı vermez. Kurum paneli ve öğretmen Sınıflarım aynı kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -246,9 +279,12 @@
       "source": "src/Controller/InstitutionWorkspaceController.php (#111)",
       "depends_on": [],
       "evidence": [
-        "src/Controller/InstitutionWorkspaceController.php (#111)"
+        "src/Controller/InstitutionWorkspaceController.php (#111)",
+        "Süper yönetici akademik yıl listesi, oluşturma, detay ve onaylı aktifleştirme /yonetim/akademik-yillar adresindedir. Oluşturma planlandı yıl bırakır. Aktifleştirme mevcut AcademicYearManager kilidiyle aynı kurumdaki önceki aktif yılı kapatır ve sınıf veya öğrenci kaydını taşımaz. Kurum paneli aynı adreste kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/172"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -290,11 +326,15 @@
       "evidence": [
         "src/Controller/TeacherProfessionalProfileController.php: aktif ve e-postası doğrulanmış ROLE_TEACHER kullanıcısı GET/POST /ogretmen/profil ile yalnız kendi branş ve GradeLevel seçimini kaydeder. ExpertTeacher ve HeadTeacher rol hiyerarşisiyle erişir. Kayıt başvuru onayı, rol veya kurum üyeliği vermez. PR #120 merge SHA 291ce515d796a1df3da0ac37d87e67bbfbe262aa, main CI https://github.com/testligtr-collab/testlig-net/actions/runs/38157258280, Roadmap coverage https://github.com/testligtr-collab/testlig-net/actions/runs/38157258285, deploy https://github.com/testligtr-collab/testlig-net/actions/runs/38158546449.",
         "src/Controller/TeacherProfessionalProfileController.php: aynı ekran il, ilçe ve okul seçer. Saklanan değer yalnız aktif okul zincirinin okul kimliğidir. Geçerli zincir yoksa branş ve sınıf kaydı sürer. PR #121 merge SHA 55c10a47257710d1fcf311e27a1319635fc51f6e. Main CI https://github.com/testligtr-collab/testlig-net/actions/runs/38224745240, Roadmap coverage https://github.com/testligtr-collab/testlig-net/actions/runs/38224745191, deploy https://github.com/testligtr-collab/testlig-net/actions/runs/38226837702, release 20261012T085248Z-55c10a472577, migration DoctrineMigrations\\Version20261011200000. Bu teslim ulusal okul kataloğu verisinin hazır olduğu anlamına gelmez.",
-        "Okul verisi bağımlılığı açık. Eski il, ilçe ve okul CSV kayıtlarında kaynak kimliği yok. Tek doğrulanan mesleki okulda MEB Kurum Kodu 751308, MEB Okullar dizini YOL son parçası 112770; iki sayı aynı kayıtta eşit değil. YOL için kalıcı kimlik sözleşmesi ve TurkiyeAPI districtId ile MEB ilçe bilgisi eşlemesi belgelenmedi. Aktiflik, veri tarihi ve kullanım koşulları netleşmedi. Yükleme ancak belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak birlikte varsa başlar. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz."
+        "Okul verisi bağımlılığı açık. Eski il, ilçe ve okul CSV kayıtlarında kaynak kimliği yok. Tek doğrulanan mesleki okulda MEB Kurum Kodu 751308, MEB Okullar dizini YOL son parçası 112770; iki sayı aynı kayıtta eşit değil. YOL için kalıcı kimlik sözleşmesi ve TurkiyeAPI districtId ile MEB ilçe bilgisi eşlemesi belgelenmedi. Aktiflik, veri tarihi ve kullanım koşulları netleşmedi. Yükleme ancak belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak birlikte varsa başlar. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz.",
+        "Öğretmen başvurusu yönetim ekranı okul, branş veya mesleki profil üretmez. Eksik okul kaydı doldurulmaz. Okul kataloğu bağımlılığı açık kalır. CI görüntüsü canlı kabul değildir.",
+        "Yönetim öğretmen dizini /yonetim/ogretmenler kayıtlı mesleki profili okur. Branş, sınıf veya okul kaydı yoksa Belirtilmemiş yazar; kayıt yokluğunu onaysız saymaz ve okul uydurmaz. Profil onayı ve öğretmenin kendi /ogretmen/profil akışı bu dizine taşınmaz. M07 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/120",
-        "https://github.com/testligtr-collab/testlig-net/pull/121"
+        "https://github.com/testligtr-collab/testlig-net/pull/121",
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/165"
       ],
       "acceptance": "Dar dilim: öğretmen kendi branşını ve 1–12 sınıflarını kaydeder. Aynı ekranda, katalogda geçerli bir aktif okul zinciri varsa il, ilçe ve okul seçer; yalnız okul kimliği saklanır. Branş ve sınıf kaydı boş okul kataloğunda çalışmaya devam eder. Katalog yüklemesi ayrı bir veri bağımlılığıdır ve bu dilime girmez. Yükleme koşulu: belgelenmiş okul kimliği, açık üst bağlantı veya eşleme, veri tarihi ve kullanılabilir kaynak. Ad eşleşmesi veya YOL parçası bu koşulu karşılamaz. Okul/il/ilçe modeli banka, belge, diploma, public profil, yeni onay, V1 branş kilidi ve profil tamamlama yönlendirmesini kapsamaz. Bütün mesleki profil ürünü tamamlanmış sayılmaz. Production kabulü ayrıdır.",
       "scope_decision": null
@@ -405,11 +445,31 @@
       "source": "src/Controller/Admin/AdminCatalogController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/Admin/AdminCatalogController.php"
+        "src/Controller/Admin/AdminCatalogController.php",
+        "2026-10-26 kullanıcı kararı açık iş olarak durur: kategori/kademeden sınıf düzeyi, ders, ünite/tema, konu ve kazanıma kadar oluşturma, düzenleme, aktif/pasif ve silme/arşiv. Moderatör yalnız ayrıca verilmiş müfredat izniyle işlem yapar. Bağımlılığı olmayan kullanılmamış taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış sayılmaz. Üst kayıt açılınca alt kayıtların durumu sessiz değişmez. Yeniden oluşturulan kayıt yeni kimlik alır. Toplu alt kayıt silme bağımlılık özeti, açık onay ve audit ister. Bu tur CRUD veya moderatör delegasyonu uygulanmadı. Ayrı 1-12 İngilizce entegre şema metni bu teslimata ekli değildi; uydurulmuş ağaç veya resmî kazanım kodu yazılmadı. docs/curriculum/m10-management-decision.md",
+        "2026-10-26 takip: kaynak metin mesajda yine yoktu. docs/curriculum/sources/user-provided-grade-1-12-tree.md ve docs/curriculum/grade-1-12-tree-outline.md yazılmadı. Oluşturma, düzenleme, aktif/pasif, güvenli silme/arşiv ve açık izinli moderatör delegasyonu açık iş olarak durur.",
+        "2026-10-26 program yönetimi mevcut Subject, CurriculumProgram, CurriculumUnit, CurriculumTopic ve CurriculumLearningOutcome modeli üzerinde /yonetim/programlar adresinde çalışır. GradeLevel enum olarak kalır. Öğrenci kataloğu ayrıdır. Liste, arama, filtre, detay, oluşturma, taslak ad düzenleme, yayın, emekliye ayırma ve bağımlılığı olmayan taslak silme vardır. Moderatör curriculum.view, curriculum.manage, curriculum.publish ve curriculum.archive izinleriyle ayrılır. Resmî 1-12 metni gelmediği için kaynak dosyaları yazılmadı. Import, resmî doğrulama ve production kabulü açıktır.",
+        "2026-10-27 ünite, konu ve kazanım için geri alınabilir pasif durum eklendi. Arşiv son durumdur. Üst kayıt pasifken alt kayıt öğrenciye kapalı kalır ve yeniden açılınca kendi durumu değişmez. Pasif veya bağlı kayıt silinmez. Ders, sınıf düzeyi ve program için ayrı pasif durum yoktur. 1-12 metni yer tutucuydu; kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
+        "2026-10-27 sonraki turda ders inactive durumunu, program student_access alanını ve sabit kademe ile 1-12 sınıf kapılarını aldı. Pasif üst kayıt öğrenciyi kapatır. Yeniden açmak alt kaydın kendi durumunu yazmaz. Kullanılmamış aktif ders silinir. Bağlı ders silinmez. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Aynı günün mesajında 1-12 ağaç metni yoktu. Kaynak dosyaları yazılmadı. CI görüntüsü canlı kabul değildir.",
+        "2026-10-27 kullanıcı 1-12 ağacı docs/curriculum/sources/user-provided-grade-1-12-tree.md dosyasına aynen alındı. Okunur özet docs/curriculum/grade-1-12-tree-outline.md yalnız 11 ve 12. sınıf girintisini düzeltir. Metin kullanıcı taslağıdır ve resmî MEB müfredatı olarak doğrulanmamıştır. Import, resmî kazanım kodu, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 program listesinde sabit kademe kartları ve sınıf düzeyleri gerçek kapılara bağlıdır. İşlem formları kartın İşlemler alanında açılır. Program detayında ünite, konu ve kazanım açılıp kapanır. Katalog adresi ayrı kalır. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 açılır alanlar yerel summary olarak kalır. Ekran okuyucu İşlemler adını düğme olarak alır. Durum partial kalır.",
+        "2026-10-27 sınıf kartı kendi kapı kaydını gösterir. 12. sınıfın aktif durumu pasif görünmez ve adı 11. sınıf formuna kaymaz. Durum partial kalır.",
+        "2026-10-27 yönetim menüsünde tek Müfredat Yönetimi girişi vardır. /yonetim/programlar ve /yonetim/mufredat durur. Seçilen kademenin sınıfları, o sınıfın programları ve aynı sınıfın öğrenci kataloğu ayrı kayıtlar olarak görünür. Katalog yayını programı yayınlamaz. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-28 seçili sınıf düğmesi belirgindir. 1. sınıf yalnız kendi programını ve katalog kayıtlarını gösterir. 2. sınıfa geçince önceki kayıtlar karışmaz. Programı veya kataloğu olmayan sınıfta boş durum vardır. Detaydan dönüş seçili sınıfı korur. Durum partial kalır."
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
-      "scope_decision": null
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/173",
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176"
+      ],
+      "acceptance": "Mevcut program modelinde liste, oluşturma, taslak düzenleme, yayın, ders ve program öğrenci erişimi, sabit kademe ve sınıf kapısı, ünite/konu/kazanım pasifliği, arşiv ve bağımlılığı olmayan aktif kayıt silme çalışır. Kademe ve sınıf düzeyi oluşturulmaz veya silinmez. Kullanıcı 1-12 kaynağı dosyada durur ve resmî müfredat değildir. Resmî doğrulama, import, toplu işlem ve production kabulü ayrı kanıt ister.",
+      "scope_decision": {
+        "date": "2026-10-26",
+        "source": "Kullanıcı kararı, Sınıflar admin teslimi ile birlikte kaydedildi.",
+        "user_decision": "Müfredat yönetimi açık iştir. Kategori/kademe, sınıf düzeyi, ders, ünite/tema, konu ve kazanım için oluşturma, düzenleme, aktif/pasif ve silme/arşiv istenir. Admin işlemleri mevcut yetki kapsamında kalır. Moderatör yalnız açıkça verilmiş ayrı müfredat izinleriyle işlem yapar. Hiç kullanılmamış ve bağımlılığı olmayan taslak kalıcı silinebilir. İçerik, soru, sınav veya öğrenci geçmişine bağlı kayıt arşivlenir ve geçmiş referanslar korunur. Üst kayıt pasifse alt kayıt kendi başına yayımlanmış veya erişilebilir sayılmaz. Üst kayıt yeniden açılınca alt kayıtların kendi durumları sessizce değiştirilmez. Yeniden oluşturulan kayıt yeni kimlik alır; geçmiş ilişkiler otomatik taşınmaz. Toplu alt kayıt silme sessiz gerçekleşmez; bağımlılık özeti, açık onay ve audit gerekir. Program yılı, ders metinleri ve resmî kazanım kodları doğrulanmadan import veya yayın yapılmaz."
+      }
     },
     {
       "id": "M11-platform-questions",
@@ -424,12 +484,18 @@
         "src/Controller/Admin/AdminQuestionController.php",
         "Soru resmi yükleme altyapısı JPEG, PNG ve WebP ile taslak revision image_reference bağlar. Varlık pending ve scan pending kalır. Öğrenci görsel sunumu ve temiz tarama açıktır. M18-cloud-storage bağımlılığı açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/128",
         "src/Question/Image/Scan/QuestionImageScanner.php kayıtlı platform görselini özel okur ve clamd INSTREAM ile tarar. PR #129 sırasında canlı kurulum ve tarama kabulü açıktı. 2026-10-15 izole kurulum geçti; uygulama soketi ve production varlık taraması açık kaldı. Öğrenci görsel sunumu açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/129",
-        "Platform soru ayrıntısındaki SuperAdmin POST yalnız güncel revision’a bağlı tek pending görseli tarar. Ayrı CSRF ve PRG vardır. Aktör, storageKey ve dosya yolu formdan alınmaz. İmza kapısı boş CVD dizininde clean/ready yazmaz. Doğrulanmayan DNS yanıtı clean/ready yazmaz. clamd VERSION yalnız yüklenmiş daily sürümünü kanıtlar; yüklenmiş main ve bytecode kanıtlanmadı."
+        "Platform soru ayrıntısındaki SuperAdmin POST yalnız güncel revision’a bağlı tek pending görseli tarar. Ayrı CSRF ve PRG vardır. Aktör, storageKey ve dosya yolu formdan alınmaz. İmza kapısı boş CVD dizininde clean/ready yazmaz. Doğrulanmayan DNS yanıtı clean/ready yazmaz. clamd VERSION yalnız yüklenmiş daily sürümünü kanıtlar; yüklenmiş main ve bytecode kanıtlanmadı.",
+        "Soru Havuzu listesi, detayı ve düzenleyici mevcut soru, revision, seçenek, cevap anahtarı ve kazanım hizalamasıyla açık yönetim düzenine alındı. Adresler /yonetim/sorular ve alt yolları aynı kaldı. question.manage oluşturma ve düzenlemeyi korur; yayın bu izinden çıkmaz. Yayımlanmış revision yerinde değişmez. CSV içe aktarma aynı yetkide kalır. Öğrenci görsel sunumu ve cevap anahtarı sızıntısı bu düzenle açılmaz. Ekran görüntüsü canlı kabul değildir. Soru ürünü tamamlanmış sayılmaz.",
+        "Soru kökü, her seçenek ve çözüm aynı şema 1 belgesini kullanır. Kalın, italik, altı çizili, liste ve allowlist matematik şablonları sunucuda doğrulanır. Karşılaştırma işaretleri metin olarak kalır; etiket biçimli HTML, script ve bilinmeyen komut reddedilir. İstemcinin verdiği mediaId kaydedilmez. Kök, her seçenek kimliği ve çözüm birbirinden bağımsız birer image_reference taşıyabilir. Seçenek sırası görseli veya doğru cevabı başka seçeneğe taşımaz. Eski düz paragraf ve tek görselli kayıt okunur. Yeni migration yoktur. Yayımlanmış revision yerinde değişmez. Etkileşimli geometri çizim motoru açık kapsamdadır. Öğrenci görsel sunumu ve canlı tarama kabulü açık kalır.",
+        "Ortak editörde bilim araçları alanın kendi sekmesindedir. Biçim araçları üst satırda kalır. Zorluk easy, medium ve hard değerleriyle kaydolur. Görsel seçimi mevcut private dosya ve tarama kapısını değiştirmez. Ekran görüntüsü canlı kabul değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/128",
         "https://github.com/testligtr-collab/testlig-net/pull/129",
-        "https://github.com/testligtr-collab/testlig-net/pull/133"
+        "https://github.com/testligtr-collab/testlig-net/pull/133",
+        "https://github.com/testligtr-collab/testlig-net/pull/181",
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/183"
       ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
@@ -498,10 +564,25 @@
       "source": "src/Controller/StudentAssessmentController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/StudentAssessmentController.php"
+        "src/Controller/StudentAssessmentController.php",
+        "Öğrenci çözme ve sonuç sayfası izinli biçimlendirme ve formülü kaçıksız gösterir. Karşılaştırma işaretleri aynı kaçışlı bloklarda kalır. Taraması kabul edilmemiş soru görseli öğrenciye basılmaz. Cevap anahtarı ve çözüm görünürlüğü mevcut sonuç okuyucusunda kalır. Yayımlanmış test revision’ı ve öğrenci denemesi yerinde değişmez. Kurum testi platform kullanım listesine ad veya sayı olarak girmez.",
+        "Yönetim test listesi /yonetim/testler mevcut Assessment kaydını okur. Başlık ve soru sayısı güncel revision ile o revision’ın maddelerinden gelir. Sayaçlar aktörün görebildiği bütün platform kapsamını sayar; filtre ve 100 satırlık sayfa sayacı değiştirmez. Kurum testi ve başka kullanıcının görünmez taslağı listeye girmez. GET kayıt, revision, durum veya audit yazmaz. Oluşturma, detay, yayın ve erişim bu listede değişmedi. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Yeni test ve testi düzenle ekranları aynı taslak kaydetme yolunda kart düzenine alındı. Adresler /yonetim/testler/yeni ve /yonetim/testler/{id}/duzenle aynı kaldı. GET soru araması kayıt veya revision yazmaz. Yukarı ve Aşağı formu gönderir. Yayın, erişim ve yayımlanmış sürümün değişmezliği aynı kaldı. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Hatalı yeni test ve taslak düzenleme gönderimi aynı formu güvenli girdilerle yeniden gösterir. Geçersiz istek assessment, revision, madde veya başarı audit’i yazmaz. İlk açılışta sınıf alanı ve özet 1. sınıf der. Düzenlemede ders ve sınıf test kaydından gelir. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Test detayı GET /yonetim/testler/{id} güncel revision’ın başlık, yönerge, soru sırası, puan ve özetini gösterir. Yayın, öğrenci erişimi ve katalog yerleşimi ayrı durumlardır. GET kayıt veya audit yazmaz. Yazma formları mevcut CSRF, expected_revision ve onaylarla durur. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Test önizlemesi GET /yonetim/testler/{id}/gorunum güncel test sürümünü ve maddenin sabitlenmiş soru sürümünü gösterir. Paragraf içi biçim, liste, izinli formül ve seçeneğin bütün metni QuestionContentView ile çizilir. Eski düz paragraf da görünür. Doğru cevap, çözüm ve stableKey okunmaz. Bölüm, madde ve seçenekler toplu okunur. GET deneme, cevap, revision veya audit yazmaz. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Test önizlemesi açık yönetim kabuğunda test detayına dönüş, gerçek başlık, sürüm, özet, yönerge kartı ve numaralı soru kartlarıyla düzenlendi. Doğru cevap işareti, gönderim ve sonuç kontrolü yoktur. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz.",
+        "Yönetim sonuç listesi ve sonuç detayı aynı açık kabukta düzenlendi. Adresler /yonetim/testler/{id}/sonuclar ve /sonuclar/{sıra} aynı kaldı. Sıra deneme kimliği değildir. Özet mevcut sorgu kapsamındadır. 1024 px altında kart, üstünde tablo kullanılır. Detay okuma kolonu 48rem ile sınırlıdır. Kök ve çözüm yalnız tamamlanmış scoring run içinde mevcut question_blocks çizimiyle gelir. Run yoksa puan ve cevap kapalı kalır. Taşan formül kendi kutusunda yatay kayar; klavye odağı ve Formül adı yalnız taşınca vardır. Süresi dolmuş deneme Süre doldu yazar. Puan durumdan türetilmez. GET deneme, cevap veya puan yazmaz. Ekran görüntüsü canlı kabul değildir. M12 tamamlanmış sayılmaz."
       ],
-      "pr_links": [],
-      "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/184",
+        "https://github.com/testligtr-collab/testlig-net/pull/185",
+        "https://github.com/testligtr-collab/testlig-net/pull/186",
+        "https://github.com/testligtr-collab/testlig-net/pull/188",
+        "https://github.com/testligtr-collab/testlig-net/pull/189"
+      ],
+      "acceptance": "Mevcut dar akış korunacak. Önizleme güncel test sürümünü, sabit soru sürümünü ve izinli soru belgesini cevap ile çözüm olmadan gösterir. CI görüntüsü ve production kabulü ayrıdır. M12 tamamlanmış sayılmaz.",
       "scope_decision": null
     },
     {
@@ -559,9 +640,12 @@
       "source": "src/Controller/TeacherClassroomController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/TeacherClassroomController.php"
+        "src/Controller/TeacherClassroomController.php",
+        "Puanlama ve deneme başlangıcı America/New_York kış anı 2026-01-15 15:00:00 UTC için -18000, yaz anı 2026-07-15 15:00:00 UTC için -14400 offset’iyle aynı Unix anını UTC olarak saklar. Çalışma tarihine bağlı EDT varsayımı yoktur. Üretim kodu değişmedi. CI yeşili canlı kabul değildir. PR https://github.com/testligtr-collab/testlig-net/pull/187"
       ],
-      "pr_links": [],
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/187"
+      ],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",
       "scope_decision": null
     },
@@ -730,7 +814,8 @@
         ".github/workflows/ops-clamav-socket-group.yml: ayrı, açık onaylı workflow_dispatch aracıdır. Varsayılan onay boştur. Uygulama ve geri alma ayrı kesin onaylar ister. Mevcut SSH profili, VDS_SSH_PAUSED kapısı, testlig-vds-ssh kilidi, cancel-in-progress false ve tek SSH oturumu kullanılır. Yazmadan önce çalışan release SHA, testl3865 UID 5002, UID 5002 adı testl3865, site sahibi 5002, sistemden ölçülen virusgroup GID’si, soket clamscan:virusgroup 660, üst dizin clamscan:virusgroup 710 ve yeni runuser -u testl3865 sürecinde POSIX 5002 / 5002 / [5002] doğrulanır. Uyuşmazlıkta yazılmaz. Yalnız bu hesap mevcut virusgroup grubuna eklenir. Birincil grup ve diğer ek gruplar değişmez. runuser -g veya -G kullanılmaz. Hesap zaten üyeyse yeni ekleme yapılmaz ve mevcut üyelik geri almada kaldırılmaz. Kurtarma kaydı yazmadan önce önceki durumu, ölçülen GID’yi, release SHA’sını ve bu operasyonun üyelik ekleyip eklemediğini root sahipliğinde 0600 saklar. Kabul ayrı operasyon bağlamındadır: yeni CLI sürecinde etkili UID/GID 5002 / 5002, ek gruplar yalnız önceki küme artı ölçülen GID, aynı PHP sürecinde kimlik kapısı, yalnız nPING/nVERSION, soket okuma/yazma ve üst dizin geçişi. Üst dizin okuma/yazma no kalır. İmza dosyaları okuma yes ve yazma no kalır. Mevcut access probe’un tarihî [5002] kapısı durur. Yeni CLI grupları güncel web işçisi veya SELinux kabulü değildir. Başarısızlık bu çalıştırmanın eklediği üyeliği geri alır ve önceki grup kümesini doğrular. Geri alma veya kayıt silme hatası başarı üretmez ve kaydı doğrulanmadan silmez. Sonraki açık geri alma yalnız kayıtta bu operasyonun eklediği üyeliği kaldırır. İmza izinleri, ACL, soket modu ve sahibi, TCP, SELinux, servisler, paketler, env, OLS ve sağlayıcılar değişmez. Bu kayıt aracın hazırlanmasıdır; canlı grup değişikliği, dispatch, ClamAV soket kabulü, yüklenmiş main/bytecode veya öğrenci görsel sunumu değildir. PR https://github.com/testligtr-collab/testlig-net/pull/147",
         "19 Ekim 2026 SHA 7d941ed696b076ab48246eb24e7eeab9ae4d0e98 üzerinde ClamAV soket grubu apply bir kez çalıştı: https://github.com/testligtr-collab/testlig-net/actions/runs/39234379972. virusgroup_gid=985 o çalıştırmanın ölçümüdür ve sonraki operasyon için varsayılan değildir. result=applied, membership_added=yes, record=kept, cli_socket_acceptance=yes. Aynı PHP sürecinde kimlik doğrulandı. app_ping=pong, app_version_daily=28158. Soket okuma/yazma yes. Üst dizin okuma/yazma no, geçiş yes. İmza dosyaları okuma yes, yazma no. Bu CLI kabulüdür. Web veya SELinux kabulü değildir. loaded_main ve loaded_bytecode unproven kalır. 17 Ekim 2026 tek web isteği 5002 / 5002 / [5002] durur. Gerçek varlık taraması, INSTREAM ve öğrenci görsel sunumu bu sonuç değildir. Kurtarma kaydı durur. Restore bu kayıtta çalıştırılmamıştır. Kayıt PR https://github.com/testligtr-collab/testlig-net/pull/148",
         "POST /yonetim/calisma-kimligi varsayılanı kapalı web çalışma kimliği tanı yüzeyidir. Oturumdaki aktif doğrulanmış SuperAdmin ve CSRF olmadan kimlik verisi dönmez. cli ve cli-server web kanıtı üretmez. Başarılı yanıt yalnız nonce, euid, egid ve groups taşır; unresolved yalnız nonce ve status taşır. Bu kod o PR kaydında canlı kimlik ölçümü veya ClamAV erişim kabulü değildir. Production bayrağı o kayıtta açılmadı. PR https://github.com/testligtr-collab/testlig-net/pull/137",
-        "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. 2026-10-13 yerel PHP CLI ile bir kez çalıştı. Zone testlig-pdf-test, endpoint https://storage.bunnycdn.com. Sonuç result=accepted, range=206, anonymous=401, cleanup=404. Production yükleme sağlayıcısı Local kaldı. Araç PR https://github.com/testligtr-collab/testlig-net/pull/126. Kanıt kaydı PR https://github.com/testligtr-collab/testlig-net/pull/127"
+        "bin/bunny-pdf-live-accept.php: tek çalıştırmalık PDF kabul aracı. Kernel, veritabanı ve production env açmaz. 2026-10-13 yerel PHP CLI ile bir kez çalıştı. Zone testlig-pdf-test, endpoint https://storage.bunnycdn.com. Sonuç result=accepted, range=206, anonymous=401, cleanup=404. Production yükleme sağlayıcısı Local kaldı. Araç PR https://github.com/testligtr-collab/testlig-net/pull/126. Kanıt kaydı PR https://github.com/testligtr-collab/testlig-net/pull/127",
+        "Soru görseli mevcut pending varlık üzerinden köke, her seçeneğin kendi kimliğine ve çözüme ayrı bağlanır. Bir yuvayı değiştirmek başka revision, soru veya seçeneği yeniden yazmaz. İstemcinin mediaId değeri reddedilir. 250 kutu oranı koruyan önizlemedir; orijinal yeniden örneklenmez. Dosya private kalır ve öğrenciye sunulmaz. Tarama tamamlanmadan hazır sayılmaz. Aynı revision’daki bekleyen görseller mevcut tarama eylemiyle sırayla okunur. PR #149 ClamAV ve web kabulü geçilmiş sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/123",
@@ -758,7 +843,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/145",
         "https://github.com/testligtr-collab/testlig-net/pull/146",
         "https://github.com/testligtr-collab/testlig-net/pull/147",
-        "https://github.com/testligtr-collab/testlig-net/pull/148"
+        "https://github.com/testligtr-collab/testlig-net/pull/148",
+        "https://github.com/testligtr-collab/testlig-net/pull/182"
       ],
       "acceptance": "Local ve R2 PDF sözleşmeleri durur. Bunny adaptörü özel nesneyi belgelenmiş HTTPS API ile yazar, redirect ve CDN adresi üretmez. Mevcut local ve r2 kayıtları kendi sağlayıcısında kalır. Global ayar eski dosyanın sağlayıcısını değiştirmez. Eksik yapılandırma Local'a düşmez. R2 canlı kabulü kullanıcı tercihiyle ertelendi. PDF adaptörünün canlı kabulü result=accepted, range=206, anonymous=401, cleanup=404 ile geçti. Soru görseli yükleme altyapısı öğrenci sunumu değildir. Soru görseli tarama kodu yerel clamd INSTREAM istemcisidir. ClamAV preflight workflow'u yalnız salt okunur ölçüm aracıdır. Kurulum workflow'unun PR #131 ile hazırlanması o anda gerçek kurulum veya canlı kabul değildi. 2026-10-15 çalıştırması ClamAV kurulumunu ve izole istemci kabulünü geçti. İmza güncelliği o anda doğrulandı. Uygulama sokete bağlanmadı. Kullanıcı grupları, OLS ve sağlayıcılar değişmedi. Production varlıkları taranmadı veya ready yapılmadı. Öğrenci görsel sunumu ve uçtan uca production kabulü açık kalır. 2026-10-16 salt okunur erişim ölçümü uygulama UID’sini, DAC erişimini ve PING/VERSION sonucunu doğrulamadı. Süreç tarama tanı sayaçları kodda ayrıldı. Geçersiz UID veya GID taşıyan bir lsphp adayı, yanında geçerli site kullanıcısı olsa da uygulama kullanıcısı seçimini engeller. PR #136 kaydı sırasında bu düzeltme production’da çalıştırılmamıştı. 16 Ekim 2026 sonraki ölçüm https://github.com/testligtr-collab/testlig-net/actions/runs/38914643836 SHA 434920e9c1e6d23be744aef52b1b35642fb70d65 php_proc_dirs=183, php_proc_unreadable=0, php_proc_vanished=0, php_proc_lsphp=0, php_proc_invalid_id=0, php_process=none, app_dac=unknown, app_ping=not_attempted, app_version_daily=not_attempted. Bu sonuç yalnız tamamlanan taramada ^lsphp adayı bulunmadığını gösterir. Web işçisinin yokluğunu, uygulama UID’sini veya ClamAV erişimini kanıtlamaz. Web çalışma kimliği tanı yüzeyi varsayılan kapalıdır. Form ve POST aynı kapıyı kullanır: bayrak açık olmalı ve WEB_RUNTIME_IDENTITY_EXPIRES_AT şimdiden en fazla 15 dakika ilerideki geçerli bir UTC Unix saniyesi olmalıdır. Süre dolunca eski CSRF ve nonce reader’a ulaşamaz. Kapı ortam dosyasını geri yüklemez; sonraki ölçüm önceki ayarları yine geri yüklemelidir. Süre kapısı tanı erişimini kapatır ve dosyaları kendiliğinden geri yüklemez. Açma ve geri yükleme ayrı onaylı workflow_dispatch modlarıdır. Araç HTTP isteği veya kimlik POST’u göndermez. PR #140 kaydı sırasında hazırlanması ölçümün çalıştırılması değildi. Bu kod tek başına canlı ölçüm veya ClamAV kabulü değildir. 17 Ekim 2026 ölçümü SHA 73ee34c85d136eefd7b0b9a0603b198a9382031b üzerinde bir kez tamamlandı. Açma https://github.com/testligtr-collab/testlig-net/actions/runs/39044789318 result=opened, files_changed=yes, record=kept. Aynı SuperAdmin oturumunda gerçek form bir kez gönderildi. HTTP 200, Cache-Control no-store, private ve nonce eşleşmesi. euid=5002, egid=5002, groups=[5002]. Bu tek isteğin kimliğidir; bütün işçilerin kimliği değildir. Geri yükleme https://github.com/testligtr-collab/testlig-net/actions/runs/39045091433 result=restored, files_changed=yes, record=removed. Önceki iki anahtar durumu doğrulanarak geri getirildi, form kayboldu ve ikinci POST yoktur. Bu belge kaydı o checkout ölçümünü yeniden yapmış sayılmaz. Site hesabıyla güncel eşleştirme, ClamAV soket erişimi, imza erişimi ve öğrenci görsel sunumu açık kalır. Video, haber resimleri ve simülasyon bu kabulün parçası değildir. Kayıtlı 17 Ekim 2026 tek web isteğinin CLI erişim kontrolü hazırlandı ve o kayıt sırasında canlı çalıştırılmadı. 18 Ekim 2026 SHA 79199f3363dccfccc169aeb36d25533684e03ec3 üzerinde tek salt okunur access probe https://github.com/testligtr-collab/testlig-net/actions/runs/39114664487 site hesabının üç eşleşmesini geçti. process_identity=unavailable kimliğin farklı olduğunu kanıtlamaz; süreç kimliği ölçülemedi. DAC, PING ve VERSION denenmedi. Yeşil workflow sonucu erişim kabulü değildir. 18 Ekim 2026 SHA 470580c4f39068b8c206d94f7780b0ed302bde0d üzerinde sonraki tek access probe https://github.com/testligtr-collab/testlig-net/actions/runs/39122228584 site hesabının üç eşleşmesini geçti. identity_decode_status=0, identity_command_status=139, identity_helper_started=no, identity_failure=unknown. POSIX kimliği ölçülmedi. DAC, PING ve VERSION denenmedi. 139 tek başına belirli bir süreç veya kök neden kanıtı değildir. Ayrı PHP başlangıç tanısı hazırlandı ve bu kayıt sırasında çalıştırılmadı. Bu hazırlık canlı PHP tanısı veya ClamAV kabulü değildir. 18 Ekim 2026 SHA 98be26862c46f9a3edcb0406a9be4a55518bbf9a üzerinde PHP başlangıç tanısı bir kez çalıştı: https://github.com/testligtr-collab/testlig-net/actions/runs/39134263108. Site hesabının üç eşleşmesi yes. php_diag_core=disabled. version=0 ve işaret no. inline=0 ve işaret yes. stdin=139 ve işaret no. php_diag_caller_continues=yes. Bu sonuç kök nedeni açıklamaz. Doğrudan stdin betiği yolu başarısızdır. PHP’nin genel olarak çalışmadığı anlamına gelmez. Access probe’un -r giriş yolu hazırlandı ve bu kayıt canlı kabul değildir. Eski ^lsphp ölçüm kanıtları durur. 18 Ekim 2026 SHA 3aa786cc9dcfaac1f2205149d1ede18c60aec63a üzerinde tek salt okunur access probe https://github.com/testligtr-collab/testlig-net/actions/runs/39144577065 site hesabının üç eşleşmesini ve POSIX 5002 / 5002 / [5002] kimliğini geçti. access_probe_core=disabled. identity_caller_continues=yes. Soket clamscan:virusgroup mod 660 ve üst dizin clamscan:virusgroup mod 710 için uygulama okuma, yazma ve üst dizin geçişi no. İmza dizini ve main.cvd, daily.cld, bytecode.cvd okuma yes, yazma no. PING ve VERSION denenmedi. Bu CLI ölçümüdür; web veya SELinux kabulü değildir. Yüklenmiş main/bytecode unproven kalır. 17 Ekim 2026 tek web isteği 5002 / 5002 / [5002] durur. Sonraki geri alınabilir plan yalnız testl3865 hesabının mevcut virusgroup grubuna eklenmesini değerlendirir; GID operasyon başında ölçülür ve bu kayıtta uygulanmaz. Mevcut probe tam [5002] beklediği için grup eklenince bu kapı kapanır. Plan kimlik kontrolünü gevşetmez. Geri alınabilir virusgroup üyelik aracı ayrı workflow_dispatch olarak hazırlandı. Varsayılan onay boştur ve bu hazırlık canlı grup değişikliği, dispatch veya ClamAV soket kabulü değildir. Mevcut access probe tam [5002] kapısı durur. 19 Ekim 2026 SHA 7d941ed696b076ab48246eb24e7eeab9ae4d0e98 apply https://github.com/testligtr-collab/testlig-net/actions/runs/39234379972 virusgroup_gid=985 ölçtü. result=applied, membership_added=yes, record=kept, cli_socket_acceptance=yes. app_ping=pong, app_version_daily=28158. Soket okuma/yazma yes. Üst dizin okuma/yazma no ve geçiş yes. İmza dosyaları okuma yes, yazma no. Bu CLI kabulüdür; gerçek varlık taraması, web/SELinux kabulü veya öğrenci sunumu değildir. GID 985 sonraki operasyonun varsayılanı değildir. 17 Ekim 2026 tek web isteği 5002 / 5002 / [5002] durur. Yüklenmiş main/bytecode kanıtı ve web/SELinux kabulü açık kalır. Partial durum sürer.",
       "scope_decision": "2026-10-12 kullanıcı kararı: Bunny hedefi PDF, video, soru ve haber resimleri ile simülasyon dahil yüklenen tüm medyadır. Bugünkü adaptör ve canlı kabul aracı yalnız PDF'dir. Video M20-video-library, simülasyon M21-simulations, soru resimleri M11-platform-questions ve M11-institution-questions, haber resimleri M27-news üzerinde açık bağımlılık olarak kalır."
@@ -1000,16 +1086,41 @@
       "id": "X01-homework",
       "module": "X01",
       "title": "Ödev/proje, dosya teslimi ve rubrik",
-      "status": "planned",
+      "status": "partial",
       "source": "5 Ekim devir hedefi",
       "depends_on": [
         "M18-local-pdf"
       ],
       "evidence": [
-        "5 Ekim devir hedefi"
+        "5 Ekim devir hedefi",
+        "docs/architecture-homework.md: ürün/mimari karar belgesi (öneri); uygulama kodu yok; ilk dilim metin tabanlı, dosya yok; teslim gövdesi yalnız öğrenci sahibi + güncel yetkili atayan öğretmen; değerlendirme İncelendi|Yeniden çalışılmalı + metin (sayısal puan yok); metin sınırları 150/10k/20k/5k mb_strlen UTF-8; M18-local-pdf dosyalı sonraki dilim için depends_on olarak kalır",
+        "PR #190 karar belgesi dokümantasyonu; çalışan ödev ürünü veya production kabulü değildir",
+        "Kod (yalnız öğretmen taslak dilimi, feature/x01-homework-draft; main/deploy/production kabulü YOK): migrations/Version20261103120000.php (yalnız homework_definitions); src/Entity/HomeworkDefinition.php; src/Enum/HomeworkDefinitionStatus.php (yalnız Draft); src/Service/Homework/{HomeworkDefinitionManager,HomeworkDefinitionQuery,HomeworkTeacherScope,HomeworkText}.php; src/Security/{HomeworkDefinitionVoter,HomeworkDefinitionPermission}.php; src/Controller/TeacherHomeworkController.php (app_teacher_homeworks|new|show|edit); templates/teacher/homework/*.html.twig; assets/controllers/homework_draft_controller.js; assets/homework_text.js; denetim homework_definition_draft_created|updated (metin yok)",
+        "Testler (kod kanıtı; CI sonucu ayrı kanıttır): tests/Service/HomeworkDefinitionManagerTest.php, tests/Service/HomeworkDefinitionQueryTest.php, tests/Security/HomeworkDefinitionVoterTest.php, tests/Controller/TeacherHomeworkHttpTest.php, tests/Service/HomeworkTextTest.php, tests/js/homework_text.test.mjs, browser/tests/teacher-homework.spec.ts (yerelde çalıştırılmadı)",
+        "Kod (sınıfa atama + alıcı snapshot dilimi, feature/x01-homework-assign; main/deploy/production kabulü YOK): migrations/Version20261103180000.php (homework_assignments, homework_recipients; RESTRICT FK, UNIQUE(definition_id)); src/Entity/{HomeworkAssignment,HomeworkRecipient}.php; src/Enum/HomeworkAssignmentStatus.php; src/Repository/{HomeworkAssignmentRepository,HomeworkRecipientRepository}.php; src/Service/Homework/HomeworkAssignmentManager.php (kilit sırası: kurum → yıl → sınıf → tanım → kayıtlar → üyelikler); HomeworkDefinitionQuery assigned liste/statusCounts/countEligibleRecipients/findAssignment; HomeworkDefinitionVoter ASSIGN + atama sonrası EDIT/ASSIGN deny; HomeworkDefinitionManager atama varken notEditable; TeacherHomeworkController (CSRF teacher_homework_assign, confirm_assign, revision, PRG); templates/teacher/homework/{index,show}.html.twig; denetim homework_assignment_created (metin yok)",
+        "Testler (atama dilimi; kod kanıtı, CI sonucu ayrı kanıttır): tests/Service/HomeworkAssignmentManagerTest.php, tests/Service/HomeworkAssignmentConcurrencyTest.php + tests/bin/homework_{assign,end_enrollment}_race_worker.php (deterministic end→assign / assign→end bariyerleri; sınıf FOR UPDATE yarışında kimlik kümesi sıraya bağlı; çift atamada tekil öğrenci seti + tek audit; recipient FK bütünlüğü), tests/Service/HomeworkDefinitionQueryTest.php, tests/Security/HomeworkDefinitionVoterTest.php, tests/Controller/TeacherHomeworkHttpTest.php, tests/Support/HomeworkTestFixtures.php, tests/Browser/PrepareBrowserAcceptanceCommand.php, browser/tests/teacher-homework.spec.ts (Atandı, sayaçlar, onay/atanmış/karışık/sıfır alıcı; uzun başlık 768/390 eleman ölçümü). CI sonucu ayrı kanıttır",
+        "Kapsam dışı / yok: öğrenci tarafı alıcı görünümü, öğrenci teslimi, değerlendirme, dosya/PDF (M18-local-pdf depends_on olarak kalır), atamayı geri alma, admin placeholder ürünleştirme; canlı öğretmen kabulü AÇIK",
+        "PR #192: sınıfa atama + alıcı snapshot dilimi; inceleme düzeltmeleri: uzun başlık taşması CSS + güçlendirilmiş eşzamanlılık kimlik kanıtı (incelemede; main merge/deploy/production kabulü YOK)",
+        "Kod (öğrenci metin teslimi, feature/x01-homework-student-submit; main/deploy/production kabulü YOK): migrations/Version20261104120000.php (homework_submissions); src/Entity/HomeworkSubmission.php; src/Service/Homework/HomeworkSubmissionManager.php; src/Service/Homework/HomeworkStudentQuery.php; src/Service/Homework/HomeworkStudentScope.php; src/Controller/StudentHomeworkController.php; templates/student/homework/*; browser/tests/student-homework.spec.ts",
+        "Testler (kod kanıtı; CI sonucu ayrı): tests/Service/HomeworkSubmissionManagerTest.php, tests/Service/HomeworkSubmissionConcurrencyTest.php, tests/Controller/StudentHomeworkHttpTest.php, tests/Service/HomeworkTextTest.php (draft/submit body)",
+        "Kapsam dışı / açık: öğretmen değerlendirmesi, dosya/PDF, bildirim, veli, iptal/ikinci atama, canlı öğretmen ve canlı öğrenci kabulü",
+        "PR #193: öğrenci metin teslimi dilimi (incelemede; main merge/deploy/production kabulü YOK)",
+        "Karar hazırlığı (yalnız belge; değerlendirme kodu YOK): docs/architecture-homework.md §4.4 öğrenci ayrılması sonrası güncel yetkili atayan öğretmen submitted okuma/değerlendirme (öğrenci enrollment şart değil); §3.4 MariaDB 10.11 uyumlu current_evaluation_id işaretçisi + bileşik FK; partial unique yok; append-only immutable evaluation; expected_current_evaluation_id stale kontrolü; §6 işlem türüne göre enrollment ayrımı; canlı öğretmen/öğrenci kabulü AÇIK",
+        "PR #194: X01 değerlendirme erişim kararı + MariaDB current_evaluation_id tutarlılık belgesi (yalnız docs; değerlendirme kodu/main merge/deploy/production kabulü YOK)",
+        "Kod (öğretmen değerlendirme, feature/x01-homework-teacher-evaluate; main/deploy/production kabulü YOK): migrations/Version20261104200000.php (homework_evaluations + submissions.current_evaluation_id; bileşik FK same-submission; RESTRICT; backfill yok); src/Entity/HomeworkEvaluation.php; HomeworkSubmission.currentEvaluation; HomeworkEvaluationManager/TeacherEvaluationScope/TeacherSubmissionQuery; HomeworkEvaluationVoter; TeacherHomeworkController teslim/değerlendir; öğrenci detayda güncel etiket+feedback; denetim homework_evaluation_recorded (gövde yok)",
+        "Testler (kod kanıtı; CI ayrı): tests/Service/HomeworkEvaluationManagerTest.php, HomeworkEvaluationConcurrencyTest.php + tests/bin/homework_evaluate_race_worker.php, tests/Controller/TeacherHomeworkEvaluationHttpTest.php, HomeworkTextTest feedback; browser teacher/student homework evaluation screenshots",
+        "Kapsam dışı / açık: dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik, canlı öğretmen ve canlı öğrenci kabulü",
+        "PR #195: öğretmen değerlendirme dilimi (incelemede; main merge/deploy/production kabulü YOK)"
       ],
-      "pr_links": [],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "pr_links": [
+        "https://github.com/testligtr-collab/testlig-net/pull/190",
+        "https://github.com/testligtr-collab/testlig-net/pull/191",
+        "https://github.com/testligtr-collab/testlig-net/pull/192",
+        "https://github.com/testligtr-collab/testlig-net/pull/193",
+        "https://github.com/testligtr-collab/testlig-net/pull/194",
+        "https://github.com/testligtr-collab/testlig-net/pull/195"
+      ],
+      "acceptance": "Durum partial: öğretmen taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme (submitted liste/detay, reviewed|needs_rework, append-only current_evaluation_id) kodda. Öğrenci enrollment öğretmen evaluate için şart değil (§4.4); öğretmen yetkisi bitince erişim kapanır; taslak öğretmene kapalı; Admin/SA/co-teacher yok; öğrenci yalnız kendi güncel sonucunu görür; GET yazmaz; puan/yeniden teslim yok. Dosya, bildirim, veli, yeniden/geç teslim ve canlı öğretmen/öğrenci kabulü AÇIK. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur.",
       "scope_decision": null
     },
     {
@@ -1149,15 +1260,79 @@
         "Çalışan ekranlar kendi adreslerinde durur. Ekranı olmayan bölümler yalnız aktif doğrulanmış süper yöneticiye açılan bölüm girişidir ve Geliştirme aşamasında olarak işaretlenir. Bu girişler ürün akışını tamamlamaz.",
         "Ödeme ve denetim yetkisi genişletilmedi. Öğretmen çalışma alanı eski gruplarını korur. Genel Bakış kısayolları çalışan ve geliştirme aşamasındaki bölümleri ayırır. CI yeşili production kabulü değildir.",
         "Genel Bakış, izinli sayaç kartları ve bütün bölüm gruplarının ızgarasıyla yönetim kabuğunda yeniden düzenlendi. Sabit sistem çalışıyor iddiası ile kapalı arama ve bildirim kontrolü kaldırıldı. Ekran görüntüsü production kabulü değildir.",
-        "Genel Bakış görsel referansa göre kompakt dört ana sayaç, altı açılır bölüm kartı ve içerik özeti/hızlı işlem panelleriyle düzenlendi. Diğer iki gerçek sayaç içerik özetinde, bütün izinli alt bağlantılar açılır kartlarda ve sol menüde korunur. Başlık sans-serif, menü başlıkları normal harf boyutundadır. Bu kod kaydı canlı görsel kabulü değildir."
+        "Genel Bakış görsel referansa göre kompakt dört ana sayaç, altı açılır bölüm kartı ve içerik özeti/hızlı işlem panelleriyle düzenlendi. Diğer iki gerçek sayaç içerik özetinde, bütün izinli alt bağlantılar açılır kartlarda ve sol menüde korunur. Başlık sans-serif, menü başlıkları normal harf boyutundadır. Bu kod kaydı canlı görsel kabulü değildir.",
+        "Açık Medya kartı Dokümanlar, Videolar ve Medya ve depolama mini kartlarını mevcut bölüm adresleriyle ve Geliştirme aşamasında etiketiyle gösterir. İzni olmayan bağlantı basılmaz. Diğer kartlar, sol menü ve sayaçlar aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Medya dışındaki Genel Bakış kartları ve Tüm bölümleri göster grupları ortak mini kart düzenini kullanır. Her grubun açık renk ailesi ayrıdır. Çalışan ekranlar kendi adresinde, geliştirme aşamasındaki bölümler mevcut bölüm girişinde kalır. Durum etiketi gerçek aşamayı gösterir. Medya kartının kabul edilmiş renkleri aynıdır. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kullanıcılar listesinin görsel düzeni yönetim kabuğunun içinde yenilendi. Sol menü, Genel Bakış, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kullanıcı tablosunun satır ayırıcısı bütün sütunlarda aynı hizadadır. Masaüstünde çizgi satırın altındadır ve tarih hücresinin kendi kenarı çizgiyi kesmez. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kullanıcı detayı aynı yönetim kabuğunda profil özeti ve ayrı rol/durum kartlarıyla düzenlendi. Sol menü, logo, kullanıcı listesi ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Öğretmen başvuruları listesi ve detayı mevcut yönetim kabuğunda, Genel Bakış ve Kullanıcılar düzeniyle yenilendi. Adres /yonetim/ogretmen-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kurum başvuruları listesi ve detayı öğretmen başvuruları düzeniyle aynı yönetim kabuğunda yenilendi. Adres /yonetim/kurum-basvurulari aynı kaldı. Sol menü ve logo değişmedi. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Öğretmenler menüsü yer tutucu bölüm girişinden /yonetim/ogretmenler listesine alındı. Liste ve detay mevcut kullanıcı, profil, kurum üyeliği ve sınıf ataması kayıtlarını okur. Yeni öğretmen, toplu rol, üyelik, atama ve profil onayı bu adreste yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Rol ve modül izinleri menüsü yer tutucu bölüm girişinden /yonetim/rol-yetkileri adresine alındı. Ekran yalnız süper yöneticiye açıktır ve moderatörün üç platform yazma iznini yönetir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Rol ve modül izinleri listesi rol kartları, moderatör hesap paneli ve boş durum düzenine alındı. Adres, yetki ve kayıt aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kurumlar listesi, yeni kurum ve kurum detayı mevcut yönetim kabuğunda yenilendi. Adresler /yonetim/kurumlar, /yonetim/kurumlar/yeni ve /yonetim/kurumlar/{id} aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Yeni kurum ve kurum detayı aynı adreslerde daha yakın kart, ikon ve form düzenine alındı. Liste yeniden tasarlanmadı. Sol menü, logo ve diğer paneller aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Şube ve kampüsler menüsü yer tutucu bölüm girişinden /yonetim/subeler listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Akademik yıllar menüsü yer tutucu bölüm girişinden /yonetim/akademik-yillar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Sınıflar menüsü yer tutucu bölüm girişinden /yonetim/siniflar listesine alındı. Ekran yalnız süper yöneticiye açıktır. Kurum paneli ve öğretmen Sınıflarım aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Programlar menüsü /yonetim/programlar adresine alındı. Müfredat görüntüleme izni olan moderatör kabuğu görür. Oluşturma, yayın ve arşiv düğmeleri ayrı izinlere bağlıdır. Öğrenci kataloğu /yonetim/mufredat adresinde kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Program detayında ünite, konu ve kazanım için pasif yapma ve yeniden aktif etme ayrı curriculum.availability iznine bağlıdır. Arşiv düğmesi pasiflik değildir. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Program listesinde sabit kademe ve sınıf düzeyi kapıları, program detayında programı pasif yapma ve yeni program ekranında dersi pasif yapma aynı yönetim kabuğundadır. Kademe ve sınıf düzeyi için oluşturma veya silme düğmesi yoktur. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Kullanıcı 1-12 ağacı dosyaya alındı. Programlar menüsü ve ekran kapsamı değişmedi. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "Programlar, program detayı ve müfredat kataloğu aynı açık yönetim kabuğunda sadeleşti. Sol menü ve logo aynı kaldı. Adresler değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. Resmî doğrulama, import, toplu işlem ve canlı kabul ayrı açık işlerdir.",
+        "2026-10-27 açılır kayıtların adı ekran okuyucuya düğme olarak gider. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Sol menüde Müfredat ve Programlar ayrı girişleri tek Müfredat Yönetimi girişine indi. Logo ve diğer menü aynı kaldı. /yonetim/programlar ile /yonetim/mufredat durur. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Seçili sınıf çalışma alanından program ve katalog detayına gidip dönünce aynı sınıf seçili kalır. Logo ve diğer menü aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Program listesinin dar kartında ad ve gerçek durum etiketi üstte, ders sınıf ve sürüm tek özette durur. Teknik bilgiler kapalıyken küçük açılır denetimdir; açılınca teknik kod etiket-değer düzeninde ve monospace yazılır. Masaüstü tablo sütunları aynı kalır. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "Öğrenme İçerikleri listesi, içerik detayı ve mevcut sürüm düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/icerikler ve alt yolları aynı kaldı. Liste GET kayıt, revision, yayın veya erişim politikası yazmaz. Sayaçlar tek sayım sorgusudur ve seçili filtreden bağımsızdır. Yayın, erişim ve katalog yerleşimi ayrı kalır. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
+        "İçerik detayı, yeni içerik ve yeni konu alanı aynı açık yönetim kabuğunda kart düzenine alındı. Detay güncel sürümün kaçışlı önizlemesini ve gerçek yayın, erişim ve katalog durumunu ayrı gösterir. Yeni içerik ve konu alanı mevcut form alanlarını kullanır. Yayın veya ücretsiz erişim bu formlardan çıkmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
+        "Öğrenme içeriği önizlemesinde bilgi kutusu etiketleri mevcut katalogla Bilgi, Uyarı, İpucu ve Not olarak kalır ve harf harf kırılmaz. Yayın ve erişim kartı uzun önizlemeyle uzamaz. Liste satırı masaüstünde kısalır; sayaç notu, yayın ikonu ve arşiv ikonu aynı sayfada kalır. Adres, yetki, yayın ve erişim aynıdır. Ekran görüntüsü canlı görsel kabulü değildir. İçerik ürünü tamamlanmış sayılmaz.",
+        "Soru Havuzu listesi, detayı ve düzenleyici aynı açık yönetim kabuğunda düzenlendi. Adresler /yonetim/sorular ve alt yolları aynı kaldı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Soru ürünü tamamlanmış sayılmaz.",
+        "Soru düzenleyici kök, her seçenek ve çözüm için aynı araç çubuğunu ve ayrı görsel yuvasını kullanır. Liste gerçek Kolay, Orta ve Zor değerini ve platform test kullanımını gösterir. Kullanım yetkisi yokken kullanım bilgisine erişilemediği yazılır; yetkili boş kapsamda henüz kullanılmadığı yazılır. Kurum testinin adı veya sayısı yazılmaz. Etkileşimli geometri çizim motoru yoktur. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Soru ürünü tamamlanmış sayılmaz.",
+        "Soru düzenleyicide Matematik, Geometri, Kimya ve Biyoloji aynı anda yalnız seçilen sekmede görünür. Soru metni ile 250 önizleme yan yanadır. Zorluk üç radio seçeneğidir. Sağ sınıflandırma kartı içeriği kadar yüksektir. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. Etkileşimli geometri, öğrenci görsel baytı ve canlı tarama kabulü açıktır.",
+        "Testler listesi aynı yönetim kabuğunda başlık, dört sayaç, tek filtre paneli ve Test listesi kartıyla düzenlendi. Sayfa başlığı Testler, menü adı Test ve sınavlar kaldı. Adres /yonetim/testler aynıdır. Yeni test yalnız mevcut oluşturma yetkisiyle görünür. Filtre ve sayaç okuması bu görsel düzenle birlikte geldi. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Yeni test ve testi düzenle ekranları kabul edilen liste dilinde iki kolonlu kart düzenine alındı. Liste, detay, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Hatalı test formunda başlık, yönerge, süre ve güvenli seçimler korunur. Sınıf alanı ile özet aynı değeri gösterir. Liste, detay, önizleme ve sonuç değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Test detayı aynı yönetim kabuğunda özet ve iki kolonlu kart düzenine alındı. Liste, oluşturma, düzenleme, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Test önizlemesi aynı açık kabukta test detayına dönüş, gerçek başlık ve numaralı soru kartlarıyla düzenlendi. Liste, oluşturma, düzenleme, detay ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "Test sonuç listesi ve sonuç detayı aynı açık kabukta düzenlendi. Taşan formül kendi kutusunda kayar. Süresi dolmuş deneme Süre doldu yazar; puansız alan — kalır. Liste, oluşturma, düzenleme, detay ve önizleme yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
         "https://github.com/testligtr-collab/testlig-net/pull/152",
         "https://github.com/testligtr-collab/testlig-net/pull/153",
-        "https://github.com/testligtr-collab/testlig-net/pull/154"
+        "https://github.com/testligtr-collab/testlig-net/pull/154",
+        "https://github.com/testligtr-collab/testlig-net/pull/155",
+        "https://github.com/testligtr-collab/testlig-net/pull/158",
+        "https://github.com/testligtr-collab/testlig-net/pull/162",
+        "https://github.com/testligtr-collab/testlig-net/pull/163",
+        "https://github.com/testligtr-collab/testlig-net/pull/164",
+        "https://github.com/testligtr-collab/testlig-net/pull/165",
+        "https://github.com/testligtr-collab/testlig-net/pull/166",
+        "https://github.com/testligtr-collab/testlig-net/pull/167",
+        "https://github.com/testligtr-collab/testlig-net/pull/169",
+        "https://github.com/testligtr-collab/testlig-net/pull/170",
+        "https://github.com/testligtr-collab/testlig-net/pull/171",
+        "https://github.com/testligtr-collab/testlig-net/pull/172",
+        "https://github.com/testligtr-collab/testlig-net/pull/173",
+        "https://github.com/testligtr-collab/testlig-net/pull/174",
+        "https://github.com/testligtr-collab/testlig-net/pull/175",
+        "https://github.com/testligtr-collab/testlig-net/pull/176",
+        "https://github.com/testligtr-collab/testlig-net/pull/177",
+        "https://github.com/testligtr-collab/testlig-net/pull/178",
+        "https://github.com/testligtr-collab/testlig-net/pull/179",
+        "https://github.com/testligtr-collab/testlig-net/pull/180",
+        "https://github.com/testligtr-collab/testlig-net/pull/181",
+        "https://github.com/testligtr-collab/testlig-net/pull/182",
+        "https://github.com/testligtr-collab/testlig-net/pull/183",
+        "https://github.com/testligtr-collab/testlig-net/pull/184",
+        "https://github.com/testligtr-collab/testlig-net/pull/185",
+        "https://github.com/testligtr-collab/testlig-net/pull/186",
+        "https://github.com/testligtr-collab/testlig-net/pull/188",
+        "https://github.com/testligtr-collab/testlig-net/pull/189"
       ],
-      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir.",
+      "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Test önizlemesi ekran görüntüsü production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz. X10 tamamlanmış sayılmaz.",
       "scope_decision": null
     },
     {
@@ -1171,8 +1346,9 @@
         "Salt okunur PHP güvenlik envanteri aracı hazırdır. Kurulu lsphp paketleri, yapılandırma yolları, Testlig OpenLiteSpeed handler kaydı, diğer yapılandırılmış handler kayıtları, CLI session.upload_progress.enabled değeri ve depo önbelleğindeki lsphp83 güvenlik güncellemesi ayrı anahtarlarla yazılır.",
         "Web çalışma anındaki session.upload_progress.enabled bu okumayla kanıtlanmaz ve unknown kalır. CLI çıktısı ile php.ini dosyası web kabulü değildir. Yapılandırılmış handler internete açık sayılmaz. Araç ayar, paket veya servis değiştirmez. Public phpinfo ve geçici public PHP dosyası oluşturmaz.",
         "Envanter bir kez çalıştı. Testlig handler lsphp83, CLI PHP 8.3.33 ve session.upload_progress.enabled=1 ölçüldü. Web çalışma değeri unknown kaldı. Bu kayıt yamanın uygulandığını söylemez.",
+        "İşçi exe (allowlist yol, deleted bayrağı, rpm paket adı; cmdline/environ yok), /usr/bin/composer sürüm belirteci ve lsphp83 changelog içinde CVE-2026-109618 ile CVE-2026-109619 var/yok anahtarları eklendi. Bu kayıtta dispatch yok. web_runtime_measured=no durur. Paket kurulumu ve worker yenilemesi yoktur.",
         "lsphp83 güvenlik uygulama aracı ayrı manuel dispatch olarak hazırdır ve boş onay SSH açmaz. Yamalı paket varsa yalnız lsphp83 ailesini günceller, ana php.ini içinde session.upload_progress.enabled=0 yazar ve yalnız bu LSAPI işçilerini yeniler. Diğer PHP dalları değişmez. Bu cümle o aracı çalıştırılmış saymaz.",
-        "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol edecek şekilde düzeltildi. Yamalı paket sonucu ile geçici önlem sonucu ayrıdır. Bu cümle aracı çalıştırılmış saymaz.",
+        "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol eder. Bu cümle aracı çalıştırılmış saymaz.",
         "8.3.36 veya daha yeni LiteSpeed adayı, changelog içinde CVE adları olmasa da yama adayıdır. Daha eski aday yalnız iki CVE adını taşıyan sağlayıcı changelog kanıtıyla kabul edilir. Aday veya işlem önizlemesi doğrulanmazsa ini, paket ve worker sinyali yoktur ve çıkış başarısızdır. Etkin litespeed repositinde paket gpgcheck kapalı, anahtar belirsiz veya kurulu RPM anahtarı yoksa değişiklikten önce durulur. Resmî anahtar parmak izleri RPM-GPG-KEY-litespeed ve RPM-GPG-KEY-litespeed2025 dosyalarından hesaplandı. Repo metadata imzası paket imzasından ayrı raporlanır. Bu cümle aracı çalıştırılmış saymaz.",
         "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz."
       ],
@@ -1180,7 +1356,7 @@
         "https://github.com/testligtr-collab/testlig-net/pull/156",
         "https://github.com/testligtr-collab/testlig-net/pull/157"
       ],
-      "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web çalışma değeri unknown kalır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
+      "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web upload_progress unknown kalır. İşçi exe ve Composer sürümü ancak o anahtarlar çalışan bir envanterde görünürse ölçülmüş sayılır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null
     }
   ]

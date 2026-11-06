@@ -33,9 +33,13 @@
     </ol>
 
     <article class="student-test-question">
-        {% for line in test.stem %}
-            <p>{{ line }}</p>
-        {% endfor %}
+        {% if test.stem_blocks|default([]) is not empty %}
+            {% include 'components/question_blocks.html.twig' with { blocks: test.stem_blocks } only %}
+        {% else %}
+            {% for line in test.stem %}
+                <p>{{ line }}</p>
+            {% endfor %}
+        {% endif %}
         <form id="student-test-answer" method="post" action="{{ path('app_student_test_answer', {code: test.code}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('student_test') }}">
             <input type="hidden" name="position" value="{{ test.position }}">
@@ -45,7 +49,13 @@
                 {% for option in test.options %}
                     <label class="student-test-option">
                         <input type="radio" name="choice" value="{{ option.index }}" {% if option.selected %}checked{% endif %} required>
-                        <span>{{ option.text }}</span>
+                        <span>
+                            {% if option.blocks|default([]) is not empty %}
+                                {% include 'components/question_blocks.html.twig' with { blocks: option.blocks } only %}
+                            {% else %}
+                                {{ option.text }}
+                            {% endif %}
+                        </span>
                     </label>
                 {% endfor %}
             </fieldset>

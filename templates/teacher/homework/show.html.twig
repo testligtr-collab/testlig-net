@@ -1,0 +1,134 @@
+{% extends 'teacher/layout.html.twig' %}
+
+{% block title %}{{ assignment ? assignment.title : definition.title }} - Ödevlerim - Testlig{% endblock %}
+
+{% block teacher_content %}
+{% set title = assignment ? assignment.title : definition.title %}
+{% set description = assignment ? assignment.description : definition.description %}
+{% set due_at = assignment ? assignment.dueAt : definition.dueAt %}
+<section class="hw-page" aria-labelledby="hw-heading">
+    <nav class="hw-breadcrumb" aria-label="Konum">
+        <a href="{{ path('app_teacher_homeworks') }}">Ödevlerim</a>
+        <span aria-hidden="true">/</span>
+        <span>{{ assignment ? 'Atandı' : 'Taslak' }}</span>
+    </nav>
+
+    <header class="hw-head">
+        <div class="hw-head__text">
+            <h1 id="hw-heading" class="hw-wrap">{{ title }}</h1>
+            {% if assignment %}
+                <p class="hw-sub"><span class="hw-badge hw-badge--assigned">Atandı</span> Ödev metni donduruldu. Gönderilen teslimleri aşağıdan inceleyip değerlendirebilirsin.</p>
+            {% else %}
+                <p class="hw-sub"><span class="hw-badge hw-badge--draft">Taslak</span> Bu taslak öğrencilere atanmadı; öğrenciler göremez.</p>
+            {% endif %}
+        </div>
+        <div class="hw-head__actions">
+            {% if can_edit %}
+                <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homework_edit', {id: definition.id.toRfc4122}) }}">Düzenle</a>
+            {% endif %}
+            {% if can_assign and not show_confirm %}
+                <a class="btn hw-btn hw-btn--primary" href="{{ path('app_teacher_homework_show', {id: definition.id.toRfc4122, ata: 1}) }}">Sınıfa ata</a>
+            {% endif %}
+        </div>
+    </header>
+
+    {% if show_confirm and can_assign %}
+        <section class="hw-card hw-confirm" aria-labelledby="hw-assign-heading" data-testid="hw-assign-confirm">
+            <h2 id="hw-assign-heading">Sınıfa ata</h2>
+            {% if errors.form is defined or errors.recipients is defined or errors.due is defined or errors.confirm is defined %}
+                <div class="hw-alert" role="alert">
+                    {{ errors.form|default(errors.recipients|default(errors.due|default(errors.confirm|default('Atama tamamlanamadı.')))) }}
+                </div>
+            {% endif %}
+            <dl class="hw-summary">
+                <div><dt>Sınıf</dt><dd>{{ definition.classroom.name }}</dd></div>
+                <div><dt>Akademik yıl</dt><dd>{{ definition.academicYear.name }}</dd></div>
+                <div><dt>Son teslim</dt><dd>{{ definition.dueAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }} <span class="hw-muted">(Europe/Istanbul)</span></dd></div>
+                <div><dt>Uygun alıcı</dt><dd data-testid="hw-eligible-count">{{ eligible_count }}</dd></div>
+            </dl>
+            <p class="hw-note">Atama sırasında alıcılar sabitlenir. Atanan ödevin metni değiştirilemez. Alıcı sayısı atama anında yeniden hesaplanır.</p>
+            {% if eligible_count == 0 %}
+                <p class="hw-alert" role="status">Bu sınıfta atama için uygun aktif öğrenci yok. Atama oluşturulamaz.</p>
+            {% endif %}
+            <form method="post" action="{{ path('app_teacher_homework_show', {id: definition.id.toRfc4122}) }}" class="hw-assign-form" novalidate>
+                <input type="hidden" name="_token" value="{{ csrf_token(csrf_assign) }}">
+                <input type="hidden" name="revision" value="{{ definition.revisionNumber }}">
+                <div class="hw-check">
+                    <input id="hw-confirm" type="checkbox" name="confirm_assign" value="1" required{% if errors.confirm is defined %} aria-invalid="true"{% endif %}>
+                    <label for="hw-confirm">Bu ödevi sınıfa atamayı onaylıyorum. Metin dondurulacak ve alıcılar sabitlenecek.</label>
+                </div>
+                {% if errors.confirm is defined %}<p class="hw-field-error" role="alert">{{ errors.confirm }}</p>{% endif %}
+                <div class="hw-actions">
+                    <button type="submit" class="btn hw-btn hw-btn--primary" {% if eligible_count == 0 %}disabled{% endif %}>Atamayı onayla</button>
+                    <a class="btn hw-btn hw-btn--ghost" href="{{ path('app_teacher_homework_show', {id: definition.id.toRfc4122}) }}">Vazgeç</a>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <div class="hw-layout">
+        <article class="hw-card hw-main" aria-labelledby="hw-desc-heading">
+            <h2 id="hw-desc-heading">Ödev açıklaması</h2>
+            <div class="hw-prose">{{ description }}</div>
+        </article>
+
+        <aside class="hw-card hw-aside" aria-labelledby="hw-meta-heading">
+            <h2 id="hw-meta-heading">{{ assignment ? 'Atama bilgileri' : 'Taslak bilgileri' }}</h2>
+            <dl class="hw-summary">
+                <div><dt>Sınıf</dt><dd>{{ definition.classroom.name }}</dd></div>
+                <div><dt>Kurum</dt><dd>{{ definition.institution.name }}</dd></div>
+                <div><dt>Akademik yıl</dt><dd>{{ definition.academicYear.name }}</dd></div>
+                <div><dt>Son teslim</dt><dd>{{ due_at|utc_present('d.m.Y H:i', 'Europe/Istanbul') }} <span class="hw-muted">(Europe/Istanbul)</span></dd></div>
+                <div><dt>Durum</dt><dd>{{ assignment ? 'Atandı' : 'Taslak' }}</dd></div>
+                {% if assignment %}
+                    <div><dt>Atama zamanı</dt><dd>{{ assignment.assignedAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }}</dd></div>
+                    <div><dt>Alıcı sayısı</dt><dd data-testid="hw-recipient-count">{{ stats ? stats.recipientCount : assignment.recipientCount }}</dd></div>
+                {% else %}
+                    <div><dt>Sürüm</dt><dd>{{ definition.revisionNumber }}</dd></div>
+                    <div><dt>Son güncelleme</dt><dd>{{ definition.updatedAt|utc_present('d.m.Y H:i', 'Europe/Istanbul') }}</dd></div>
+                {% endif %}
+            </dl>
+        </aside>
+    </div>
+
+    {% if assignment %}
+        <section class="hw-card hw-recipients-card" aria-labelledby="hw-recipients-heading" data-testid="hw-recipients">
+            <h2 id="hw-recipients-heading">Teslimler</h2>
+            {% if stats %}
+                <dl class="hw-counters" data-testid="hw-counters">
+                    <div class="hw-counters__item"><dt>Alıcı</dt><dd data-testid="hw-count-recipients">{{ stats.recipientCount }}</dd></div>
+                    <div class="hw-counters__item"><dt>Gönderen</dt><dd data-testid="hw-count-submitted">{{ stats.submittedCount }}</dd></div>
+                    <div class="hw-counters__item"><dt>Değerlendirilen</dt><dd data-testid="hw-count-evaluated">{{ stats.evaluatedCount }}</dd></div>
+                </dl>
+            {% endif %}
+            {% if recipient_rows is empty %}
+                <p class="hw-note" role="status">Teslim listesi şu an gösterilemiyor. Sınıf veya öğretmen ataman aktif olmayabilir.</p>
+            {% else %}
+                <ul class="hw-recipients">
+                    {% for row in recipient_rows %}
+                        <li class="hw-recipient" data-state="{{ row.stateKey }}">
+                            <div class="hw-recipient__main">
+                                <span class="hw-recipient__name hw-wrap">{{ row.studentDisplayName }}</span>
+                                {% if row.submittedAtLocal %}
+                                    <span class="hw-muted">Gönderim: {{ row.submittedAtLocal }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="hw-recipient__side">
+                                <span class="hw-badge hw-badge--{{ row.evaluationLabelKey == 'needs_rework' ? 'rework' : row.stateKey }}">{{ row.stateLabel }}</span>
+                                {% if row.canInspect and row.submissionId %}
+                                    <a class="btn hw-btn hw-btn--secondary" href="{{ path('app_teacher_homework_submission_show', {id: row.submissionId}) }}" aria-label="İncele: {{ row.studentDisplayName }}">İncele</a>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <p class="hw-note">Taslak yanıtlar öğretmene gösterilmez; yalnız gönderilen teslimler incelenebilir.</p>
+        </section>
+    {% endif %}
+
+    <p class="hw-actions">
+        <a class="btn hw-btn hw-btn--ghost" href="{{ path('app_teacher_homeworks') }}">Ödevlerime dön</a>
+    </p>
+</section>
+{% endblock %}

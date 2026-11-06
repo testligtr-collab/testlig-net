@@ -12,4 +12,5 @@ enum SubjectFailureReason: string
     case Conflict = 'conflict';
     case NotFound = 'not_found';
     case SubjectArchived = 'subject_archived';
+    case Dependent = 'dependent';
 }

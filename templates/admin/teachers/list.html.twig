@@ -1,0 +1,205 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Öğretmenler — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Öğretmenler</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = {
+        'pending_verification': 'Doğrulama bekliyor',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
+    {% set role_labels = {
+        'ROLE_USER': 'Kullanıcı',
+        'ROLE_STUDENT': 'Öğrenci',
+        'ROLE_PARENT': 'Veli',
+        'ROLE_TEACHER': 'Öğretmen',
+        'ROLE_EXPERT_TEACHER': 'Uzman öğretmen',
+        'ROLE_HEAD_TEACHER': 'Zümre başkanı',
+        'ROLE_INSTITUTION_MANAGER': 'Kurum yöneticisi',
+        'ROLE_MODERATOR': 'Moderatör',
+        'ROLE_ADMIN': 'Yönetici',
+        'ROLE_SUPER_ADMIN': 'Süper Yönetici'
+    } %}
+    {% set role_tones = {
+        'ROLE_STUDENT': 'student',
+        'ROLE_PARENT': 'parent',
+        'ROLE_TEACHER': 'teacher',
+        'ROLE_EXPERT_TEACHER': 'teacher',
+        'ROLE_HEAD_TEACHER': 'teacher',
+        'ROLE_INSTITUTION_MANAGER': 'admin',
+        'ROLE_MODERATOR': 'moderator',
+        'ROLE_ADMIN': 'admin',
+        'ROLE_SUPER_ADMIN': 'admin'
+    } %}
+    <div class="admin-user-page admin-teacher-dir-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Öğretmenler</h1>
+                <p>Öğretmen, uzman öğretmen ve zümre başkanı hesapları bir kez listelenir. Başvuru incelemesi ayrı adrestedir.</p>
+            </div>
+            {% if admin_filters_active(filters|default({})) %}
+                <a class="admin-user-clear" href="{{ path('app_admin_teachers') }}">Filtreleri temizle</a>
+            {% endif %}
+        </header>
+        <p class="admin-teacher-dir-note">Bu ekran yeni öğretmen oluşturmaz, toplu rol vermez, kurum üyeliği veya sınıf ataması yapmaz ve mesleki profili onaylamaz. Rol ve hesap durumu kullanıcı detayından yönetilir.</p>
+
+        <section class="admin-user-stats" aria-label="Öğretmen özeti">
+            <article class="admin-user-stat admin-user-stat--total">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'users' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Toplam öğretmen</span>
+                    <strong class="admin-user-stat__value" data-teacher-summary="total">{{ summary.total }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--active">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'account' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Aktif hesap</span>
+                    <strong class="admin-user-stat__value" data-teacher-summary="active">{{ summary.active }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--pending">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'tests' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">E-postası doğrulanmış</span>
+                    <strong class="admin-user-stat__value" data-teacher-summary="verified">{{ summary.verified }}</strong>
+                </span>
+            </article>
+            <article class="admin-user-stat admin-user-stat--suspended">
+                <span class="admin-user-stat__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'catalog' } only %}</span>
+                <span class="admin-user-stat__copy">
+                    <span class="admin-user-stat__label">Mesleki profili olan</span>
+                    <strong class="admin-user-stat__value" data-teacher-summary="withProfile">{{ summary.withProfile }}</strong>
+                </span>
+            </article>
+        </section>
+
+        <form method="get" class="admin-filters admin-user-filters" action="{{ path('app_admin_teachers') }}">
+            <h2>Öğretmenleri filtrele</h2>
+            <div class="admin-user-filters__fields">
+                <label class="admin-user-search" for="teacher-filter-q">
+                    <span class="sr-only">Ara</span>
+                    <span class="admin-user-search__icon" aria-hidden="true">{% include 'components/admin_icon.html.twig' with { icon: 'search' } only %}</span>
+                    <input id="teacher-filter-q" type="search" name="q" value="{{ filters.q|default('') }}" maxlength="100" autocomplete="off" placeholder="Ad veya e-posta ile ara...">
+                </label>
+                <label for="teacher-filter-status">
+                    <span class="sr-only">Hesap durumu</span>
+                    <select id="teacher-filter-status" name="status">
+                        <option value="">Hesap durumu</option>
+                        {% for s in ['pending_verification','active','suspended','archived'] %}
+                            <option value="{{ s }}" {% if filters.status|default('') == s %}selected{% endif %}>{{ status_labels[s] }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="teacher-filter-role">
+                    <span class="sr-only">Öğretmen rolü</span>
+                    <select id="teacher-filter-role" name="role">
+                        <option value="">Öğretmen rolü</option>
+                        {% for role in role_choices %}
+                            <option value="{{ role.value }}" {% if filters.role|default('') == role.value %}selected{% endif %}>{{ role_labels[role.value]|default('Diğer / eski kayıt') }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label for="teacher-filter-subject">
+                    <span class="sr-only">Branş</span>
+                    <select id="teacher-filter-subject" name="subject">
+                        <option value="">Branş</option>
+                        {% for subject in subjects %}
+                            <option value="{{ subject.id }}" {% if filters.subject|default('') == subject.id %}selected{% endif %}>{{ subject.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="admin-user-filters__actions">
+                    <button class="admin-user-filters__submit" type="submit">Filtrele</button>
+                    {% if applications_href %}
+                        <a class="admin-user-detail" href="{{ applications_href }}">Öğretmen başvuruları</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <section class="admin-user-list" aria-labelledby="teacher-list-heading">
+            <header class="admin-user-list__head">
+                <h2 id="teacher-list-heading">Öğretmen listesi</h2>
+                <span class="admin-user-list__count">{{ result.totalCount }} öğretmen</span>
+            </header>
+            {% if result.items is empty %}
+                {% include 'components/empty_state.html.twig' with {
+                    title: 'Kayıt yok',
+                    body: (admin_filters_active(filters|default({})) or result.totalCount > 0) ? 'Filtrelere uygun öğretmen bulunamadı.' : 'Henüz öğretmen hesabı yok.'
+                } %}
+            {% else %}
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-user-table">
+                        <thead>
+                            <tr>
+                                <th>Öğretmen</th>
+                                <th>Rol</th>
+                                <th>Durum</th>
+                                <th>Branş ve sınıf</th>
+                                <th>Okul</th>
+                                <th><span class="sr-only">İşlem</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                <tr>
+                                    <td class="admin-user-person" data-label="Öğretmen">
+                                        <span class="admin-user-person__layout">
+                                            <span class="admin-user-avatar admin-user-avatar--{{ row.avatarTone() }}" aria-hidden="true">{{ row.initials() }}</span>
+                                            <span class="admin-user-person__copy">
+                                                <span class="admin-user-person__name">{{ row.displayName() }}</span>
+                                                <span class="admin-user-person__email">{{ row.email }}</span>
+                                            </span>
+                                        </span>
+                                    </td>
+                                    <td data-label="Rol">
+                                        <span class="admin-user-roles">
+                                            {% for role in row.globalRoles %}
+                                                <span class="admin-user-role admin-user-role--{{ role_tones[role]|default('user') }}">{{ role_labels[role]|default('Diğer / eski kayıt') }}</span>
+                                            {% endfor %}
+                                        </span>
+                                    </td>
+                                    <td data-label="Durum">
+                                        {% if row.status.value == 'suspended' %}
+                                            {% include 'admin/_status.html.twig' with { code: row.status.value, variant: 'danger' } only %}
+                                        {% else %}
+                                            {% include 'admin/_status.html.twig' with { code: row.status.value } only %}
+                                        {% endif %}
+                                    </td>
+                                    <td class="admin-teacher-dir-meta" data-label="Branş ve sınıf">
+                                        <span>{{ row.subjectLabel }}</span>
+                                        <span class="admin-user-person__email">{{ row.gradeLabel }}</span>
+                                    </td>
+                                    <td class="admin-teacher-dir-meta" data-label="Okul">{{ row.schoolLabel }}</td>
+                                    <td class="admin-user-action" data-label="İşlem">
+                                        <a class="admin-user-detail" href="{{ path('app_admin_teacher', { id: row.id }) }}">Detay <span aria-hidden="true">›</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+            {% include 'components/admin_pagination.html.twig' with {
+                result: result,
+                route: 'app_admin_teachers',
+                query: {
+                    q: filters.q|default(''),
+                    status: filters.status|default(''),
+                    role: filters.role|default(''),
+                    subject: filters.subject|default('')
+                }
+            } %}
+        </section>
+    </div>
+{% endblock %}

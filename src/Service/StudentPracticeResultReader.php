@@ -19,6 +19,7 @@ use App\Enum\ScoringRunStatus;
 use App\Exception\QuestionException;
 use App\Presentation\ResultPresentation;
 use App\Question\Answer\QuestionAnswerIntegrityHasher;
+use App\Question\Content\QuestionContentView;
 use App\Question\Content\QuestionPlainText;
 use App\Repository\AssessmentAttemptAnswerRepository;
 use App\Repository\AssessmentAttemptItemRepository;
@@ -59,11 +60,14 @@ final class StudentPracticeResultReader
      *     questions: list<array{
      *         position: int,
      *         stem: list<string>,
+     *         stem_blocks: list<array<string, mixed>>,
      *         options: list<string>,
      *         student_answer: string,
      *         correct_answer: string,
      *         label: string,
-     *         explanation: list<string>
+     *         explanation: list<string>,
+     *         explanation_blocks: list<array<string, mixed>>,
+     *         points: string
      *     }>
      * }|null
      */
@@ -92,15 +96,18 @@ final class StudentPracticeResultReader
      *     questions: list<array{
      *         position: int,
      *         stem: list<string>,
+     *         stem_blocks: list<array<string, mixed>>,
      *         options: list<string>,
      *         student_answer: string,
      *         correct_answer: string,
      *         label: string,
-     *         explanation: list<string>
+     *         explanation: list<string>,
+     *         explanation_blocks: list<array<string, mixed>>,
+     *         points: string
      *     }>
      * }|null
      */
-    public function readScored(AssessmentAttempt $attempt): ?array
+    public function readScored(AssessmentAttempt $attempt, bool $imageNote = false): ?array
     {
         $run = $this->runs->findLatestForAttempt($attempt->getId());
         if (!$run instanceof AssessmentScoringRun || ScoringRunStatus::Completed !== $run->getStatus()) {
@@ -138,11 +145,14 @@ final class StudentPracticeResultReader
             $questions[] = [
                 'position' => $item->getPresentationPosition(),
                 'stem' => QuestionPlainText::lines($questionRevision->getStemContent()),
+                'stem_blocks' => QuestionContentView::blocks($questionRevision->getStemContent(), $imageNote),
                 'options' => array_values($options),
                 'student_answer' => $selected ?? '',
                 'correct_answer' => $correct,
                 'label' => $this->label($score->getOutcome()),
                 'explanation' => QuestionPlainText::lines($questionRevision->getExplanationContent()),
+                'explanation_blocks' => QuestionContentView::blocks($questionRevision->getExplanationContent(), $imageNote),
+                'points' => $this->presentation->points($item->getPoints()) ?? '0',
             ];
         }
 

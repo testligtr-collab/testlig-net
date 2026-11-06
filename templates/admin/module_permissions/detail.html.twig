@@ -1,0 +1,63 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Modül izinleri — Testlig{% endblock %}
+
+{% block panel_breadcrumb %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ path('app_admin_module_permissions') }}">Rol ve modül izinleri</a>
+        <span aria-hidden="true">/</span>
+        <span>İzinler</span>
+    </nav>
+{% endblock %}
+
+{% block panel_content %}
+    {% set status_labels = {
+        'pending_verification': 'Doğrulama bekliyor',
+        'active': 'Aktif',
+        'suspended': 'Askıda',
+        'archived': 'Arşiv'
+    } %}
+    <div class="admin-user-page admin-module-permission-page">
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Modül izinleri</h1>
+                <p>Doğrudan izin, rolün verdiği erişime eklenir. Rolden gelen erişim bu formdan kaldırılmaz.</p>
+            </div>
+            <a class="admin-user-clear" href="{{ path('app_admin_user_detail', { id: detail.id }) }}">Kullanıcı detayı</a>
+        </header>
+
+        <section class="admin-module-card admin-module-account">
+            <h2 class="admin-user-detail-name">{{ detail.fullName }}</h2>
+            <p class="admin-user-detail-email">{{ detail.email }}</p>
+            <p>{{ detail.roleLabel }} · {{ status_labels[detail.status]|default('Belirtilmemiş') }}</p>
+            {% if not detail.appliesNow %}
+                <p class="admin-module-permission-note">Doğrudan izin, hesap aktif ve e-postası doğrulanmışken uygulanır.</p>
+            {% endif %}
+        </section>
+
+        <form method="post" action="{{ path('app_admin_module_permission_save', { id: detail.id }) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('module_permissions_' ~ detail.id) }}">
+            <input type="hidden" name="version" value="{{ detail.version }}">
+            <div class="admin-module-grid">
+                {% for grant in grants %}
+                    <article class="admin-module-card">
+                        <h2>{{ grant.moduleLabel }}</h2>
+                        <p class="admin-module-lock">{{ grant.roleAccessLabel }}</p>
+                        <label>
+                            <input type="checkbox" name="permissions[]" value="{{ grant.value }}" {% if grant.value in detail.grantCodes %}checked{% endif %}>
+                            <span>{{ grant.actionLabel }}</span>
+                        </label>
+                        <p class="admin-module-protected">{{ grant.protectedLabel }}</p>
+                    </article>
+                {% endfor %}
+            </div>
+            <p class="admin-module-permission-note">Kurum içeriğinde üyelik ve sahiplik şartı durur. Modül izni onun yerine geçmez.</p>
+            <div class="admin-user-detail-actions">
+                <button class="admin-user-detail-submit" type="submit">Kaydet</button>
+                <a class="admin-user-detail" href="{{ path('app_admin_module_permissions') }}">Vazgeç</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
