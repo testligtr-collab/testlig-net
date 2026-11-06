@@ -16,6 +16,8 @@ fixed_version="8.3.36"
 snapshot_lines=""
 worker_lines=""
 worker_identity="unresolved"
+worker_discovery_stage="unset"
+worker_discovery_result="unset"
 socket_inode=""
 shared_handler="no"
 backup_file=""
@@ -252,24 +254,45 @@ fd_matches_inode() {
   return 1
 }
 
+fail_discovery() {
+  worker_discovery_stage="$1"
+  worker_discovery_result="$2"
+  worker_lines=""
+  worker_identity="unresolved"
+}
+
 discover_workers() {
   local socket_file proc pid_dir pid exe matched start lines="" count=0
   worker_lines=""
   worker_identity="unresolved"
+  worker_discovery_stage="unset"
+  worker_discovery_result="unset"
   socket_inode=""
-  if [ -z "${testlig_socket:-}" ] || ! matches "$testlig_socket" '^/(usr/local/lsws|tmp|run)/[A-Za-z0-9._/-]+$' || matches "$testlig_socket" '\.\.'; then
+  if [ -z "${testlig_socket:-}" ]; then
+    fail_discovery socket absent
+    return 1
+  fi
+  if ! matches "$testlig_socket" '^/(usr/local/lsws|tmp|run)/[A-Za-z0-9._/-]+$' || matches "$testlig_socket" '\.\.'; then
+    fail_discovery socket rejected
     return 1
   fi
   socket_file="$(host_path "$testlig_socket")"
-  if [ ! -e "$socket_file" ] || [ -L "$socket_file" ] || [ -d "$socket_file" ]; then
+  if [ ! -e "$socket_file" ]; then
+    fail_discovery socket absent
+    return 1
+  fi
+  if [ -L "$socket_file" ] || [ -d "$socket_file" ]; then
+    fail_discovery socket rejected
     return 1
   fi
   socket_inode="$(tool stat -c '%i' "$socket_file" 2>/dev/null || true)"
   if ! matches "$socket_inode" '^[0-9]+$'; then
+    fail_discovery socket unreadable
     return 1
   fi
   proc="$(host_path "/proc")"
   if [ ! -d "$proc" ] || [ ! -r "$proc" ]; then
+    fail_discovery proc unreadable
     return 1
   fi
   shopt -s nullglob
@@ -280,21 +303,20 @@ discover_workers() {
     fi
     exe="$(readlink "$pid_dir/exe" 2>/dev/null || true)"
     if [ -z "$exe" ]; then
-      continue
+      fail_discovery exe unreadable
+      return 1
     fi
     handler_exe_match "$exe" || continue
     fd_matches_inode "$pid_dir" "$socket_inode"
     matched=$?
     if [ "$matched" -eq 2 ]; then
-      worker_lines=""
-      worker_identity="unresolved"
+      fail_discovery fd unreadable
       return 1
     fi
     if [ "$matched" -eq 0 ]; then
       start="$(starttime_of "$pid_dir" || true)"
       if ! matches "${start:-}" '^[0-9]+$'; then
-        worker_lines=""
-        worker_identity="unresolved"
+        fail_discovery starttime unreadable
         return 1
       fi
       lines="${lines}${pid}|${start}"$'\n'
@@ -302,9 +324,12 @@ discover_workers() {
     fi
   done
   worker_lines="$lines"
+  worker_discovery_stage="complete"
   if [ "$count" -eq 0 ]; then
+    worker_discovery_result="empty"
     worker_identity="none"
   else
+    worker_discovery_result="matched"
     worker_identity="ok"
   fi
   return 0
@@ -315,6 +340,8 @@ snapshot_workers() {
   snapshot_lines=""
   if ! discover_workers; then
     echo "worker_identity=unresolved"
+    echo "worker_discovery_stage=${worker_discovery_stage}"
+    echo "worker_discovery_result=${worker_discovery_result}"
     echo "worker_snapshot_count=0"
     return 1
   fi
@@ -324,6 +351,8 @@ snapshot_workers() {
     count=$((count + 1))
   done <<< "$snapshot_lines"
   echo "worker_identity=${worker_identity}"
+  echo "worker_discovery_stage=${worker_discovery_stage}"
+  echo "worker_discovery_result=${worker_discovery_result}"
   echo "worker_snapshot_count=${count}"
   return 0
 }
@@ -400,6 +429,8 @@ refresh_workers() {
   if [ "$phase" = "rollback_" ]; then
     if ! current_testlig_workers >/dev/null; then
       echo "${phase}worker_identity=unresolved"
+      echo "${phase}worker_discovery_stage=${worker_discovery_stage}"
+      echo "${phase}worker_discovery_result=${worker_discovery_result}"
       echo "${phase}worker_recycle=failed"
       echo "${phase}worker_recycle_verified=unresolved"
       return 1

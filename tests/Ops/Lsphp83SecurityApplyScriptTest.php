@@ -511,9 +511,107 @@ REPO);
             self::assertStringContainsString('worker_recycle_verified=exited', $output);
             self::assertStringContainsString('apply_result=patched', $output);
             self::assertSame('', (string) file_get_contents($root.'/state/lswsctl.log'));
-            self::assertStringContainsString('-TERM 4242', (string) file_get_contents($root.'/state/kill.log'));
+            $killed = (string) file_get_contents($root.'/state/kill.log');
+            self::assertStringContainsString('-TERM 4242', $killed);
+            self::assertStringNotContainsString('-TERM 88', $killed);
+            self::assertStringNotContainsString('-TERM 99', $killed);
             self::assertDirectoryExists($root.'/proc/77');
+            self::assertDirectoryExists($root.'/proc/88');
             self::assertDirectoryDoesNotExist($root.'/proc/4242');
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testCompletedEmptyDiscoveryIsNotUnresolved(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+            $this->installStubs($root, '8.3.33', "Upgrading:\n lsphp83 x86_64 8.3.33-1.el9 litespeed\n");
+            $this->write($root.'/state/next-version', "8.3.33|1.el9\n");
+            $this->writeTree($root, $original);
+            mkdir($root.'/proc');
+            $output = $this->runApply($root, false);
+
+            self::assertStringContainsString('worker_identity=none', $output);
+            self::assertStringContainsString('worker_discovery_stage=complete', $output);
+            self::assertStringContainsString('worker_discovery_result=empty', $output);
+            self::assertStringNotContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('package_stop_reason=candidate_not_confirmed', $output);
+            self::assertStringContainsString('package_update=not_applied', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testRejectedSocketAndUnreadableProcessStopBeforeChanges(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<'CONF'
+docRoot /home/testlig.net/public_html
+address uds://tmp/lshttpd/testlig.net.sock
+phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
+CONF);
+            mkdir($root.'/proc');
+            $output = $this->runApply($root, false);
+
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('worker_discovery_stage=socket', $output);
+            self::assertStringContainsString('worker_discovery_result=rejected', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
+            self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            mkdir($root.'/proc/70', 0777, true);
+            file_put_contents($root.'/proc/70/exe', "not-a-symlink\n");
+            $output = $this->runApply($root, false);
+
+            self::assertStringContainsString('worker_discovery_stage=exe', $output);
+            self::assertStringContainsString('worker_discovery_result=unreadable', $output);
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->writeProcesses($root);
+            unlink($root.'/proc/4242/stat');
+            $output = $this->runApply($root, false);
+
+            self::assertStringContainsString('worker_discovery_stage=starttime', $output);
+            self::assertStringContainsString('worker_discovery_result=unreadable', $output);
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
+            self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertFileDoesNotExist($root.'/state/updated');
         } finally {
             $this->removeTree($root);
         }
@@ -561,9 +659,12 @@ REPO);
             unlink($root.'/usr/local/lsws/tmp/testlig.net.sock');
             $output = $this->runApply($root, false);
             self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('worker_discovery_stage=socket', $output);
+            self::assertStringContainsString('worker_discovery_result=absent', $output);
             self::assertStringContainsString('package_update=not_attempted', $output);
             self::assertStringContainsString('ini_change=not_applied', $output);
             self::assertStringNotContainsString('worker_recycle=none_running', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
             self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
             self::assertFileDoesNotExist($root.'/state/updated');
         } finally {
@@ -580,9 +681,12 @@ REPO);
             );
             $output = $this->runApply($root, false);
             self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('worker_discovery_stage=fd', $output);
+            self::assertStringContainsString('worker_discovery_result=unreadable', $output);
             self::assertStringContainsString('package_update=not_attempted', $output);
             self::assertStringContainsString('ini_change=not_applied', $output);
             self::assertStringNotContainsString('worker_recycle=none_running', $output);
+            self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
             self::assertFileDoesNotExist($root.'/state/updated');
             self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
         } finally {
