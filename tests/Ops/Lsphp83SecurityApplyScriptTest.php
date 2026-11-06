@@ -26,6 +26,8 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertStringContainsString('cve_2026_109619=present', $output);
             self::assertStringContainsString('package_update=updated', $output);
             self::assertStringContainsString('package_verified=yes', $output);
+            self::assertStringContainsString('repo_package_gpg id=litespeed value=verified', $output);
+            self::assertStringContainsString('repo_metadata_gpg id=litespeed value=not_enabled', $output);
             self::assertStringContainsString('fix_evidence=official_version', $output);
             self::assertStringContainsString('package_downgrade=no', $output);
             self::assertStringContainsString('apply_result=patched', $output);
@@ -92,37 +94,80 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         }
     }
 
-    public function testMissingPatchStillSetsIniAndWaits(): void
+    public function testUnconfirmedCandidateDoesNotChangeTheServer(): void
     {
         $root = $this->tempRoot();
         try {
             $original = "memory_limit = 128M\n";
             $this->installStubs($root, '8.3.33', "Upgrading:\n lsphp83 x86_64 8.3.33-1.el9 litespeed\n");
             file_put_contents($root.'/state/changelog', "old cache only\nhttps://user:token@rpms.example/lsphp\n");
-            file_put_contents($root.'/state/installed-changelog', "old\n");
             $this->writeTree($root, $original);
-            $output = $this->runApply($root);
+            $this->writeProcesses($root);
+            $output = $this->runApply($root, false);
 
-            self::assertStringContainsString('package_update=waiting', $output);
+            self::assertStringContainsString('package_update=not_applied', $output);
+            self::assertStringContainsString('package_stop_reason=candidate_not_confirmed', $output);
             self::assertStringContainsString('fix_evidence=not_confirmed', $output);
-            self::assertStringContainsString('apply_result=temporary_mitigation', $output);
-            self::assertStringNotContainsString('apply_result=patched', $output);
-            self::assertStringContainsString('official_fix_version=not_candidate', $output);
-            self::assertStringContainsString('lsphp83_installed=8.3.33-1.el9', $output);
-            self::assertStringContainsString('cve_2026_109618=absent', $output);
-            self::assertStringContainsString('cve_2026_109619=absent', $output);
-            self::assertStringContainsString('ini_change=set_0', $output);
-            self::assertStringContainsString('ini_after=0', $output);
-            self::assertStringContainsString('php_apply_complete=yes', $output);
-            self::assertStringContainsString('web_session_upload_progress_enabled=unknown', $output);
+            self::assertStringContainsString('apply_result=not_applied', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+            self::assertStringContainsString('php_apply_complete=no', $output);
+            self::assertStringNotContainsString('temporary_mitigation', $output);
             self::assertStringNotContainsString('token@', $output);
-            self::assertStringContainsString("memory_limit = 128M\n", (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
-            self::assertStringContainsString("session.upload_progress.enabled = 0\n", (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
             self::assertFileDoesNotExist($root.'/state/updated');
-            $dnf = (string) file_get_contents($root.'/state/dnf.log');
-            self::assertStringNotContainsString('-y update', $dnf);
+            self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+            self::assertStringNotContainsString('-y update', (string) file_get_contents($root.'/state/dnf.log'));
+            self::assertStringNotContainsString('--import', (string) file_get_contents($root.'/state/rpm.log'));
         } finally {
             $this->removeTree($root);
+        }
+    }
+
+    public function testPackageTrustMustPassBeforeAnyChange(): void
+    {
+        $original = "memory_limit = 128M\n";
+        $cases = [
+            'gpgcheck=0' => 'disabled',
+            'fingerprint' => 'untrusted_key',
+            'missing-key' => 'key_not_installed',
+        ];
+        foreach ($cases as $mode => $reason) {
+            $root = $this->tempRoot();
+            try {
+                $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+                if ('gpgcheck=0' === $mode) {
+                    $this->write($root.'/etc/yum.repos.d/litespeed.repo', <<<'REPO'
+[litespeed]
+enabled=1
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-litespeed
+REPO);
+                }
+                if ('fingerprint' === $mode) {
+                    $this->write($root.'/state/gpg-show', "fpr:::::::::AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:\n");
+                }
+                if ('missing-key' === $mode) {
+                    $this->write($root.'/state/missing-rpm-key', "1\n");
+                }
+                $this->writeTree($root, $original);
+                $this->writeProcesses($root);
+                $output = $this->runApply($root, false);
+
+                self::assertStringContainsString('repo_package_gpg id=litespeed value='.$reason, $output);
+                self::assertStringContainsString('apply_result=not_applied', $output);
+                self::assertStringContainsString('ini_change=not_applied', $output);
+                self::assertStringContainsString('worker_signal=not_called', $output);
+                self::assertStringContainsString('php_apply_complete=no', $output);
+                self::assertStringNotContainsString('temporary_mitigation', $output);
+                self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+                self::assertFileDoesNotExist($root.'/state/updated');
+                self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
+                self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+                self::assertStringNotContainsString('--import', (string) file_get_contents($root.'/state/rpm.log'));
+            } finally {
+                $this->removeTree($root);
+            }
         }
     }
 
@@ -186,6 +231,8 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
 
             self::assertStringContainsString('package_update=stopped', $output);
             self::assertStringContainsString('package_stop_reason=unexpected_removal', $output);
+            self::assertStringContainsString('apply_result=not_applied', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
             self::assertStringContainsString('ini_change=not_applied', $output);
             self::assertStringContainsString('php_apply_complete=no', $output);
             self::assertStringNotContainsString('token@', $output);
@@ -264,6 +311,8 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         self::assertStringNotContainsString('lswsctrl', $remote);
         self::assertStringNotContainsString('php-fpm', $remote);
         self::assertStringNotContainsString('phpinfo', $remote);
+        self::assertStringNotContainsString('nogpgcheck', $remote);
+        self::assertStringNotContainsString('rpm --import', $remote);
         self::assertStringNotContainsString('dnf downgrade', $remote);
         self::assertStringNotContainsString("dnf -y update 'lsphp83*'", $remote);
         self::assertStringContainsString('dnf -y update', $remote);
@@ -550,8 +599,29 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         $this->write($root.'/state/changelog', "8.3.36-1.el9\nCVE-2026-109618\nCVE-2026-109619\nhttps://user:token@rpms.example/lsphp\n");
         $this->write($root.'/state/installed-changelog', "8.3.33-1.el9\nold\n");
         $this->write($root.'/state/dnf.log', '');
+        $this->write($root.'/state/rpm.log', '');
+        $this->write($root.'/state/gpg.log', '');
         $this->write($root.'/state/kill.log', '');
         $this->write($root.'/state/lswsctl.log', '');
+        $this->write($root.'/state/gpg-show', "fpr:::::::::42259994257E19EB6A91CA853F6F627083084D0E:\n");
+        $this->write($root.'/etc/pki/rpm-gpg/RPM-GPG-KEY-litespeed', "fixture-key\n");
+        $this->write($root.'/etc/yum.repos.d/litespeed.repo', <<<'REPO'
+[litespeed]
+enabled=1
+gpgcheck=1
+baseurl=https://user:token@rpms.example/lsphp
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-litespeed
+
+[litespeed-update]
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-litespeed
+
+[litespeed-edge]
+enabled=0
+gpgcheck=0
+gpgkey=file:///etc/pki/rpm-gpg/not-used
+REPO);
         $this->write($root.'/bin/dnf', <<<'BASH'
 #!/bin/bash
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -596,9 +666,23 @@ case "$*" in
 esac
 exit 1
 BASH);
+        $this->write($root.'/bin/gpg', <<<'BASH'
+#!/bin/bash
+root="$(cd "$(dirname "$0")/.." && pwd)"
+printf '%s\n' "$*" >> "$root/state/gpg.log"
+if [ "${1-}" = "--show-keys" ]; then
+  cat "$root/state/gpg-show"
+  exit 0
+fi
+exit 1
+BASH);
         $this->write($root.'/bin/rpm', <<<'BASH'
 #!/bin/bash
 root="$(cd "$(dirname "$0")/.." && pwd)"
+printf '%s\n' "$*" >> "$root/state/rpm.log"
+if [ "${1-}" = "--import" ]; then
+  exit 1
+fi
 if [ "${1-}" = "-q" ] && [ "${2-}" = "--changelog" ]; then
   cat "$root/state/installed-changelog"
   exit 0
@@ -610,6 +694,14 @@ fi
 if [ "${1-}" = "-q" ] && [ "${2-}" = "lsphp80" ]; then
   exit 0
 fi
+case "${2-}" in
+  gpg-pubkey-*)
+    if [ -f "$root/state/missing-rpm-key" ]; then
+      exit 1
+    fi
+    exit 0
+    ;;
+esac
 exit 1
 BASH);
         $this->write($root.'/bin/php', <<<'BASH'

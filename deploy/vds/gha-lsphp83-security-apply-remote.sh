@@ -586,6 +586,116 @@ parse_preview() {
   '
 }
 
+stop_before_change() {
+  echo "package_update=not_applied"
+  echo "package_stop_reason=${1}"
+  echo "ini_change=not_applied"
+  echo "worker_signal=not_called"
+  apply_result="not_applied"
+  finish_no
+}
+
+trust_one_repo() {
+  local id="$1" enabled="$2" gpgcheck="$3" repo_gpg="$4" gpgkey="$5"
+  local keypath fpr short metadata="not_enabled"
+  matches "$id" '^litespeed[A-Za-z0-9_-]*$' || return 0
+  if [ "$enabled" != "0" ] && [ "$enabled" != "1" ]; then
+    echo "repo_package_gpg id=${id} value=unreadable"
+    return 1
+  fi
+  [ "$enabled" = "1" ] || return 0
+  trust_found=1
+  if [ "$repo_gpg" = "1" ]; then
+    metadata="enabled"
+  elif [ -z "$repo_gpg" ] || [ "$repo_gpg" = "0" ]; then
+    metadata="not_enabled"
+  else
+    echo "repo_metadata_gpg id=${id} value=unreadable"
+    return 1
+  fi
+  echo "repo_metadata_gpg id=${id} value=${metadata}"
+  if [ "$gpgcheck" != "1" ]; then
+    echo "repo_package_gpg id=${id} value=disabled"
+    return 1
+  fi
+  case "$gpgkey" in
+    file:///*) ;;
+    *) echo "repo_package_gpg id=${id} value=unreadable_key"; return 1 ;;
+  esac
+  keypath="$(host_path "${gpgkey#file://}")"
+  if ! regular_file "$keypath"; then
+    echo "repo_package_gpg id=${id} value=missing_key"
+    return 1
+  fi
+  fpr="$(tool gpg --show-keys --with-colons "$keypath" 2>/dev/null | awk -F: '$1=="fpr" && $10 ~ /^[0-9A-Fa-f]{40}$/ { print $10; exit }')"
+  fpr="$(printf '%s' "$fpr" | tr '[:lower:]' '[:upper:]')"
+  case "$fpr" in
+    # Fingerprints computed from the provider files
+    # https://rpms.litespeedtech.com/centos/RPM-GPG-KEY-litespeed
+    # https://rpms.litespeedtech.com/centos/RPM-GPG-KEY-litespeed2025
+    42259994257E19EB6A91CA853F6F627083084D0E|3E892522DB44E1B063D366C5011AA62DEDA1F085) ;;
+    *) echo "repo_package_gpg id=${id} value=untrusted_key"; return 1 ;;
+  esac
+  short="$(printf '%s' "$fpr" | awk '{ print tolower(substr($0, length($0)-7)) }')"
+  if ! matches "$short" '^[0-9a-f]{8}$' || ! tool rpm -q "gpg-pubkey-${short}" >/dev/null 2>&1; then
+    echo "repo_package_gpg id=${id} value=key_not_installed"
+    return 1
+  fi
+  echo "repo_package_gpg id=${id} value=verified"
+  return 0
+}
+
+verify_repo_trust() {
+  local repodir file line section enabled gpgcheck repo_gpg gpgkey trimmed
+  trust_found=0
+  repodir="$(host_path "/etc/yum.repos.d")"
+  if [ ! -d "$repodir" ]; then
+    echo "repo_package_gpg=unreadable"
+    echo "repo_metadata_gpg=unreadable"
+    return 1
+  fi
+  shopt -s nullglob
+  for file in "$repodir"/*.repo; do
+    section=""
+    enabled=""
+    gpgcheck=""
+    repo_gpg=""
+    gpgkey=""
+    while IFS= read -r line || [ -n "$line" ]; do
+      line="${line%$'\r'}"
+      trimmed="${line#"${line%%[![:space:]]*}"}"
+      case "$trimmed" in
+        ''|'#'*|';'*) continue ;;
+      esac
+      case "$trimmed" in
+        \[*\])
+          if [ -n "$section" ]; then
+            trust_one_repo "$section" "$enabled" "$gpgcheck" "$repo_gpg" "$gpgkey" || return 1
+          fi
+          section="${trimmed#[}"
+          section="${section%]}"
+          enabled=""
+          gpgcheck=""
+          repo_gpg=""
+          gpgkey=""
+          ;;
+        enabled=*) enabled="${trimmed#enabled=}" ;;
+        gpgcheck=*) gpgcheck="${trimmed#gpgcheck=}" ;;
+        repo_gpgcheck=*) repo_gpg="${trimmed#repo_gpgcheck=}" ;;
+        gpgkey=*) gpgkey="${trimmed#gpgkey=}" ;;
+      esac
+    done < "$file"
+    if [ -n "$section" ]; then
+      trust_one_repo "$section" "$enabled" "$gpgcheck" "$repo_gpg" "$gpgkey" || return 1
+    fi
+  done
+  if [ "$trust_found" -ne 1 ]; then
+    echo "repo_package_gpg=absent"
+    return 1
+  fi
+  return 0
+}
+
 echo "php_apply=lsphp83"
 echo "php_apply_other_branches=unchanged"
 echo "web_runtime_measured=no"
@@ -748,6 +858,14 @@ if ! snapshot_workers; then
   finish_no
 fi
 
+if ! verify_repo_trust; then
+  echo "package_update=not_attempted"
+  echo "ini_change=not_applied"
+  echo "worker_signal=not_called"
+  apply_result="not_applied"
+  finish_no
+fi
+
 previous="unknown"
 pkg_line="$(tool rpm -q --qf '%{VERSION}|%{RELEASE}' lsphp83 2>/dev/null || true)"
 if matches "$pkg_line" '^[0-9]+\.[0-9]+\.[0-9]+\|[A-Za-z0-9._+-]+$'; then
@@ -804,6 +922,7 @@ if { [ "$fix_evidence" = "official_version" ] || [ "$fix_evidence" = "provider_b
     echo "package_update=stopped"
     echo "package_stop_reason=preview_failed"
     echo "ini_change=not_applied"
+    echo "worker_signal=not_called"
     finish_no
   fi
   parsed="$(parse_preview "$preview" "$candidate_evr")"
@@ -813,6 +932,7 @@ if { [ "$fix_evidence" = "official_version" ] || [ "$fix_evidence" = "provider_b
     echo "package_update=stopped"
     echo "package_stop_reason=${reason}"
     echo "ini_change=not_applied"
+    echo "worker_signal=not_called"
     finish_no
   fi
   pinned="$(printf '%s\n' "$parsed" | awk 'NF { print }' | tr '\n' ' ')"
@@ -820,11 +940,12 @@ if { [ "$fix_evidence" = "official_version" ] || [ "$fix_evidence" = "provider_b
     echo "package_update=stopped"
     echo "package_stop_reason=unparsed_preview"
     echo "ini_change=not_applied"
+    echo "worker_signal=not_called"
     finish_no
   fi
   package_goal="update"
 else
-  echo "package_update=waiting"
+  stop_before_change "candidate_not_confirmed"
 fi
 
 if ! prepare_backup; then
@@ -876,25 +997,6 @@ if [ "$package_goal" = "update" ]; then
   echo "package_update=updated"
   echo "package_verified=yes"
   apply_result="patched"
-else
-  current_line="$(tool rpm -q --qf '%{VERSION}|%{RELEASE}' lsphp83 2>/dev/null || true)"
-  current="$previous"
-  if matches "$current_line" '^[0-9]+\.[0-9]+\.[0-9]+\|[A-Za-z0-9._+-]+$'; then
-    current="${current_line%%|*}-${current_line#*|}"
-  fi
-  echo "lsphp83_installed=${current}"
-  installed_changelog="$(tool rpm -q --changelog lsphp83 2>/dev/null || true)"
-  if printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109618'; then
-    echo "cve_2026_109618=present"
-  else
-    echo "cve_2026_109618=absent"
-  fi
-  if printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109619'; then
-    echo "cve_2026_109619=present"
-  else
-    echo "cve_2026_109619=absent"
-  fi
-  apply_result="temporary_mitigation"
 fi
 
 if tool rpm -q lsphp80 >/dev/null 2>&1 || [ -x "$(host_path "/usr/local/lsws/lsphp80/bin/lsphp")" ]; then
