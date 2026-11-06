@@ -1345,11 +1345,16 @@
       "evidence": [
         "Salt okunur PHP güvenlik envanteri aracı hazırdır. Kurulu lsphp paketleri, yapılandırma yolları, Testlig OpenLiteSpeed handler kaydı, diğer yapılandırılmış handler kayıtları, CLI session.upload_progress.enabled değeri ve depo önbelleğindeki lsphp83 güvenlik güncellemesi ayrı anahtarlarla yazılır.",
         "Web çalışma anındaki session.upload_progress.enabled bu okumayla kanıtlanmaz ve unknown kalır. CLI çıktısı ile php.ini dosyası web kabulü değildir. Yapılandırılmış handler internete açık sayılmaz. Araç ayar, paket veya servis değiştirmez. Public phpinfo ve geçici public PHP dosyası oluşturmaz.",
-        "Araç bu kayıtta çalıştırılmamıştır. Workflow dispatch sonraki ölçüm için yeterlidir. CI yeşili ve bu kayıt production kabulü değildir.",
-        "İşçi exe (allowlist yol, deleted bayrağı, rpm paket adı; cmdline/environ yok), /usr/bin/composer sürüm belirteci ve lsphp83 changelog içinde CVE-2026-109618 ile CVE-2026-109619 var/yok anahtarları eklendi. Bu kayıtta dispatch yok. web_runtime_measured=no durur. Paket kurulumu ve worker yenilemesi yoktur."
+        "Envanter bir kez çalıştı. Testlig handler lsphp83, CLI PHP 8.3.33 ve session.upload_progress.enabled=1 ölçüldü. Web çalışma değeri unknown kaldı. Bu kayıt yamanın uygulandığını söylemez.",
+        "İşçi exe (allowlist yol, deleted bayrağı, rpm paket adı; cmdline/environ yok), /usr/bin/composer sürüm belirteci ve lsphp83 changelog içinde CVE-2026-109618 ile CVE-2026-109619 var/yok anahtarları eklendi. Bu kayıtta dispatch yok. web_runtime_measured=no durur. Paket kurulumu ve worker yenilemesi yoktur.",
+        "lsphp83 güvenlik uygulama aracı ayrı manuel dispatch olarak hazırdır ve boş onay SSH açmaz. Yamalı paket varsa yalnız lsphp83 ailesini günceller, ana php.ini içinde session.upload_progress.enabled=0 yazar ve yalnız bu LSAPI işçilerini yeniler. Diğer PHP dalları değişmez. Bu cümle o aracı çalıştırılmış saymaz.",
+        "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol eder. Bu cümle aracı çalıştırılmış saymaz.",
+        "8.3.36 veya daha yeni LiteSpeed adayı, changelog içinde CVE adları olmasa da yama adayıdır. Daha eski aday yalnız iki CVE adını taşıyan sağlayıcı changelog kanıtıyla kabul edilir. Aday veya işlem önizlemesi doğrulanmazsa ini, paket ve worker sinyali yoktur ve çıkış başarısızdır. Etkin litespeed repositinde paket gpgcheck kapalı, anahtar belirsiz veya kurulu RPM anahtarı yoksa değişiklikten önce durulur. Resmî anahtar parmak izleri RPM-GPG-KEY-litespeed ve RPM-GPG-KEY-litespeed2025 dosyalarından hesaplandı. Repo metadata imzası paket imzasından ayrı raporlanır. Bu cümle aracı çalıştırılmış saymaz.",
+        "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz."
       ],
       "pr_links": [
-        "https://github.com/testligtr-collab/testlig-net/pull/156"
+        "https://github.com/testligtr-collab/testlig-net/pull/156",
+        "https://github.com/testligtr-collab/testlig-net/pull/157"
       ],
       "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web upload_progress unknown kalır. İşçi exe ve Composer sürümü ancak o anahtarlar çalışan bir envanterde görünürse ölçülmüş sayılır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null
