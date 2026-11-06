@@ -26,7 +26,7 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertStringContainsString('cve_2026_109619=present', $output);
             self::assertStringContainsString('package_update=updated', $output);
             self::assertStringContainsString('package_verified=yes', $output);
-            self::assertStringContainsString('fix_evidence=candidate_changelog', $output);
+            self::assertStringContainsString('fix_evidence=official_version', $output);
             self::assertStringContainsString('package_downgrade=no', $output);
             self::assertStringContainsString('apply_result=patched', $output);
             self::assertStringNotContainsString('apply_result=temporary_mitigation', $output);
@@ -81,7 +81,7 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertSame('', (string) file_get_contents($root.'/state/lswsctl.log'));
             $dnf = (string) file_get_contents($root.'/state/dnf.log');
             self::assertStringContainsString('makecache --disablerepo=* --enablerepo=litespeed*', $dnf);
-            self::assertStringContainsString('changelog lsphp83-8.3.36-1.el9', $dnf);
+            self::assertStringNotContainsString('changelog lsphp83-8.3.36-1.el9', $dnf);
             self::assertStringContainsString('--assumeno lsphp83-8.3.36-1.el9', $dnf);
             self::assertStringContainsString('-y update lsphp83-8.3.36-1.el9 lsphp83-common-8.3.36-1.el9', $dnf);
             self::assertStringNotContainsString('lsphp83*', $dnf);
@@ -121,6 +121,55 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             self::assertFileDoesNotExist($root.'/state/updated');
             $dnf = (string) file_get_contents($root.'/state/dnf.log');
             self::assertStringNotContainsString('-y update', $dnf);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testOfficialVersionWithoutCveNamesStillUpdates(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n lsphp83-common x86_64 8.3.36-1.el9 litespeed\n");
+            $this->write($root.'/state/changelog', "8.3.36-1.el9\nsecurity update\n");
+            $this->writeTree($root, $original);
+            $this->writeProcesses($root);
+            $output = $this->runApply($root);
+
+            self::assertStringContainsString('fix_evidence=official_version', $output);
+            self::assertStringContainsString('official_fix_version=candidate', $output);
+            self::assertStringContainsString('lsphp83_installed=8.3.36-1.el9', $output);
+            self::assertStringContainsString('cve_2026_109618=absent', $output);
+            self::assertStringContainsString('cve_2026_109619=absent', $output);
+            self::assertStringContainsString('package_update=updated', $output);
+            self::assertStringContainsString('package_verified=yes', $output);
+            self::assertStringContainsString('package_downgrade=no', $output);
+            self::assertStringContainsString('wide_restart=no', $output);
+            self::assertStringNotContainsString('token@', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testOlderCandidateNeedsExplicitBackportEvidence(): void
+    {
+        $root = $this->tempRoot();
+        try {
+            $original = "memory_limit = 128M\n";
+            $this->installStubs($root, '8.3.35', "Upgrading:\n lsphp83 x86_64 8.3.35-1.el9 litespeed\n");
+            $this->write($root.'/state/next-version', "8.3.35|1.el9\n");
+            $this->write($root.'/state/changelog', "8.3.35-1.el9\nCVE-2026-109618\nCVE-2026-109619\n");
+            $this->writeTree($root, $original);
+            $output = $this->runApply($root);
+
+            self::assertStringContainsString('official_fix_version=not_candidate', $output);
+            self::assertStringContainsString('fix_evidence=provider_backport', $output);
+            self::assertStringContainsString('lsphp83_candidate=8.3.35-1.el9', $output);
+            self::assertStringContainsString('package_update=updated', $output);
+            self::assertStringContainsString('package_verified=yes', $output);
+            $dnf = (string) file_get_contents($root.'/state/dnf.log');
+            self::assertStringContainsString('changelog lsphp83-8.3.35-1.el9', $dnf);
         } finally {
             $this->removeTree($root);
         }
@@ -212,8 +261,7 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         self::assertStringNotContainsString('TESTLIG_PHP_APPLY_ROOT', $workflow);
         self::assertStringNotContainsString('workflow_run:', $workflow);
         self::assertDoesNotMatchRegularExpression('/\n\s*push:/', $workflow);
-        self::assertStringContainsString('lswsctrl', $remote);
-        self::assertStringNotContainsString('lswsctrl stop >/dev/null 2>&1 || true', $remote);
+        self::assertStringNotContainsString('lswsctrl', $remote);
         self::assertStringNotContainsString('php-fpm', $remote);
         self::assertStringNotContainsString('phpinfo', $remote);
         self::assertStringNotContainsString('dnf downgrade', $remote);
@@ -398,7 +446,7 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
         }
     }
 
-    public function testExclusiveHandlerUsesOlsRestart(): void
+    public function testExclusiveHandlerSignalsOnlyMatchedWorkers(): void
     {
         $root = $this->tempRoot();
         try {
@@ -409,14 +457,12 @@ final class Lsphp83SecurityApplyScriptTest extends TestCase
             $this->writeProcesses($root);
             $output = $this->runApply($root);
             self::assertStringContainsString('shared_handler_vhost=none', $output);
-            self::assertStringContainsString('wide_restart=yes', $output);
-            self::assertStringContainsString('worker_recycle=ols_restart', $output);
+            self::assertStringContainsString('wide_restart=no', $output);
+            self::assertStringContainsString('worker_recycle=ols_lsapi_term', $output);
             self::assertStringContainsString('worker_recycle_verified=exited', $output);
             self::assertStringContainsString('apply_result=patched', $output);
-            $control = (string) file_get_contents($root.'/state/lswsctl.log');
-            self::assertStringContainsString('stop', $control);
-            self::assertStringContainsString('start', $control);
-            self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+            self::assertSame('', (string) file_get_contents($root.'/state/lswsctl.log'));
+            self::assertStringContainsString('-TERM 4242', (string) file_get_contents($root.'/state/kill.log'));
             self::assertDirectoryExists($root.'/proc/77');
             self::assertDirectoryDoesNotExist($root.'/proc/4242');
         } finally {

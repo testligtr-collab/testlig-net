@@ -1,7 +1,8 @@
 #!/bin/bash
-# Apply the Testlig lsphp83 security package when the refreshed repo has that
-# exact candidate, and set session.upload_progress.enabled=0 in its main php.ini.
-# Does not update other PHP branches, compile PHP, or kill unrelated processes.
+# Apply the Testlig lsphp83 security package when the LiteSpeed candidate is
+# 8.3.36 or newer, or an older candidate has both CVE names in its changelog.
+# Set session.upload_progress.enabled=0 in its main php.ini.
+# Signal only matching Testlig LSAPI workers. Do not restart OpenLiteSpeed.
 set -u
 set -o pipefail
 
@@ -9,7 +10,6 @@ root="${TESTLIG_PHP_APPLY_ROOT:-}"
 ini_path="/usr/local/lsws/lsphp83/etc/php.ini"
 php_bin="/usr/local/lsws/lsphp83/bin/php"
 handler_bin="/usr/local/lsws/lsphp83/bin/lsphp"
-lswsctrl_bin="/usr/local/lsws/bin/lswsctrl"
 backup_rel="/home/testlig.net/shared/php-ini-backups"
 key="session.upload_progress.enabled"
 fixed_version="8.3.36"
@@ -396,7 +396,7 @@ signal_workers() {
 }
 
 refresh_workers() {
-  local phase="$1" lines="$2" method="ols_lsapi_term"
+  local phase="$1" lines="$2"
   if [ "$phase" = "rollback_" ]; then
     if ! current_testlig_workers >/dev/null; then
       echo "${phase}worker_identity=unresolved"
@@ -407,48 +407,29 @@ refresh_workers() {
     lines="$worker_lines"
     echo "${phase}worker_identity=${worker_identity}"
   fi
-  if [ "$shared_handler" = "no" ]; then
-    method="ols_restart"
-  fi
   if [ -z "$lines" ]; then
     if [ "$worker_identity" != "none" ]; then
       echo "${phase}worker_recycle=failed"
       echo "${phase}worker_recycle_verified=unresolved"
       return 1
     fi
-    if [ "$method" = "ols_lsapi_term" ]; then
-      echo "${phase}wide_restart=no"
-      echo "${phase}worker_recycle=none_running"
-      echo "${phase}worker_recycle_verified=none"
-      return 0
-    fi
-  fi
-  if [ "$method" = "ols_restart" ]; then
-    echo "${phase}wide_restart=yes"
-    if ! tool "$lswsctrl_bin" stop; then
-      echo "${phase}worker_recycle=failed"
-      echo "${phase}worker_recycle_verified=not_signaled"
-      return 1
-    fi
-    if ! tool "$lswsctrl_bin" start; then
-      echo "${phase}worker_recycle=failed"
-      echo "${phase}worker_recycle_verified=not_signaled"
-      return 1
-    fi
-  else
     echo "${phase}wide_restart=no"
-    if ! signal_workers "$lines"; then
-      echo "${phase}worker_recycle=failed"
-      echo "${phase}worker_recycle_verified=signal_failed"
-      return 1
-    fi
+    echo "${phase}worker_recycle=none_running"
+    echo "${phase}worker_recycle_verified=none"
+    return 0
+  fi
+  echo "${phase}wide_restart=no"
+  if ! signal_workers "$lines"; then
+    echo "${phase}worker_recycle=failed"
+    echo "${phase}worker_recycle_verified=signal_failed"
+    return 1
   fi
   if ! verify_workers_exited "$lines"; then
     echo "${phase}worker_recycle=failed"
     echo "${phase}worker_recycle_verified=still_running"
     return 1
   fi
-  echo "${phase}worker_recycle=${method}"
+  echo "${phase}worker_recycle=ols_lsapi_term"
   if [ -z "$lines" ]; then
     echo "${phase}worker_recycle_verified=none"
   else
@@ -791,7 +772,9 @@ echo "lsphp83_candidate=${candidate}"
 
 candidate_version="${candidate%%-*}"
 candidate_evr="$candidate"
+official_fix=0
 if matches "$candidate_version" '^[0-9]+\.[0-9]+\.[0-9]+$' && { [ "$candidate_version" = "$fixed_version" ] || version_newer "$fixed_version" "$candidate_version"; }; then
+  official_fix=1
   echo "official_fix_version=candidate"
 else
   echo "official_fix_version=not_candidate"
@@ -799,18 +782,22 @@ fi
 
 fix_evidence="not_confirmed"
 if [ "$repo_status" -eq 0 ] && [ "$candidate" != "unknown" ]; then
-  changelog="$(tool dnf -q changelog "lsphp83-${candidate_evr}" 2>/dev/null || true)"
-  if printf '%s' "$changelog" | grep -q "$candidate_evr" \
-    && printf '%s' "$changelog" | grep -q 'CVE-2026-109618' \
-    && printf '%s' "$changelog" | grep -q 'CVE-2026-109619'; then
-    fix_evidence="candidate_changelog"
+  if [ "$official_fix" -eq 1 ]; then
+    fix_evidence="official_version"
+  else
+    changelog="$(tool dnf -q changelog "lsphp83-${candidate_evr}" 2>/dev/null || true)"
+    if printf '%s' "$changelog" | grep -q "$candidate_evr" \
+      && printf '%s' "$changelog" | grep -q 'CVE-2026-109618' \
+      && printf '%s' "$changelog" | grep -q 'CVE-2026-109619'; then
+      fix_evidence="provider_backport"
+    fi
   fi
 fi
 echo "fix_evidence=${fix_evidence}"
 
 package_goal="waiting"
 pinned=""
-if [ "$fix_evidence" = "candidate_changelog" ] && [ "$candidate" != "$previous" ]; then
+if { [ "$fix_evidence" = "official_version" ] || [ "$fix_evidence" = "provider_backport" ]; } && [ "$candidate" != "$previous" ]; then
   preview_status=0
   preview="$(tool dnf -q update --assumeno "lsphp83-${candidate_evr}" 2>/dev/null)" || preview_status=$?
   if [ "$preview_status" -ne 0 ] && [ "$preview_status" -ne 1 ]; then
@@ -860,18 +847,32 @@ if [ "$package_goal" = "update" ]; then
   fi
   echo "lsphp83_installed=${current}"
   installed_changelog="$(tool rpm -q --changelog lsphp83 2>/dev/null || true)"
-  if [ "$current" != "$candidate_evr" ] \
-    || ! printf '%s' "$installed_changelog" | grep -q "$candidate_evr" \
-    || ! printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109618' \
-    || ! printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109619'; then
+  if printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109618'; then
+    echo "cve_2026_109618=present"
+  else
     echo "cve_2026_109618=absent"
+  fi
+  if printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109619'; then
+    echo "cve_2026_109619=present"
+  else
     echo "cve_2026_109619=absent"
+  fi
+  verified=0
+  if [ "$current" = "$candidate_evr" ]; then
+    if [ "$fix_evidence" = "official_version" ]; then
+      verified=1
+    elif [ "$fix_evidence" = "provider_backport" ] \
+      && printf '%s' "$installed_changelog" | grep -q "$candidate_evr" \
+      && printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109618' \
+      && printf '%s' "$installed_changelog" | grep -q 'CVE-2026-109619'; then
+      verified=1
+    fi
+  fi
+  if [ "$verified" -ne 1 ]; then
     echo "package_update=verify_failed"
     echo "ini_change=not_applied"
     finish_no
   fi
-  echo "cve_2026_109618=present"
-  echo "cve_2026_109619=present"
   echo "package_update=updated"
   echo "package_verified=yes"
   apply_result="patched"
