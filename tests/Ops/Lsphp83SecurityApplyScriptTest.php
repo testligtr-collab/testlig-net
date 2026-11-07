@@ -1272,7 +1272,7 @@ BASH);
         $n = 0;
         foreach ($rows as $row) {
             [$flags, $inode, $path] = $row;
-            $body .= sprintf("%d: 00000002 00000000 %s 0001 01 %s %s\n", $n, $flags, $inode, $path);
+            $body .= \sprintf("%d: 00000002 00000000 %s 0001 01 %s %s\n", $n, $flags, $inode, $path);
             ++$n;
         }
         $this->write($root.'/proc/net/unix', $body);
