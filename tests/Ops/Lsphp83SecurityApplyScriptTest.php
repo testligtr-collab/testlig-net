@@ -336,10 +336,103 @@ REPO);
         self::assertStringContainsString('workflow_sha="${1:-}"', $remote);
         self::assertStringContainsString('run_mode="${2:-}"', $remote);
         self::assertStringContainsString('socket:\[[0-9]*\]', $remote);
+        self::assertStringContainsString('[Uu][Dd][Ss]://*', $remote);
+        self::assertStringNotContainsString('address[[:space:]]uds://*', $remote);
+        self::assertStringNotContainsString('${trimmed#*uds://}', $remote);
         self::assertStringNotContainsString('expected_sha=', $remote);
         self::assertStringNotContainsString('expected_release=', $remote);
         self::assertStringNotContainsString('3deca68635804136a53120605e9ff7caf3726170', $remote);
         self::assertStringNotContainsString('20261021T151953Z-3deca6863580', $remote);
+    }
+
+    public function testUdsSchemeCaseVariantsResolveProductionSocketPath(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        foreach (['uds://', 'UDS://', 'UdS://'] as $scheme) {
+            $root = $this->tempRoot();
+            try {
+                $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+                $this->writeTree($root, $original);
+                $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<CONF
+docRoot /home/testlig.net/public_html
+address {$scheme}tmp/lshttpd/testl3865.sock
+phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
+path /usr/local/lsws/lsphp83/bin/lsphp
+CONF);
+                $this->write($root.'/tmp/lshttpd/testl3865.sock', "socket\n");
+                $this->runBash(
+                    <<<'BASH'
+set -euo pipefail
+root="$1"
+sock="$root/tmp/lshttpd/testl3865.sock"
+inode="$(stat -c '%i' "$sock")"
+handler="/usr/local/lsws/lsphp83/bin/lsphp"
+mkdir -p "$root/proc/4242/fd"
+ln -s "$handler" "$root/proc/4242/exe"
+ln -s "socket:[$inode]" "$root/proc/4242/fd/3"
+printf '%s\n' "4242 (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000" > "$root/proc/4242/stat"
+BASH,
+                    [str_replace('\\', '/', $root)],
+                );
+                $output = $this->runApply($root, true, [], null, 'diagnose');
+
+                self::assertStringContainsString('php_apply_mode=diagnose', $output);
+                self::assertStringContainsString('worker_identity=ok', $output);
+                self::assertStringContainsString('worker_discovery_stage=complete', $output);
+                self::assertStringContainsString('worker_discovery_result=matched', $output);
+                self::assertStringContainsString('package_update=not_attempted', $output);
+                self::assertStringContainsString('ini_change=not_applied', $output);
+                self::assertStringContainsString('worker_signal=not_called', $output);
+                self::assertStringContainsString('package_applied=no', $output);
+                self::assertSame('', (string) file_get_contents($root.'/state/dnf.log'));
+                self::assertSame('', (string) file_get_contents($root.'/state/kill.log'));
+                self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+                self::assertFileDoesNotExist($root.'/state/updated');
+            } finally {
+                $this->removeTree($root);
+            }
+        }
+    }
+
+    public function testUdsSocketPathLetterCaseIsPreserved(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<'CONF'
+docRoot /home/testlig.net/public_html
+address UDS://tmp/lshttpd/TestL3865.Sock
+phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
+path /usr/local/lsws/lsphp83/bin/lsphp
+CONF);
+            $this->write($root.'/tmp/lshttpd/TestL3865.Sock', "socket\n");
+            $this->runBash(
+                <<<'BASH'
+set -euo pipefail
+root="$1"
+sock="$root/tmp/lshttpd/TestL3865.Sock"
+inode="$(stat -c '%i' "$sock")"
+handler="/usr/local/lsws/lsphp83/bin/lsphp"
+mkdir -p "$root/proc/4242/fd"
+ln -s "$handler" "$root/proc/4242/exe"
+ln -s "socket:[$inode]" "$root/proc/4242/fd/3"
+printf '%s\n' "4242 (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000" > "$root/proc/4242/stat"
+BASH,
+                [str_replace('\\', '/', $root)],
+            );
+            $output = $this->runApply($root, true, [], null, 'diagnose');
+
+            self::assertStringContainsString('worker_identity=ok', $output);
+            self::assertStringContainsString('worker_discovery_result=matched', $output);
+            self::assertFileExists($root.'/tmp/lshttpd/TestL3865.Sock');
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+        } finally {
+            $this->removeTree($root);
+        }
     }
 
     public function testDiagnoseUsesTheSameDiscoveryAndNeverWrites(): void
@@ -678,7 +771,7 @@ REPO);
             $this->writeTree($root, $original);
             $this->write($root.'/usr/local/lsws/conf/vhosts/testlig.net/vhost.conf', <<<'CONF'
 docRoot /home/testlig.net/public_html
-address uds://tmp/lshttpd/testlig.net.sock
+address UDS://var/run/outside-allowlist.sock
 phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
 CONF);
             mkdir($root.'/proc');
