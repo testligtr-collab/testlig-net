@@ -339,6 +339,12 @@ REPO);
         self::assertStringContainsString('[Uu][Dd][Ss]://*', $remote);
         self::assertStringNotContainsString('address[[:space:]]uds://*', $remote);
         self::assertStringNotContainsString('${trimmed#*uds://}', $remote);
+        self::assertStringContainsString('resolve_kernel_socket_inode()', $remote);
+        self::assertStringContainsString('/proc/net/unix', $remote);
+        self::assertStringContainsString('discovery_uid=', $remote);
+        self::assertStringContainsString('discovery_euid=', $remote);
+        self::assertStringNotContainsString("socket_inode=\"\$(tool stat -c '%i' \"\$socket_file\"", $remote);
+        self::assertStringNotContainsString('stat -c \'%i\' "$socket_file"', $remote);
         self::assertStringNotContainsString('expected_sha=', $remote);
         self::assertStringNotContainsString('expected_release=', $remote);
         self::assertStringNotContainsString('3deca68635804136a53120605e9ff7caf3726170', $remote);
@@ -360,16 +366,18 @@ phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
 path /usr/local/lsws/lsphp83/bin/lsphp
 CONF);
                 $this->write($root.'/tmp/lshttpd/testl3865.sock', "socket\n");
+                $this->writeUnixTable($root, [
+                    ['00010000', '900010', '/tmp/lshttpd/testl3865.sock'],
+                    ['00010000', '900011', '/tmp/lshttpd/testl3865.sock.other'],
+                ]);
                 $this->runBash(
                     <<<'BASH'
 set -euo pipefail
 root="$1"
-sock="$root/tmp/lshttpd/testl3865.sock"
-inode="$(stat -c '%i' "$sock")"
 handler="/usr/local/lsws/lsphp83/bin/lsphp"
 mkdir -p "$root/proc/4242/fd"
 ln -s "$handler" "$root/proc/4242/exe"
-ln -s "socket:[$inode]" "$root/proc/4242/fd/3"
+ln -s "socket:[900010]" "$root/proc/4242/fd/3"
 printf '%s\n' "4242 (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000" > "$root/proc/4242/stat"
 BASH,
                     [str_replace('\\', '/', $root)],
@@ -377,6 +385,8 @@ BASH,
                 $output = $this->runApply($root, true, [], null, 'diagnose');
 
                 self::assertStringContainsString('php_apply_mode=diagnose', $output);
+                self::assertMatchesRegularExpression('/^discovery_uid=(unknown|[0-9]+)$/m', $output);
+                self::assertMatchesRegularExpression('/^discovery_euid=(unknown|[0-9]+)$/m', $output);
                 self::assertStringContainsString('worker_identity=ok', $output);
                 self::assertStringContainsString('worker_discovery_stage=complete', $output);
                 self::assertStringContainsString('worker_discovery_result=matched', $output);
@@ -408,16 +418,17 @@ phpIniOverride /usr/local/lsws/lsphp83/etc/php.ini
 path /usr/local/lsws/lsphp83/bin/lsphp
 CONF);
             $this->write($root.'/tmp/lshttpd/TestL3865.Sock', "socket\n");
+            $this->writeUnixTable($root, [
+                ['00010000', '900012', '/tmp/lshttpd/TestL3865.Sock'],
+            ]);
             $this->runBash(
                 <<<'BASH'
 set -euo pipefail
 root="$1"
-sock="$root/tmp/lshttpd/TestL3865.Sock"
-inode="$(stat -c '%i' "$sock")"
 handler="/usr/local/lsws/lsphp83/bin/lsphp"
 mkdir -p "$root/proc/4242/fd"
 ln -s "$handler" "$root/proc/4242/exe"
-ln -s "socket:[$inode]" "$root/proc/4242/fd/3"
+ln -s "socket:[900012]" "$root/proc/4242/fd/3"
 printf '%s\n' "4242 (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000" > "$root/proc/4242/stat"
 BASH,
                 [str_replace('\\', '/', $root)],
@@ -430,6 +441,120 @@ BASH,
             self::assertStringContainsString('package_update=not_attempted', $output);
             self::assertStringContainsString('ini_change=not_applied', $output);
             self::assertStringContainsString('worker_signal=not_called', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testKernelSocketInodeNotFilesystemInodeAndExactPathOnly(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $fsInode = (string) fileinode($root.'/usr/local/lsws/tmp/testlig.net.sock');
+            self::assertNotSame($fsInode, $this->testligKernelInode());
+            $this->writeProcesses($root);
+            // Trap: FD holds filesystem inode (old bug) instead of kernel inode.
+            unlink($root.'/proc/4242/fd/3');
+            symlink('socket:['.$fsInode.']', $root.'/proc/4242/fd/3');
+            $output = $this->runApply($root, true, [], null, 'diagnose');
+            self::assertStringContainsString('worker_identity=none', $output);
+            self::assertStringContainsString('worker_discovery_result=empty', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->writeProcesses($root);
+            $output = $this->runApply($root, true, [], null, 'diagnose');
+            self::assertStringContainsString('worker_identity=ok', $output);
+            self::assertStringContainsString('worker_discovery_result=matched', $output);
+            self::assertStringNotContainsString('worker_deleted_exe=88', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->writeUnixTable($root, [
+                ['00010000', '900001', '/usr/local/lsws/tmp/testlig.net.sock'],
+                ['00010000', '900777', '/usr/local/lsws/tmp/testlig.net.sock'],
+            ]);
+            $this->writeProcesses($root);
+            $output = $this->runApply($root, false, [], null, 'diagnose');
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('worker_discovery_stage=socket', $output);
+            self::assertStringContainsString('worker_discovery_result=rejected', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('ini_change=not_applied', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            unlink($root.'/proc/net/unix');
+            $this->writeProcesses($root);
+            $output = $this->runApply($root, false, [], null, 'diagnose');
+            self::assertStringContainsString('worker_discovery_stage=socket', $output);
+            self::assertStringContainsString('worker_discovery_result=unreadable', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+        } finally {
+            $this->removeTree($root);
+        }
+    }
+
+    public function testFdReadFailureIsNotNomatchAndGoneProcessIsSkipped(): void
+    {
+        $original = "memory_limit = 128M\nsession.upload_progress.enabled = 1\n";
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $this->writeProcesses($root);
+            unlink($root.'/proc/4242/fd/3');
+            file_put_contents($root.'/proc/4242/fd/3', "not-a-symlink\n");
+            $output = $this->runApply($root, false, [], null, 'diagnose');
+            self::assertStringContainsString('worker_identity=unresolved', $output);
+            self::assertStringContainsString('worker_discovery_stage=fd', $output);
+            self::assertStringContainsString('worker_discovery_result=unreadable', $output);
+            self::assertStringNotContainsString('worker_identity=none', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
+        } finally {
+            $this->removeTree($root);
+        }
+
+        $root = $this->tempRoot();
+        try {
+            $this->installStubs($root, '8.3.36', "Upgrading:\n lsphp83 x86_64 8.3.36-1.el9 litespeed\n");
+            $this->writeTree($root, $original);
+            $handler = '/usr/local/lsws/lsphp83/bin/lsphp';
+            mkdir($root.'/proc/4242/fd', 0777, true);
+            symlink($handler, $root.'/proc/4242/exe');
+            // True nomatch: handler without the Testlig kernel socket.
+            symlink('socket:[900002]', $root.'/proc/4242/fd/3');
+            file_put_contents($root.'/proc/4242/stat', "4242 (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 1000\n");
+            $output = $this->runApply($root, true, [], null, 'diagnose');
+            self::assertStringContainsString('worker_identity=none', $output);
+            self::assertStringContainsString('worker_discovery_result=empty', $output);
+            self::assertStringContainsString('package_update=not_attempted', $output);
+            self::assertStringContainsString('worker_signal=not_called', $output);
+            self::assertSame($original, (string) file_get_contents($root.'/usr/local/lsws/lsphp83/etc/php.ini'));
         } finally {
             $this->removeTree($root);
         }
@@ -1126,40 +1251,76 @@ exit 0
 BASH);
     }
 
+    /** Kernel socket inode for the Testlig UDS path in fixture /proc/net/unix. */
+    private function testligKernelInode(): string
+    {
+        return '900001';
+    }
+
+    /** Kernel socket inode for the unrelated example.net UDS path. */
+    private function exampleKernelInode(): string
+    {
+        return '900002';
+    }
+
+    /**
+     * @param list<array{0:string,1:string,2:string}> $rows flags, inode, path
+     */
+    private function writeUnixTable(string $root, array $rows): void
+    {
+        $body = "Num RefCount Protocol Flags    Type St Inode Path\n";
+        $n = 0;
+        foreach ($rows as $row) {
+            [$flags, $inode, $path] = $row;
+            $body .= \sprintf("%d: 00000002 00000000 %s 0001 01 %s %s\n", $n, $flags, $inode, $path);
+            ++$n;
+        }
+        $this->write($root.'/proc/net/unix', $body);
+    }
+
+    private function writeDefaultUnixTable(string $root): void
+    {
+        $this->writeUnixTable($root, [
+            ['00010000', $this->testligKernelInode(), '/usr/local/lsws/tmp/testlig.net.sock'],
+            ['00000000', '900099', '/usr/local/lsws/tmp/testlig.net.sock'],
+            ['00010000', $this->exampleKernelInode(), '/usr/local/lsws/tmp/example.net.sock'],
+            ['00010000', '900003', '/usr/local/lsws/tmp/testlig.net.sock.extra'],
+        ]);
+    }
+
     private function writeProcesses(string $root): void
     {
+        $inode = $this->testligKernelInode();
+        $other = $this->exampleKernelInode();
         $this->runBash(
-            <<<'BASH'
+            <<<BASH
 set -euo pipefail
-root="$1"
-sock="$root/usr/local/lsws/tmp/testlig.net.sock"
-other="$root/usr/local/lsws/tmp/example.net.sock"
-inode="$(stat -c '%i' "$sock")"
-other_inode="$(stat -c '%i' "$other")"
-[ "$inode" != "$other_inode" ]
+root="\$1"
+inode="{$inode}"
+other_inode="{$other}"
 handler="/usr/local/lsws/lsphp83/bin/lsphp"
 make_proc() {
-  pid="$1"
-  exe="$2"
-  fdtarget="$3"
-  start="$4"
-  mkdir -p "$root/proc/$pid/fd"
-  ln -s "$exe" "$root/proc/$pid/exe"
-  if [ -n "$fdtarget" ]; then
-    ln -s "$fdtarget" "$root/proc/$pid/fd/3"
+  pid="\$1"
+  exe="\$2"
+  fdtarget="\$3"
+  start="\$4"
+  mkdir -p "\$root/proc/\$pid/fd"
+  ln -s "\$exe" "\$root/proc/\$pid/exe"
+  if [ -n "\$fdtarget" ]; then
+    ln -s "\$fdtarget" "\$root/proc/\$pid/fd/3"
   fi
-  printf '%s\n' "$pid (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 $start" > "$root/proc/$pid/stat"
+  printf '%s\n' "\$pid (lsphp) S 1 1 1 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 \$start" > "\$root/proc/\$pid/stat"
 }
-make_proc 4242 "$handler" "socket:[$inode]" 1000
-make_proc 77 "/usr/local/lsws/lsphp83/bin/php" "socket:[$inode]" 1001
-make_proc 88 "$handler" "socket:[$other_inode]" 1002
-make_proc 76 "$handler" "/usr/local/lsws/tmp/testlig.net.sock" 1003
-make_proc 99 "$handler" "socket:[$other_inode]" 1004
-ln -s "$root/home/testlig.net/public_html" "$root/proc/99/cwd"
+make_proc 4242 "\$handler" "socket:[\$inode]" 1000
+make_proc 77 "/usr/local/lsws/lsphp83/bin/php" "socket:[\$inode]" 1001
+make_proc 88 "\$handler" "socket:[\$other_inode]" 1002
+make_proc 76 "\$handler" "/usr/local/lsws/tmp/testlig.net.sock" 1003
+make_proc 99 "\$handler" "socket:[\$other_inode]" 1004
+ln -s "\$root/home/testlig.net/public_html" "\$root/proc/99/cwd"
 make_proc 66 "/bin/bash" "" 1005
-ln -s "$root/home/testlig.net/public_html" "$root/proc/66/cwd"
-target="$(readlink "$root/proc/4242/fd/3")"
-[ "$target" = "socket:[$inode]" ]
+ln -s "\$root/home/testlig.net/public_html" "\$root/proc/66/cwd"
+target="\$(readlink "\$root/proc/4242/fd/3")"
+[ "\$target" = "socket:[\$inode]" ]
 BASH,
             [str_replace('\\', '/', $root)],
         );
@@ -1184,6 +1345,7 @@ CONF);
         $this->write($root.'/usr/local/lsws/tmp/testlig.net.sock', "socket\n");
         $this->write($root.'/usr/local/lsws/tmp/example.net.sock', "other\n");
         $this->write($root.'/proc/.keep', "keep\n");
+        $this->writeDefaultUnixTable($root);
         $this->write($root.'/home/testlig.net/shared/CURRENT_REVISION', $this->fixtureSha()."\n");
         $this->write($root.'/home/testlig.net/releases/'.$this->fixtureRelease().'/REVISION', $this->fixtureSha()."\n");
         $this->linkApp($root);

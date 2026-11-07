@@ -230,15 +230,109 @@ starttime_of() {
   printf '%s' "$start"
 }
 
+# Resolve the kernel socket inode for an absolute pathname via this
+# process's /proc/net/unix table (proc_pid_net(5)). Exact Path match only.
+# Prefers listening rows (Flags 00010000). Sets socket_inode on success.
+# Returns: 0 unique, 1 absent, 2 unreadable, 3 rejected/ambiguous.
+resolve_kernel_socket_inode() {
+  local want_path="$1" table line num ref proto flags type st inode path
+  local found="" listen_found="" candidate=""
+  socket_inode=""
+  table="$(host_path "/proc/net/unix")"
+  if [ ! -f "$table" ] || [ ! -r "$table" ]; then
+    return 2
+  fi
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line%$'\r'}"
+    case "$line" in
+      ''|Num*) continue ;;
+    esac
+    # Num RefCount Protocol Flags Type St Inode Path...
+    set -- $line
+    if [ "$#" -lt 7 ]; then
+      continue
+    fi
+    num="$1"
+    ref="$2"
+    proto="$3"
+    flags="$4"
+    type="$5"
+    st="$6"
+    inode="$7"
+    shift 7
+    path="$*"
+    case "$num" in
+      *:*) ;;
+      *) continue ;;
+    esac
+    if ! matches "$inode" '^[0-9]+$'; then
+      continue
+    fi
+    [ -n "$path" ] || continue
+    [ "$path" = "$want_path" ] || continue
+    if [ -z "$found" ]; then
+      found="$inode"
+    elif [ "$found" != "$inode" ]; then
+      found="ambiguous"
+    fi
+    if [ "$flags" = "00010000" ]; then
+      if [ -z "$listen_found" ]; then
+        listen_found="$inode"
+      elif [ "$listen_found" != "$inode" ]; then
+        listen_found="ambiguous"
+      fi
+    fi
+  done < "$table"
+  if [ -n "$listen_found" ] && [ "$listen_found" != "ambiguous" ]; then
+    candidate="$listen_found"
+  elif [ -n "$found" ] && [ "$found" != "ambiguous" ]; then
+    candidate="$found"
+  elif [ "$listen_found" = "ambiguous" ] || [ "$found" = "ambiguous" ]; then
+    return 3
+  else
+    return 1
+  fi
+  socket_inode="$candidate"
+  return 0
+}
+
+# Match /proc/<pid>/fd entries to a kernel socket inode from /proc/net/unix.
+# Returns: 0 match, 1 true nomatch, 2 unreadable, 3 process/fd gone.
 fd_matches_inode() {
   local pid_dir="$1" inode="$2" fd target got
-  [ -d "$pid_dir/fd" ] || return 2
-  [ -r "$pid_dir/fd" ] || return 2
+  if [ ! -d "$pid_dir" ]; then
+    return 3
+  fi
+  if [ ! -d "$pid_dir/fd" ]; then
+    if [ ! -d "$pid_dir" ]; then
+      return 3
+    fi
+    return 2
+  fi
+  if [ ! -r "$pid_dir/fd" ]; then
+    return 2
+  fi
   shopt -s nullglob
   for fd in "$pid_dir/fd"/*; do
-    [ -L "$fd" ] || [ -e "$fd" ] || continue
-    target="$(readlink "$fd" 2>/dev/null || true)"
+    if [ ! -L "$fd" ] && [ ! -e "$fd" ]; then
+      continue
+    fi
+    if ! target="$(readlink "$fd" 2>/dev/null)"; then
+      if [ ! -d "$pid_dir" ]; then
+        return 3
+      fi
+      if [ ! -e "$fd" ] && [ ! -L "$fd" ]; then
+        continue
+      fi
+      return 2
+    fi
     if [ -z "$target" ]; then
+      if [ ! -d "$pid_dir" ]; then
+        return 3
+      fi
+      if [ ! -e "$fd" ] && [ ! -L "$fd" ]; then
+        continue
+      fi
       return 2
     fi
     case "$target" in
@@ -251,6 +345,9 @@ fd_matches_inode() {
         ;;
     esac
   done
+  if [ ! -d "$pid_dir" ]; then
+    return 3
+  fi
   return 1
 }
 
@@ -285,9 +382,18 @@ discover_workers() {
     fail_discovery socket rejected
     return 1
   fi
-  socket_inode="$(tool stat -c '%i' "$socket_file" 2>/dev/null || true)"
-  if ! matches "$socket_inode" '^[0-9]+$'; then
+  resolve_kernel_socket_inode "$testlig_socket"
+  matched=$?
+  if [ "$matched" -eq 1 ]; then
+    fail_discovery socket absent
+    return 1
+  fi
+  if [ "$matched" -eq 2 ]; then
     fail_discovery socket unreadable
+    return 1
+  fi
+  if [ "$matched" -eq 3 ] || ! matches "${socket_inode:-}" '^[0-9]+$'; then
+    fail_discovery socket rejected
     return 1
   fi
   proc="$(host_path "/proc")"
@@ -301,14 +407,26 @@ discover_workers() {
     if [ ! -e "$pid_dir/exe" ] && [ ! -L "$pid_dir/exe" ]; then
       continue
     fi
-    exe="$(readlink "$pid_dir/exe" 2>/dev/null || true)"
+    if ! exe="$(readlink "$pid_dir/exe" 2>/dev/null)"; then
+      if [ ! -d "$pid_dir" ] || { [ ! -e "$pid_dir/exe" ] && [ ! -L "$pid_dir/exe" ]; }; then
+        continue
+      fi
+      fail_discovery exe unreadable
+      return 1
+    fi
     if [ -z "$exe" ]; then
+      if [ ! -d "$pid_dir" ] || { [ ! -e "$pid_dir/exe" ] && [ ! -L "$pid_dir/exe" ]; }; then
+        continue
+      fi
       fail_discovery exe unreadable
       return 1
     fi
     handler_exe_match "$exe" || continue
     fd_matches_inode "$pid_dir" "$socket_inode"
     matched=$?
+    if [ "$matched" -eq 3 ]; then
+      continue
+    fi
     if [ "$matched" -eq 2 ]; then
       fail_discovery fd unreadable
       return 1
@@ -316,6 +434,9 @@ discover_workers() {
     if [ "$matched" -eq 0 ]; then
       start="$(starttime_of "$pid_dir" || true)"
       if ! matches "${start:-}" '^[0-9]+$'; then
+        if [ ! -d "$pid_dir" ]; then
+          continue
+        fi
         fail_discovery starttime unreadable
         return 1
       fi
@@ -406,14 +527,28 @@ signal_workers() {
     if [ ! -d "$proc" ]; then
       continue
     fi
-    exe="$(readlink "$proc/exe" 2>/dev/null || true)"
+    if ! exe="$(readlink "$proc/exe" 2>/dev/null)"; then
+      if [ ! -d "$proc" ]; then
+        continue
+      fi
+      return 1
+    fi
     handler_exe_match "$exe" || continue
+    if ! worker_still_same "$pid" "$start"; then
+      continue
+    fi
     fd_matches_inode "$proc" "$socket_inode"
     matched=$?
+    if [ "$matched" -eq 3 ]; then
+      continue
+    fi
     if [ "$matched" -eq 2 ]; then
       return 1
     fi
     [ "$matched" -eq 0 ] || continue
+    if ! worker_still_same "$pid" "$start"; then
+      continue
+    fi
     case "$exe" in
       *" (deleted)") echo "worker_deleted_exe=${pid}" ;;
     esac
@@ -749,6 +884,20 @@ case "$run_mode" in
     finish_no
     ;;
 esac
+if [ "$run_mode" = "diagnose" ]; then
+  discovery_uid="$(id -ru 2>/dev/null || true)"
+  discovery_euid="$(id -u 2>/dev/null || true)"
+  if matches "$discovery_uid" '^[0-9]+$'; then
+    echo "discovery_uid=${discovery_uid}"
+  else
+    echo "discovery_uid=unknown"
+  fi
+  if matches "$discovery_euid" '^[0-9]+$'; then
+    echo "discovery_euid=${discovery_euid}"
+  else
+    echo "discovery_euid=unknown"
+  fi
+fi
 if ! matches "$workflow_sha" '^[0-9a-f]{40}$'; then
   echo "release_identity=unreadable"
   echo "package_update=not_attempted"
