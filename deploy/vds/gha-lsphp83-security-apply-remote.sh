@@ -830,9 +830,21 @@ if [ -d "$conf" ]; then
         ''|';'*|'#'*) continue ;;
       esac
       case "$trimmed" in
-        address[[:space:]]uds://*)
-          testlig_socket="${trimmed#*uds://}"
-          testlig_socket="${testlig_socket%%[[:space:]]*}"
+        address[[:space:]]*)
+          raw="${trimmed#address}"
+          raw="${raw#"${raw%%[![:space:]]*}"}"
+          case "$raw" in
+            [Uu][Dd][Ss]://*)
+              # Strip the 6-char scheme only; keep path letter case unchanged.
+              testlig_socket="${raw#??????}"
+              testlig_socket="${testlig_socket%%[[:space:]]*}"
+              # OLS UDS://tmp/... is an absolute /tmp/... path.
+              case "$testlig_socket" in
+                ''|/*) ;;
+                *) testlig_socket="/${testlig_socket}" ;;
+              esac
+              ;;
+          esac
           ;;
         docRoot[[:space:]]*)
           path="${trimmed#docRoot}"
