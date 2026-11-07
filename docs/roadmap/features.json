@@ -1353,13 +1353,15 @@
         "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz.",
         "İşçi keşfi başarısızsa worker_identity unresolved kalır ve aşama ile sonuç kodu yazılır. Hiç işçi yok yalnız keşif tamamlanıp eşleşen süreç bulunmazsa yazılır. Okunamayan executable boş keşif sayılmaz. Bu cümle yamanın uygulandığını söylemez.",
         "Aynı worker keşif fonksiyonu diagnose modunda yalnız okunur çalışır. Keşiften sonra metadata, paket, ini ve sinyal yoktur. Geçersiz mod apply açmaz. Bu cümle tanının veya yamanın çalıştırıldığını söylemez.",
-        "Manuel salt okunur production tanısı (vds-547-754, release 20261107T093532Z-3aad91088baf): release_identity=match, worker_identity=unresolved, worker_discovery_stage=socket, worker_discovery_result=absent; paket/ini/sinyal yok. Testlig vhost UDS://tmp/lshttpd/testl3865.sock ve soket dosyası mevcutken betik yalnız küçük harfli uds:// eşlediği için testlig_socket boş kaldı. Bu kayıt soket aşamasındaki parser engelidir; sonraki keşif aşamalarını veya PHP yamasını kanıtlamaz."
+        "Manuel salt okunur production tanısı (vds-547-754, release 20261107T093532Z-3aad91088baf): release_identity=match, worker_identity=unresolved, worker_discovery_stage=socket, worker_discovery_result=absent; paket/ini/sinyal yok. Testlig vhost UDS://tmp/lshttpd/testl3865.sock ve soket dosyası mevcutken betik yalnız küçük harfli uds:// eşlediği için testlig_socket boş kaldı. Bu kayıt soket aşamasındaki parser engelidir; sonraki keşif aşamalarını veya PHP yamasını kanıtlamaz.",
+        "Worker soket kimliği artık yolun dosya sistemi inode’una değil, bu sürecin /proc/net/unix tablosunda Path tam eşleşmesiyle okunan kernel socket Inode alanına bağlanır. FD eşleşmesi, gerçek nomatch, okunamama ve süreç kaybolması ayrılır. Diagnose sayısal discovery_uid/discovery_euid yazar. Bu kayıt PHP yamasını uygulanmış saymaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/156",
         "https://github.com/testligtr-collab/testlig-net/pull/157",
         "https://github.com/testligtr-collab/testlig-net/pull/199",
-        "https://github.com/testligtr-collab/testlig-net/pull/200"
+        "https://github.com/testligtr-collab/testlig-net/pull/200",
+        "https://github.com/testligtr-collab/testlig-net/pull/201"
       ],
       "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web upload_progress unknown kalır. İşçi exe ve Composer sürümü ancak o anahtarlar çalışan bir envanterde görünürse ölçülmüş sayılır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null
