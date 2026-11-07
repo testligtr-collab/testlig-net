@@ -1350,11 +1350,14 @@
         "lsphp83 güvenlik uygulama aracı ayrı manuel dispatch olarak hazırdır ve boş onay SSH açmaz. Yamalı paket varsa yalnız lsphp83 ailesini günceller, ana php.ini içinde session.upload_progress.enabled=0 yazar ve yalnız bu LSAPI işçilerini yeniler. Diğer PHP dalları değişmez. Bu cümle o aracı çalıştırılmış saymaz.",
         "Aynı araç yedek ve atomik ini değişimini, aday sürüme bağlı paket doğrulamasını ve kimliği belirli worker yenilemesini kontrol eder. Bu cümle aracı çalıştırılmış saymaz.",
         "8.3.36 veya daha yeni LiteSpeed adayı, changelog içinde CVE adları olmasa da yama adayıdır. Daha eski aday yalnız iki CVE adını taşıyan sağlayıcı changelog kanıtıyla kabul edilir. Aday veya işlem önizlemesi doğrulanmazsa ini, paket ve worker sinyali yoktur ve çıkış başarısızdır. Etkin litespeed repositinde paket gpgcheck kapalı, anahtar belirsiz veya kurulu RPM anahtarı yoksa değişiklikten önce durulur. Resmî anahtar parmak izleri RPM-GPG-KEY-litespeed ve RPM-GPG-KEY-litespeed2025 dosyalarından hesaplandı. Repo metadata imzası paket imzasından ayrı raporlanır. Bu cümle aracı çalıştırılmış saymaz.",
-        "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz."
+        "Release kimliği workflow SHA değeri, app symlink hedefindeki REVISION ve shared/CURRENT_REVISION karşılaştırmasından gelir. Release adı mevcut symlink’ten çözülür. Worker kimliği Unix soket inode’u ile okunur. Okunamayan keşif none_running sayılmaz ve paket ile ini değişiminden önce durur. Bu cümle aracı çalıştırılmış saymaz.",
+        "İşçi keşfi başarısızsa worker_identity unresolved kalır ve aşama ile sonuç kodu yazılır. Hiç işçi yok yalnız keşif tamamlanıp eşleşen süreç bulunmazsa yazılır. Okunamayan executable boş keşif sayılmaz. Bu cümle yamanın uygulandığını söylemez.",
+        "Aynı worker keşif fonksiyonu diagnose modunda yalnız okunur çalışır. Keşiften sonra metadata, paket, ini ve sinyal yoktur. Geçersiz mod apply açmaz. Bu cümle tanının veya yamanın çalıştırıldığını söylemez."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/156",
-        "https://github.com/testligtr-collab/testlig-net/pull/157"
+        "https://github.com/testligtr-collab/testlig-net/pull/157",
+        "https://github.com/testligtr-collab/testlig-net/pull/199"
       ],
       "acceptance": "Tek manuel SSH oturumu lsphp paketlerini, etkin handler kaydını, CLI upload_progress değerini ve depo önbelleğindeki lsphp83 güvenlik güncellemesini allowlisted anahtarlarla raporlar. Web upload_progress unknown kalır. İşçi exe ve Composer sürümü ancak o anahtarlar çalışan bir envanterde görünürse ölçülmüş sayılır. Ayar, paket ve servis değişmez. Çalıştırılmamış araç production kabulü değildir.",
       "scope_decision": null

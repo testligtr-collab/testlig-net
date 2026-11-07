@@ -182,7 +182,8 @@ final class VdsSshWorkflowGuardTest extends TestCase
         ];
         foreach ($ops as $relative) {
             $text = $this->read($relative);
-            self::assertSame(1, $this->commandCount($text, 'ssh'), $relative);
+            $expectedSsh = '.github/workflows/ops-lsphp83-security-apply.yml' === $relative ? 2 : 1;
+            self::assertSame($expectedSsh, $this->commandCount($text, 'ssh'), $relative);
             self::assertSame(0, $this->commandCount($text, 'scp'), $relative);
             self::assertStringContainsString('ssh testlig-vds', $text, $relative);
             self::assertStringContainsString('gha-ssh-close-master.sh', $text, $relative);
@@ -192,6 +193,14 @@ final class VdsSshWorkflowGuardTest extends TestCase
                 $relative,
             );
         }
+
+        $lsphp83 = $this->read('.github/workflows/ops-lsphp83-security-apply.yml');
+        self::assertStringContainsString("github.event.inputs.mode == 'diagnose'", $lsphp83);
+        self::assertStringContainsString("github.event.inputs.mode == 'apply'", $lsphp83);
+        self::assertStringContainsString('apply-lsphp83-php2shell-mitigation', $lsphp83);
+        self::assertSame(2, substr_count($lsphp83, 'group: testlig-vds-ssh'));
+        self::assertStringContainsString(' diagnose" < deploy/vds/gha-lsphp83-security-apply-remote.sh', $lsphp83);
+        self::assertStringContainsString(' apply" < deploy/vds/gha-lsphp83-security-apply-remote.sh', $lsphp83);
 
         $bootstrap = $this->read('.github/workflows/ops-superadmin-bootstrap.yml');
         self::assertStringContainsString('install-helper', $bootstrap);
