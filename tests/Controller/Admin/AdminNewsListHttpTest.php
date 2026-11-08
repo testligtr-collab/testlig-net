@@ -84,8 +84,8 @@ final class AdminNewsListHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Haber taslaklarını ve yayın durumlarını yönetin.');
         self::assertSelectorExists('a[href="/yonetim/haberler/yeni"]');
         self::assertSelectorTextContains('a[href="/yonetim/haberler/yeni"]', 'Yeni haber');
-        self::assertSelectorTextContains('h2', 'Haber listesi');
-        self::assertSelectorTextContains('h2', 'Kategoriler');
+        self::assertSelectorTextContains('#news-list-heading', 'Haber listesi');
+        self::assertSelectorTextContains('#news-categories-title', 'Kategoriler');
         self::assertSelectorTextContains('body', 'Taslak');
         self::assertSelectorTextContains('body', 'İncelemede');
         self::assertSelectorTextContains('body', 'Yayında');
@@ -198,42 +198,45 @@ final class AdminNewsListHttpTest extends WebTestCase
         $author = $this->reloadUser('news_list_n1@example.com');
         $news = $this->newsManager();
         $category = $news->createCategory($author, 'Sayim');
+        $categoryId = $category->getId();
         for ($i = 0; $i < 3; ++$i) {
             $news->createDraft(
                 $author,
                 'Kucuk haber '.$i,
                 'Kucuk ozet '.$i.' burada durur.',
                 'Kucuk govde '.$i.' burada durur.',
-                $category->getId(),
+                $categoryId,
             );
         }
 
         $client = $this->browser();
         $this->submitLogin($client, 'news_list_n1@example.com');
-        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
-        self::assertInstanceOf(DebugDataHolder::class, $holder);
-        $client->request('GET', '/yonetim/haberler'); // warm-up
-        self::assertResponseIsSuccessful();
-        $holder->reset();
-        $client->request('GET', '/yonetim/haberler');
-        self::assertResponseIsSuccessful();
-        $small = $this->recordedStatements($holder);
-
+        $small = $this->listStatementCount($client);
+        $author = $this->reloadUser('news_list_n1@example.com');
+        $news = $this->newsManager();
         for ($i = 3; $i < 8; ++$i) {
             $news->createDraft(
                 $author,
                 'Buyuk haber '.$i,
                 'Buyuk ozet '.$i.' burada durur.',
                 'Buyuk govde '.$i.' burada durur.',
-                $category->getId(),
+                $categoryId,
             );
         }
+        $large = $this->listStatementCount($client);
+        self::assertGreaterThan(0, $small);
+        self::assertSame($small, $large, 'News list SQL must not grow with rows (no N+1).');
+    }
+
+    private function listStatementCount(KernelBrowser $client): int
+    {
+        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
         $holder->reset();
         $client->request('GET', '/yonetim/haberler');
         self::assertResponseIsSuccessful();
-        $large = $this->recordedStatements($holder);
-        self::assertGreaterThan(0, $small);
-        self::assertSame($small, $large, 'News list SQL must not grow with rows (no N+1).');
+
+        return $this->recordedStatements($holder);
     }
 
     public function testKeyboardFocusTargetsExistOnList(): void
@@ -263,12 +266,9 @@ final class AdminNewsListHttpTest extends WebTestCase
     {
         $count = 0;
         foreach ($holder->getData() as $queries) {
-            if (!\is_array($queries)) {
-                continue;
-            }
             foreach ($queries as $item) {
-                $sql = \is_array($item) ? ($item['sql'] ?? null) : null;
-                if (\is_string($sql) && '' !== $sql) {
+                $sql = $item['sql'] ?? null;
+                if (\is_string($sql) && '' !== trim($sql)) {
                     ++$count;
                 }
             }
