@@ -76,7 +76,7 @@ test('admin news list layout, statuses, empty, long text, and category errors', 
     await page.goto('/yonetim/haberler');
     await expect(page.getByRole('heading', { level: 2, name: 'Haber listesi' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Kategoriler' })).toBeVisible();
-    await expect(page.getByText('Ornek haber basligi').first()).toBeVisible();
+    await expect(page.getByText('Ornek haber basligi').filter({ visible: true }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Taslak' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'İncelemede' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Yayında' }).first()).toBeVisible();
