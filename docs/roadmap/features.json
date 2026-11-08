@@ -1020,7 +1020,8 @@
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
         "https://github.com/testligtr-collab/testlig-net/pull/152",
-        "https://github.com/testligtr-collab/testlig-net/pull/202"
+        "https://github.com/testligtr-collab/testlig-net/pull/202",
+        "https://github.com/testligtr-collab/testlig-net/pull/203"
       ],
       "acceptance": "Yönetici haber taslağı oluşturur ve başka bir yönetici yayımlar. Taslak anonim kullanıcıya ve ana sayfaya çıkmaz. Haber görseli ve production kabulü açık kalır.",
       "scope_decision": null
@@ -1336,7 +1337,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/186",
         "https://github.com/testligtr-collab/testlig-net/pull/188",
         "https://github.com/testligtr-collab/testlig-net/pull/189",
-        "https://github.com/testligtr-collab/testlig-net/pull/202"
+        "https://github.com/testligtr-collab/testlig-net/pull/202",
+        "https://github.com/testligtr-collab/testlig-net/pull/203"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Test önizlemesi ekran görüntüsü production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz. X10 tamamlanmış sayılmaz.",
       "scope_decision": null
