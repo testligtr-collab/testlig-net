@@ -15,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 final class AdminNewsFormHttpTest extends WebTestCase
 {
@@ -333,9 +334,9 @@ final class AdminNewsFormHttpTest extends WebTestCase
     private function csrfFor(KernelBrowser $client, string $tokenId): string
     {
         $tokens = $client->getContainer()->get('security.csrf.token_manager');
-        self::assertTrue(\is_object($tokens) && method_exists($tokens, 'getToken'));
+        self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
 
-        return (string) $tokens->getToken($tokenId)->getValue();
+        return $tokens->getToken($tokenId)->getValue();
     }
 
     private function auditCount(): int

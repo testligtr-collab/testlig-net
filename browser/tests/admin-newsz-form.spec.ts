@@ -111,6 +111,18 @@ test('admin news create and edit form layout, errors, and long text', async ({ p
   await expect(page.locator('label[for="news-category"]')).toBeVisible();
   await expect(page.locator('label[for="news-body"]')).toBeVisible();
 
+  const notes = (page as Page & { __notes?: string[] }).__notes ?? [];
+  let ignoredValidationResponses = 0;
+  (page as Page & { __notes?: string[] }).__notes = notes.filter((note) => {
+    if (ignoredValidationResponses < 4 && note.includes('status of 422')) {
+      ignoredValidationResponses += 1;
+
+      return false;
+    }
+
+    return true;
+  });
+  expect(ignoredValidationResponses).toBe(4);
   await assertClean(page);
 });
 
