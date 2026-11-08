@@ -14,6 +14,7 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
@@ -47,7 +48,7 @@ final class AdminNewsFormHttpTest extends WebTestCase
         self::assertSelectorExists('label[for="news-summary"]');
         self::assertSelectorExists('label[for="news-category"]');
         self::assertSelectorExists('label[for="news-body"]');
-        self::assertSelectorTextContains('button[type="submit"]', 'Taslağı kaydet');
+        self::assertSelectorTextContains('.admin-news-article-form button[type="submit"]', 'Taslağı kaydet');
         self::assertSame($auditsBefore, $this->auditCount());
         self::assertSame($articlesBefore, $this->tableCount('news_articles'));
 
@@ -59,7 +60,7 @@ final class AdminNewsFormHttpTest extends WebTestCase
         self::assertSame('Duzenlenecek ozet burada durur.', $client->getCrawler()->filter('#news-summary')->attr('value'));
         self::assertSelectorTextContains('#news-body', 'Duzenlenecek govde burada durur.');
         self::assertSame($category->getId()->toRfc4122(), $client->getCrawler()->filter('#news-category option[selected]')->attr('value'));
-        self::assertSelectorTextContains('button[type="submit"]', 'Taslağı güncelle');
+        self::assertSelectorTextContains('.admin-news-article-form button[type="submit"]', 'Taslağı güncelle');
         self::assertSame($auditsBefore, $this->auditCount());
         self::assertSame($articlesBefore, $this->tableCount('news_articles'));
     }
@@ -166,12 +167,14 @@ final class AdminNewsFormHttpTest extends WebTestCase
         $articlesBefore = $this->tableCount('news_articles');
         $auditsBefore = $this->auditCount();
         $client->request('GET', '/yonetim/haberler/yeni');
-        $client->submit($client->getCrawler()->selectButton('Taslağı kaydet')->form([
+        $form = $client->getCrawler()->selectButton('Taslağı kaydet')->form();
+        $form->disableValidation();
+        $client->submit($form, [
             'title' => 'Korunan baslik',
             'summary' => 'Korunan ozet burada.',
             'body' => 'Korunan govde <b>etiket</b> tasir ve kaydedilmez.',
             'category_id' => '00000000-0000-4000-8000-000000000099',
-        ]));
+        ]);
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertSelectorTextContains('body', 'HTML kullanılamaz.');
         self::assertSame('Korunan baslik', $client->getCrawler()->filter('#news-title')->attr('value'));
@@ -217,12 +220,14 @@ final class AdminNewsFormHttpTest extends WebTestCase
         $client->request('GET', '/yonetim/haberler/'.$id.'/duzenle');
         $articlesBefore = $this->tableCount('news_articles');
         $auditsBefore = $this->auditCount();
-        $client->submit($client->getCrawler()->selectButton('Taslağı güncelle')->form([
+        $form = $client->getCrawler()->selectButton('Taslağı güncelle')->form();
+        $form->disableValidation();
+        $client->submit($form, [
             'title' => 'Hatali guncelleme',
             'summary' => 'Hatali ozet burada.',
             'body' => 'Hatali govde <script>alert(1)</script> tasir.',
             'category_id' => 'not-a-uuid',
-        ]));
+        ]);
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
         self::assertSelectorTextContains('h1', 'Haberi düzenle');
         self::assertSame('Hatali guncelleme', $client->getCrawler()->filter('#news-title')->attr('value'));
@@ -333,10 +338,20 @@ final class AdminNewsFormHttpTest extends WebTestCase
 
     private function csrfFor(KernelBrowser $client, string $tokenId): string
     {
-        $tokens = $client->getContainer()->get('security.csrf.token_manager');
-        self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
+        $session = $client->getRequest()->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $stack->push($client->getRequest());
+        try {
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
+            self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
+            $token = $tokens->getToken($tokenId)->getValue();
+        } finally {
+            $stack->pop();
+        }
+        $session->save();
 
-        return $tokens->getToken($tokenId)->getValue();
+        return $token;
     }
 
     private function auditCount(): int
