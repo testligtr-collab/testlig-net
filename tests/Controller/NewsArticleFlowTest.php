@@ -171,7 +171,7 @@ final class NewsArticleFlowTest extends WebTestCase
 
         $editor = $this->browser();
         $this->submitLogin($editor, 'news_flow_sep_b@example.com');
-        $editor->request('GET', $path);
+        $editor->request('GET', $path.'/duzenle');
         $editor->submit($editor->getCrawler()->selectButton('Taslağı güncelle')->form([
             'title' => 'B Duzenledi Baslik',
             'summary' => 'Son duzenleyen bu ozeti yazdi.',

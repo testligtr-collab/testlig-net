@@ -5638,3 +5638,111 @@ body.is-admin-panel {
     }
 }
 
+.is-admin-panel .admin-news-form-page .admin-news-back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #1f6499;
+    font-weight: 650;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-card,
+.is-admin-panel .admin-news-form-page .admin-news-form-aside {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-card h2,
+.is-admin-panel .admin-news-form-page .admin-news-form-aside h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-form-page .admin-news-article-form {
+    display: grid;
+    gap: 0.85rem;
+}
+.is-admin-panel .admin-news-form-page .admin-news-field {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-news-form-page .admin-news-field label {
+    color: #16324f;
+    font-weight: 650;
+}
+.is-admin-panel .admin-news-form-page .admin-news-field input,
+.is-admin-panel .admin-news-form-page .admin-news-field select,
+.is-admin-panel .admin-news-form-page .admin-news-field textarea {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-form-page .admin-news-field textarea {
+    min-height: 12rem;
+    resize: vertical;
+}
+.is-admin-panel .admin-news-form-page .admin-news-field__help {
+    margin: 0;
+    color: #52667d;
+    font-size: 0.9rem;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.35rem;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-actions .btn {
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-aside__list {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: #52667d;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-aside__list li {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-form-page .admin-news-form-aside__list strong {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: #16324f;
+}
+.is-admin-panel .admin-news-form-page .admin-breadcrumb span,
+.is-admin-panel .admin-news-form-page .admin-breadcrumb a {
+    overflow-wrap: anywhere;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-news-form-page .admin-news-form-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-news-form-page .admin-news-head {
+        flex-direction: column;
+    }
+    .is-admin-panel .admin-news-form-page .admin-news-head .admin-news-back {
+        width: 100%;
+        justify-content: center;
+    }
+    .is-admin-panel .admin-news-form-page .admin-news-form-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+

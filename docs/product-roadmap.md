@@ -157,7 +157,7 @@ Kalite/backup/gizlilik/performans işleri sona bırakılmaz: her paketin teslim 
 
 ## 7. Mevcut açık kabul ve korunacak kayıtlar
 
-- Aktif uygulama işi X01-homework (taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda; dosya/veli/bildirim ve canlı kabul açık). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). 2026-11-08 kullanıcı kararı: Haberler listesi görsel dilimi, `active_feature_ids` X01 iken açıkça yetkilendirilmiş dar Admin UI işidir; X01 ürün kapsamına dönülmez ve X10/M27 completed yapılmaz. M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
+- Aktif uygulama işi X01-homework (taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda; dosya/veli/bildirim ve canlı kabul açık). X10-admin-navigation partial olarak korunur (tamamlandı veya kapsam dışı anlamına gelmez). 2026-11-08 kullanıcı kararı: Haberler listesi ve ardından haber oluşturma/düzenleme formu görsel dilimleri, `active_feature_ids` X01 iken açıkça yetkilendirilmiş dar Admin UI işidir; X01 ürün kapsamına dönülmez ve X10/M27 completed yapılmaz. Haber detayı sonraki dilimdir. M18-cloud-storage partial kalır. PR #149 bu işe eklenmez ve incelemede ayrı durur.
 
 - MAT.1.3.3 çözme/sonuç/geçmiş ve dört yayın audit olayı önceki production gözlemlerinde kaydedildi; burada yeniden çalıştırılmadı. Import/apply/yayın/attempt tekrar edilmez.
 - Production 390 ve 768 px kabulü hâlâ açık; sentetik CI tarayıcı sonucu bunu kapatmaz.

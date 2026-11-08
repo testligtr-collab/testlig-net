@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\NewsArticle;
+use App\Enum\NewsArticleStatus;
+use App\Enum\NewsFailureReason;
 use App\Exception\NewsArticleException;
 use App\Repository\NewsArticleRepository;
 use App\Repository\NewsCategoryRepository;
@@ -84,8 +86,26 @@ final class AdminNewsController extends AdminBaseController
         } catch (NewsArticleException $e) {
             $this->addFlash('error', $e->getMessage());
 
-            return $this->renderForm(null, $title, $summary, $body, $categoryId, Response::HTTP_UNPROCESSABLE_ENTITY);
+            return $this->renderForm(null, $title, $summary, $body, $this->safeCategoryId($categoryId), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
+    }
+
+    #[Route('/{id}/duzenle', name: 'app_admin_news_edit', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
+    #[IsGranted(AdminPermission::ADMIN_NEWS_MANAGE)]
+    public function edit(string $id): Response
+    {
+        $article = $this->article($id);
+        if (NewsArticleStatus::Draft !== $article->getStatus()) {
+            throw $this->createNotFoundException();
+        }
+
+        return $this->renderForm(
+            $article,
+            $article->getTitle(),
+            $article->getSummary(),
+            $article->getBody(),
+            $article->getCategory()?->getId()->toRfc4122() ?? '',
+        );
     }
 
     #[Route('/{id}', name: 'app_admin_news_show', methods: ['GET'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -101,21 +121,30 @@ final class AdminNewsController extends AdminBaseController
     {
         $this->assertCsrf($request, 'news_article_'.$id);
         $article = $this->article($id);
+        $title = $request->request->getString('title');
+        $summary = $request->request->getString('summary');
+        $body = $request->request->getString('body');
+        $categoryId = $request->request->getString('category_id');
         try {
             $this->news->updateDraft(
                 $this->requireActorUser(),
                 $article,
-                $request->request->getString('title'),
-                $request->request->getString('summary'),
-                $request->request->getString('body'),
-                $this->categoryUuid($request->request->getString('category_id')),
+                $title,
+                $summary,
+                $body,
+                $this->categoryUuid($categoryId),
             );
             $this->addFlash('success', 'Taslak güncellendi.');
+
+            return $this->redirectToRoute('app_admin_news_show', ['id' => $id]);
         } catch (NewsArticleException $e) {
             $this->addFlash('error', $e->getMessage());
-        }
+            if (\in_array($e->getReason(), [NewsFailureReason::InvalidInput, NewsFailureReason::NotFound], true)) {
+                return $this->renderForm($article, $title, $summary, $body, $this->safeCategoryId($categoryId), Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
-        return $this->redirectToRoute('app_admin_news_show', ['id' => $id]);
+            return $this->redirectToRoute('app_admin_news_show', ['id' => $id]);
+        }
     }
 
     #[Route('/{id}/incelemeye', name: 'app_admin_news_submit', methods: ['POST'], requirements: ['id' => '[0-9a-fA-F-]{36}'])]
@@ -188,6 +217,16 @@ final class AdminNewsController extends AdminBaseController
         return Uuid::fromString($raw);
     }
 
+    private function safeCategoryId(string $raw): string
+    {
+        if ('' === $raw || !Uuid::isValid($raw)) {
+            return '';
+        }
+        $category = $this->categories->findOneById(Uuid::fromString($raw));
+
+        return null === $category ? '' : $raw;
+    }
+
     private function assertCsrf(Request $request, string $tokenId): void
     {
         $this->requireCsrfTokenPresent($request->request->all());
@@ -214,7 +253,6 @@ final class AdminNewsController extends AdminBaseController
 
         return $this->renderAdmin('admin/news/show.html.twig', [
             'article' => $article,
-            'categories' => $this->categories->findAllOrdered(),
             'can_publish' => $canPublish,
         ]);
     }

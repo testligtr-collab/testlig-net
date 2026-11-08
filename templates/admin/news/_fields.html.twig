@@ -1,25 +1,39 @@
-<form class="admin-form" method="post" action="{{ action }}">
+<form class="admin-form admin-news-article-form" method="post" action="{{ action }}" novalidate>
     <input type="hidden" name="_token" value="{{ csrf_token(token_id) }}">
-    <label>
-        <span>Başlık</span>
-        <input type="text" name="title" value="{{ title_value }}" required maxlength="180" autocomplete="off">
-    </label>
-    <label>
-        <span>Özet</span>
-        <input type="text" name="summary" value="{{ summary_value }}" required maxlength="500" autocomplete="off">
-    </label>
-    <label>
-        <span>Kategori</span>
-        <select name="category_id">
+
+    <div class="admin-news-field">
+        <label for="news-title">Başlık</label>
+        <input id="news-title" type="text" name="title" value="{{ title_value }}" required maxlength="180" autocomplete="off" aria-describedby="news-title-help">
+        <p id="news-title-help" class="admin-news-field__help">3–180 karakter. Düz metin.</p>
+    </div>
+
+    <div class="admin-news-field">
+        <label for="news-summary">Özet</label>
+        <input id="news-summary" type="text" name="summary" value="{{ summary_value }}" required maxlength="500" autocomplete="off" aria-describedby="news-summary-help">
+        <p id="news-summary-help" class="admin-news-field__help">10–500 karakter. Liste ve özetlerde görünür.</p>
+    </div>
+
+    <div class="admin-news-field">
+        <label for="news-category">Kategori</label>
+        <select id="news-category" name="category_id" aria-describedby="news-category-help">
             <option value="">Kategori yok</option>
             {% for category in categories %}
                 <option value="{{ category.id.toRfc4122 }}"{% if category_id == category.id.toRfc4122 %} selected{% endif %}>{{ category.name }}</option>
             {% endfor %}
         </select>
-    </label>
-    <label>
-        <span>Metin</span>
-        <textarea name="body" required maxlength="20000" rows="10">{{ body_value }}</textarea>
-    </label>
-    <button type="submit" class="btn btn--primary">{{ submit_label }}</button>
+        <p id="news-category-help" class="admin-news-field__help">Yayımlamada kategori gerekir. Buradan yeni kategori eklenmez.</p>
+    </div>
+
+    <div class="admin-news-field">
+        <label for="news-body">Metin</label>
+        <textarea id="news-body" name="body" required maxlength="20000" rows="12" aria-describedby="news-body-help">{{ body_value }}</textarea>
+        <p id="news-body-help" class="admin-news-field__help">20–20.000 karakter. Düz metin; HTML yok.</p>
+    </div>
+
+    <div class="admin-news-form-actions">
+        <button type="submit" class="btn admin-news-primary">{{ submit_label }}</button>
+        {% if cancel_href is defined and cancel_href %}
+            <a class="btn btn--ghost" href="{{ cancel_href }}">{{ cancel_label|default('İptal') }}</a>
+        {% endif %}
+    </div>
 </form>

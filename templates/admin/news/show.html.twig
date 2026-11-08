@@ -14,18 +14,16 @@
     <p>{{ article.status.labelTr }}{% if article.category %} · {{ article.category.name }}{% endif %}</p>
 
     {% if article.status.value == 'draft' %}
-        {% include 'admin/news/_fields.html.twig' with {
-            action: path('app_admin_news_update', {id: article.id.toRfc4122}),
-            token_id: 'news_article_' ~ article.id.toRfc4122,
-            title_value: article.title,
-            summary_value: article.summary,
-            body_value: article.body,
-            category_id: article.category ? article.category.id.toRfc4122 : '',
-            submit_label: 'Taslağı güncelle'
-        } %}
+        <p class="admin-actions">
+            <a class="btn btn--primary" href="{{ path('app_admin_news_edit', {id: article.id.toRfc4122}) }}">Haberi düzenle</a>
+        </p>
         <form class="admin-actions" method="post" action="{{ path('app_admin_news_submit', {id: article.id.toRfc4122}) }}">
             <input type="hidden" name="_token" value="{{ csrf_token('news_submit_' ~ article.id.toRfc4122) }}">
             <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
+        </form>
+        <form class="admin-actions" method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
+            <button type="submit" class="btn btn--ghost">Arşivle</button>
         </form>
     {% endif %}
 
@@ -63,12 +61,5 @@
 
     {% if article.status.value == 'archived' %}
         <p>Bu haber arşivde. Sitede görünmez.</p>
-    {% endif %}
-
-    {% if article.status.value == 'draft' %}
-        <form class="admin-actions" method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
-            <button type="submit" class="btn btn--ghost">Arşivle</button>
-        </form>
     {% endif %}
 {% endblock %}

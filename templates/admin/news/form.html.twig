@@ -1,24 +1,69 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Yeni haber — Testlig{% endblock %}
+{% set is_edit = article is not null %}
+{% set page_title = is_edit ? 'Haberi düzenle' : 'Yeni haber' %}
+{% set crumb_current = is_edit ? 'Düzenle' : 'Yeni' %}
+{% set form_action = is_edit
+    ? path('app_admin_news_update', {id: article.id.toRfc4122})
+    : path('app_admin_news_create') %}
+{% set token_id = is_edit ? 'news_article_' ~ article.id.toRfc4122 : 'news_article' %}
+{% set submit_label = is_edit ? 'Taslağı güncelle' : 'Taslağı kaydet' %}
+{% set back_href = is_edit
+    ? path('app_admin_news_show', {id: article.id.toRfc4122})
+    : path('app_admin_news') %}
+{% set back_label = is_edit ? 'Habere dön' : 'Listeye dön' %}
+
+{% block title %}{{ page_title }} — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        {% include 'admin/_crumb_root.html.twig' %}
-        <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_news') }}">Haberler</a>
-        <span aria-hidden="true">/</span>
-        <span>Yeni</span>
-    </nav>
-    <h1 class="panel-greeting">Yeni haber</h1>
-    <p class="muted">Kayıt taslak olarak kalır. HTML etiketleri kabul edilmez.</p>
-    {% include 'admin/news/_fields.html.twig' with {
-        action: path('app_admin_news_create'),
-        token_id: 'news_article',
-        title_value: title_value,
-        summary_value: summary_value,
-        body_value: body_value,
-        category_id: category_id,
-        submit_label: 'Taslağı kaydet'
-    } %}
+    <div class="admin-news-page admin-news-form-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <a href="{{ path('app_admin_news') }}">Haberler</a>
+            {% if is_edit %}
+                <span aria-hidden="true">/</span>
+                <a href="{{ path('app_admin_news_show', {id: article.id.toRfc4122}) }}">{{ article.title }}</a>
+            {% endif %}
+            <span aria-hidden="true">/</span>
+            <span>{{ crumb_current }}</span>
+        </nav>
+
+        <header class="admin-user-head admin-news-head">
+            <div>
+                <h1 class="panel-greeting">{{ page_title }}</h1>
+                <p>{% if is_edit %}Taslak alanlarını güncelleyin. HTML etiketleri kabul edilmez.{% else %}Kayıt taslak olarak kalır. HTML etiketleri kabul edilmez.{% endif %}</p>
+            </div>
+            <a class="btn btn--ghost admin-news-back" href="{{ back_href }}"><span aria-hidden="true">← </span>{{ back_label }}</a>
+        </header>
+
+        <div class="admin-news-form-layout">
+            <section class="admin-news-form-card" aria-labelledby="news-form-fields-heading">
+                <h2 id="news-form-fields-heading">Haber içeriği</h2>
+                {% include 'admin/news/_fields.html.twig' with {
+                    action: form_action,
+                    token_id: token_id,
+                    title_value: title_value,
+                    summary_value: summary_value,
+                    body_value: body_value,
+                    category_id: category_id,
+                    submit_label: submit_label,
+                    cancel_href: back_href,
+                    cancel_label: 'İptal'
+                } %}
+            </section>
+
+            <aside class="admin-news-form-aside" aria-labelledby="news-form-help-heading">
+                <h2 id="news-form-help-heading">Kısa yardım</h2>
+                <ul class="admin-news-form-aside__list">
+                    <li><strong>Taslak kalır</strong> Bu form yayına almaz. Yayın ve inceleme ayrı adımlardır.</li>
+                    <li><strong>Düz metin</strong> Başlık, özet ve gövde HTML etiketleri kabul etmez.</li>
+                    <li><strong>Kategori</strong> İsteğe bağlıdır. Yeni kategori bu formdan eklenmez; listeden seçilir.</li>
+                    {% if is_edit %}
+                        <li><strong>Durum</strong> {{ article.status.labelTr }}</li>
+                    {% endif %}
+                </ul>
+            </aside>
+        </div>
+    </div>
 {% endblock %}
