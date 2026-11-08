@@ -77,10 +77,10 @@ test('admin news list layout, statuses, empty, long text, and category errors', 
     await expect(page.getByRole('heading', { level: 2, name: 'Haber listesi' })).toBeVisible();
     await expect(page.getByRole('heading', { level: 2, name: 'Kategoriler' })).toBeVisible();
     await expect(page.getByText('Ornek haber basligi').first()).toBeVisible();
-    await expect(page.getByText('Taslak').first()).toBeVisible();
-    await expect(page.getByText('İncelemede').first()).toBeVisible();
-    await expect(page.getByText('Yayında').first()).toBeVisible();
-    await expect(page.getByText('Arşivlenmiş').first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Taslak' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'İncelemede' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Yayında' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Arşivlenmiş' }).first()).toBeVisible();
     await expect(page.getByText(longTitle).first()).toBeVisible();
     await expect(page.getByText(longCategory).first()).toBeVisible();
     await expect(page.getByText('Uzun ozet metni listeye basilmaz.')).toHaveCount(0);

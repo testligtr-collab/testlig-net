@@ -697,7 +697,7 @@ test('news drafts stay on the admin screen', async ({ browser }, info) => {
   await adminPage.setViewportSize({ width: 1280, height: 900 });
   await adminPage.goto('/yonetim/haberler');
   await adminPage.getByLabel('Kategori adı').fill('Tarayici Kategori');
-  await adminPage.getByRole('button', { name: 'Kategoriyi kaydet' }).click();
+  await adminPage.getByRole('button', { name: 'Kategori ekle' }).click();
   await expect(adminPage.getByText('Tarayici Kategori')).toBeVisible();
   await adminPage.goto('/yonetim/haberler/yeni');
   await adminPage.getByLabel('Başlık').fill('Tarayici Taslak Haber');
