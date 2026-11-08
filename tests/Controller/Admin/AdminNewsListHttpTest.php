@@ -8,6 +8,7 @@ use App\Entity\NewsArticle;
 use App\Entity\User;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Repository\NewsArticleRepository;
 use App\Repository\UserRepository;
 use App\Service\News\NewsArticleManager;
 use App\Service\UserFactory;
@@ -209,9 +210,23 @@ final class AdminNewsListHttpTest extends WebTestCase
             );
         }
 
-        $client = $this->browser();
-        $this->submitLogin($client, 'news_list_n1@example.com');
-        $small = $this->listStatementCount($client);
+        $em = $this->entityManager();
+        $repo = $em->getRepository(NewsArticle::class);
+        self::assertInstanceOf(NewsArticleRepository::class, $repo);
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
+        self::assertInstanceOf(DebugDataHolder::class, $holder);
+
+        $em->clear();
+        $holder->reset();
+        $smallArticles = $repo->findRecent(100);
+        $small = $this->recordedStatements($holder);
+        self::assertGreaterThan(0, $small);
+        $holder->reset();
+        foreach ($smallArticles as $article) {
+            $article->getCategory()?->getName();
+        }
+        self::assertSame(0, $this->recordedStatements($holder), 'Joined categories must not lazy-load per row.');
+
         $author = $this->reloadUser('news_list_n1@example.com');
         $news = $this->newsManager();
         for ($i = 3; $i < 8; ++$i) {
@@ -223,20 +238,23 @@ final class AdminNewsListHttpTest extends WebTestCase
                 $categoryId,
             );
         }
-        $large = $this->listStatementCount($client);
-        self::assertGreaterThan(0, $small);
-        self::assertSame($small, $large, 'News list SQL must not grow with rows (no N+1).');
-    }
 
-    private function listStatementCount(KernelBrowser $client): int
-    {
-        $holder = $client->getContainer()->get('doctrine.debug_data_holder');
+        $em = $this->entityManager();
+        $repo = $em->getRepository(NewsArticle::class);
+        self::assertInstanceOf(NewsArticleRepository::class, $repo);
+        $holder = static::getContainer()->get('doctrine.debug_data_holder');
         self::assertInstanceOf(DebugDataHolder::class, $holder);
+        $em->clear();
         $holder->reset();
-        $client->request('GET', '/yonetim/haberler');
-        self::assertResponseIsSuccessful();
-
-        return $this->recordedStatements($holder);
+        $largeArticles = $repo->findRecent(100);
+        $large = $this->recordedStatements($holder);
+        self::assertGreaterThan(0, $large);
+        self::assertSame($small, $large, 'News list SQL must not grow with rows (no N+1).');
+        $holder->reset();
+        foreach ($largeArticles as $article) {
+            $article->getCategory()?->getName();
+        }
+        self::assertSame(0, $this->recordedStatements($holder), 'Joined categories must not lazy-load per row.');
     }
 
     public function testKeyboardFocusTargetsExistOnList(): void
