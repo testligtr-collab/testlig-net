@@ -5463,3 +5463,178 @@ body.is-admin-panel {
     }
 }
 
+.is-admin-panel .admin-news-page .admin-news-head p {
+    margin: 0.35rem 0 0;
+    max-width: 40rem;
+    color: #52667d;
+}
+.is-admin-panel .admin-news-page .admin-news-primary {
+    background: #0f8f86;
+    border-color: #0f8f86;
+    color: #fff;
+}
+.is-admin-panel .admin-news-page .admin-news-primary:hover,
+.is-admin-panel .admin-news-page .admin-news-primary:focus-visible {
+    background: #0c7a73;
+    border-color: #0c7a73;
+    color: #fff;
+}
+.is-admin-panel .admin-news-page .admin-news-layout {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+.is-admin-panel .admin-news-page .admin-news-list,
+.is-admin-panel .admin-news-page .admin-news-categories {
+    min-width: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-news-page .admin-news-list h2,
+.is-admin-panel .admin-news-page .admin-news-categories h2 {
+    margin: 0 0 0.75rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-news-page .admin-news-note {
+    margin: 0 0 0.75rem;
+    color: #52667d;
+}
+.is-admin-panel .admin-news-page .admin-news-list .admin-table-wrap {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.is-admin-panel .admin-news-page .admin-news__title {
+    min-width: 0;
+    color: #16324f;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-page .admin-news__category-wrap,
+.is-admin-panel .admin-news-page .admin-news__category {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-page .admin-news__mobile { display: none; }
+.is-admin-panel .admin-news-page .admin-news-category-form {
+    display: grid;
+    gap: 0.65rem;
+    margin: 0 0 0.85rem;
+}
+.is-admin-panel .admin-news-page .admin-news-category-form label {
+    display: grid;
+    gap: 0.35rem;
+}
+.is-admin-panel .admin-news-page .admin-news-category-form input[type="text"] {
+    width: 100%;
+}
+.is-admin-panel .admin-news-page .admin-news-categories__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.is-admin-panel .admin-news-page .admin-news-categories__list li {
+    padding: 0.65rem 0;
+    border-top: 1px solid #e8eef5;
+    color: #16324f;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-news-page .admin-news-categories__list li:first-child { border-top: 0; }
+.is-admin-panel .admin-news-page .admin-news-categories__empty {
+    margin: 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-news-page .admin-news__action a {
+    color: #0f8f86;
+    font-weight: 650;
+    white-space: nowrap;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-news-page .admin-news-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(14rem, 18rem);
+    }
+    .is-admin-panel .admin-news-page .admin-news-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-news-page .admin-news-table th:nth-child(1),
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__title-cell { width: 44%; min-width: 0; }
+    .is-admin-panel .admin-news-page .admin-news-table th:nth-child(2),
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__category-cell { width: 22%; }
+    .is-admin-panel .admin-news-page .admin-news-table th:nth-child(3),
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__status { width: 18%; }
+    .is-admin-panel .admin-news-page .admin-news-table th:nth-child(4),
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__action { width: 16%; }
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__status,
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__action {
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+    .is-admin-panel .admin-news-page .admin-news__title-wrap { min-width: 0; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-news-page .admin-news-head { flex-direction: column; }
+    .is-admin-panel .admin-news-page .admin-news-head .admin-news-primary {
+        width: 100%;
+        justify-content: center;
+    }
+    .is-admin-panel .admin-news-page .admin-news-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-news-page .admin-news-table,
+    .is-admin-panel .admin-news-page .admin-news-table tbody,
+    .is-admin-panel .admin-news-page .admin-news-table tr,
+    .is-admin-panel .admin-news-page .admin-news-table td { display: block; width: auto; }
+    .is-admin-panel .admin-news-page .admin-news-table tr {
+        margin-bottom: 0.85rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.9rem;
+        background: #fff;
+    }
+    .is-admin-panel .admin-news-page .admin-news-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__title-wrap,
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__category-cell,
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__status,
+    .is-admin-panel .admin-news-page .admin-news-table .admin-news__action { display: none; }
+    .is-admin-panel .admin-news-page .admin-news__mobile { display: grid; gap: 0.55rem; }
+    .is-admin-panel .admin-news-page .admin-news__mobile-row {
+        display: grid;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-news-page .admin-news__label {
+        color: #52667d;
+        font-size: 0.85rem;
+    }
+    .is-admin-panel .admin-news-page .admin-news__open {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 2.75rem;
+        margin-top: 0.25rem;
+        padding: 0.45rem 0.85rem;
+        border: 1px solid #0f8f86;
+        border-radius: 0.65rem;
+        color: #0f8f86;
+        font-weight: 650;
+        text-align: center;
+    }
+    .is-admin-panel .admin-news-page .admin-news-list {
+        padding: 0;
+        border: 0;
+        background: transparent;
+    }
+    .is-admin-panel .admin-news-page .admin-news-list h2 {
+        padding: 0 0.15rem;
+    }
+    .is-admin-panel .admin-news-page .admin-news-list .admin-table-wrap {
+        overflow: visible;
+    }
+}
+

@@ -57,7 +57,7 @@ final class NewsArticleFlowTest extends WebTestCase
         self::assertSelectorExists('.panel-nav-group--site a[href="/yonetim/haberler"]');
 
         $author->request('GET', '/yonetim/haberler');
-        $author->submit($author->getCrawler()->selectButton('Kategoriyi kaydet')->form([
+        $author->submit($author->getCrawler()->selectButton('Kategori ekle')->form([
             'name' => 'Platform',
         ]));
         $author->followRedirect();
@@ -153,7 +153,7 @@ final class NewsArticleFlowTest extends WebTestCase
         $author = $this->browser();
         $this->submitLogin($author, 'news_flow_sep_a@example.com');
         $author->request('GET', '/yonetim/haberler');
-        $author->submit($author->getCrawler()->selectButton('Kategoriyi kaydet')->form([
+        $author->submit($author->getCrawler()->selectButton('Kategori ekle')->form([
             'name' => 'Ayrim',
         ]));
         $author->followRedirect();

@@ -45,6 +45,10 @@ Domain değeri değişmez. `AdminStatusLabels` onu Türkçe metne ve `neutral`, 
 6. E-posta, UUID, storage key, ciphertext ve parola özetini listeye koyma.
 7. `docs/browser-acceptance.md` içindeki ekran listesine sentetik görüntüyü ekle.
 
+## Haberler listesi görsel referansı (8 Kasım 2026)
+
+`/yonetim/haberler` başlık, kısa açıklama, `+ Yeni haber`, beyaz Haber listesi kartı ve ayrı Kategoriler kartından oluşur. Masaüstü tablo sütunları Başlık, Kategori, Durum, İşlemdir. Durum `admin-status` ile Türkçe metin ve renkli noktadır. Mobilde etiketli kartlar ve en az 44 px İncele hedefi vardır. Kategori kartı masaüstünde içerik yüksekliğindedir; mobilde listenin altındadır. Sayaç, filtre, sayfalama ve haber görseli yoktur. Liste en yeni 100 kayıttır. Oluşturma, düzenleme ve detay bu dilimde yeniden tasarlanmaz. CI ekranı canlı görsel kabul değildir.
+
 ## Genel Bakış görsel referansı (21 Ekim 2026)
 
 Üstte dört yatay ana sayaç; ders ve inceleme sayaçları içerik özetinde korunur. Altı öncelikli bölüm kartı kompakt başlar ve kendi alt bağlantılarını native details/summary ile açar. Kalan gruplar Tüm bölümleri göster altında ve bütün gruplar sol menüde erişilir. Karışık gruplar Kısmen hazır, yalnız geliştirme bağlantılı gruplar Geliştiriliyor olarak görünür. Sistem sağlığı ölçülmeden sağlık rozeti basılmaz. Başlıklar sans-serif, aktif menü turkuaz, ana oluşturma eylemi turuncudur. Görsel kontrol 1440/768/390 boyutlarında yapılır; CI ekranı production kabulünden ayrıdır. Açık Medya kartı pembe zeminli başlık ve üç tam bağlantılı mini karttır: Dokümanlar, Videolar, Medya ve depolama. Sıra ve adresler izinli mevcut bölüm girişleridir. Medya dışındaki bölüm kartları ve Tüm bölümleri göster grupları aynı kabuk düzenini kendi renk ailesiyle kullanır. Her alt bağlantı mevcut ikon, kısa açıklama ve gerçek durum etiketiyle tam karttır. Çalışan ekran kendi adresine, geliştirme aşamasındaki bölüm mevcut bölüm girişine gider. CI ekranı canlı görsel kabul değildir.
