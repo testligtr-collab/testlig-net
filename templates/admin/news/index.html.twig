@@ -8,60 +8,98 @@
         <span aria-hidden="true">/</span>
         <span>Haberler</span>
     </nav>
-    <div class="admin-page-header">
-        <h1 class="panel-greeting">Haberler</h1>
-        <a class="btn btn--primary" href="{{ path('app_admin_news_new') }}">Yeni haber</a>
-    </div>
-    <p class="muted">Taslaklar yalnız yönetim ekranında durur. Sitede yalnızca yayındaki haberler görünür. Haber görseli bu bölümde yoktur.</p>
+    <div class="admin-news-page">
+        <header class="admin-user-head admin-news-head">
+            <div>
+                <h1 class="panel-greeting">Haberler</h1>
+                <p>Haber taslaklarını ve yayın durumlarını yönetin.</p>
+            </div>
+            <a class="btn admin-news-primary" href="{{ path('app_admin_news_new') }}"><span aria-hidden="true">+ </span>Yeni haber</a>
+        </header>
 
-    {% if articles is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Henüz haber yok',
-            body: 'İlk haberi taslak olarak kaydedebilirsin.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Başlık</th>
-                        <th>Kategori</th>
-                        <th>Durum</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for article in articles %}
-                        <tr>
-                            <td>{{ article.title }}</td>
-                            <td>{{ article.category ? article.category.name : '—' }}</td>
-                            <td>{{ article.status.labelTr }}</td>
-                            <td><a href="{{ path('app_admin_news_show', {id: article.id.toRfc4122}) }}">Aç</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="admin-news-layout">
+            <section class="admin-news-list" aria-labelledby="news-list-heading">
+                <h2 id="news-list-heading">Haber listesi</h2>
+                {% if articles is empty %}
+                    {% include 'components/empty_state.html.twig' with {
+                        title: 'Henüz haber yok',
+                        body: 'İlk haberi taslak olarak kaydedebilirsin.'
+                    } %}
+                {% else %}
+                    {% if articles|length >= 100 %}
+                        <p class="admin-news-note">Listede en yeni 100 kayıt görünüyor.</p>
+                    {% endif %}
+                    <div class="admin-table-wrap">
+                        <table class="admin-table admin-news-table">
+                            <thead>
+                                <tr>
+                                    <th>Başlık</th>
+                                    <th>Kategori</th>
+                                    <th>Durum</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for article in articles %}
+                                    {% set status = admin_status(article.status.value) %}
+                                    <tr>
+                                        <td class="admin-news__title-cell">
+                                            <div class="admin-news__title-wrap">
+                                                <span class="admin-news__title">{{ article.title }}</span>
+                                            </div>
+                                            <div class="admin-news__mobile">
+                                                <div class="admin-news__mobile-row">
+                                                    <span class="admin-news__label">Başlık</span>
+                                                    <span class="admin-news__title">{{ article.title }}</span>
+                                                </div>
+                                                <div class="admin-news__mobile-row">
+                                                    <span class="admin-news__label">Kategori</span>
+                                                    <span class="admin-news__category">{{ article.category ? article.category.name : '—' }}</span>
+                                                </div>
+                                                <div class="admin-news__mobile-row">
+                                                    <span class="admin-news__label">Durum</span>
+                                                    <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                                </div>
+                                                <a class="admin-news__open" href="{{ path('app_admin_news_show', {id: article.id.toRfc4122}) }}">İncele <span aria-hidden="true">→</span></a>
+                                            </div>
+                                        </td>
+                                        <td class="admin-news__category-cell">
+                                            <div class="admin-news__category-wrap">{{ article.category ? article.category.name : '—' }}</div>
+                                        </td>
+                                        <td class="admin-news__status">
+                                            <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                        </td>
+                                        <td class="admin-news__action">
+                                            <a href="{{ path('app_admin_news_show', {id: article.id.toRfc4122}) }}">İncele <span aria-hidden="true">→</span></a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </section>
+
+            <section class="admin-news-categories" aria-labelledby="news-categories-title">
+                <h2 id="news-categories-title">Kategoriler</h2>
+                <form class="admin-form admin-news-category-form" method="post" action="{{ path('app_admin_news_category_create') }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('news_category') }}">
+                    <label for="news-category-name">
+                        <span>Kategori adı</span>
+                        <input id="news-category-name" type="text" name="name" required maxlength="80" autocomplete="off">
+                    </label>
+                    <button type="submit" class="btn admin-news-primary">Kategori ekle</button>
+                </form>
+                {% if categories is empty %}
+                    <p class="admin-news-categories__empty">Henüz kategori yok.</p>
+                {% else %}
+                    <ul class="admin-news-categories__list">
+                        {% for category in categories %}
+                            <li>{{ category.name }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </section>
         </div>
-    {% endif %}
-
-    <section class="admin-section" aria-labelledby="news-categories-title">
-        <h2 id="news-categories-title">Kategoriler</h2>
-        {% if categories is empty %}
-            <p>Henüz kategori yok.</p>
-        {% else %}
-            <ul>
-                {% for category in categories %}
-                    <li>{{ category.name }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        <form class="admin-form" method="post" action="{{ path('app_admin_news_category_create') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('news_category') }}">
-            <label>
-                <span>Kategori adı</span>
-                <input type="text" name="name" required maxlength="80" autocomplete="off">
-            </label>
-            <button type="submit" class="btn btn--primary">Kategoriyi kaydet</button>
-        </form>
-    </section>
+    </div>
 {% endblock %}

@@ -1013,7 +1013,8 @@
         "Metin haberleri için taslak, inceleme, başka yöneticinin yayını, arşiv, kategori ve yalnız yayındaki public sayfalar kodda başlar.",
         "Yayın, ilk yazarı, son içerik düzenleyicisini ve incelemeye göndereni engeller. Düzenleme ve durum geçişi kilit altında güncel kaydı okur.",
         "Haber görseli bu dilimde yoktur. Görsel akış M18-cloud-storage ve bekleyen PR #149 kapsamındadır; canlı tarama bağlantısı kurulmadı.",
-        "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur."
+        "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur.",
+        "Yönetim Haberler listesi görsel kabuğu X10 diliminde yenilendi; bu kayıt haber ürününü tamamlamaz. Oluşturma/düzenleme/detay ve haber görseli açık kalır."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
@@ -1296,7 +1297,8 @@
         "Hatalı test formunda başlık, yönerge, süre ve güvenli seçimler korunur. Sınıf alanı ile özet aynı değeri gösterir. Liste, detay, önizleme ve sonuç değişmedi. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Test detayı aynı yönetim kabuğunda özet ve iki kolonlu kart düzenine alındı. Liste, oluşturma, düzenleme, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Test önizlemesi aynı açık kabukta test detayına dönüş, gerçek başlık ve numaralı soru kartlarıyla düzenlendi. Liste, oluşturma, düzenleme, detay ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
-        "Test sonuç listesi ve sonuç detayı aynı açık kabukta düzenlendi. Taşan formül kendi kutusunda kayar. Süresi dolmuş deneme Süre doldu yazar; puansız alan — kalır. Liste, oluşturma, düzenleme, detay ve önizleme yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz."
+        "Test sonuç listesi ve sonuç detayı aynı açık kabukta düzenlendi. Taşan formül kendi kutusunda kayar. Süresi dolmuş deneme Süre doldu yazar; puansız alan — kalır. Liste, oluşturma, düzenleme, detay ve önizleme yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
+        "2026-11-08 kullanıcı kararı: active_feature_ids X01-homework iken bu dilim açıkça yetkilendirilmiş dar Admin UI işidir; X01 ürün geliştirmesine dönülmez. Haberler listesi (/yonetim/haberler) aynı açık yönetim kabuğunda Haber listesi ve Kategoriler kartlarıyla düzenlendi. Oluşturma, düzenleme ve detay yeniden tasarlanmadı. Liste GET yazmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 ve M27 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",

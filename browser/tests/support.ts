@@ -83,6 +83,9 @@ type Manifest = {
     evaluateSubmissionReviewed: string;
     evaluateSubmissionRework: string;
     evaluateStudentDetail: string;
+    newsList: string;
+    newsLongTitle: string;
+    newsLongCategory: string;
   };
 };
 

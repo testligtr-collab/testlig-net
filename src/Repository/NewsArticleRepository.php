@@ -49,7 +49,15 @@ class NewsArticleRepository extends ServiceEntityRepository
      */
     public function findRecent(int $limit): array
     {
-        return $this->findBy([], ['updatedAt' => 'DESC'], $limit);
+        /** @var list<NewsArticle> $articles */
+        $articles = $this->createQueryBuilder('article')
+            ->leftJoin('article.category', 'category')->addSelect('category')
+            ->orderBy('article.updatedAt', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        return $articles;
     }
 
     /**

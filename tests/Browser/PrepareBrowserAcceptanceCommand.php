@@ -1009,6 +1009,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'curriculumDraft' => '/yonetim/programlar/'.$draftProgram->getId()->toRfc4122(),
                 'modulePermissions' => '/yonetim/rol-yetkileri',
                 'modulePermission' => '/yonetim/rol-yetkileri/'.$permissionModerator->getId()->toRfc4122(),
+                'newsList' => '/yonetim/haberler',
+                'newsLongTitle' => 'Uzun haber basligi dar ekranda kartta ve masaustunde hucrede sarilir ve yatay tasmadan devam eder',
+                'newsLongCategory' => 'Uzun kategori adi satira sigmaz ve kartta veya tabloda kirilmadan sarilir',
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
