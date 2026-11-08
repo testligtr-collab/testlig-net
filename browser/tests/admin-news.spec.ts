@@ -81,8 +81,8 @@ test('admin news list layout, statuses, empty, long text, and category errors', 
     await expect(page.locator('.admin-status:visible', { hasText: 'İncelemede' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Yayında' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Arşivlenmiş' }).first()).toBeVisible();
-    await expect(page.getByText(longTitle).first()).toBeVisible();
-    await expect(page.getByText(longCategory).first()).toBeVisible();
+    await expect(page.getByText(longTitle).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText(longCategory).filter({ visible: true }).first()).toBeVisible();
     await expect(page.getByText('Uzun ozet metni listeye basilmaz.')).toHaveCount(0);
 
     const row = page.locator('tr', { hasText: longTitle });
