@@ -16,7 +16,7 @@
     <div class="admin-news-field">
         <label for="news-category">Kategori</label>
         <select id="news-category" name="category_id" aria-describedby="news-category-help">
-            <option value="">Kategori yok</option>
+            <option value=""{% if category_id == '' %} selected{% endif %}>Kategori yok</option>
             {% for category in categories %}
                 <option value="{{ category.id.toRfc4122 }}"{% if category_id == category.id.toRfc4122 %} selected{% endif %}>{{ category.name }}</option>
             {% endfor %}
