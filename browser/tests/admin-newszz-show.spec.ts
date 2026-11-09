@@ -106,8 +106,20 @@ test('admin news detail layout, statuses, tech panel, error, and long text', asy
     await page.setViewportSize(viewport);
     await page.goto(reviewPath);
     await expect(page.locator('.admin-news-show-head .admin-status', { hasText: 'İncelemede' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Yayımla' })).toBeDisabled();
+    const publish = page.getByRole('button', { name: 'Yayımla' });
+    await expect(publish).toBeDisabled();
     await expect(page.getByText('Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.')).toBeVisible();
+    const publishStyle = await publish.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return { background: style.backgroundColor, cursor: style.cursor, color: style.color };
+    });
+    expect(publishStyle.cursor).toBe('not-allowed');
+    expect(publishStyle.background).not.toBe('rgb(15, 143, 134)');
+    expect(publishStyle.color).not.toBe('rgb(255, 255, 255)');
+    const techSummary = page.locator('details.admin-news-show-tech summary');
+    await expect(techSummary).toBeVisible();
+    const techListStyle = await techSummary.evaluate((node) => getComputedStyle(node).listStyleType);
+    expect(techListStyle).not.toBe('none');
     await assertAsideHeight(page, viewport.width);
     await assertLayout(page);
     await capture(page, info, `admin-haber-detay-inceleme-${viewport.name}.png`);
@@ -177,6 +189,10 @@ test('admin news detail layout, statuses, tech panel, error, and long text', asy
     await page.goto(reviewPath);
     await expect(page.getByText('Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.').first()).toBeVisible();
     await expect(page.locator('.admin-news-show-head .admin-status', { hasText: 'İncelemede' })).toBeVisible();
+    const publish = page.getByRole('button', { name: 'Yayımla' });
+    await expect(publish).toBeDisabled();
+    const publishStyle = await publish.evaluate((node) => getComputedStyle(node).backgroundColor);
+    expect(publishStyle).not.toBe('rgb(15, 143, 134)');
     await assertLayout(page);
     await capture(page, info, `admin-haber-detay-hata-${viewport.name}.png`);
   }
