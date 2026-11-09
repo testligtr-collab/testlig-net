@@ -53,6 +53,11 @@ Domain değeri değişmez. `AdminStatusLabels` onu Türkçe metne ve `neutral`, 
 
 `/yonetim/haberler/yeni` ve taslak `/yonetim/haberler/{id}/duzenle` aynı ortak form düzenini kullanır. Başlık Yeni haber veya Haberi düzenle’dir. Ana beyaz kartta mevcut düz metin alanları (başlık, özet, kategori, gövde) ve kısa yardım metinleri vardır. Birincil eylem taslak kaydı anlatır (Taslağı kaydet / Taslağı güncelle); yayın düğmesi yoktur. Sağda yalnız gerçek durum/yardım özeti vardır; masaüstünde ana kolon kadar uzamaz. Mobilde tek kolon ve en az 44 px eylem hedefleri vardır. Liste ve detay bu dilimde yeniden tasarlanmaz. CI ekranı canlı görsel kabul değildir.
 
+
+## Haber detayı görsel referansı (9 Kasım 2026)
+
+/yonetim/haberler/{id} gerçek haber başlığı, Türkçe durum etiketi, Listeye dön ve taslakta Haberi düzenle ile açılır. Ana beyaz kartta özet ve düz metin gövde (satır sonları korunur) vardır. İşlemler ayrı kartta yalnız mevcut sunucu kurallarına göre görünür. Yan özet kartında durum, kategori ve varsa yayın tarihi vardır; masaüstünde ana kolon kadar uzamaz. UUID ve slug kapalı Teknik bilgiler alanındadır. Mobil tek kolon ve en az 44 px eylem hedefleri vardır. Liste ve form bu dilimde yeniden tasarlanmaz. CI ekranı canlı görsel kabul değildir.
+
 ## Genel Bakış görsel referansı (21 Ekim 2026)
 
 Üstte dört yatay ana sayaç; ders ve inceleme sayaçları içerik özetinde korunur. Altı öncelikli bölüm kartı kompakt başlar ve kendi alt bağlantılarını native details/summary ile açar. Kalan gruplar Tüm bölümleri göster altında ve bütün gruplar sol menüde erişilir. Karışık gruplar Kısmen hazır, yalnız geliştirme bağlantılı gruplar Geliştiriliyor olarak görünür. Sistem sağlığı ölçülmeden sağlık rozeti basılmaz. Başlıklar sans-serif, aktif menü turkuaz, ana oluşturma eylemi turuncudur. Görsel kontrol 1440/768/390 boyutlarında yapılır; CI ekranı production kabulünden ayrıdır. Açık Medya kartı pembe zeminli başlık ve üç tam bağlantılı mini karttır: Dokümanlar, Videolar, Medya ve depolama. Sıra ve adresler izinli mevcut bölüm girişleridir. Medya dışındaki bölüm kartları ve Tüm bölümleri göster grupları aynı kabuk düzenini kendi renk ailesiyle kullanır. Her alt bağlantı mevcut ikon, kısa açıklama ve gerçek durum etiketiyle tam karttır. Çalışan ekran kendi adresine, geliştirme aşamasındaki bölüm mevcut bölüm girişine gider. CI ekranı canlı görsel kabul değildir.

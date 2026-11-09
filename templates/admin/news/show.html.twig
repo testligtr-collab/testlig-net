@@ -1,65 +1,145 @@
 {% extends 'admin/layout.html.twig' %}
 
+{% set status = admin_status(article.status.value) %}
+{% set is_draft = article.status.value == 'draft' %}
+{% set is_review = article.status.value == 'in_review' %}
+{% set is_published = article.status.value == 'published' %}
+{% set is_archived = article.status.value == 'archived' %}
+
 {% block title %}{{ article.title }} — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        {% include 'admin/_crumb_root.html.twig' %}
-        <span aria-hidden="true">/</span>
-        <a href="{{ path('app_admin_news') }}">Haberler</a>
-        <span aria-hidden="true">/</span>
-        <span>{{ article.title }}</span>
-    </nav>
-    <h1 class="panel-greeting">{{ article.title }}</h1>
-    <p>{{ article.status.labelTr }}{% if article.category %} · {{ article.category.name }}{% endif %}</p>
+    <div class="admin-news-page admin-news-show-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <a href="{{ path('app_admin_news') }}">Haberler</a>
+            <span aria-hidden="true">/</span>
+            <span>{{ article.title }}</span>
+        </nav>
 
-    {% if article.status.value == 'draft' %}
-        <p class="admin-actions">
-            <a class="btn btn--primary" href="{{ path('app_admin_news_edit', {id: article.id.toRfc4122}) }}">Haberi düzenle</a>
-        </p>
-        <form class="admin-actions" method="post" action="{{ path('app_admin_news_submit', {id: article.id.toRfc4122}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('news_submit_' ~ article.id.toRfc4122) }}">
-            <button type="submit" class="btn btn--primary">İncelemeye gönder</button>
-        </form>
-        <form class="admin-actions" method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
-            <button type="submit" class="btn btn--ghost">Arşivle</button>
-        </form>
-    {% endif %}
+        <header class="admin-user-head admin-news-head admin-news-show-head">
+            <div class="admin-news-show-head__title">
+                <h1 class="panel-greeting">{{ article.title }}</h1>
+                <span class="admin-status admin-status--{{ status.variant }}">
+                    <span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}
+                </span>
+            </div>
+            <div class="admin-news-show-head__actions">
+                <a class="btn btn--ghost admin-news-back" href="{{ path('app_admin_news') }}"><span aria-hidden="true">← </span>Listeye dön</a>
+                {% if is_draft %}
+                    <a class="btn admin-news-primary" href="{{ path('app_admin_news_edit', {id: article.id.toRfc4122}) }}">Haberi düzenle</a>
+                {% endif %}
+            </div>
+        </header>
 
-    {% if article.status.value == 'in_review' %}
-        <p>{{ article.summary }}</p>
-        <div class="admin-actions">
-            <form method="post" action="{{ path('app_admin_news_draft', {id: article.id.toRfc4122}) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('news_draft_' ~ article.id.toRfc4122) }}">
-                <button type="submit" class="btn btn--ghost">Taslağa al</button>
-            </form>
-            <form method="post" action="{{ path('app_admin_news_publish', {id: article.id.toRfc4122}) }}">
-                <input id="news-publish-token" type="hidden" name="_token" value="{{ csrf_token('news_publish_' ~ article.id.toRfc4122) }}">
-                <button type="submit" class="btn btn--primary" {% if not can_publish %}disabled{% endif %}>Yayımla</button>
-            </form>
-            {% if not can_publish %}
-                <p>Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.</p>
-            {% endif %}
+        <div class="admin-news-show-layout">
+            <div class="admin-news-show-main">
+                <section class="admin-news-show-card admin-news-show-read" aria-labelledby="news-read-heading">
+                    <h2 id="news-read-heading">Haber içeriği</h2>
+                    <div class="admin-news-show-summary">
+                        <h3>Özet</h3>
+                        <p>{{ article.summary }}</p>
+                    </div>
+                    <div class="admin-news-show-body">
+                        <h3>Metin</h3>
+                        <div class="admin-news-show-body__text">{{ article.body|nl2br }}</div>
+                    </div>
+                    {% if is_published %}
+                        <p class="admin-news-show-public">
+                            <a href="{{ path('app_news_show', {slug: article.slug}) }}">Sitedeki sayfayı aç</a>
+                        </p>
+                    {% endif %}
+                    {% if is_archived %}
+                        <p class="admin-news-show-note">Bu haber arşivde. Sitede görünmez.</p>
+                    {% endif %}
+                </section>
+
+                {% if is_draft or is_review or is_published %}
+                    <section class="admin-news-show-card admin-news-show-actions" aria-labelledby="news-actions-heading">
+                        <h2 id="news-actions-heading">İşlemler</h2>
+                        <div class="admin-news-show-actions__list">
+                            {% if is_draft %}
+                                <form method="post" action="{{ path('app_admin_news_submit', {id: article.id.toRfc4122}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('news_submit_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn admin-news-primary">İncelemeye gönder</button>
+                                </form>
+                                <form method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn btn--ghost">Arşivle</button>
+                                </form>
+                            {% endif %}
+
+                            {% if is_review %}
+                                <form method="post" action="{{ path('app_admin_news_draft', {id: article.id.toRfc4122}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('news_draft_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn btn--ghost">Taslağa al</button>
+                                </form>
+                                <form method="post" action="{{ path('app_admin_news_publish', {id: article.id.toRfc4122}) }}">
+                                    <input id="news-publish-token" type="hidden" name="_token" value="{{ csrf_token('news_publish_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn admin-news-primary" {% if not can_publish %}disabled{% endif %}>Yayımla</button>
+                                </form>
+                                {% if not can_publish %}
+                                    <p class="admin-news-show-note">Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.</p>
+                                {% endif %}
+                            {% endif %}
+
+                            {% if is_published %}
+                                <form method="post" action="{{ path('app_admin_news_draft', {id: article.id.toRfc4122}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('news_draft_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn btn--ghost">Taslağa al</button>
+                                </form>
+                                <form method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
+                                    <button type="submit" class="btn btn--ghost">Arşivle</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </section>
+                {% endif %}
+            </div>
+
+            <aside class="admin-news-show-aside" aria-labelledby="news-meta-heading">
+                <section class="admin-news-show-card admin-news-show-meta">
+                    <h2 id="news-meta-heading">Özet</h2>
+                    <dl class="admin-news-show-meta__list">
+                        <div>
+                            <dt>Durum</dt>
+                            <dd>
+                                <span class="admin-status admin-status--{{ status.variant }}">
+                                    <span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Kategori</dt>
+                            <dd>{{ article.category ? article.category.name : '—' }}</dd>
+                        </div>
+                        {% if article.publishedAt %}
+                            <div>
+                                <dt>Yayın tarihi</dt>
+                                <dd>{{ article.publishedAt|date('d.m.Y H:i') }}</dd>
+                            </div>
+                        {% endif %}
+                    </dl>
+                </section>
+
+                <details class="admin-news-show-tech">
+                    <summary role="button">Teknik bilgiler</summary>
+                    <div class="admin-news-show-tech__panel">
+                        <dl>
+                            <div>
+                                <dt>Kimlik</dt>
+                                <dd><code>{{ article.id.toRfc4122 }}</code></dd>
+                            </div>
+                            <div>
+                                <dt>Slug</dt>
+                                <dd><code>{{ article.slug }}</code></dd>
+                            </div>
+                        </dl>
+                    </div>
+                </details>
+            </aside>
         </div>
-    {% endif %}
-
-    {% if article.status.value == 'published' %}
-        <p>{{ article.summary }}</p>
-        <p><a href="{{ path('app_news_show', {slug: article.slug}) }}">Sitedeki sayfayı aç</a></p>
-        <div class="admin-actions">
-            <form method="post" action="{{ path('app_admin_news_draft', {id: article.id.toRfc4122}) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('news_draft_' ~ article.id.toRfc4122) }}">
-                <button type="submit" class="btn btn--ghost">Taslağa al</button>
-            </form>
-            <form method="post" action="{{ path('app_admin_news_archive', {id: article.id.toRfc4122}) }}">
-                <input type="hidden" name="_token" value="{{ csrf_token('news_archive_' ~ article.id.toRfc4122) }}">
-                <button type="submit" class="btn btn--ghost">Arşivle</button>
-            </form>
-        </div>
-    {% endif %}
-
-    {% if article.status.value == 'archived' %}
-        <p>Bu haber arşivde. Sitede görünmez.</p>
-    {% endif %}
+    </div>
 {% endblock %}
