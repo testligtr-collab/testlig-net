@@ -157,6 +157,9 @@ test('admin news detail layout, statuses, tech panel, error, and long text', asy
     const summaryBox = await tech.locator('summary').boundingBox();
     expect(summaryBox).toBeTruthy();
     expect(summaryBox!.height).toBeGreaterThanOrEqual(44);
+    const codeBox = await tech.locator('code').first().boundingBox();
+    expect(codeBox).toBeTruthy();
+    expect(codeBox!.width).toBeLessThanOrEqual(viewport.width);
     await assertLayout(page);
     await capture(page, info, `admin-haber-detay-teknik-${viewport.name}.png`);
   }

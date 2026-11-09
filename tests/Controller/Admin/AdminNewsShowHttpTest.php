@@ -98,8 +98,8 @@ final class AdminNewsShowHttpTest extends WebTestCase
         self::assertSelectorTextContains('.admin-news-show-summary', 'Taslak detay ozeti burada durur.');
         self::assertSelectorTextContains('.admin-news-show-body__text', 'Taslak detay govdesi.');
         self::assertSelectorTextContains('#news-actions-heading', 'İşlemler');
-        self::assertSelectorTextContains('button[type="submit"]', 'İncelemeye gönder');
-        self::assertSelectorTextContains('button[type="submit"]', 'Arşivle');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'İncelemeye gönder');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'Arşivle');
         self::assertSelectorTextContains('#news-meta-heading', 'Özet');
         self::assertSelectorTextContains('.admin-news-show-meta', 'Detay Kategori');
         self::assertSelectorExists('details.admin-news-show-tech summary');
@@ -121,14 +121,14 @@ final class AdminNewsShowHttpTest extends WebTestCase
         self::assertSelectorExists('button[disabled]');
         self::assertSelectorTextContains('body', 'Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.');
         self::assertSelectorExists('#news-publish-token');
-        self::assertSelectorTextContains('button[type="submit"]', 'Taslağa al');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'Taslağa al');
 
         $client->request('GET', '/yonetim/haberler/'.$published->getId()->toRfc4122());
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.admin-news-show-head .admin-status', 'Yayında');
         self::assertSelectorExists('a[href="/haberler/'.$published->getSlug().'"]');
-        self::assertSelectorTextContains('button[type="submit"]', 'Taslağa al');
-        self::assertSelectorTextContains('button[type="submit"]', 'Arşivle');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'Taslağa al');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'Arşivle');
         self::assertSelectorTextContains('.admin-news-show-meta', 'Yayın tarihi');
 
         $client->request('GET', '/yonetim/haberler/'.$archived->getId()->toRfc4122());
@@ -195,10 +195,10 @@ final class AdminNewsShowHttpTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('button[disabled]');
         self::assertSelectorTextContains('body', 'Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.');
-        $token = $authorClient->getCrawler()->filter('#news-publish-token')->attr('value');
-        self::assertIsString($token);
         $statusBefore = $article->getStatus();
-        $authorClient->request('POST', $path.'/yayimla', ['_token' => $token]);
+        $authorClient->request('POST', $path.'/yayimla', [
+            '_token' => $this->csrfFor($authorClient, 'news_publish_'.$article->getId()->toRfc4122()),
+        ]);
         self::assertResponseRedirects($path);
         $authorClient->followRedirect();
         self::assertSelectorTextContains('body', 'Haberi yazan, son düzenleyen veya incelemeye gönderen kişi yayımlayamaz.');
@@ -211,9 +211,8 @@ final class AdminNewsShowHttpTest extends WebTestCase
         $this->submitLogin($publisherClient, 'news_show_sep_b@example.com');
         $publisherClient->request('GET', $path);
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('button[type="submit"]:not([disabled])');
-        self::assertSelectorTextContains('button[type="submit"]', 'Yayımla');
-        self::assertSelectorNotExists('button[disabled]');
+        self::assertSelectorTextContains('.admin-news-show-actions', 'Yayımla');
+        self::assertSelectorNotExists('.admin-news-show-actions button[disabled]');
     }
 
     public function testCsrfAndInvalidTransitionDoNotWrite(): void
@@ -243,13 +242,6 @@ final class AdminNewsShowHttpTest extends WebTestCase
 
         $client = $this->browser();
         $this->submitLogin($client, 'news_show_csrf@example.com');
-        $draftId = $draft->getId()->toRfc4122();
-        $client->request('POST', '/yonetim/haberler/'.$draftId.'/incelemeye', ['_token' => 'bad-token']);
-        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
-        $freshDraft = $this->entityManager()->find(NewsArticle::class, $draft->getId());
-        self::assertInstanceOf(NewsArticle::class, $freshDraft);
-        self::assertSame(NewsArticleStatus::Draft, $freshDraft->getStatus());
-
         $publishedId = $published->getId()->toRfc4122();
         $client->request('GET', '/yonetim/haberler/'.$publishedId);
         self::assertResponseIsSuccessful();
@@ -262,6 +254,13 @@ final class AdminNewsShowHttpTest extends WebTestCase
         $freshPublished = $this->entityManager()->find(NewsArticle::class, $published->getId());
         self::assertInstanceOf(NewsArticle::class, $freshPublished);
         self::assertSame(NewsArticleStatus::Published, $freshPublished->getStatus());
+
+        $draftId = $draft->getId()->toRfc4122();
+        $client->request('POST', '/yonetim/haberler/'.$draftId.'/incelemeye', ['_token' => 'bad-token']);
+        self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
+        $freshDraft = $this->entityManager()->find(NewsArticle::class, $draft->getId());
+        self::assertInstanceOf(NewsArticle::class, $freshDraft);
+        self::assertSame(NewsArticleStatus::Draft, $freshDraft->getStatus());
     }
 
     public function testEscapesHostileValuesOnShow(): void

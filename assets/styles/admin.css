@@ -5767,19 +5767,27 @@ body.is-admin-panel {
     color: #1f6499;
     font-weight: 650;
 }
+.is-admin-panel .admin-news-show-page {
+    min-width: 0;
+    max-width: 100%;
+}
 .is-admin-panel .admin-news-show-page .admin-news-show-layout {
     display: grid;
     gap: 1rem;
     align-items: start;
+    min-width: 0;
+    max-width: 100%;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-main {
     display: grid;
     gap: 1rem;
     min-width: 0;
+    max-width: 100%;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-card,
 .is-admin-panel .admin-news-show-page .admin-news-show-aside {
     min-width: 0;
+    max-width: 100%;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-card {
     padding: 1rem 1.05rem;
@@ -5868,19 +5876,23 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-tech {
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     padding: 0.75rem 0.9rem;
     border: 1px solid #e2eaf4;
     border-radius: 0.9rem;
     background: #fff;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-tech > summary {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    min-height: 2.75rem;
     cursor: pointer;
     color: #16324f;
     font-weight: 650;
     list-style: none;
-    min-height: 2.75rem;
-    display: flex;
-    align-items: center;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-tech > summary::-webkit-details-marker {
     display: none;
@@ -5903,8 +5915,11 @@ body.is-admin-panel {
     overflow-wrap: anywhere;
 }
 .is-admin-panel .admin-news-show-page .admin-news-show-tech__panel code {
+    display: block;
+    max-width: 100%;
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
     font-size: 0.85rem;
+    overflow-wrap: anywhere;
     word-break: break-all;
 }
 .is-admin-panel .admin-news-show-page .admin-breadcrumb span,
