@@ -240,23 +240,25 @@ final class AdminNewsShowHttpTest extends WebTestCase
         $news->submitForReview($author, $published);
         $news->publish($publisher, $published);
 
-        $client = $this->browser();
-        $this->submitLogin($client, 'news_show_csrf@example.com');
+        $publisherClient = $this->browser();
+        $this->submitLogin($publisherClient, 'news_show_csrf_pub@example.com');
         $publishedId = $published->getId()->toRfc4122();
-        $client->request('GET', '/yonetim/haberler/'.$publishedId);
+        $publisherClient->request('GET', '/yonetim/haberler/'.$publishedId);
         self::assertResponseIsSuccessful();
-        $client->request('POST', '/yonetim/haberler/'.$publishedId.'/yayimla', [
-            '_token' => $this->csrfFor($client, 'news_publish_'.$publishedId),
+        $publisherClient->request('POST', '/yonetim/haberler/'.$publishedId.'/yayimla', [
+            '_token' => $this->csrfFor($publisherClient, 'news_publish_'.$publishedId),
         ]);
         self::assertResponseRedirects('/yonetim/haberler/'.$publishedId);
-        $client->followRedirect();
+        $publisherClient->followRedirect();
         self::assertSelectorTextContains('body', 'Bu yayın geçişi yapılamaz.');
         $freshPublished = $this->entityManager()->find(NewsArticle::class, $published->getId());
         self::assertInstanceOf(NewsArticle::class, $freshPublished);
         self::assertSame(NewsArticleStatus::Published, $freshPublished->getStatus());
 
+        $authorClient = $this->browser();
+        $this->submitLogin($authorClient, 'news_show_csrf@example.com');
         $draftId = $draft->getId()->toRfc4122();
-        $client->request('POST', '/yonetim/haberler/'.$draftId.'/incelemeye', ['_token' => 'bad-token']);
+        $authorClient->request('POST', '/yonetim/haberler/'.$draftId.'/incelemeye', ['_token' => 'bad-token']);
         self::assertResponseStatusCodeSame(Response::HTTP_FORBIDDEN);
         $freshDraft = $this->entityManager()->find(NewsArticle::class, $draft->getId());
         self::assertInstanceOf(NewsArticle::class, $freshDraft);
