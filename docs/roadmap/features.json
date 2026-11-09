@@ -1014,12 +1014,14 @@
         "Yayın, ilk yazarı, son içerik düzenleyicisini ve incelemeye göndereni engeller. Düzenleme ve durum geçişi kilit altında güncel kaydı okur.",
         "Haber görseli bu dilimde yoktur. Görsel akış M18-cloud-storage ve bekleyen PR #149 kapsamındadır; canlı tarama bağlantısı kurulmadı.",
         "Kod kanıtı bu kayıt içindir. CI yeşili production kabulü değildir. Canlı haber kabulü yoktur.",
-        "Yönetim Haberler listesi görsel kabuğu X10 diliminde yenilendi; bu kayıt haber ürününü tamamlamaz. Oluşturma/düzenleme/detay ve haber görseli açık kalır."
+        "Yönetim Haberler listesi görsel kabuğu X10 diliminde yenilendi; bu kayıt haber ürününü tamamlamaz. Oluşturma/düzenleme/detay ve haber görseli açık kalır.",
+        "2026-11-08: Haber oluşturma ve taslak düzenleme ortak form kabuğu X10 diliminde yenilendi; hatalı POST güvenli başlık/özet/gövde girdilerini korur. Detay ve haber görseli açık kalır. CI yeşili production kabulü değildir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
         "https://github.com/testligtr-collab/testlig-net/pull/152",
-        "https://github.com/testligtr-collab/testlig-net/pull/202"
+        "https://github.com/testligtr-collab/testlig-net/pull/202",
+        "https://github.com/testligtr-collab/testlig-net/pull/203"
       ],
       "acceptance": "Yönetici haber taslağı oluşturur ve başka bir yönetici yayımlar. Taslak anonim kullanıcıya ve ana sayfaya çıkmaz. Haber görseli ve production kabulü açık kalır.",
       "scope_decision": null
@@ -1299,7 +1301,8 @@
         "Test detayı aynı yönetim kabuğunda özet ve iki kolonlu kart düzenine alındı. Liste, oluşturma, düzenleme, önizleme ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Test önizlemesi aynı açık kabukta test detayına dönüş, gerçek başlık ve numaralı soru kartlarıyla düzenlendi. Liste, oluşturma, düzenleme, detay ve sonuç yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
         "Test sonuç listesi ve sonuç detayı aynı açık kabukta düzenlendi. Taşan formül kendi kutusunda kayar. Süresi dolmuş deneme Süre doldu yazar; puansız alan — kalır. Liste, oluşturma, düzenleme, detay ve önizleme yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 tamamlanmış sayılmaz.",
-        "2026-11-08 kullanıcı kararı: active_feature_ids X01-homework iken bu dilim açıkça yetkilendirilmiş dar Admin UI işidir; X01 ürün geliştirmesine dönülmez. Haberler listesi (/yonetim/haberler) aynı açık yönetim kabuğunda Haber listesi ve Kategoriler kartlarıyla düzenlendi. Oluşturma, düzenleme ve detay yeniden tasarlanmadı. Liste GET yazmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 ve M27 tamamlanmış sayılmaz."
+        "2026-11-08 kullanıcı kararı: active_feature_ids X01-homework iken bu dilim açıkça yetkilendirilmiş dar Admin UI işidir; X01 ürün geliştirmesine dönülmez. Haberler listesi (/yonetim/haberler) aynı açık yönetim kabuğunda Haber listesi ve Kategoriler kartlarıyla düzenlendi. Oluşturma, düzenleme ve detay yeniden tasarlanmadı. Liste GET yazmaz. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 ve M27 tamamlanmış sayılmaz.",
+        "2026-11-08 kullanıcı kararı: aynı yetkilendirilmiş dar Admin UI diliminde haber oluşturma (/yonetim/haberler/yeni) ve taslak düzenleme (/yonetim/haberler/{id}/duzenle) ortak form kabuğuna alındı. Mevcut düz metin alanları, CSRF, durum ve ayrılık kuralları aynıdır. Hatalı form güvenli girdiyi korur. Liste ve detay yeniden tasarlanmadı. Sol menü ve logo aynı kaldı. Ekran görüntüsü canlı görsel kabulü değildir. X10 ve M27 tamamlanmış sayılmaz."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/150",
@@ -1334,7 +1337,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/186",
         "https://github.com/testligtr-collab/testlig-net/pull/188",
         "https://github.com/testligtr-collab/testlig-net/pull/189",
-        "https://github.com/testligtr-collab/testlig-net/pull/202"
+        "https://github.com/testligtr-collab/testlig-net/pull/202",
+        "https://github.com/testligtr-collab/testlig-net/pull/203"
       ],
       "acceptance": "Süper yönetici izinli bölümlerin hepsine gerçek adresten ulaşır. Yönetici bölüm girişine giremez ve çalışan ekranlarını kullanır. Öğretmen çalışma alanı bu düzene dönüşmez. Masaüstü, 390 ve 768 ekran görüntüleri production kabulü değildir. Test önizlemesi ekran görüntüsü production kabulü değildir. Öğrenme içerikleri ekran görüntüsü production kabulü değildir ve içerik ürününü tamamlamaz. X10 tamamlanmış sayılmaz.",
       "scope_decision": null
