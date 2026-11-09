@@ -160,6 +160,7 @@ test('admin news detail layout, statuses, tech panel, error, and long text', asy
     const codeBox = await tech.locator('code').first().boundingBox();
     expect(codeBox).toBeTruthy();
     expect(codeBox!.width).toBeLessThanOrEqual(viewport.width);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await assertLayout(page);
     await capture(page, info, `admin-haber-detay-teknik-${viewport.name}.png`);
   }
@@ -191,6 +192,7 @@ test('admin news detail layout, statuses, tech panel, error, and long text', asy
 });
 
 async function assertAsideHeight(page: Page, width: number): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, 0));
   const mainBox = await page.locator('.admin-news-show-read').boundingBox();
   const asideBox = await page.locator('.admin-news-show-meta').boundingBox();
   expect(mainBox && asideBox).toBeTruthy();

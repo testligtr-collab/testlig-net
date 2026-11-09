@@ -302,17 +302,20 @@ final class AdminNewsShowHttpTest extends WebTestCase
 
     private function csrfFor(KernelBrowser $client, string $tokenId): string
     {
+        $session = $client->getRequest()->getSession();
         $stack = $client->getContainer()->get('request_stack');
         self::assertInstanceOf(RequestStack::class, $stack);
         $stack->push($client->getRequest());
         try {
             $tokens = $client->getContainer()->get('security.csrf.token_manager');
             self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
-
-            return $tokens->getToken($tokenId)->getValue();
+            $token = $tokens->getToken($tokenId)->getValue();
         } finally {
             $stack->pop();
         }
+        $session->save();
+
+        return $token;
     }
 
     private function auditCount(): int
