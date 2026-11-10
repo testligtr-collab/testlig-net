@@ -132,11 +132,11 @@ final class AdminPaymentListHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Başarısız');
         self::assertSelectorTextContains('body', $failed->getOrder()->getPublicReference());
         self::assertSelectorExists('a.btn[href="/yonetim/odemeler"]');
-        $filterHtml = (string) $client->getResponse()->getContent();
-        self::assertStringContainsString('name="status"', $filterHtml);
-        self::assertStringContainsString('value="failed"', $filterHtml);
+        $crawler = $client->getCrawler();
+        self::assertSame('failed', $crawler->filter('#payment-filter-status')->attr('value'));
+        self::assertSame('sandbox_provider', $crawler->filter('#payment-filter-provider')->attr('value'));
+        self::assertSame('sandbox', $crawler->filter('#payment-filter-environment')->attr('value'));
         self::assertSelectorTextContains('.admin-pagination', '25/sayfa');
-        self::assertStringContainsString('status=failed', $filterHtml);
 
         $client->request('GET', '/yonetim/odemeler', [
             'status' => 'failed',
