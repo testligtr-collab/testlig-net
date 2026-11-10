@@ -93,13 +93,15 @@ final class AdminPaymentListHttpTest extends WebTestCase
     {
         $this->scenario->superAdmin('pay_list_mix_sa@example.com');
         $initiated = $this->startAttempt('mix_init', PaymentProviderEnvironment::Sandbox);
-        // createdAt DESC: later-created failed attempt is page 1 when page_size=1.
+        // List sorts createdAt DESC; advance MockClock so page_size=1 order is deterministic.
         $failedEarlier = $this->startAttempt('mix_fail_a', PaymentProviderEnvironment::Sandbox);
         $failedEarlier->markFailed('card_declined', new \DateTimeImmutable('2026-09-13 12:01:00', new \DateTimeZone('UTC')));
+        $this->clock->modify('+2 minutes');
         $failedLater = $this->startAttempt('mix_fail_b', PaymentProviderEnvironment::Sandbox);
         $failedLater->markFailed('provider_timeout', new \DateTimeImmutable('2026-09-13 12:03:00', new \DateTimeZone('UTC')));
+        $this->clock->modify('+1 minute');
         $live = $this->startAttempt('mix_live', PaymentProviderEnvironment::Production);
-        $live->markAuthorized('pay_ref_live_1', 'auth_ref_live_1', new \DateTimeImmutable('2026-09-13 12:02:00', new \DateTimeZone('UTC')));
+        $live->markAuthorized('pay_ref_live_1', 'auth_ref_live_1', new \DateTimeImmutable('2026-09-13 12:05:00', new \DateTimeZone('UTC')));
         $this->em->flush();
 
         $failedLaterRef = $failedLater->getOrder()->getPublicReference();
