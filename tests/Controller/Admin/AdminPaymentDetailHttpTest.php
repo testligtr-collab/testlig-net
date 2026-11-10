@@ -87,14 +87,19 @@ final class AdminPaymentDetailHttpTest extends WebTestCase
     {
         self::ensureKernelShutdown();
         $client = static::createClient();
-        $user = $this->loginHttp($client, 'pay_detail_susp_sa@example.com', UserRole::SuperAdmin);
-        $em = static::getContainer()->get(EntityManagerInterface::class);
-        self::assertInstanceOf(EntityManagerInterface::class, $em);
-        $em->getConnection()->executeStatement(
-            'UPDATE users SET status = ? WHERE id = ?',
-            [UserStatus::Suspended->value, $user->getId()->toBinary()],
-        );
+        /** @var UserFactory $factory */
+        $factory = static::getContainer()->get(UserFactory::class);
+        $user = $factory->createAndPersist('pay_detail_susp_sa@example.com', 'Guclu-Parola-123!', 'Ad', 'Min', UserRole::Teacher);
+        $user->markEmailVerified(new \DateTimeImmutable('2026-01-01 00:00:00'));
+        $user->transitionTo(UserStatus::Active);
+        $user->addGlobalRole(UserRole::SuperAdmin);
+        /** @var UserRepository $users */
+        $users = static::getContainer()->get(UserRepository::class);
+        $users->save($user);
+        $user->transitionTo(UserStatus::Suspended);
+        $users->save($user);
 
+        $client->loginUser($user);
         $client->request('GET', '/yonetim/odemeler/'.Uuid::v7()->toRfc4122());
         self::assertResponseStatusCodeSame(403);
     }
@@ -149,7 +154,7 @@ final class AdminPaymentDetailHttpTest extends WebTestCase
         self::assertSame('—', trim($crawler->filter('dt:contains("Tahsil") + dd')->text()));
         self::assertSelectorTextContains('.admin-payment-detail__failure', '—');
         self::assertSelectorNotExists('button[type="submit"][name="refund"]');
-        self::assertSelectorNotExists('form[method="post"]');
+        self::assertSelectorNotExists('.admin-payment-detail form');
         $html = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsStringIgnoringCase('sk_live', $html);
         self::assertStringNotContainsString('pay_ref_secret_token', $html);
@@ -193,7 +198,8 @@ final class AdminPaymentDetailHttpTest extends WebTestCase
         $htmlCap = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('pay_ref_secret_token', $htmlCap);
         self::assertStringNotContainsString('auth_ref_secret_token', $htmlCap);
-        self::assertSelectorNotExists('form[method="post"]');
+        self::assertSelectorNotExists('.admin-payment-detail form');
+        self::assertSelectorNotExists('button[type="submit"][name="refund"]');
 
         $client->request('GET', '/yonetim/odemeler/'.$failedId);
         self::assertResponseIsSuccessful();
