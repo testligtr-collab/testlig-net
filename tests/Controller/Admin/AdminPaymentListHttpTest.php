@@ -93,11 +93,19 @@ final class AdminPaymentListHttpTest extends WebTestCase
     {
         $this->scenario->superAdmin('pay_list_mix_sa@example.com');
         $initiated = $this->startAttempt('mix_init', PaymentProviderEnvironment::Sandbox);
-        $failed = $this->startAttempt('mix_fail', PaymentProviderEnvironment::Sandbox);
-        $failed->markFailed('card_declined', new \DateTimeImmutable('2026-09-13 12:01:00', new \DateTimeZone('UTC')));
+        // createdAt DESC: later-created failed attempt is page 1 when page_size=1.
+        $failedEarlier = $this->startAttempt('mix_fail_a', PaymentProviderEnvironment::Sandbox);
+        $failedEarlier->markFailed('card_declined', new \DateTimeImmutable('2026-09-13 12:01:00', new \DateTimeZone('UTC')));
+        $failedLater = $this->startAttempt('mix_fail_b', PaymentProviderEnvironment::Sandbox);
+        $failedLater->markFailed('provider_timeout', new \DateTimeImmutable('2026-09-13 12:03:00', new \DateTimeZone('UTC')));
         $live = $this->startAttempt('mix_live', PaymentProviderEnvironment::Production);
         $live->markAuthorized('pay_ref_live_1', 'auth_ref_live_1', new \DateTimeImmutable('2026-09-13 12:02:00', new \DateTimeZone('UTC')));
         $this->em->flush();
+
+        $failedLaterRef = $failedLater->getOrder()->getPublicReference();
+        $failedEarlierRef = $failedEarlier->getOrder()->getPublicReference();
+        $failedLaterId = $failedLater->getId()->toRfc4122();
+        $failedEarlierId = $failedEarlier->getId()->toRfc4122();
 
         self::ensureKernelShutdown();
         $client = static::createClient();
@@ -124,19 +132,21 @@ final class AdminPaymentListHttpTest extends WebTestCase
             'status' => 'failed',
             'provider' => 'sandbox_provider',
             'environment' => 'sandbox',
-            'order_public_reference' => $failed->getOrder()->getPublicReference(),
+            'order_public_reference' => $failedLaterRef,
             'page' => 1,
             'page_size' => 25,
         ]);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Başarısız');
-        self::assertSelectorTextContains('body', $failed->getOrder()->getPublicReference());
+        self::assertSelectorTextContains('body', $failedLaterRef);
         self::assertSelectorExists('a.btn[href="/yonetim/odemeler"]');
         $crawler = $client->getCrawler();
         self::assertSame('failed', $crawler->filter('#payment-filter-status')->attr('value'));
         self::assertSame('sandbox_provider', $crawler->filter('#payment-filter-provider')->attr('value'));
         self::assertSame('sandbox', $crawler->filter('#payment-filter-environment')->attr('value'));
         self::assertSelectorTextContains('.admin-pagination', '25/sayfa');
+        self::assertSelectorTextContains('.admin-pagination', 'Sayfa 1 / 1');
+        self::assertSelectorNotExists('.admin-pagination a');
 
         $client->request('GET', '/yonetim/odemeler', [
             'status' => 'failed',
@@ -145,8 +155,26 @@ final class AdminPaymentListHttpTest extends WebTestCase
         ]);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.admin-pagination', '1/sayfa');
-        self::assertSelectorExists('.admin-pagination a[href*="status=failed"]');
-        self::assertSelectorExists('.admin-pagination a[href*="page_size=1"]');
+        self::assertSelectorTextContains('.admin-pagination', 'Sayfa 1 / 2');
+        self::assertSelectorTextContains('.admin-pagination', '2 kayıt');
+        $next = $client->getCrawler()->filter('.admin-pagination a:contains("Sonraki")');
+        self::assertCount(1, $next);
+        $nextHref = (string) $next->attr('href');
+        self::assertStringContainsString('status=failed', $nextHref);
+        self::assertStringContainsString('page_size=1', $nextHref);
+        self::assertStringContainsString('page=2', $nextHref);
+        self::assertSelectorExists('a[href="/yonetim/odemeler/'.$failedLaterId.'"]');
+        self::assertSelectorNotExists('a[href="/yonetim/odemeler/'.$failedEarlierId.'"]');
+
+        $client->request('GET', $nextHref);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.admin-pagination', 'Sayfa 2 / 2');
+        self::assertSame('failed', $client->getCrawler()->filter('#payment-filter-status')->attr('value'));
+        self::assertSelectorExists('a[href="/yonetim/odemeler/'.$failedEarlierId.'"]');
+        self::assertSelectorNotExists('a[href="/yonetim/odemeler/'.$failedLaterId.'"]');
+        self::assertSelectorTextContains('body', $failedEarlierRef);
+        self::assertSelectorNotExists('.admin-pagination a:contains("Sonraki")');
+        self::assertSelectorExists('.admin-pagination a:contains("Önceki")');
 
         $client->request('GET', '/yonetim/odemeler', [
             'status' => 'initiated',
@@ -155,6 +183,7 @@ final class AdminPaymentListHttpTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Sonuç yok');
         self::assertSelectorTextContains('body', 'Bu filtrelere uyan ödeme denemesi yok.');
+        self::assertSelectorNotExists('.admin-pagination a');
 
         $client->request('GET', '/yonetim/odemeler', [
             'provider' => '"><script>alert(1)</script>',
