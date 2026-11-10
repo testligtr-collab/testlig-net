@@ -33,9 +33,11 @@ test('admin payments list layout, filters, empty result, long reference, paginat
     await expect(page.locator('.admin-status:visible', { hasText: 'Başarısız' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Yetkilendirildi' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Tahsil edildi' }).first()).toBeVisible();
-    await expect(page.getByText('Test (sandbox)').first()).toBeVisible();
-    await expect(page.getByText('Canlı').first()).toBeVisible();
-    await expect(page.getByText(longReference).first()).toBeVisible();
+    await expect(page.locator('.admin-payment__environment--sandbox:visible').first()).toBeVisible();
+    await expect(page.locator('.admin-payment__environment--sandbox:visible').first()).toHaveText('Test (sandbox)');
+    await expect(page.locator('.admin-payment__environment--production:visible').first()).toBeVisible();
+    await expect(page.locator('.admin-payment__environment--production:visible').first()).toHaveText('Canlı');
+    await expect(page.getByText(longReference).filter({ visible: true }).first()).toBeVisible();
     await expect(page.getByText('sk_live')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /iade|tahsil|yeniden/i })).toHaveCount(0);
 

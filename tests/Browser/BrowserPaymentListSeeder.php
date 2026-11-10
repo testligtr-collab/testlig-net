@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Browser;
 
 use App\Entity\PaymentAttempt;
+use App\Entity\Subject;
 use App\Entity\User;
 use App\Enum\AccessPackageCatalogResourceKind;
 use App\Enum\AccessPackageTargetType;
@@ -19,12 +20,13 @@ use App\Service\AccessPackageVersionManager;
 use App\Service\CommerceOrderManager;
 use App\Service\CommercialOfferManager;
 use App\Service\PaymentAttemptManager;
-use App\Service\SubjectManager;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Synthetic payment attempts for browser acceptance of /yonetim/odemeler.
+ *
+ * Reuses an existing subject so curriculum screens are not polluted with fixture subjects.
  */
 final class BrowserPaymentListSeeder
 {
@@ -33,7 +35,6 @@ final class BrowserPaymentListSeeder
         private readonly UserRepository $users,
         private readonly AccessPackageManager $packages,
         private readonly AccessPackageVersionManager $versions,
-        private readonly SubjectManager $subjects,
         private readonly CommercialOfferManager $offers,
         private readonly CommerceOrderManager $orders,
         private readonly PaymentAttemptManager $attempts,
@@ -44,21 +45,21 @@ final class BrowserPaymentListSeeder
     /**
      * @return array{list: string, longReference: string, failedReference: string}
      */
-    public function seed(User $superAdmin): array
+    public function seed(User $superAdmin, Subject $subject): array
     {
         unset($superAdmin);
 
-        $initiated = $this->start('br_pay_init', PaymentProviderEnvironment::Sandbox);
-        $failed = $this->start('br_pay_fail', PaymentProviderEnvironment::Sandbox);
+        $initiated = $this->start('br_pay_init', PaymentProviderEnvironment::Sandbox, $subject);
+        $failed = $this->start('br_pay_fail', PaymentProviderEnvironment::Sandbox, $subject);
         $failed->markFailed('card_declined', new \DateTimeImmutable('2026-09-13 12:01:00', new \DateTimeZone('UTC')));
-        $authorized = $this->start('br_pay_auth', PaymentProviderEnvironment::Sandbox);
+        $authorized = $this->start('br_pay_auth', PaymentProviderEnvironment::Sandbox, $subject);
         $authorized->markAuthorized('br_pay_auth_ref', 'br_pay_auth_auth', new \DateTimeImmutable('2026-09-13 12:02:00', new \DateTimeZone('UTC')));
-        $captured = $this->start('br_pay_cap', PaymentProviderEnvironment::Sandbox);
+        $captured = $this->start('br_pay_cap', PaymentProviderEnvironment::Sandbox, $subject);
         $captured->markAuthorized('br_pay_cap_ref', 'br_pay_cap_auth', new \DateTimeImmutable('2026-09-13 12:03:00', new \DateTimeZone('UTC')));
         $captured->markCaptured('br_pay_cap_ref', new \DateTimeImmutable('2026-09-13 12:04:00', new \DateTimeZone('UTC')));
-        $live = $this->start('br_pay_live', PaymentProviderEnvironment::Production);
+        $live = $this->start('br_pay_live', PaymentProviderEnvironment::Production, $subject);
         $live->markAuthorized('br_pay_live_ref', 'br_pay_live_auth', new \DateTimeImmutable('2026-09-13 12:05:00', new \DateTimeZone('UTC')));
-        $this->start('br_pay_extra', PaymentProviderEnvironment::Sandbox);
+        $this->start('br_pay_extra', PaymentProviderEnvironment::Sandbox, $subject);
 
         $this->entityManager->flush();
 
@@ -69,7 +70,7 @@ final class BrowserPaymentListSeeder
         ];
     }
 
-    private function start(string $suffix, PaymentProviderEnvironment $environment): PaymentAttempt
+    private function start(string $suffix, PaymentProviderEnvironment $environment, Subject $subject): PaymentAttempt
     {
         $unique = $suffix.'_'.bin2hex(random_bytes(2));
         $sa = $this->activeUser($unique.'_pkg_sa@example.test', UserRole::SuperAdmin);
@@ -87,7 +88,7 @@ final class BrowserPaymentListSeeder
         $this->versions->addCatalogGrant(
             $version,
             AccessPackageCatalogResourceKind::LearningContent,
-            $this->subjects->create($sa, $unique.'_subj', 'S '.$unique, 'create_subject'),
+            $subject,
             GradeLevel::Grade9,
             $sa,
             'add_catalog_grant',

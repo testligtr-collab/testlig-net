@@ -103,9 +103,9 @@ final class AdminPaymentListHttpTest extends WebTestCase
         $client = static::createClient();
         $this->submitLogin($client, 'pay_list_mix_sa@example.com');
 
-        $beforeCount = (int) static::getContainer()->get(EntityManagerInterface::class)
-            ->getConnection()
-            ->fetchOne('SELECT COUNT(*) FROM payment_attempts');
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $beforeCount = (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM payment_attempts');
 
         $client->request('GET', '/yonetim/odemeler');
         self::assertResponseIsSuccessful();
@@ -163,9 +163,9 @@ final class AdminPaymentListHttpTest extends WebTestCase
         $client->request('GET', '/yonetim/odemeler', ['status' => 'not_a_status']);
         self::assertResponseStatusCodeSame(404);
 
-        $afterCount = (int) static::getContainer()->get(EntityManagerInterface::class)
-            ->getConnection()
-            ->fetchOne('SELECT COUNT(*) FROM payment_attempts');
+        $emAfter = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $emAfter);
+        $afterCount = (int) $emAfter->getConnection()->fetchOne('SELECT COUNT(*) FROM payment_attempts');
         self::assertSame($beforeCount, $afterCount);
         unset($live);
     }

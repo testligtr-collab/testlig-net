@@ -890,7 +890,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
             return Command::FAILURE;
         }
 
-        $paymentScreens = $this->paymentListSeeder->seed($superAdmin);
+        $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
