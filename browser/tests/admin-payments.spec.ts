@@ -14,6 +14,9 @@ test('admin payments list layout, filters, empty result, long reference, paginat
   const data = manifest();
   const longReference = data.paths.paymentLongReference as string;
   const failedReference = data.paths.paymentFailedReference as string;
+  // Domain: ORD- + exactly 24 hex (CommerceOrder::PUBLIC_REFERENCE_RANDOM_BYTES = 12).
+  expect(longReference).toMatch(/^ORD-[0-9A-F]{24}$/);
+  expect(longReference.length).toBe(28);
 
   installVideoAbort(page);
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -60,6 +63,51 @@ test('admin payments list layout, filters, empty result, long reference, paginat
 
     await assertLayout(page);
     await capture(page, info, `admin-odemeler-${viewport.name}.png`);
+  }
+
+  // Distinct long-reference screen: filtered to the domain-max ORD reference only (not a re-shot of the full list).
+  for (const viewport of VIEWPORTS) {
+    await page.setViewportSize(viewport);
+    await page.goto(`/yonetim/odemeler?order_public_reference=${encodeURIComponent(longReference)}`);
+    await expect(page.locator('#payment-filter-order')).toHaveValue(longReference);
+    await expect(page.locator('.admin-pagination')).toContainText('1 kayıt');
+    await expect(page.locator('.admin-pagination a', { hasText: 'Sonraki' })).toHaveCount(0);
+    const ref = page.locator('.admin-payment__reference:visible', { hasText: longReference }).first();
+    await expect(ref).toBeVisible();
+    await expect(ref).toHaveText(longReference);
+    await expect(page.locator('tr', { hasText: longReference })).toHaveCount(1);
+
+    const row = page.locator('tr', { hasText: longReference });
+    if (viewport.width >= 1024) {
+      await expect.poll(async () => row.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('table-cell');
+      const statusBox = await row.locator('.admin-payment__status').boundingBox();
+      const amountBox = await row.locator('.admin-payment__amount').boundingBox();
+      const refBox = await row.locator('.admin-payment__reference').boundingBox();
+      const actionBox = await row.locator('.admin-payment__action a').boundingBox();
+      expect(statusBox && amountBox && refBox && actionBox).toBeTruthy();
+      expect(boxesOverlap(statusBox!, refBox!)).toBeFalsy();
+      expect(boxesOverlap(amountBox!, refBox!)).toBeFalsy();
+      expect(boxesOverlap(refBox!, actionBox!)).toBeFalsy();
+      expect(boxesOverlap(statusBox!, actionBox!)).toBeFalsy();
+    } else {
+      await expect.poll(async () => row.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('block');
+      await expect(row.locator('.admin-payment__mobile-row', { hasText: 'Sipariş' })).toBeVisible();
+      const open = row.locator('.admin-payment__open');
+      await expect(open).toBeVisible();
+      const statusBox = await row.locator('.admin-payment__card-status').boundingBox();
+      const amountRow = row.locator('.admin-payment__mobile-row', { hasText: 'Tutar' });
+      const amountBox = await amountRow.boundingBox();
+      const refBox = await ref.boundingBox();
+      const openBox = await open.boundingBox();
+      expect(statusBox && amountBox && refBox && openBox).toBeTruthy();
+      expect(boxesOverlap(statusBox!, refBox!)).toBeFalsy();
+      expect(boxesOverlap(amountBox!, refBox!)).toBeFalsy();
+      expect(boxesOverlap(refBox!, openBox!)).toBeFalsy();
+      expect(openBox!.height).toBeGreaterThanOrEqual(44);
+    }
+
+    await assertReferenceFits(page, longReference);
+    await assertLayout(page);
     await capture(page, info, `admin-odemeler-uzun-${viewport.name}.png`);
   }
 
@@ -116,6 +164,48 @@ async function oneLine(locator: Locator): Promise<boolean> {
 
     return height <= line * 1.8;
   });
+}
+
+/**
+ * Page-level scrollWidth alone is not enough (a cell can grow itself while still clipping text).
+ * Compare the reference against its cell/card and the viewport edges.
+ */
+async function assertReferenceFits(page: Page, reference: string): Promise<void> {
+  const metrics = await page.evaluate((ref) => {
+    const nodes = Array.from(document.querySelectorAll('.admin-payment__reference')).filter(
+      (node): node is HTMLElement => node instanceof HTMLElement && (node.textContent ?? '').includes(ref) && node.getClientRects().length > 0,
+    );
+    const el = nodes[0];
+    if (!el) {
+      return null;
+    }
+    const cell = el.closest('td, .admin-payment__mobile-row') as HTMLElement | null;
+    const card = el.closest('tr, .admin-payment-list') as HTMLElement | null;
+    const wrap = el.closest('.admin-table-wrap, .admin-payment-list, main') as HTMLElement | null;
+    const box = el.getBoundingClientRect();
+    const cellBox = cell?.getBoundingClientRect();
+    const cardBox = card?.getBoundingClientRect();
+    const viewport = document.documentElement.clientWidth;
+
+    return {
+      text: (el.textContent ?? '').trim(),
+      refVsCell: cell ? el.scrollWidth - cell.clientWidth : 0,
+      cellVsWrap: cell && wrap ? cell.scrollWidth - wrap.clientWidth : 0,
+      cardVsViewport: cardBox ? cardBox.right - viewport : 0,
+      elRightVsViewport: box.right - viewport,
+      cellRightVsViewport: cellBox ? cellBox.right - viewport : 0,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    };
+  }, reference);
+
+  expect(metrics, 'long reference node missing').not.toBeNull();
+  expect(metrics!.text).toBe(reference);
+  expect(metrics!.refVsCell, 'reference scrollWidth vs cell/card clientWidth').toBeLessThanOrEqual(1);
+  expect(metrics!.cellVsWrap, 'cell scrollWidth vs list wrap clientWidth').toBeLessThanOrEqual(1);
+  expect(metrics!.cardVsViewport, 'row/card right edge vs viewport').toBeLessThanOrEqual(1);
+  expect(metrics!.elRightVsViewport, 'reference right edge vs viewport').toBeLessThanOrEqual(1);
+  expect(metrics!.cellRightVsViewport, 'cell right edge vs viewport').toBeLessThanOrEqual(1);
+  expect(metrics!.pageOverflow, 'document scrollWidth vs clientWidth').toBeLessThanOrEqual(1);
 }
 
 async function capture(page: Page, info: TestInfo, name: string): Promise<void> {

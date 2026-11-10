@@ -60,12 +60,16 @@ final class BrowserPaymentListSeeder
         $live = $this->start('br_pay_live', PaymentProviderEnvironment::Production, $subject);
         $live->markAuthorized('br_pay_live_ref', 'br_pay_live_auth', new \DateTimeImmutable('2026-09-13 12:05:00', new \DateTimeZone('UTC')));
         $this->start('br_pay_extra', PaymentProviderEnvironment::Sandbox, $subject);
+        // Domain publicReference is fixed-length ORD- + 24 hex (CommerceOrder::PUBLIC_REFERENCE_RANDOM_BYTES).
+        $longRefAttempt = $this->start('br_pay_long', PaymentProviderEnvironment::Sandbox, $subject);
 
         $this->entityManager->flush();
 
+        $longReference = $longRefAttempt->getOrder()->getPublicReference();
+
         return [
             'list' => '/yonetim/odemeler',
-            'longReference' => $initiated->getOrder()->getPublicReference(),
+            'longReference' => $longReference,
             'failedReference' => $failed->getOrder()->getPublicReference(),
         ];
     }
