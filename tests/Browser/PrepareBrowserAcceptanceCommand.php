@@ -1018,6 +1018,13 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'paymentsList' => $paymentScreens['list'],
                 'paymentLongReference' => $paymentScreens['longReference'],
                 'paymentFailedReference' => $paymentScreens['failedReference'],
+                'paymentDetailInitiated' => $paymentScreens['detailInitiated'],
+                'paymentDetailAuthorized' => $paymentScreens['detailAuthorized'],
+                'paymentDetailCaptured' => $paymentScreens['detailCaptured'],
+                'paymentDetailFailed' => $paymentScreens['detailFailed'],
+                'paymentDetailLongFailure' => $paymentScreens['detailLongFailure'],
+                'paymentDetailLiveAuthorized' => $paymentScreens['detailLiveAuthorized'],
+                'paymentLongFailureCode' => $paymentScreens['longFailureCode'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

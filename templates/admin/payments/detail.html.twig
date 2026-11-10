@@ -3,6 +3,8 @@
 {% block title %}Ödeme detayı — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set status = admin_payment_status(attempt.status.value) %}
+    {% set environment_label = admin_payment_environment(attempt.environment.value) %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,16 +12,78 @@
         <span aria-hidden="true">/</span>
         <span>Detay</span>
     </nav>
-    <h1 class="panel-greeting">Ödeme denemesi</h1>
+    <div class="admin-payment-page admin-payment-detail">
+        <header class="admin-user-head admin-payment-detail__head">
+            <div class="admin-payment-detail__title">
+                <a class="admin-payment-detail__back" href="{{ path('app_admin_payments') }}">Ödemeler listesine dön</a>
+                <h1 class="panel-greeting">Ödeme detayı</h1>
+                <p>Ödeme denemesini salt okunur izleyin. Bu ekranda durum değiştirme yoktur.</p>
+            </div>
+            <span class="admin-status admin-status--{{ status.variant }} admin-payment-detail__status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+        </header>
 
-    <dl class="admin-health-list">
-        <div><dt>Durum</dt><dd>{{ attempt.status.value }}</dd></div>
-        <div><dt>Sağlayıcı</dt><dd>{{ attempt.providerCode }} / {{ attempt.environment.value }}</dd></div>
-        <div><dt>Tutar</dt><dd>{{ attempt.amountMinor|money_try(attempt.currency) }}</dd></div>
-        <div><dt>Sipariş</dt><dd><code>{{ attempt.orderPublicReference }}</code></dd></div>
-        <div><dt>Oluşturulma</dt><dd>{{ attempt.createdAt|utc_present }}</dd></div>
-        <div><dt>Yetkilendirme</dt><dd>{{ attempt.authorizedAt|utc_present }}</dd></div>
-        <div><dt>Tahsil</dt><dd>{{ attempt.capturedAt|utc_present }}</dd></div>
-        <div><dt>Hata kodu</dt><dd>{{ attempt.failureCode|default('—') }}</dd></div>
-    </dl>
+        <div class="admin-payment-detail__layout">
+            <section class="admin-payment-detail__card" aria-labelledby="payment-summary-heading">
+                <h2 id="payment-summary-heading">Ödeme özeti</h2>
+                <dl class="admin-payment-detail__facts">
+                    <div>
+                        <dt>Durum</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Sağlayıcı</dt>
+                        <dd><span class="admin-payment__provider">{{ attempt.providerCode }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Ortam</dt>
+                        <dd><span class="admin-payment__environment admin-payment__environment--{{ attempt.environment.value }}">{{ environment_label }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Tutar</dt>
+                        <dd><span class="admin-payment__amount">{{ attempt.amountMinor|money_try(attempt.currency) }}</span></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-payment-detail__card" aria-labelledby="payment-order-heading">
+                <h2 id="payment-order-heading">Sipariş</h2>
+                <dl class="admin-payment-detail__facts">
+                    <div>
+                        <dt>Sipariş referansı</dt>
+                        <dd><code class="admin-payment__reference">{{ attempt.orderPublicReference }}</code></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-payment-detail__card" aria-labelledby="payment-timeline-heading">
+                <h2 id="payment-timeline-heading">Tarihler</h2>
+                <dl class="admin-payment-detail__facts">
+                    <div>
+                        <dt>Oluşturulma</dt>
+                        <dd>{{ attempt.createdAt|utc_present }}</dd>
+                    </div>
+                    <div>
+                        <dt>Yetkilendirme</dt>
+                        <dd>{{ attempt.authorizedAt|utc_present }}</dd>
+                    </div>
+                    <div>
+                        <dt>Tahsil</dt>
+                        <dd>{{ attempt.capturedAt|utc_present }}</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-payment-detail__card" aria-labelledby="payment-failure-heading">
+                <h2 id="payment-failure-heading">Hata</h2>
+                <dl class="admin-payment-detail__facts">
+                    <div>
+                        <dt>Hata kodu</dt>
+                        <dd><code class="admin-payment-detail__failure">{{ attempt.failureCode|default('—') }}</code></dd>
+                    </div>
+                </dl>
+            </section>
+        </div>
+    </div>
 {% endblock %}
