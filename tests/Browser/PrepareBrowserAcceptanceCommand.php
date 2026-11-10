@@ -136,6 +136,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly HomeworkAssignmentManager $homeworkAssignments,
         private readonly \App\Service\Homework\HomeworkSubmissionManager $homeworkSubmissions,
         private readonly \App\Service\Homework\HomeworkEvaluationManager $homeworkEvaluations,
+        private readonly BrowserPaymentListSeeder $paymentListSeeder,
     ) {
         parent::__construct();
     }
@@ -889,6 +890,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
             return Command::FAILURE;
         }
 
+        $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
+
         $manifest = [
             'password' => self::PASSWORD,
             'users' => [
@@ -1012,6 +1015,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'newsList' => '/yonetim/haberler',
                 'newsLongTitle' => 'Uzun haber basligi dar ekranda kartta ve masaustunde hucrede sarilir ve yatay tasmadan devam eder',
                 'newsLongCategory' => 'Uzun kategori adi satira sigmaz ve kartta veya tabloda kirilmadan sarilir',
+                'paymentsList' => $paymentScreens['list'],
+                'paymentLongReference' => $paymentScreens['longReference'],
+                'paymentFailedReference' => $paymentScreens['failedReference'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

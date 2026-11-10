@@ -5961,3 +5961,203 @@ body.is-admin-panel {
 }
 
 
+.is-admin-panel .admin-payment-page .admin-payment-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-payment-page .admin-payment-head p {
+    margin: 0.35rem 0 0;
+    color: #52667d;
+    max-width: 40rem;
+}
+.is-admin-panel .admin-payment-page .admin-payment-filters {
+    display: grid;
+    gap: 0.85rem;
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-payment-page .admin-payment-filters > label {
+    display: grid;
+    gap: 0.35rem;
+    color: #52667d;
+    font-size: 0.92rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-payment-page .admin-payment-filters input,
+.is-admin-panel .admin-payment-page .admin-payment-filters select {
+    width: 100%;
+}
+.is-admin-panel .admin-payment-page .admin-payment-filters__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    align-items: center;
+}
+.is-admin-panel .admin-payment-page .admin-payment-filters__actions .btn {
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-payment-page .admin-payment-list {
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-payment-page .admin-payment-list .admin-table-wrap {
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+.is-admin-panel .admin-payment-page .admin-payment-list h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-payment-page .admin-payment__mobile { display: none; }
+.is-admin-panel .admin-payment-page .admin-payment__provider-stack {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-payment-page .admin-payment__provider {
+    color: #16324f;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-payment-page .admin-payment__environment {
+    color: #52667d;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-payment-page .admin-payment__environment--sandbox {
+    color: #9a4d00;
+}
+.is-admin-panel .admin-payment-page .admin-payment__environment--production {
+    color: #146c43;
+}
+.is-admin-panel .admin-payment-page .admin-payment__reference {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-payment-page .admin-payment__amount {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.is-admin-panel .admin-payment-page .admin-payment__action a,
+.is-admin-panel .admin-payment-page .admin-payment__open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #0f7a72;
+    font-weight: 650;
+}
+.is-admin-panel .admin-payment-page .admin-payment__action a:hover,
+.is-admin-panel .admin-payment-page .admin-payment__action a:focus-visible,
+.is-admin-panel .admin-payment-page .admin-payment__open:hover,
+.is-admin-panel .admin-payment-page .admin-payment__open:focus-visible {
+    color: #0b5f59;
+}
+.is-admin-panel .admin-payment-page .admin-pagination {
+    margin-top: 0.85rem;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-payment-page .admin-payment-filters {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: end;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-filters__actions {
+        grid-column: 1 / -1;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(1),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__when-cell { width: 18%; min-width: 0; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(2),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__status { width: 16%; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(3),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__provider-cell { width: 18%; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(4),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__amount { width: 12%; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(5),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__reference-cell { width: 24%; min-width: 0; }
+    .is-admin-panel .admin-payment-page .admin-payment-table th:nth-child(6),
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__action { width: 12%; }
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__status,
+    .is-admin-panel .admin-payment-page .admin-payment-table .admin-payment__action {
+        vertical-align: middle;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-payment-page .admin-payment-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-table,
+    .is-admin-panel .admin-payment-page .admin-payment-table tbody,
+    .is-admin-panel .admin-payment-page .admin-payment-table tr,
+    .is-admin-panel .admin-payment-page .admin-payment-table td { display: block; width: auto; }
+    .is-admin-panel .admin-payment-page .admin-payment-table tr {
+        margin: 0 0 0.85rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.85rem;
+        background: #f8fbfe;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-payment-page .admin-payment-table td.admin-payment__status,
+    .is-admin-panel .admin-payment-page .admin-payment-table td.admin-payment__provider-cell,
+    .is-admin-panel .admin-payment-page .admin-payment-table td.admin-payment__amount,
+    .is-admin-panel .admin-payment-page .admin-payment-table td.admin-payment__reference-cell,
+    .is-admin-panel .admin-payment-page .admin-payment-table td.admin-payment__action,
+    .is-admin-panel .admin-payment-page .admin-payment__desktop-when { display: none; }
+    .is-admin-panel .admin-payment-page .admin-payment__mobile { display: grid; gap: 0.55rem; }
+    .is-admin-panel .admin-payment-page .admin-payment__mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment__mobile-when {
+        color: #16324f;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment__card-status { display: inline-flex; }
+    .is-admin-panel .admin-payment-page .admin-payment__mobile-row {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment__label {
+        color: #52667d;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment__open {
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.25rem;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #b7e0db;
+        border-radius: 0.7rem;
+        background: #eef9f7;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-list {
+        padding: 0.85rem;
+        background: transparent;
+        border: 0;
+    }
+    .is-admin-panel .admin-payment-page .admin-payment-list h2 { margin-bottom: 0.65rem; }
+}

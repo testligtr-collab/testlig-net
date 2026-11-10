@@ -249,6 +249,10 @@ services:
 
 when@test:
     services:
+        App\Tests\Browser\BrowserPaymentListSeeder:
+            autowire: true
+            autoconfigure: true
+
         App\Tests\Browser\PrepareBrowserAcceptanceCommand:
             autowire: true
             autoconfigure: true
