@@ -80,10 +80,10 @@ test('admin payments list layout, filters, empty result, long reference, paginat
     const row = page.locator('tr', { hasText: longReference });
     if (viewport.width >= 1024) {
       await expect.poll(async () => row.locator('td').first().evaluate((cell) => getComputedStyle(cell).display)).toBe('table-cell');
-      const statusBox = await row.locator('.admin-payment__status').boundingBox();
-      const amountBox = await row.locator('.admin-payment__amount').boundingBox();
-      const refBox = await row.locator('.admin-payment__reference').boundingBox();
-      const actionBox = await row.locator('.admin-payment__action a').boundingBox();
+      const statusBox = await row.locator('td.admin-payment__status').boundingBox();
+      const amountBox = await row.locator('td.admin-payment__amount').boundingBox();
+      const refBox = await row.locator('td.admin-payment__reference-cell .admin-payment__reference').boundingBox();
+      const actionBox = await row.locator('td.admin-payment__action a').boundingBox();
       expect(statusBox && amountBox && refBox && actionBox).toBeTruthy();
       expect(boxesOverlap(statusBox!, refBox!)).toBeFalsy();
       expect(boxesOverlap(amountBox!, refBox!)).toBeFalsy();
@@ -95,9 +95,8 @@ test('admin payments list layout, filters, empty result, long reference, paginat
       const open = row.locator('.admin-payment__open');
       await expect(open).toBeVisible();
       const statusBox = await row.locator('.admin-payment__card-status').boundingBox();
-      const amountRow = row.locator('.admin-payment__mobile-row', { hasText: 'Tutar' });
-      const amountBox = await amountRow.boundingBox();
-      const refBox = await ref.boundingBox();
+      const amountBox = await row.locator('.admin-payment__mobile-row', { hasText: 'Tutar' }).boundingBox();
+      const refBox = await row.locator('.admin-payment__mobile .admin-payment__reference').boundingBox();
       const openBox = await open.boundingBox();
       expect(statusBox && amountBox && refBox && openBox).toBeTruthy();
       expect(boxesOverlap(statusBox!, refBox!)).toBeFalsy();
