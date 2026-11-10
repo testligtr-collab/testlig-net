@@ -66,8 +66,8 @@ test('admin payments list layout, filters, empty result, long reference, paginat
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto(`/yonetim/odemeler?status=failed&order_public_reference=${encodeURIComponent(failedReference)}`);
-    await expect(page.getByText('Başarısız').first()).toBeVisible();
-    await expect(page.getByText(failedReference).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Başarısız' }).first()).toBeVisible();
+    await expect(page.locator('.admin-payment__reference:visible', { hasText: failedReference }).first()).toBeVisible();
     await expect(page.getByRole('link', { name: 'Temizle' })).toBeVisible();
     await assertLayout(page);
     await capture(page, info, `admin-odemeler-filtre-${viewport.name}.png`);

@@ -135,7 +135,8 @@ final class AdminPaymentListHttpTest extends WebTestCase
         $filterHtml = (string) $client->getResponse()->getContent();
         self::assertStringContainsString('name="status"', $filterHtml);
         self::assertStringContainsString('value="failed"', $filterHtml);
-        self::assertStringContainsString('page_size=25', $filterHtml);
+        self::assertSelectorTextContains('.admin-pagination', '25/sayfa');
+        self::assertStringContainsString('status=failed', $filterHtml);
 
         $client->request('GET', '/yonetim/odemeler', [
             'status' => 'failed',
