@@ -1,88 +1,154 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Ödeme denemeleri — Testlig{% endblock %}
+{% block title %}Ödemeler — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set content_filters = {
+        status: filters.status|default(''),
+        provider: filters.provider|default(''),
+        environment: filters.environment|default(''),
+        created_from: filters.created_from|default(''),
+        created_to: filters.created_to|default(''),
+        order_public_reference: filters.order_public_reference|default(''),
+        needs_reconciliation: filters.needs_reconciliation
+    } %}
+    {% set filtering = admin_filters_active(content_filters) %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
         <span>Ödemeler</span>
     </nav>
-    <h1 class="panel-greeting">Ödeme denemeleri</h1>
+    <div class="admin-payment-page">
+        <header class="admin-user-head admin-payment-head">
+            <div>
+                <h1 class="panel-greeting">Ödemeler</h1>
+                <p>Ödeme denemelerini salt okunur izleyin. Durum değiştirme bu listede yoktur.</p>
+            </div>
+        </header>
 
-    <form method="get" class="admin-filters" action="{{ path('app_admin_payments') }}">
-        <label>Durum
-            <input type="text" name="status" value="{{ filters.status|default('') }}" placeholder="initiated">
-        </label>
-        <label>Sağlayıcı
-            <input type="text" name="provider" value="{{ filters.provider|default('') }}">
-        </label>
-        <label>Ortam
-            <input type="text" name="environment" value="{{ filters.environment|default('') }}" placeholder="sandbox">
-        </label>
-        <label>Başlangıç
-            <input type="date" name="created_from" value="{{ filters.created_from|default('') }}">
-        </label>
-        <label>Bitiş
-            <input type="date" name="created_to" value="{{ filters.created_to|default('') }}">
-        </label>
-        <label>Sipariş referansı
-            <input type="text" name="order_public_reference" value="{{ filters.order_public_reference|default('') }}">
-        </label>
-        <label>Uzlaştırma gerekir
-            <select name="needs_reconciliation">
-                <option value="">—</option>
-                <option value="1" {% if filters.needs_reconciliation is same as(true) %}selected{% endif %}>Evet</option>
-                <option value="0" {% if filters.needs_reconciliation is same as(false) %}selected{% endif %}>Hayır</option>
-            </select>
-        </label>
-        {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_payments'), filters: filters } only %}
-    </form>
+        <form method="get" class="admin-filters admin-payment-filters" action="{{ path('app_admin_payments') }}" aria-label="Ödeme denemelerini filtrele">
+            <label for="payment-filter-status">Durum
+                <input id="payment-filter-status" type="text" name="status" value="{{ filters.status|default('') }}" placeholder="initiated" autocomplete="off">
+            </label>
+            <label for="payment-filter-provider">Sağlayıcı
+                <input id="payment-filter-provider" type="text" name="provider" value="{{ filters.provider|default('') }}" autocomplete="off">
+            </label>
+            <label for="payment-filter-environment">Ortam
+                <input id="payment-filter-environment" type="text" name="environment" value="{{ filters.environment|default('') }}" placeholder="sandbox" autocomplete="off">
+            </label>
+            <label for="payment-filter-from">Başlangıç
+                <input id="payment-filter-from" type="date" name="created_from" value="{{ filters.created_from|default('') }}">
+            </label>
+            <label for="payment-filter-to">Bitiş
+                <input id="payment-filter-to" type="date" name="created_to" value="{{ filters.created_to|default('') }}">
+            </label>
+            <label for="payment-filter-order">Sipariş referansı
+                <input id="payment-filter-order" type="text" name="order_public_reference" value="{{ filters.order_public_reference|default('') }}" autocomplete="off">
+            </label>
+            <label for="payment-filter-recon">Uzlaştırma gerekir
+                <select id="payment-filter-recon" name="needs_reconciliation">
+                    <option value="">—</option>
+                    <option value="1" {% if filters.needs_reconciliation is same as(true) %}selected{% endif %}>Evet</option>
+                    <option value="0" {% if filters.needs_reconciliation is same as(false) %}selected{% endif %}>Hayır</option>
+                </select>
+            </label>
+            <div class="admin-payment-filters__actions">
+                {% include 'admin/_filter_actions.html.twig' with { clear_href: path('app_admin_payments'), filters: content_filters } only %}
+            </div>
+        </form>
 
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Kayıt yok',
-            body: 'Filtrelere uygun ödeme denemesi bulunamadı.'
+        {% if result.items is empty %}
+            {% if filtering %}
+                {% include 'components/empty_state.html.twig' with {
+                    title: 'Sonuç yok',
+                    body: 'Bu filtrelere uyan ödeme denemesi yok.'
+                } %}
+            {% else %}
+                {% include 'components/empty_state.html.twig' with {
+                    title: 'Ödeme denemesi yok',
+                    body: 'Henüz listelenecek bir ödeme denemesi yok.'
+                } %}
+            {% endif %}
+        {% else %}
+            <section class="admin-payment-list" aria-labelledby="payment-list-heading">
+                <h2 id="payment-list-heading">Ödeme listesi</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-payment-table">
+                        <thead>
+                            <tr>
+                                <th>Oluşturulma</th>
+                                <th>Durum</th>
+                                <th>Sağlayıcı</th>
+                                <th>Tutar</th>
+                                <th>Sipariş</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                {% set status = admin_payment_status(row.status.value) %}
+                                {% set environment_label = admin_payment_environment(row.environment.value) %}
+                                <tr>
+                                    <td class="admin-payment__when-cell">
+                                        <div class="admin-payment__desktop-when">{{ row.createdAt|utc_present }}</div>
+                                        <div class="admin-payment__mobile">
+                                            <div class="admin-payment__mobile-head">
+                                                <span class="admin-payment__mobile-when">{{ row.createdAt|utc_present }}</span>
+                                                <span class="admin-status admin-status--{{ status.variant }} admin-payment__card-status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                            </div>
+                                            <div class="admin-payment__mobile-row">
+                                                <span class="admin-payment__label">Sağlayıcı</span>
+                                                <span class="admin-payment__provider">{{ row.providerCode }}</span>
+                                            </div>
+                                            <div class="admin-payment__mobile-row">
+                                                <span class="admin-payment__label">Ortam</span>
+                                                <span class="admin-payment__environment admin-payment__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                            </div>
+                                            <div class="admin-payment__mobile-row">
+                                                <span class="admin-payment__label">Tutar</span>
+                                                <span class="admin-payment__amount">{{ row.amountMinor|money_try(row.currency) }}</span>
+                                            </div>
+                                            <div class="admin-payment__mobile-row">
+                                                <span class="admin-payment__label">Sipariş</span>
+                                                <code class="admin-payment__reference">{{ row.orderPublicReference }}</code>
+                                            </div>
+                                            <a class="admin-payment__open" href="{{ path('app_admin_payment_detail', { attemptId: row.attemptId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                        </div>
+                                    </td>
+                                    <td class="admin-payment__status">
+                                        <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                    </td>
+                                    <td class="admin-payment__provider-cell">
+                                        <div class="admin-payment__provider-stack">
+                                            <span class="admin-payment__provider">{{ row.providerCode }}</span>
+                                            <span class="admin-payment__environment admin-payment__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="admin-payment__amount">{{ row.amountMinor|money_try(row.currency) }}</td>
+                                    <td class="admin-payment__reference-cell"><code class="admin-payment__reference">{{ row.orderPublicReference }}</code></td>
+                                    <td class="admin-payment__action">
+                                        <a href="{{ path('app_admin_payment_detail', { attemptId: row.attemptId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
+        {% include 'components/admin_pagination.html.twig' with {
+            result: result,
+            route: 'app_admin_payments',
+            query: {
+                status: filters.status|default(''),
+                provider: filters.provider|default(''),
+                environment: filters.environment|default(''),
+                created_from: filters.created_from|default(''),
+                created_to: filters.created_to|default(''),
+                order_public_reference: filters.order_public_reference|default(''),
+                needs_reconciliation: filters.needs_reconciliation is same as(true) ? '1' : (filters.needs_reconciliation is same as(false) ? '0' : '')
+            }
         } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Oluşturulma</th>
-                        <th>Durum</th>
-                        <th>Sağlayıcı</th>
-                        <th>Tutar</th>
-                        <th>Sipariş</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.createdAt|utc_present }}</td>
-                            <td>{% include 'components/status_chip.html.twig' with { label: row.status.value, variant: 'accent' } %}</td>
-                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
-                            <td>{{ row.amountMinor|money_try(row.currency) }}</td>
-                            <td><code>{{ row.orderPublicReference }}</code></td>
-                            <td><a href="{{ path('app_admin_payment_detail', { attemptId: row.attemptId }) }}">Detay</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% endif %}
-    {% include 'components/admin_pagination.html.twig' with {
-        result: result,
-        route: 'app_admin_payments',
-        query: {
-            status: filters.status|default(''),
-            provider: filters.provider|default(''),
-            environment: filters.environment|default(''),
-            created_from: filters.created_from|default(''),
-            created_to: filters.created_to|default(''),
-            order_public_reference: filters.order_public_reference|default(''),
-            needs_reconciliation: filters.needs_reconciliation is same as(true) ? '1' : (filters.needs_reconciliation is same as(false) ? '0' : '')
-        }
-    } %}
+    </div>
 {% endblock %}
