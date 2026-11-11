@@ -62,6 +62,9 @@ final class BrowserAcceptanceGuardTest extends TestCase
         self::assertStringContainsString('browser-acceptance', $ci);
         self::assertStringContainsString('127.0.0.1:8080', $ci);
         self::assertStringContainsString('npm audit', $ci);
+        self::assertStringContainsString('npx playwright install chromium', $ci);
+        self::assertStringContainsString('playwright-install-deps-with-transient-retry.sh', $ci);
+        self::assertStringNotContainsString('--with-deps', $ci);
     }
 
     private function root(string $path): string
