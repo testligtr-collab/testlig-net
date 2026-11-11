@@ -24,12 +24,14 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * Synthetic payment attempts for browser acceptance of /yonetim/odemeler.
+ * Synthetic payment attempts for browser acceptance of /yonetim/odemeler and detail.
  *
  * Reuses an existing subject so curriculum screens are not polluted with fixture subjects.
  */
 final class BrowserPaymentListSeeder
 {
+    public const LONG_FAILURE_CODE = 'provider_timeout_insufficient_funds_retry_later';
+
     public function __construct(
         private readonly UserFactory $userFactory,
         private readonly UserRepository $users,
@@ -43,7 +45,18 @@ final class BrowserPaymentListSeeder
     }
 
     /**
-     * @return array{list: string, longReference: string, failedReference: string}
+     * @return array{
+     *     list: string,
+     *     longReference: string,
+     *     failedReference: string,
+     *     detailInitiated: string,
+     *     detailAuthorized: string,
+     *     detailCaptured: string,
+     *     detailFailed: string,
+     *     detailLongFailure: string,
+     *     detailLiveAuthorized: string,
+     *     longFailureCode: string
+     * }
      */
     public function seed(User $superAdmin, Subject $subject): array
     {
@@ -62,6 +75,8 @@ final class BrowserPaymentListSeeder
         $this->start('br_pay_extra', PaymentProviderEnvironment::Sandbox, $subject);
         // Domain publicReference is fixed-length ORD- + 24 hex (CommerceOrder::PUBLIC_REFERENCE_RANDOM_BYTES).
         $longRefAttempt = $this->start('br_pay_long', PaymentProviderEnvironment::Sandbox, $subject);
+        $longFailed = $this->start('br_pay_longfail', PaymentProviderEnvironment::Sandbox, $subject);
+        $longFailed->markFailed(self::LONG_FAILURE_CODE, new \DateTimeImmutable('2026-09-13 12:06:00', new \DateTimeZone('UTC')));
 
         $this->entityManager->flush();
 
@@ -71,6 +86,13 @@ final class BrowserPaymentListSeeder
             'list' => '/yonetim/odemeler',
             'longReference' => $longReference,
             'failedReference' => $failed->getOrder()->getPublicReference(),
+            'detailInitiated' => '/yonetim/odemeler/'.$initiated->getId()->toRfc4122(),
+            'detailAuthorized' => '/yonetim/odemeler/'.$authorized->getId()->toRfc4122(),
+            'detailCaptured' => '/yonetim/odemeler/'.$captured->getId()->toRfc4122(),
+            'detailFailed' => '/yonetim/odemeler/'.$failed->getId()->toRfc4122(),
+            'detailLongFailure' => '/yonetim/odemeler/'.$longFailed->getId()->toRfc4122(),
+            'detailLiveAuthorized' => '/yonetim/odemeler/'.$live->getId()->toRfc4122(),
+            'longFailureCode' => self::LONG_FAILURE_CODE,
         ];
     }
 
