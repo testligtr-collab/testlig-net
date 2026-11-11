@@ -254,9 +254,13 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ runner.os }}-${{ hashFiles('browser/package-lock.json') }}
 
-      - name: Install Chromium
+      - name: Install Chromium browser
         working-directory: browser
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
+
+      - name: Install Chromium system dependencies
+        working-directory: browser
+        run: bash ../.github/scripts/playwright-install-deps-with-transient-retry.sh chromium
 
       - name: Wait for MariaDB
         run: |
