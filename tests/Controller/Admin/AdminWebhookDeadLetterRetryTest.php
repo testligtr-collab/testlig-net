@@ -154,7 +154,7 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
 
         $crawler = $client->request('GET', '/yonetim/webhook/'.$event->getId()->toRfc4122());
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', 'Dead-letter yeniden dene');
+        self::assertSelectorTextContains('body', 'Dead-letter yeniden kuyruğa alma');
         $form = $crawler->selectButton('Yeniden kuyruğa al')->form();
         $values = $form->getPhpValues();
         self::assertArrayHasKey('admin_webhook_dead_letter_requeue', $values);
@@ -261,7 +261,7 @@ final class AdminWebhookDeadLetterRetryTest extends WebTestCase
         }
 
         $client->request('GET', '/yonetim/webhook/'.$event->getId()->toRfc4122());
-        self::assertSelectorTextContains('body', 'dead_letter');
+        self::assertSelectorTextContains('body', 'Ölü mektup');
         self::assertSelectorTextContains('body', (string) $event->getAttemptCount());
         self::assertSelectorTextContains('body', 'conflict');
         self::assertSelectorExists('form[name="admin_webhook_dead_letter_requeue"]');

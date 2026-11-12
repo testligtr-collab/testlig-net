@@ -6466,3 +6466,175 @@ body.is-admin-panel {
     }
     .is-admin-panel .admin-webhook-page .admin-webhook-list h2 { margin-bottom: 0.65rem; }
 }
+
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__title {
+    min-width: 0;
+    flex: 1 1 16rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__title p {
+    margin: 0.35rem 0 0;
+    color: #52667d;
+    max-width: 40rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-bottom: 0.35rem;
+    color: #0f7a72;
+    font-weight: 650;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__back:hover,
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__back:focus-visible {
+    color: #0b5f59;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__back:focus-visible,
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__payment-link:focus-visible,
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue-submit:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__status {
+    flex: 0 0 auto;
+    align-self: flex-start;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__layout {
+    display: grid;
+    gap: 1rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__card {
+    margin: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+    height: fit-content;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__card h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__facts {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__facts > div {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__facts dt {
+    color: #52667d;
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__facts dd {
+    margin: 0;
+    color: #16324f;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__provider,
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__event-type {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__environment--sandbox {
+    color: #9a4d00;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__environment--production {
+    color: #146c43;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__stale {
+    margin: 0.35rem 0 0;
+    color: #9a4d00;
+    font-size: 0.9rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__failure {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__payment-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #0f7a72;
+    font-weight: 650;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__payment-link:hover,
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__payment-link:focus-visible {
+    color: #0b5f59;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue {
+    margin: 1rem 0 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #f0d9b8;
+    border-radius: 0.9rem;
+    background: #fffaf3;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue h2 {
+    margin: 0 0 0.55rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue-note {
+    margin: 0 0 0.85rem;
+    color: #7a4a12;
+    max-width: 44rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue-form {
+    display: grid;
+    gap: 0.75rem;
+    max-width: 28rem;
+}
+.is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue-submit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    width: fit-content;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-webhook-detail .admin-webhook-detail__layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-webhook-detail .admin-webhook-detail__back {
+        width: 100%;
+        justify-content: center;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #b7e0db;
+        border-radius: 0.7rem;
+        background: #eef9f7;
+    }
+    .is-admin-panel .admin-webhook-detail .admin-webhook-detail__status {
+        width: 100%;
+    }
+    .is-admin-panel .admin-webhook-detail .admin-webhook-detail__requeue-submit {
+        width: 100%;
+    }
+    .is-admin-panel .admin-webhook-detail .admin-webhook-detail__payment-link {
+        width: 100%;
+        justify-content: center;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #b7e0db;
+        border-radius: 0.7rem;
+        background: #eef9f7;
+    }
+}
