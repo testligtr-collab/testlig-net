@@ -1,6 +1,6 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Webhook kuyruğu — Testlig{% endblock %}
+{% block title %}Webhook — Testlig{% endblock %}
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
@@ -8,54 +8,114 @@
         <span aria-hidden="true">/</span>
         <span>Webhook</span>
     </nav>
-    <h1 class="panel-greeting">Webhook kuyruğu</h1>
+    <div class="admin-webhook-page">
+        <header class="admin-user-head admin-webhook-head">
+            <div>
+                <h1 class="panel-greeting">Webhook</h1>
+                <p>Ödeme webhook kuyruğunu salt okunur izleyin. Yeniden deneme bu listede yoktur.</p>
+            </div>
+        </header>
 
-    <div class="admin-tabs" role="tablist">
-        {% for t in tabs %}
-            <a
-                class="admin-tab{% if t == tab %} is-active{% endif %}"
-                href="{{ path('app_admin_webhooks', { tab: t }) }}"
-                {% if t == tab %}aria-current="page"{% endif %}
-            >{{ t }}</a>
-        {% endfor %}
-    </div>
+        <section class="admin-webhook-tabs-card" aria-labelledby="webhook-tabs-heading">
+            <h2 id="webhook-tabs-heading" class="sr-only">Kuyruk sekmeleri</h2>
+            <div class="admin-tabs admin-webhook-tabs" role="tablist" aria-label="Webhook kuyruk sekmeleri">
+                {% for t in tabs %}
+                    <a
+                        class="admin-tab{% if t == tab %} is-active{% endif %}"
+                        href="{{ path('app_admin_webhooks', { tab: t }) }}"
+                        role="tab"
+                        {% if t == tab %}aria-selected="true" aria-current="page"{% else %}aria-selected="false"{% endif %}
+                    >{{ admin_webhook_tab(t) }}</a>
+                {% endfor %}
+            </div>
+        </section>
 
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Kuyruk boş',
-            body: 'Bu sekmede gösterilecek webhook olayı yok.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Alınma</th>
-                        <th>Durum</th>
-                        <th>Sağlayıcı</th>
-                        <th>Tür</th>
-                        <th>Deneme</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.receivedAt|utc_present }}</td>
-                            <td>{{ row.status.value }}{% if row.isStaleLease %} (stale){% endif %}</td>
-                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
-                            <td>{{ row.eventType.value }}</td>
-                            <td>{{ row.attemptCount }}</td>
-                            <td><a href="{{ path('app_admin_webhook_detail', { eventId: row.eventId }) }}">Detay</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% if result.items is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Kuyruk boş',
+                body: 'Bu sekmede gösterilecek webhook olayı yok.'
+            } %}
+        {% else %}
+            <section class="admin-webhook-list" aria-labelledby="webhook-list-heading">
+                <h2 id="webhook-list-heading">Webhook listesi</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-webhook-table">
+                        <thead>
+                            <tr>
+                                <th>Alınma</th>
+                                <th>Durum</th>
+                                <th>Sağlayıcı</th>
+                                <th>Tür</th>
+                                <th>Deneme</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                {% set status = admin_webhook_status(row.status.value) %}
+                                {% set environment_label = admin_webhook_environment(row.environment.value) %}
+                                {% set event_type_label = admin_webhook_event_type(row.eventType.value) %}
+                                <tr>
+                                    <td class="admin-webhook__when-cell">
+                                        <div class="admin-webhook__desktop-when">{{ row.receivedAt|utc_present }}</div>
+                                        <div class="admin-webhook__mobile">
+                                            <div class="admin-webhook__mobile-head">
+                                                <span class="admin-webhook__mobile-when">{{ row.receivedAt|utc_present }}</span>
+                                                <span class="admin-status admin-status--{{ status.variant }} admin-webhook__card-status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                            </div>
+                                            {% if row.isStaleLease %}
+                                                <p class="admin-webhook__stale">{{ admin_webhook_stale_note() }}</p>
+                                            {% endif %}
+                                            <div class="admin-webhook__mobile-row">
+                                                <span class="admin-webhook__label">Sağlayıcı</span>
+                                                <span class="admin-webhook__provider">{{ row.providerCode }}</span>
+                                            </div>
+                                            <div class="admin-webhook__mobile-row">
+                                                <span class="admin-webhook__label">Ortam</span>
+                                                <span class="admin-webhook__environment admin-webhook__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                            </div>
+                                            <div class="admin-webhook__mobile-row">
+                                                <span class="admin-webhook__label">Tür</span>
+                                                <span class="admin-webhook__event-type">{{ event_type_label }}</span>
+                                            </div>
+                                            <div class="admin-webhook__mobile-row">
+                                                <span class="admin-webhook__label">Deneme</span>
+                                                <span class="admin-webhook__attempts">{{ row.attemptCount }}</span>
+                                            </div>
+                                            <a class="admin-webhook__open" href="{{ path('app_admin_webhook_detail', { eventId: row.eventId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                        </div>
+                                    </td>
+                                    <td class="admin-webhook__status">
+                                        <div class="admin-webhook__status-stack">
+                                            <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                            {% if row.isStaleLease %}
+                                                <span class="admin-webhook__stale">{{ admin_webhook_stale_note() }}</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="admin-webhook__provider-cell">
+                                        <div class="admin-webhook__provider-stack">
+                                            <span class="admin-webhook__provider">{{ row.providerCode }}</span>
+                                            <span class="admin-webhook__environment admin-webhook__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="admin-webhook__event-type">{{ event_type_label }}</td>
+                                    <td class="admin-webhook__attempts">{{ row.attemptCount }}</td>
+                                    <td class="admin-webhook__action">
+                                        <a href="{{ path('app_admin_webhook_detail', { eventId: row.eventId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
         {% include 'components/admin_pagination.html.twig' with {
             result: result,
             route: 'app_admin_webhooks',
             query: { tab: tab }
         } %}
-    {% endif %}
+    </div>
 {% endblock %}
