@@ -3,6 +3,9 @@
 {% block title %}Webhook detayı — Testlig{% endblock %}
 
 {% block panel_content %}
+    {% set status = admin_webhook_status(event.status.value) %}
+    {% set environment_label = admin_webhook_environment(event.environment.value) %}
+    {% set event_type_label = admin_webhook_event_type(event.eventType.value) %}
     <nav class="admin-breadcrumb" aria-label="Konum">
         {% include 'admin/_crumb_root.html.twig' %}
         <span aria-hidden="true">/</span>
@@ -10,36 +13,106 @@
         <span aria-hidden="true">/</span>
         <span>Detay</span>
     </nav>
-    <h1 class="panel-greeting">Webhook olayı</h1>
+    <div class="admin-webhook-page admin-webhook-detail">
+        <header class="admin-user-head admin-webhook-detail__head">
+            <div class="admin-webhook-detail__title">
+                <a class="admin-webhook-detail__back" href="{{ path('app_admin_webhooks') }}">Webhook listesine dön</a>
+                <h1 class="panel-greeting">Webhook detayı</h1>
+                <p>Ödeme webhook olayını salt okunur izleyin. Bu ekranda sağlayıcıya çağrı yapılmaz.</p>
+            </div>
+            <span class="admin-status admin-status--{{ status.variant }} admin-webhook-detail__status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+        </header>
 
-    <dl class="admin-health-list">
-        <div><dt>Durum</dt><dd>{{ event.status.value }}</dd></div>
-        <div><dt>Sağlayıcı</dt><dd>{{ event.providerCode }} / {{ event.environment.value }}</dd></div>
-        <div><dt>Olay türü</dt><dd>{{ event.eventType.value }}</dd></div>
-        <div><dt>Alınma</dt><dd>{{ event.receivedAt|utc_present }}</dd></div>
-        <div><dt>Sonraki deneme</dt><dd>{{ event.nextRetryAt|utc_present }}</dd></div>
-        <div><dt>Lease bitiş</dt><dd>{{ event.leaseExpiresAt|utc_present }}</dd></div>
-        <div><dt>Deneme sayısı</dt><dd>{{ event.attemptCount }}</dd></div>
-        <div><dt>Son hata</dt><dd>{{ event.lastFailureReasonCode|default('—') }}</dd></div>
-        <div><dt>Ödeme denemesi</dt>
-            <dd>
-                {% if event.paymentAttemptId %}
-                    <a href="{{ path('app_admin_payment_detail', { attemptId: event.paymentAttemptId }) }}">Detay</a>
-                {% else %}
-                    —
-                {% endif %}
-            </dd>
+        <div class="admin-webhook-detail__layout">
+            <section class="admin-webhook-detail__card" aria-labelledby="webhook-summary-heading">
+                <h2 id="webhook-summary-heading">Olay özeti</h2>
+                <dl class="admin-webhook-detail__facts">
+                    <div>
+                        <dt>Durum</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                            {% if event.isStaleLease %}
+                                <p class="admin-webhook-detail__stale">{{ admin_webhook_stale_note() }}</p>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Sağlayıcı</dt>
+                        <dd><span class="admin-webhook-detail__provider">{{ event.providerCode }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Ortam</dt>
+                        <dd><span class="admin-webhook-detail__environment admin-webhook-detail__environment--{{ event.environment.value }}">{{ environment_label }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Olay türü</dt>
+                        <dd><span class="admin-webhook-detail__event-type">{{ event_type_label }}</span></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-webhook-detail__card" aria-labelledby="webhook-timing-heading">
+                <h2 id="webhook-timing-heading">Zaman ve deneme</h2>
+                <dl class="admin-webhook-detail__facts">
+                    <div>
+                        <dt>Alınma</dt>
+                        <dd>{{ event.receivedAt|utc_present }}</dd>
+                    </div>
+                    <div>
+                        <dt>Deneme sayısı</dt>
+                        <dd><span class="admin-webhook-detail__attempts">{{ event.attemptCount }}</span></dd>
+                    </div>
+                    <div>
+                        <dt>Sonraki deneme</dt>
+                        <dd>{{ event.nextRetryAt|utc_present }}</dd>
+                    </div>
+                    <div>
+                        <dt>Lease bitiş</dt>
+                        <dd>{{ event.leaseExpiresAt|utc_present }}</dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-webhook-detail__card" aria-labelledby="webhook-failure-heading">
+                <h2 id="webhook-failure-heading">Hata</h2>
+                <dl class="admin-webhook-detail__facts">
+                    <div>
+                        <dt>Son hata kodu</dt>
+                        <dd><code class="admin-webhook-detail__failure">{{ event.lastFailureReasonCode|default('—') }}</code></dd>
+                    </div>
+                </dl>
+            </section>
+
+            <section class="admin-webhook-detail__card" aria-labelledby="webhook-payment-heading">
+                <h2 id="webhook-payment-heading">Ödeme denemesi</h2>
+                <dl class="admin-webhook-detail__facts">
+                    <div>
+                        <dt>Bağlantı</dt>
+                        <dd>
+                            {% if event.paymentAttemptId %}
+                                <a class="admin-webhook-detail__payment-link" href="{{ path('app_admin_payment_detail', { attemptId: event.paymentAttemptId }) }}">Ödeme detayına git</a>
+                            {% else %}
+                                —
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+            </section>
         </div>
-    </dl>
 
-    {% if requeue_form %}
-        <section class="surface stack-md" aria-labelledby="requeue-heading">
-            <h2 id="requeue-heading" class="u-h-sm">Dead-letter yeniden dene</h2>
-            {{ form_start(requeue_form) }}
-                {{ form_row(requeue_form.reasonCode) }}
-                {{ form_row(requeue_form.confirm) }}
-                <button type="submit" class="btn btn--primary">Yeniden kuyruğa al</button>
-            {{ form_end(requeue_form) }}
-        </section>
-    {% endif %}
+        {% if requeue_form %}
+            <section class="admin-webhook-detail__requeue" aria-labelledby="requeue-heading">
+                <h2 id="requeue-heading">Dead-letter yeniden kuyruğa alma</h2>
+                <p class="admin-webhook-detail__requeue-note">
+                    Bu işlem olayı yeniden işlem kuyruğuna alır; bu POST doğrudan sağlayıcıya HTTP çağrısı yapmaz.
+                    Sonraki processor işlemi ayrıdır.
+                </p>
+                {{ form_start(requeue_form, { attr: { class: 'admin-webhook-detail__requeue-form' } }) }}
+                    {{ form_row(requeue_form.reasonCode) }}
+                    {{ form_row(requeue_form.confirm) }}
+                    <button type="submit" class="btn btn--primary admin-webhook-detail__requeue-submit">Yeniden kuyruğa al</button>
+                {{ form_end(requeue_form) }}
+            </section>
+        {% endif %}
+    </div>
 {% endblock %}
