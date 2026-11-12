@@ -6391,14 +6391,15 @@ body.is-admin-panel {
         padding: 0.85rem;
     }
     .is-admin-panel .admin-webhook-page .admin-webhook-tabs {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        padding-bottom: 0.15rem;
+        /* Wrap instead of off-canvas scroll: assertLayout flags main links with left >= viewport. */
+        flex-wrap: wrap;
+        gap: 0.45rem;
     }
     .is-admin-panel .admin-webhook-page .admin-webhook-tabs .admin-tab {
-        flex: 0 0 auto;
-        white-space: nowrap;
+        flex: 0 1 auto;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
     .is-admin-panel .admin-webhook-page .admin-webhook-table thead {
         position: absolute;
