@@ -218,9 +218,11 @@ final class AdminWebhookListHttpTest extends WebTestCase
         $this->em->flush();
 
         if (PaymentWebhookInboxStatus::Received !== $status) {
+            // Flush Processing first: MariaDB status-transition trigger rejects Received → terminal.
             $now = $this->clock->now();
             $claim = Uuid::v7();
             $event->applyClaim($claim, $now);
+            $this->em->flush();
             if (PaymentWebhookInboxStatus::DeadLetter === $status) {
                 $event->markDeadLetter('retry_exhausted', $now, $claim);
             } elseif (PaymentWebhookInboxStatus::Processed === $status) {

@@ -113,8 +113,10 @@ final class BrowserWebhookListSeeder
         $this->entityManager->flush();
 
         if ($deadLetter) {
+            // Flush Processing first: MariaDB status-transition trigger rejects Received → DeadLetter.
             $claim = Uuid::v7();
             $event->applyClaim($claim, $receivedAt);
+            $this->entityManager->flush();
             $event->markDeadLetter('retry_exhausted', $receivedAt, $claim);
             $this->entityManager->flush();
         }
