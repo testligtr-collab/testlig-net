@@ -91,7 +91,9 @@ final class AdminWebhookListHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'İşlenecek');
         self::assertSelectorTextContains('body', 'Kuyruk boş');
         self::assertSelectorTextContains('body', 'Bu sekmede gösterilecek webhook olayı yok.');
-        self::assertSelectorNotExists('button[type="submit"]');
+        // Layout logout may submit; list itself must not expose requeue/write controls.
+        self::assertSelectorNotExists('form[action*="yeniden-dene"]');
+        self::assertSelectorNotExists('.admin-webhook-page button[type="submit"]');
         self::assertStringNotContainsStringIgnoringCase('payload_hash', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsStringIgnoringCase('signature_fingerprint', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsStringIgnoringCase('sk_live', (string) $client->getResponse()->getContent());
