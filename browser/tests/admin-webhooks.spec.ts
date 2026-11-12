@@ -20,15 +20,15 @@ test('admin webhook list layout, tabs, empty rejected, long event type, paginati
   await watch(page);
   await login(page, data.users.superadmin);
 
-  // due empty is covered by HTTP when no inbox rows exist. Browser fixtures fill due;
-  // rejected stays empty and exercises the same empty_state component.
+  // due empty is covered by HTTP when no inbox rows exist. Browser fixtures fill due/dead_letter
+  // and detail statuses; retry_pending stays empty and exercises the same empty_state component.
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
-    await page.goto('/yonetim/webhook?tab=rejected');
+    await page.goto('/yonetim/webhook?tab=retry_pending');
     await expect(page.getByRole('heading', { level: 1, name: 'Webhook' })).toBeVisible();
     await expect(page.getByText('Kuyruk boş')).toBeVisible();
     await expect(page.getByText('Bu sekmede gösterilecek webhook olayı yok.')).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Reddedildi' })).toHaveAttribute('aria-current', 'page');
+    await expect(page.getByRole('tab', { name: 'Yeniden deneme bekliyor' })).toHaveAttribute('aria-current', 'page');
     await assertTabsReachable(page, viewport.width);
     await assertLayout(page);
     await capture(page, info, `admin-webhook-bos-${viewport.name}.png`);

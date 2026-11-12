@@ -60,16 +60,16 @@ final class BrowserWebhookDetailSeeder
      */
     public function seed(User $superAdmin, Subject $subject): array
     {
-        unset($superAdmin);
-
         $now = new \DateTimeImmutable('2026-09-13 12:00:00', new \DateTimeZone('UTC'));
 
-        $received = $this->persist($subject, 'br_whd_recv', PaymentEventType::Authorized, 'received', $now);
-        $dead = $this->persist($subject, 'br_whd_dead', PaymentEventType::Failed, 'dead_letter', $now->modify('+1 minute'));
-        $processed = $this->persist($subject, 'br_whd_proc', PaymentEventType::Captured, 'processed', $now->modify('+2 minutes'));
-        $rejected = $this->persist($subject, 'br_whd_rej', PaymentEventType::Cancelled, 'rejected', $now->modify('+3 minutes'));
-        $stale = $this->persist($subject, 'br_whd_stale', PaymentEventType::Authorized, 'stale', $now->modify('+4 minutes'));
+        // Reuse the browser SuperAdmin for package ownership so teacher-directory fixtures stay stable.
+        $received = $this->persist($superAdmin, $subject, 'br_whd_recv', PaymentEventType::Authorized, 'received', $now);
+        $dead = $this->persist($superAdmin, $subject, 'br_whd_dead', PaymentEventType::Failed, 'dead_letter', $now->modify('+1 minute'));
+        $processed = $this->persist($superAdmin, $subject, 'br_whd_proc', PaymentEventType::Captured, 'processed', $now->modify('+2 minutes'));
+        $rejected = $this->persist($superAdmin, $subject, 'br_whd_rej', PaymentEventType::Cancelled, 'rejected', $now->modify('+3 minutes'));
+        $stale = $this->persist($superAdmin, $subject, 'br_whd_stale', PaymentEventType::Authorized, 'stale', $now->modify('+4 minutes'));
         $long = $this->persist(
+            $superAdmin,
             $subject,
             'br_whd_long',
             PaymentEventType::RefundSucceeded,
@@ -98,6 +98,7 @@ final class BrowserWebhookDetailSeeder
     }
 
     private function persist(
+        User $superAdmin,
         Subject $subject,
         string $suffix,
         PaymentEventType $eventType,
@@ -105,7 +106,7 @@ final class BrowserWebhookDetailSeeder
         \DateTimeImmutable $receivedAt,
         ?string $failureCode = null,
     ): PaymentWebhookInboxEvent {
-        $attempt = $this->start($suffix, PaymentProviderEnvironment::Sandbox, $subject);
+        $attempt = $this->start($superAdmin, $suffix, PaymentProviderEnvironment::Sandbox, $subject);
         $ref = 'br-whd-'.$suffix.'-ref';
         $verified = new VerifiedPaymentWebhook(
             providerCode: 'sandbox_provider',
@@ -159,12 +160,11 @@ final class BrowserWebhookDetailSeeder
         return $event;
     }
 
-    private function start(string $suffix, PaymentProviderEnvironment $environment, Subject $subject): PaymentAttempt
+    private function start(User $superAdmin, string $suffix, PaymentProviderEnvironment $environment, Subject $subject): PaymentAttempt
     {
         $unique = $suffix.'_'.bin2hex(random_bytes(2));
-        $sa = $this->activeUser($unique.'_pkg_sa@example.test', UserRole::SuperAdmin);
         $package = $this->packages->create(
-            $sa,
+            $superAdmin,
             $unique.'_pkg',
             'Pkg '.$unique,
             null,
@@ -173,18 +173,18 @@ final class BrowserWebhookDetailSeeder
             null,
             'create_pkg',
         );
-        $version = $this->versions->createDraftVersion($package, $sa, 30, null, 'create_version');
+        $version = $this->versions->createDraftVersion($package, $superAdmin, 30, null, 'create_version');
         $this->versions->addCatalogGrant(
             $version,
             AccessPackageCatalogResourceKind::LearningContent,
             $subject,
             GradeLevel::Grade9,
-            $sa,
+            $superAdmin,
             'add_catalog_grant',
         );
-        $version = $this->versions->activate($version, $sa, 'activate_version');
+        $version = $this->versions->activate($version, $superAdmin, 'activate_version');
         $offer = $this->offers->createDraft(
-            $sa,
+            $superAdmin,
             $version,
             $unique.'_code',
             'Offer '.$unique,
@@ -196,7 +196,7 @@ final class BrowserWebhookDetailSeeder
             0,
             'create_offer',
         );
-        $offer = $this->offers->activate($offer, $sa, 'activate_offer');
+        $offer = $this->offers->activate($offer, $superAdmin, 'activate_offer');
         $buyer = $this->activeUser($unique.'_buyer@example.test', UserRole::Student);
         $order = $this->orders->createUserOrder(
             $buyer,
