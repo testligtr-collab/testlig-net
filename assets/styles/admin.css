@@ -6257,3 +6257,211 @@ body.is-admin-panel {
         width: 100%;
     }
 }
+
+.is-admin-panel .admin-webhook-page .admin-webhook-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-head p {
+    margin: 0.35rem 0 0;
+    color: #52667d;
+    max-width: 40rem;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-tabs-card {
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-tabs {
+    margin: 0;
+    gap: 0.55rem;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-tabs .admin-tab {
+    min-height: 2.75rem;
+    padding: 0.45rem 0.85rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-tabs .admin-tab:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-list {
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-list .admin-table-wrap {
+    margin: 0;
+    border: 0;
+    background: transparent;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook-list h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__mobile { display: none; }
+.is-admin-panel .admin-webhook-page .admin-webhook__provider-stack,
+.is-admin-panel .admin-webhook-page .admin-webhook__status-stack {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__provider {
+    color: #16324f;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__environment {
+    color: #52667d;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__environment--sandbox {
+    color: #9a4d00;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__environment--production {
+    color: #146c43;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__event-type {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__attempts {
+    font-variant-numeric: tabular-nums;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__stale {
+    margin: 0;
+    color: #9a4d00;
+    font-size: 0.86rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__action a,
+.is-admin-panel .admin-webhook-page .admin-webhook__open {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: #0f7a72;
+    font-weight: 650;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__action a:hover,
+.is-admin-panel .admin-webhook-page .admin-webhook__action a:focus-visible,
+.is-admin-panel .admin-webhook-page .admin-webhook__open:hover,
+.is-admin-panel .admin-webhook-page .admin-webhook__open:focus-visible {
+    color: #0b5f59;
+}
+.is-admin-panel .admin-webhook-page .admin-webhook__action a:focus-visible,
+.is-admin-panel .admin-webhook-page .admin-webhook__open:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-webhook-page .admin-pagination {
+    margin-top: 0.85rem;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-webhook-page .admin-webhook-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(1),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__when-cell { width: 18%; min-width: 0; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(2),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__status { width: 20%; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(3),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__provider-cell { width: 18%; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(4),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__event-type { width: 18%; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(5),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__attempts { width: 10%; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table th:nth-child(6),
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__action { width: 12%; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__status,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table .admin-webhook__action {
+        vertical-align: middle;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-webhook-page .admin-webhook-tabs-card {
+        padding: 0.85rem;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 0.15rem;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-tabs .admin-tab {
+        flex: 0 0 auto;
+        white-space: nowrap;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table tbody,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table tr,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td { display: block; width: auto; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table tr {
+        margin: 0 0 0.85rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.85rem;
+        background: #f8fbfe;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td.admin-webhook__status,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td.admin-webhook__provider-cell,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td.admin-webhook__event-type,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td.admin-webhook__attempts,
+    .is-admin-panel .admin-webhook-page .admin-webhook-table td.admin-webhook__action,
+    .is-admin-panel .admin-webhook-page .admin-webhook__desktop-when { display: none; }
+    .is-admin-panel .admin-webhook-page .admin-webhook__mobile { display: grid; gap: 0.55rem; }
+    .is-admin-panel .admin-webhook-page .admin-webhook__mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook__mobile-when {
+        color: #16324f;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook__card-status { display: inline-flex; }
+    .is-admin-panel .admin-webhook-page .admin-webhook__mobile-row {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook__label {
+        color: #52667d;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook__open {
+        width: 100%;
+        justify-content: center;
+        margin-top: 0.25rem;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #b7e0db;
+        border-radius: 0.7rem;
+        background: #eef9f7;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-list {
+        padding: 0.85rem;
+        background: transparent;
+        border: 0;
+    }
+    .is-admin-panel .admin-webhook-page .admin-webhook-list h2 { margin-bottom: 0.65rem; }
+}

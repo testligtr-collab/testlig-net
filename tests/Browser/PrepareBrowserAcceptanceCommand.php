@@ -137,6 +137,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly \App\Service\Homework\HomeworkSubmissionManager $homeworkSubmissions,
         private readonly \App\Service\Homework\HomeworkEvaluationManager $homeworkEvaluations,
         private readonly BrowserPaymentListSeeder $paymentListSeeder,
+        private readonly BrowserWebhookListSeeder $webhookListSeeder,
     ) {
         parent::__construct();
     }
@@ -891,6 +892,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         }
 
         $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
+        $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -1025,6 +1027,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'paymentDetailLongFailure' => $paymentScreens['detailLongFailure'],
                 'paymentDetailLiveAuthorized' => $paymentScreens['detailLiveAuthorized'],
                 'paymentLongFailureCode' => $paymentScreens['longFailureCode'],
+                'webhooksList' => $webhookScreens['list'],
+                'webhooksDeadLetter' => $webhookScreens['deadLetter'],
+                'webhookLongEventTypeLabel' => $webhookScreens['longEventTypeLabel'],
+                'webhookLongEventDetail' => $webhookScreens['longEventDetail'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
