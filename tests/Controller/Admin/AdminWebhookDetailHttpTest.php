@@ -104,8 +104,8 @@ final class AdminWebhookDetailHttpTest extends WebTestCase
         $users->save($user);
         $user->transitionTo(UserStatus::Suspended);
         $users->save($user);
-        $this->submitLogin($client, 'wh_detail_susp_sa@example.com');
 
+        $client->loginUser($user);
         $client->request('GET', '/yonetim/webhook/'.Uuid::v7()->toRfc4122());
         self::assertResponseStatusCodeSame(403);
     }
