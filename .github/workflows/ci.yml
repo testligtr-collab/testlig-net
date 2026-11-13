@@ -297,6 +297,56 @@ jobs:
           curl -sf -o /dev/null http://127.0.0.1:8080/
           npm --prefix browser run test:chromium
 
+      - name: Prepare browser server log artifact
+        if: failure()
+        run: |
+          mkdir -p var/browser-ci-diagnostics
+          if [ ! -f var/browser-server.log ]; then
+            printf '%s\n' \
+              'var/browser-server.log was not found at Browser job failure.' \
+              'No PHP built-in server log was captured (server may not have started).' \
+              > var/browser-ci-diagnostics/LOG_MISSING.txt
+            echo "browser-server.log missing; wrote LOG_MISSING.txt"
+            exit 0
+          fi
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          src = Path("var/browser-server.log")
+          dst = Path("var/browser-ci-diagnostics/browser-server.redacted.log")
+          text = src.read_text(encoding="utf-8", errors="replace")
+          patterns = [
+              (re.compile(r"(?i)(authorization:\s*bearer\s+)\S+"), r"\1[REDACTED]"),
+              (re.compile(r"(?i)(cookie:\s*)\S+"), r"\1[REDACTED]"),
+              (re.compile(r"(?i)(_csrf_token=)[^&\s]+"), r"\1[REDACTED]"),
+              (re.compile(r"(?i)(mysql://[^:\s/]+:)[^@\s]+(@)"), r"\1[REDACTED]\2"),
+              (re.compile(r"(?i)\b(DATABASE_URL|APP_SECRET|AUDIT_HASH_KEY|QUESTION_ANSWER_INTEGRITY_KEY|ATTEMPT_ANSWER_ENCRYPTION_KEY|COMMERCE_IDEMPOTENCY_HASH_KEY|PHONE_OTP_PEPPER|INVITATION_CODE_PEPPER)\s*[:=]\s*\S+"), r"\1=[REDACTED]"),
+              (re.compile(r"(?i)\b(password|passwd|secret)\s*[:=]\s*\S+"), r"\1=[REDACTED]"),
+          ]
+          redacted = text
+          for pattern, repl in patterns:
+              redacted = pattern.sub(repl, redacted)
+          dst.write_text(redacted, encoding="utf-8")
+          meta = Path("var/browser-ci-diagnostics/README.txt")
+          meta.write_text(
+              "\n".join(
+                  [
+                      "Source: var/browser-server.log (php -S stdout/stderr redirect).",
+                      "Uploaded only on Browser job failure.",
+                      "Narrow redaction applied for Authorization/Cookie/CSRF/DB URL/password/secret-like assignments.",
+                      "Exception class, file/line, and stack context are retained when present in the source log.",
+                      "APP_DEBUG remains 0; this artifact is not a web error-page stack dump.",
+                      f"Source bytes: {src.stat().st_size}",
+                      f"Redacted bytes: {dst.stat().st_size}",
+                      "",
+                  ]
+              ),
+              encoding="utf-8",
+          )
+          print(f"wrote {dst} ({dst.stat().st_size} bytes) from {src} ({src.stat().st_size} bytes)")
+          PY
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -314,3 +364,11 @@ jobs:
             browser/test-results
             browser/playwright-report
           if-no-files-found: ignore
+
+      - name: Upload browser server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-server-log
+          path: var/browser-ci-diagnostics/
+          if-no-files-found: warn
