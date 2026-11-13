@@ -35,6 +35,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * Synthetic reconciliation detail fixtures for GET /yonetim/uzlastirma/{runId}.
  *
  * Domain constructors + PaymentReconciliationItem::record only — no reconcile CLI/provider.
+ * Reuses a small attempt pool across runs so the shared payments list stays within one page.
  */
 final class BrowserReconciliationDetailSeeder
 {
@@ -68,6 +69,10 @@ final class BrowserReconciliationDetailSeeder
     public function seed(User $superAdmin, Subject $subject): array
     {
         $base = new \DateTimeImmutable('2026-09-13 16:00:00', new \DateTimeZone('UTC'));
+        $pool = [];
+        for ($i = 1; $i <= 6; ++$i) {
+            $pool[] = $this->start($superAdmin, $subject, 'brd_pool'.$i);
+        }
 
         $completedEmpty = $this->persistRun(
             'sandbox_provider',
@@ -82,7 +87,7 @@ final class BrowserReconciliationDetailSeeder
         );
         $this->recordItem(
             $completedEmpty,
-            $this->start($superAdmin, $subject, 'brd_matched'),
+            $pool[0],
             PaymentAttemptStatus::Captured,
             PaymentProviderTransactionStatus::Captured,
             PaymentReconciliationItemOutcome::Matched,
@@ -102,10 +107,10 @@ final class BrowserReconciliationDetailSeeder
             4,
             0,
         );
-        $this->recordItem($mixed, $this->start($superAdmin, $subject, 'brd_m1'), PaymentAttemptStatus::Authorized, PaymentProviderTransactionStatus::Captured, PaymentReconciliationItemOutcome::LocalBehind, PaymentReconciliationItemAction::WebhookRequeued, $base->modify('+11 minutes'), 'local_behind_capture');
-        $this->recordItem($mixed, $this->start($superAdmin, $subject, 'brd_m2'), PaymentAttemptStatus::Captured, PaymentProviderTransactionStatus::Authorized, PaymentReconciliationItemOutcome::ProviderBehind, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+12 minutes'), 'provider_behind');
-        $this->recordItem($mixed, $this->start($superAdmin, $subject, 'brd_m3'), PaymentAttemptStatus::Captured, PaymentProviderTransactionStatus::Captured, PaymentReconciliationItemOutcome::AmountMismatch, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+13 minutes'), 'amount_mismatch');
-        $this->recordItem($mixed, $this->start($superAdmin, $subject, 'brd_m4'), PaymentAttemptStatus::Initiated, null, PaymentReconciliationItemOutcome::Failed, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+14 minutes'), 'provider_query_failed');
+        $this->recordItem($mixed, $pool[0], PaymentAttemptStatus::Authorized, PaymentProviderTransactionStatus::Captured, PaymentReconciliationItemOutcome::LocalBehind, PaymentReconciliationItemAction::WebhookRequeued, $base->modify('+11 minutes'), 'local_behind_capture');
+        $this->recordItem($mixed, $pool[1], PaymentAttemptStatus::Captured, PaymentProviderTransactionStatus::Authorized, PaymentReconciliationItemOutcome::ProviderBehind, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+12 minutes'), 'provider_behind');
+        $this->recordItem($mixed, $pool[2], PaymentAttemptStatus::Captured, PaymentProviderTransactionStatus::Captured, PaymentReconciliationItemOutcome::AmountMismatch, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+13 minutes'), 'amount_mismatch');
+        $this->recordItem($mixed, $pool[3], PaymentAttemptStatus::Initiated, null, PaymentReconciliationItemOutcome::Failed, PaymentReconciliationItemAction::ManualReviewRequired, $base->modify('+14 minutes'), 'provider_query_failed');
 
         $failedEmpty = $this->persistRun(
             'sandbox_provider',
@@ -143,7 +148,7 @@ final class BrowserReconciliationDetailSeeder
             0,
             PaymentReconciliationMode::Scheduled,
         );
-        $this->recordItem($long, $this->start($superAdmin, $subject, 'brd_long'), PaymentAttemptStatus::Captured, null, PaymentReconciliationItemOutcome::MissingAtProvider, PaymentReconciliationItemAction::None, $base->modify('+41 minutes'), 'missing_at_provider');
+        $this->recordItem($long, $pool[4], PaymentAttemptStatus::Captured, null, PaymentReconciliationItemOutcome::MissingAtProvider, PaymentReconciliationItemAction::None, $base->modify('+41 minutes'), 'missing_at_provider');
 
         $paged = $this->persistRun(
             'sandbox_provider',
@@ -156,15 +161,15 @@ final class BrowserReconciliationDetailSeeder
             6,
             0,
         );
-        for ($i = 1; $i <= 6; ++$i) {
+        for ($i = 0; $i < 6; ++$i) {
             $this->recordItem(
                 $paged,
-                $this->start($superAdmin, $subject, 'brd_p'.$i),
+                $pool[$i],
                 PaymentAttemptStatus::Authorized,
                 PaymentProviderTransactionStatus::Authorized,
                 PaymentReconciliationItemOutcome::Unsupported,
                 PaymentReconciliationItemAction::ManualReviewRequired,
-                $base->modify('+'.(50 + $i).' minutes'),
+                $base->modify('+'.(51 + $i).' minutes'),
                 'reconciliation_unsupported',
             );
         }

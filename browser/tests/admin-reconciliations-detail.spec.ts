@@ -52,12 +52,12 @@ test('admin reconciliation detail layouts, empty copy, mixed rows, long codes, p
     await page.setViewportSize(viewport);
     await page.goto(mixed);
     await expect(page.locator('.admin-reconciliation-detail__status', { hasText: 'Tutarsızlıklarla tamamlandı' })).toBeVisible();
-    await expect(page.getByText('Yerel geride').first()).toBeVisible();
-    await expect(page.getByText('Sağlayıcı geride').first()).toBeVisible();
-    await expect(page.getByText('Tutar uyuşmazlığı').first()).toBeVisible();
-    await expect(page.getByText('Başarısız').first()).toBeVisible();
-    await expect(page.getByText('Webhook yeniden kuyruğa alındı').first()).toBeVisible();
-    await expect(page.getByText('Manuel inceleme gerekli').first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Yerel geride' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Sağlayıcı geride' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Tutar uyuşmazlığı' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Başarısız' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Webhook yeniden kuyruğa alındı' }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible', { hasText: 'Manuel inceleme gerekli' }).first()).toBeVisible();
     if (viewport.width >= 1024) {
       await expect.poll(async () => page.locator('.admin-reconciliation-detail-table td').first().evaluate((el) => getComputedStyle(el).display)).toBe('table-cell');
     } else {

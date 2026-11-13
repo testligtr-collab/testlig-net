@@ -894,11 +894,13 @@ final class PrepareBrowserAcceptanceCommand extends Command
             return Command::FAILURE;
         }
 
+        // Reconciliation detail attempts are older than payment/webhook list fixtures so the
+        // shared payments first page still shows the payment-list failed status badge.
+        $reconciliationDetailScreens = $this->reconciliationDetailSeeder->seed($superAdmin, $subject);
         $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
         $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
         $webhookDetailScreens = $this->webhookDetailSeeder->seed($superAdmin, $subject);
         $reconciliationScreens = $this->reconciliationListSeeder->seed($superAdmin, $subject);
-        $reconciliationDetailScreens = $this->reconciliationDetailSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
