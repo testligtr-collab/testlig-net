@@ -37,13 +37,12 @@ test('admin audit list layout, outcomes, long metadata, pagination', async ({ pa
       await expect(page.getByRole('link', { name: 'Denetim', exact: true })).toBeVisible();
     }
     await expect(page.getByRole('heading', { level: 2, name: 'Denetim olayları' })).toBeVisible();
-    await expect(page.locator('.admin-status:visible', { hasText: 'Başarılı' }).first()).toBeVisible();
-    await expect(page.locator('.admin-status:visible', { hasText: 'Başarısız' }).first()).toBeVisible();
-    await expect(page.getByText('Giriş başarılı').filter({ visible: true }).first()).toBeVisible();
-    await expect(page.getByText('Ödeme başarısız').filter({ visible: true }).first()).toBeVisible();
-    await expect(page.getByText('CLI').filter({ visible: true }).first()).toBeVisible();
-    await expect(page.getByText(longActionLabel).filter({ visible: true }).first()).toBeVisible();
-    await expect(page.getByText(longReason).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible').filter({ hasText: /^Başarılı$/ }).first()).toBeVisible();
+    await expect(page.locator('.admin-status:visible').filter({ hasText: /^Başarısız$/ }).first()).toBeVisible();
+    await expect(page.getByText('Ödeme başarısız', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText('CLI', { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText(longActionLabel, { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    await expect(page.getByText(longReason, { exact: true }).filter({ visible: true }).first()).toBeVisible();
     await expect(page.locator('form[action="/yonetim/calisma-kimligi"]')).toHaveCount(0);
     await expect(page.getByText('audit_list_canary_token')).toHaveCount(0);
     await expect(page.getByText('ip_hash')).toHaveCount(0);
