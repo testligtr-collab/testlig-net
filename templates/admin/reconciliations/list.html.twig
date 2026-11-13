@@ -8,43 +8,90 @@
         <span aria-hidden="true">/</span>
         <span>Uzlaştırma</span>
     </nav>
-    <h1 class="panel-greeting">Uzlaştırma koşuları</h1>
+    <div class="admin-reconciliation-page admin-reconciliation-list">
+        <header class="admin-user-head admin-reconciliation-list__head">
+            <div>
+                <h1 class="panel-greeting">Uzlaştırma</h1>
+                <p>Önceden çalıştırılan uzlaştırma koşularının salt okunur geçmişi. Bu ekrandan koşu başlatılmaz.</p>
+            </div>
+        </header>
 
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Koşu yok',
-            body: 'Henüz uzlaştırma koşusu kaydı bulunmuyor.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Başlangıç</th>
-                        <th>Durum</th>
-                        <th>Sağlayıcı</th>
-                        <th>Kontrol</th>
-                        <th>Fark</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.startedAt|utc_present }}</td>
-                            <td>{{ row.status.value }}</td>
-                            <td>{{ row.providerCode }} / {{ row.environment.value }}</td>
-                            <td>{{ row.checkedCount }}</td>
-                            <td>{{ row.discrepancyCount }}</td>
-                            <td><a href="{{ path('app_admin_reconciliation_detail', { runId: row.runId }) }}">Detay</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% if result.items is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Koşu yok',
+                body: 'Henüz uzlaştırma koşusu kaydı bulunmuyor.'
+            } %}
+        {% else %}
+            <section class="admin-reconciliation-list__card" aria-labelledby="reconciliation-list-heading">
+                <h2 id="reconciliation-list-heading">Uzlaştırma koşuları</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-reconciliation-table">
+                        <thead>
+                            <tr>
+                                <th>Başlangıç</th>
+                                <th>Durum</th>
+                                <th>Sağlayıcı</th>
+                                <th>Kontrol</th>
+                                <th>Fark</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                {% set status = admin_reconciliation_status(row.status.value) %}
+                                {% set environment_label = admin_reconciliation_environment(row.environment.value) %}
+                                <tr>
+                                    <td class="admin-reconciliation__when-cell">
+                                        <div class="admin-reconciliation__desktop-when">{{ row.startedAt|utc_present }}</div>
+                                        <div class="admin-reconciliation__mobile">
+                                            <div class="admin-reconciliation__mobile-head">
+                                                <span class="admin-reconciliation__mobile-when">{{ row.startedAt|utc_present }}</span>
+                                                <span class="admin-status admin-status--{{ status.variant }} admin-reconciliation__card-status"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                            </div>
+                                            <div class="admin-reconciliation__mobile-row">
+                                                <span class="admin-reconciliation__label">Sağlayıcı</span>
+                                                <span class="admin-reconciliation__provider">{{ row.providerCode }}</span>
+                                            </div>
+                                            <div class="admin-reconciliation__mobile-row">
+                                                <span class="admin-reconciliation__label">Ortam</span>
+                                                <span class="admin-reconciliation__environment admin-reconciliation__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                            </div>
+                                            <div class="admin-reconciliation__mobile-row">
+                                                <span class="admin-reconciliation__label">Kontrol</span>
+                                                <span class="admin-reconciliation__checked">{{ row.checkedCount }}</span>
+                                            </div>
+                                            <div class="admin-reconciliation__mobile-row">
+                                                <span class="admin-reconciliation__label">Fark</span>
+                                                <span class="admin-reconciliation__discrepancy">{{ row.discrepancyCount }}</span>
+                                            </div>
+                                            <a class="admin-reconciliation__open" href="{{ path('app_admin_reconciliation_detail', { runId: row.runId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                        </div>
+                                    </td>
+                                    <td class="admin-reconciliation__status">
+                                        <span class="admin-status admin-status--{{ status.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ status.label }}</span>
+                                    </td>
+                                    <td class="admin-reconciliation__provider-cell">
+                                        <div class="admin-reconciliation__provider-stack">
+                                            <span class="admin-reconciliation__provider">{{ row.providerCode }}</span>
+                                            <span class="admin-reconciliation__environment admin-reconciliation__environment--{{ row.environment.value }}">{{ environment_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="admin-reconciliation__checked">{{ row.checkedCount }}</td>
+                                    <td class="admin-reconciliation__discrepancy">{{ row.discrepancyCount }}</td>
+                                    <td class="admin-reconciliation__action">
+                                        <a href="{{ path('app_admin_reconciliation_detail', { runId: row.runId }) }}">Detay <span aria-hidden="true">→</span></a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
         {% include 'components/admin_pagination.html.twig' with {
             result: result,
             route: 'app_admin_reconciliations'
         } %}
-    {% endif %}
+    </div>
 {% endblock %}
