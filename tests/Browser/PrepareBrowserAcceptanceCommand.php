@@ -141,6 +141,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserWebhookDetailSeeder $webhookDetailSeeder,
         private readonly BrowserReconciliationListSeeder $reconciliationListSeeder,
         private readonly BrowserReconciliationDetailSeeder $reconciliationDetailSeeder,
+        private readonly BrowserAuditListSeeder $auditListSeeder,
     ) {
         parent::__construct();
     }
@@ -901,6 +902,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
         $webhookDetailScreens = $this->webhookDetailSeeder->seed($superAdmin, $subject);
         $reconciliationScreens = $this->reconciliationListSeeder->seed($superAdmin, $subject);
+        // Audit rows are independent of payment/webhook/recon fixtures; append after them.
+        $auditScreens = $this->auditListSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -1058,6 +1061,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'reconciliationDetailLongProvider' => $reconciliationDetailScreens['longProvider'],
                 'reconciliationDetailLongReason' => $reconciliationDetailScreens['longReason'],
                 'reconciliationDetailPagination' => $reconciliationDetailScreens['pagination'],
+                'auditList' => $auditScreens['list'],
+                'auditLongReason' => $auditScreens['longReason'],
+                'auditLongActionLabel' => $auditScreens['longActionLabel'],
+                'auditPagination' => $auditScreens['pagination'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
