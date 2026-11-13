@@ -40,12 +40,52 @@ final class BrowserAuditListSeeder
 
         $base = new \DateTimeImmutable('2026-09-13 16:00:00', new \DateTimeZone('UTC'));
 
-        // Older long row so mixed top-of-list shots differ from scrolled uzun shots.
+        // Older fill rows keep pagination multi-page without pushing distinctive outcomes off page 1.
+        for ($i = 1; $i <= 20; ++$i) {
+            $this->persist(
+                SecurityAuditAction::StatusChanged,
+                SecurityAuditActorType::User,
+                SecurityAuditOutcome::Success,
+                $base->modify('+'.$i.' minutes'),
+                ['source' => 'browser_audit_list', 'reason_code' => 'fill_'.$i],
+            );
+        }
+
+        // Distinctive rows are newest so default page 1 (25/page) shows success + failure + long meta.
+        $this->persist(
+            SecurityAuditAction::LoginSucceeded,
+            SecurityAuditActorType::User,
+            SecurityAuditOutcome::Success,
+            $base->modify('+30 minutes'),
+            ['source' => 'browser_audit_list', 'reason_code' => 'login_ok'],
+        );
+        $this->persist(
+            SecurityAuditAction::PaymentFailed,
+            SecurityAuditActorType::System,
+            SecurityAuditOutcome::Failure,
+            $base->modify('+31 minutes'),
+            ['source' => 'browser_audit_list', 'failure_code' => 'provider_declined'],
+        );
+        $this->persist(
+            SecurityAuditAction::RoleChanged,
+            SecurityAuditActorType::Cli,
+            SecurityAuditOutcome::Success,
+            $base->modify('+32 minutes'),
+            ['source' => 'browser_audit_list', 'previous_roles' => 'ROLE_TEACHER', 'new_roles' => 'ROLE_ADMIN'],
+        );
+        $this->persist(
+            SecurityAuditAction::HomeworkEvaluationRecorded,
+            SecurityAuditActorType::User,
+            SecurityAuditOutcome::Success,
+            $base->modify('+33 minutes'),
+            ['source' => 'browser_audit_list', 'label' => 'reviewed'],
+        );
+        // Long action/meta stays slightly older than the newest row so mixed and uzun shots differ.
         $this->persist(
             SecurityAuditAction::PaymentReconciliationDiscrepancyFound,
             SecurityAuditActorType::System,
             SecurityAuditOutcome::Failure,
-            $base,
+            $base->modify('+34 minutes'),
             [
                 'source' => 'browser_audit_list',
                 'reason_code' => self::LONG_REASON,
@@ -53,42 +93,12 @@ final class BrowserAuditListSeeder
             ],
         );
         $this->persist(
-            SecurityAuditAction::LoginSucceeded,
+            SecurityAuditAction::ModulePermissionChanged,
             SecurityAuditActorType::User,
             SecurityAuditOutcome::Success,
-            $base->modify('+1 minute'),
-            ['source' => 'browser_audit_list', 'reason_code' => 'login_ok'],
+            $base->modify('+35 minutes'),
+            ['source' => 'browser_audit_list', 'reason_code' => 'newest_anchor'],
         );
-        $this->persist(
-            SecurityAuditAction::PaymentFailed,
-            SecurityAuditActorType::System,
-            SecurityAuditOutcome::Failure,
-            $base->modify('+2 minutes'),
-            ['source' => 'browser_audit_list', 'failure_code' => 'provider_declined'],
-        );
-        $this->persist(
-            SecurityAuditAction::RoleChanged,
-            SecurityAuditActorType::Cli,
-            SecurityAuditOutcome::Success,
-            $base->modify('+3 minutes'),
-            ['source' => 'browser_audit_list', 'previous_roles' => 'ROLE_TEACHER', 'new_roles' => 'ROLE_ADMIN'],
-        );
-        $this->persist(
-            SecurityAuditAction::HomeworkEvaluationRecorded,
-            SecurityAuditActorType::User,
-            SecurityAuditOutcome::Success,
-            $base->modify('+4 minutes'),
-            ['source' => 'browser_audit_list', 'label' => 'reviewed'],
-        );
-        for ($i = 1; $i <= 20; ++$i) {
-            $this->persist(
-                SecurityAuditAction::StatusChanged,
-                SecurityAuditActorType::User,
-                SecurityAuditOutcome::Success,
-                $base->modify('+'.(4 + $i).' minutes'),
-                ['source' => 'browser_audit_list', 'reason_code' => 'fill_'.$i],
-            );
-        }
 
         $this->entityManager->flush();
 

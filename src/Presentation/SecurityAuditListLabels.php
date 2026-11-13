@@ -241,7 +241,6 @@ final class SecurityAuditListLabels
         'homework_submission_draft_saved' => 'Ödev teslim taslağı kaydedildi',
         'homework_submission_submitted' => 'Ödev teslim edildi',
         'homework_evaluation_recorded' => 'Ödev değerlendirmesi kaydedildi',
-
     ];
 
     /**
