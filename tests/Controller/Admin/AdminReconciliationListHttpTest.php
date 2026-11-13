@@ -119,7 +119,8 @@ final class AdminReconciliationListHttpTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Koşu yok');
         self::assertSelectorTextContains('body', 'Henüz uzlaştırma koşusu kaydı bulunmuyor.');
         self::assertSelectorNotExists('#reconciliation-list-heading');
-        self::assertSelectorNotExists('button[type="submit"]');
+        self::assertSelectorNotExists('form[action*="uzlastirma"]');
+        self::assertSelectorNotExists('button[name="reconcile"]');
         self::assertStringNotContainsStringIgnoringCase('sk_live', (string) $client->getResponse()->getContent());
     }
 
@@ -169,7 +170,8 @@ final class AdminReconciliationListHttpTest extends WebTestCase
         self::assertSelectorExists('a[href="/yonetim/uzlastirma/'.$discId.'"]');
         self::assertSelectorExists('a[href="/yonetim/uzlastirma/'.$failedId.'"]');
         self::assertSelectorExists('a[href="/yonetim/uzlastirma/'.$oldestId.'"]');
-        self::assertSelectorNotExists('button[type="submit"]');
+        self::assertSelectorNotExists('form[action*="uzlastirma"]');
+        self::assertSelectorNotExists('button[name="reconcile"]');
 
         $html = (string) $client->getResponse()->getContent();
         self::assertStringNotContainsString('safe_snapshot_hash', $html);
