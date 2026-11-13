@@ -38,8 +38,8 @@ final class BrowserAuditListSeeder
     {
         unset($superAdmin, $subject);
 
-        // Use wall-clock "now" so these rows stay newer than audits created earlier in prepare.
-        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        // Far-future stamps stay above suite login audits created after prepare finishes.
+        $anchor = new \DateTimeImmutable('2099-06-15 12:00:00', new \DateTimeZone('UTC'));
 
         // Older fill rows keep pagination multi-page without pushing distinctive outcomes off page 1.
         for ($i = 1; $i <= 20; ++$i) {
@@ -47,7 +47,7 @@ final class BrowserAuditListSeeder
                 SecurityAuditAction::StatusChanged,
                 SecurityAuditActorType::User,
                 SecurityAuditOutcome::Success,
-                $now->modify('-'.(60 - $i).' minutes'),
+                $anchor->modify('-'.(40 - $i).' minutes'),
                 ['source' => 'browser_audit_list', 'reason_code' => 'fill_'.$i],
             );
         }
@@ -57,28 +57,28 @@ final class BrowserAuditListSeeder
             SecurityAuditAction::LoginSucceeded,
             SecurityAuditActorType::User,
             SecurityAuditOutcome::Success,
-            $now->modify('-5 minutes'),
+            $anchor->modify('-5 minutes'),
             ['source' => 'browser_audit_list', 'reason_code' => 'login_ok'],
         );
         $this->persist(
             SecurityAuditAction::PaymentFailed,
             SecurityAuditActorType::System,
             SecurityAuditOutcome::Failure,
-            $now->modify('-4 minutes'),
+            $anchor->modify('-4 minutes'),
             ['source' => 'browser_audit_list', 'failure_code' => 'provider_declined'],
         );
         $this->persist(
             SecurityAuditAction::RoleChanged,
             SecurityAuditActorType::Cli,
             SecurityAuditOutcome::Success,
-            $now->modify('-3 minutes'),
+            $anchor->modify('-3 minutes'),
             ['source' => 'browser_audit_list', 'previous_roles' => 'ROLE_TEACHER', 'new_roles' => 'ROLE_ADMIN'],
         );
         $this->persist(
             SecurityAuditAction::HomeworkEvaluationRecorded,
             SecurityAuditActorType::User,
             SecurityAuditOutcome::Success,
-            $now->modify('-2 minutes'),
+            $anchor->modify('-2 minutes'),
             ['source' => 'browser_audit_list', 'label' => 'reviewed'],
         );
         // Long action/meta stays slightly older than the newest anchor so mixed and uzun shots differ.
@@ -86,7 +86,7 @@ final class BrowserAuditListSeeder
             SecurityAuditAction::PaymentReconciliationDiscrepancyFound,
             SecurityAuditActorType::System,
             SecurityAuditOutcome::Failure,
-            $now->modify('-1 minute'),
+            $anchor->modify('-1 minute'),
             [
                 'source' => 'browser_audit_list',
                 'reason_code' => self::LONG_REASON,
@@ -97,7 +97,7 @@ final class BrowserAuditListSeeder
             SecurityAuditAction::ModulePermissionChanged,
             SecurityAuditActorType::User,
             SecurityAuditOutcome::Success,
-            $now,
+            $anchor,
             ['source' => 'browser_audit_list', 'reason_code' => 'newest_anchor'],
         );
 
