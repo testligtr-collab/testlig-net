@@ -140,6 +140,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserWebhookListSeeder $webhookListSeeder,
         private readonly BrowserWebhookDetailSeeder $webhookDetailSeeder,
         private readonly BrowserReconciliationListSeeder $reconciliationListSeeder,
+        private readonly BrowserReconciliationDetailSeeder $reconciliationDetailSeeder,
     ) {
         parent::__construct();
     }
@@ -893,6 +894,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
             return Command::FAILURE;
         }
 
+        // Reconciliation detail attempts are older than payment/webhook list fixtures so the
+        // shared payments first page still shows the payment-list failed status badge.
+        $reconciliationDetailScreens = $this->reconciliationDetailSeeder->seed($superAdmin, $subject);
         $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
         $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
         $webhookDetailScreens = $this->webhookDetailSeeder->seed($superAdmin, $subject);
@@ -1046,6 +1050,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'reconciliationsList' => $reconciliationScreens['list'],
                 'reconciliationLongProvider' => $reconciliationScreens['longProvider'],
                 'reconciliationsPagination' => $reconciliationScreens['pagination'],
+                'reconciliationDetailCompletedEmpty' => $reconciliationDetailScreens['completedEmpty'],
+                'reconciliationDetailMixed' => $reconciliationDetailScreens['mixed'],
+                'reconciliationDetailFailedEmpty' => $reconciliationDetailScreens['failedEmpty'],
+                'reconciliationDetailRunningEmpty' => $reconciliationDetailScreens['runningEmpty'],
+                'reconciliationDetailLong' => $reconciliationDetailScreens['long'],
+                'reconciliationDetailLongProvider' => $reconciliationDetailScreens['longProvider'],
+                'reconciliationDetailLongReason' => $reconciliationDetailScreens['longReason'],
+                'reconciliationDetailPagination' => $reconciliationDetailScreens['pagination'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

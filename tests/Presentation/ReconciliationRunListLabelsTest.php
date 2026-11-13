@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 final class ReconciliationRunListLabelsTest extends TestCase
 {
-    public function testStatusAndEnvironmentLabels(): void
+    public function testStatusModeAndEnvironmentLabels(): void
     {
         $labels = new ReconciliationRunListLabels();
 
@@ -21,6 +21,10 @@ final class ReconciliationRunListLabelsTest extends TestCase
         );
         self::assertSame(['label' => 'Başarısız', 'variant' => 'danger'], $labels->status('failed'));
         self::assertSame(['label' => 'Bilinmiyor', 'variant' => 'neutral'], $labels->status('"><script>'));
+
+        self::assertSame('Manuel', $labels->mode('manual'));
+        self::assertSame('Zamanlanmış', $labels->mode('scheduled'));
+        self::assertSame('other', $labels->mode('other'));
 
         self::assertSame('Test (sandbox)', $labels->environment('sandbox'));
         self::assertSame('Canlı', $labels->environment('production'));
