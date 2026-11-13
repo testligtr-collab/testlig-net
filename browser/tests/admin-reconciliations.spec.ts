@@ -89,9 +89,9 @@ test('admin reconciliation list layout, statuses, long provider, pagination', as
     expect(metrics.right).toBeLessThanOrEqual(1);
     expect(metrics.pageOverflow).toBeLessThanOrEqual(1);
     await assertLayout(page);
-    // Distinct from the top-of-list mixed shot: center the domain-max provider row after sizing.
-    const height = await page.evaluate(() => document.documentElement.scrollHeight);
-    await page.setViewportSize({ width: viewport.width, height: Math.max(900, Math.min(height, 2400)) });
+    // Keep the original viewport height so centering the older long-provider row is visible
+    // (expanding to full scrollHeight would make scroll a no-op and duplicate the mixed shot).
+    await page.setViewportSize(viewport);
     await row.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     const file = path.join('artifacts', 'screenshots', `admin-uzlastirma-uzun-${viewport.name}.png`);
     await page.screenshot({ path: file, fullPage: false });
