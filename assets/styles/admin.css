@@ -6793,3 +6793,203 @@ body.is-admin-panel {
     }
     .is-admin-panel .admin-reconciliation-list .admin-reconciliation-list__card h2 { margin-bottom: 0.65rem; }
 }
+
+/* Uzlaştırma koşu detayı — scoped to .admin-reconciliation-detail */
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.85rem 1.25rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__title {
+    min-width: 0;
+    flex: 1 1 16rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__title p {
+    margin: 0.35rem 0 0;
+    color: #52667d;
+    max-width: 42rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__back {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-bottom: 0.35rem;
+    color: #0f7a72;
+    font-weight: 650;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__back:hover,
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__back:focus-visible {
+    color: #0b5f59;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__back:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__status {
+    flex: 0 0 auto;
+    align-self: flex-start;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__layout {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__card {
+    margin: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+    height: fit-content;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__card h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__facts {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__facts > div {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__facts dt {
+    color: #52667d;
+    font-size: 0.88rem;
+    font-weight: 650;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__facts dd {
+    margin: 0;
+    color: #16324f;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__provider,
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__reason {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__environment--sandbox {
+    color: #9a5b14;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__environment--production {
+    color: #0f5c4c;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__count {
+    font-variant-numeric: tabular-nums;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__discrepancies {
+    margin: 0;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__discrepancies h2 {
+    margin: 0 0 0.45rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__discrepancy-note {
+    margin: 0 0 0.85rem;
+    color: #52667d;
+    font-size: 0.92rem;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__empty {
+    margin: 0;
+    color: #52667d;
+}
+.is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__mobile { display: none; }
+.is-admin-panel .admin-reconciliation-detail .admin-pagination {
+    margin-top: 0.85rem;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table th:nth-child(1),
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table .admin-reconciliation-detail__when-cell { width: 18%; min-width: 0; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table th:nth-child(2),
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table .admin-reconciliation-detail__expected { width: 18%; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table th:nth-child(3),
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table .admin-reconciliation-detail__provider-state { width: 18%; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table th:nth-child(4),
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table .admin-reconciliation-detail__outcome { width: 23%; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table th:nth-child(5),
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table .admin-reconciliation-detail__action { width: 23%; }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__back {
+        width: 100%;
+        justify-content: center;
+        padding: 0.55rem 0.85rem;
+        border: 1px solid #b7e0db;
+        border-radius: 0.7rem;
+        background: #eef9f7;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__status {
+        width: 100%;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__discrepancies {
+        padding: 0.85rem;
+        background: transparent;
+        border: 0;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table tbody,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table tr,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td { display: block; width: auto; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table tr {
+        margin: 0 0 0.85rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.85rem;
+        background: #fff;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td.admin-reconciliation-detail__expected,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td.admin-reconciliation-detail__provider-state,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td.admin-reconciliation-detail__outcome,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail-table td.admin-reconciliation-detail__action,
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__desktop-when { display: none; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__mobile { display: grid; gap: 0.55rem; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__mobile-when {
+        color: #16324f;
+        font-weight: 650;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__card-status { display: inline-flex; }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__mobile-row {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-reconciliation-detail .admin-reconciliation-detail__label {
+        color: #52667d;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+}

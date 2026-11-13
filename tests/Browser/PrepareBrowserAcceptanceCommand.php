@@ -140,6 +140,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserWebhookListSeeder $webhookListSeeder,
         private readonly BrowserWebhookDetailSeeder $webhookDetailSeeder,
         private readonly BrowserReconciliationListSeeder $reconciliationListSeeder,
+        private readonly BrowserReconciliationDetailSeeder $reconciliationDetailSeeder,
     ) {
         parent::__construct();
     }
@@ -897,6 +898,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
         $webhookDetailScreens = $this->webhookDetailSeeder->seed($superAdmin, $subject);
         $reconciliationScreens = $this->reconciliationListSeeder->seed($superAdmin, $subject);
+        $reconciliationDetailScreens = $this->reconciliationDetailSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -1046,6 +1048,14 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'reconciliationsList' => $reconciliationScreens['list'],
                 'reconciliationLongProvider' => $reconciliationScreens['longProvider'],
                 'reconciliationsPagination' => $reconciliationScreens['pagination'],
+                'reconciliationDetailCompletedEmpty' => $reconciliationDetailScreens['completedEmpty'],
+                'reconciliationDetailMixed' => $reconciliationDetailScreens['mixed'],
+                'reconciliationDetailFailedEmpty' => $reconciliationDetailScreens['failedEmpty'],
+                'reconciliationDetailRunningEmpty' => $reconciliationDetailScreens['runningEmpty'],
+                'reconciliationDetailLong' => $reconciliationDetailScreens['long'],
+                'reconciliationDetailLongProvider' => $reconciliationDetailScreens['longProvider'],
+                'reconciliationDetailLongReason' => $reconciliationDetailScreens['longReason'],
+                'reconciliationDetailPagination' => $reconciliationDetailScreens['pagination'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Presentation;
 
 use App\Enum\PaymentProviderEnvironment;
+use App\Enum\PaymentReconciliationMode;
 use App\Enum\PaymentReconciliationRunStatus;
 
 /**
- * Turkish list labels for reconciliation run status and environment.
+ * Turkish labels for reconciliation run status, mode, and environment.
  *
  * Domain enum / URL values stay unchanged.
  */
@@ -22,6 +23,14 @@ final class ReconciliationRunListLabels
         PaymentReconciliationRunStatus::Completed->value => ['Tamamlandı', 'success'],
         PaymentReconciliationRunStatus::CompletedWithDiscrepancies->value => ['Tutarsızlıklarla tamamlandı', 'warning'],
         PaymentReconciliationRunStatus::Failed->value => ['Başarısız', 'danger'],
+    ];
+
+    /**
+     * @var array<string, string>
+     */
+    private const MODE = [
+        PaymentReconciliationMode::Manual->value => 'Manuel',
+        PaymentReconciliationMode::Scheduled->value => 'Zamanlanmış',
     ];
 
     /**
@@ -43,6 +52,11 @@ final class ReconciliationRunListLabels
             'label' => $row[0],
             'variant' => $row[1],
         ];
+    }
+
+    public function mode(string $code): string
+    {
+        return self::MODE[$code] ?? $code;
     }
 
     public function environment(string $code): string
