@@ -72,7 +72,8 @@ test('admin reconciliation list layout, statuses, long provider, pagination', as
   for (const viewport of VIEWPORTS) {
     await page.setViewportSize(viewport);
     await page.goto(listPath);
-    const provider = page.locator('.admin-reconciliation__provider:visible', { hasText: longProvider }).first();
+    const row = page.locator('tr', { hasText: longProvider }).first();
+    const provider = row.locator('.admin-reconciliation__provider:visible').first();
     await expect(provider).toBeVisible();
     await expect(provider).toHaveText(longProvider);
     const metrics = await provider.evaluate((el) => {
@@ -88,7 +89,13 @@ test('admin reconciliation list layout, statuses, long provider, pagination', as
     expect(metrics.right).toBeLessThanOrEqual(1);
     expect(metrics.pageOverflow).toBeLessThanOrEqual(1);
     await assertLayout(page);
-    await capture(page, info, `admin-uzlastirma-uzun-${viewport.name}.png`);
+    // Distinct from the top-of-list mixed shot: center the domain-max provider row after sizing.
+    const height = await page.evaluate(() => document.documentElement.scrollHeight);
+    await page.setViewportSize({ width: viewport.width, height: Math.max(900, Math.min(height, 2400)) });
+    await row.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    const file = path.join('artifacts', 'screenshots', `admin-uzlastirma-uzun-${viewport.name}.png`);
+    await page.screenshot({ path: file, fullPage: false });
+    await info.attach(`admin-uzlastirma-uzun-${viewport.name}.png`, { path: file, contentType: 'image/png' });
   }
 
   for (const viewport of VIEWPORTS) {
