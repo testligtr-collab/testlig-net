@@ -139,6 +139,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserPaymentListSeeder $paymentListSeeder,
         private readonly BrowserWebhookListSeeder $webhookListSeeder,
         private readonly BrowserWebhookDetailSeeder $webhookDetailSeeder,
+        private readonly BrowserReconciliationListSeeder $reconciliationListSeeder,
     ) {
         parent::__construct();
     }
@@ -895,6 +896,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $paymentScreens = $this->paymentListSeeder->seed($superAdmin, $subject);
         $webhookScreens = $this->webhookListSeeder->seed($superAdmin, $subject);
         $webhookDetailScreens = $this->webhookDetailSeeder->seed($superAdmin, $subject);
+        $reconciliationScreens = $this->reconciliationListSeeder->seed($superAdmin, $subject);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -1041,6 +1043,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'webhookDetailLongFailure' => $webhookDetailScreens['longFailure'],
                 'webhookDetailLongFailureCode' => $webhookDetailScreens['longFailureCode'],
                 'webhookDetailPaymentAttemptPath' => $webhookDetailScreens['paymentAttemptPath'],
+                'reconciliationsList' => $reconciliationScreens['list'],
+                'reconciliationLongProvider' => $reconciliationScreens['longProvider'],
+                'reconciliationsPagination' => $reconciliationScreens['pagination'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';

@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Presentation\AdminFilterActivity;
 use App\Presentation\AdminStatusLabels;
 use App\Presentation\PaymentAttemptListLabels;
+use App\Presentation\ReconciliationRunListLabels;
 use App\Presentation\WebhookInboxListLabels;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -18,6 +19,7 @@ final class AdminUiExtension extends AbstractExtension
         private readonly AdminFilterActivity $filterActivity,
         private readonly PaymentAttemptListLabels $paymentAttemptListLabels,
         private readonly WebhookInboxListLabels $webhookInboxListLabels,
+        private readonly ReconciliationRunListLabels $reconciliationRunListLabels,
     ) {
     }
 
@@ -33,6 +35,8 @@ final class AdminUiExtension extends AbstractExtension
             new TwigFunction('admin_webhook_event_type', $this->webhookInboxListLabels->eventType(...)),
             new TwigFunction('admin_webhook_environment', $this->webhookInboxListLabels->environment(...)),
             new TwigFunction('admin_webhook_stale_note', $this->webhookInboxListLabels->staleLeaseNote(...)),
+            new TwigFunction('admin_reconciliation_status', $this->reconciliationRunListLabels->status(...)),
+            new TwigFunction('admin_reconciliation_environment', $this->reconciliationRunListLabels->environment(...)),
         ];
     }
 }
