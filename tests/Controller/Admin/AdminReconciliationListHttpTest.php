@@ -253,13 +253,12 @@ final class AdminReconciliationListHttpTest extends WebTestCase
     {
         /** @var UserFactory $factory */
         $factory = static::getContainer()->get(UserFactory::class);
-        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Ad', 'Min', UserRole::Teacher);
+        $initial = $role->isPrivilegedBootstrapRole() ? UserRole::Teacher : $role;
+        $user = $factory->createAndPersist($email, 'Guclu-Parola-123!', 'Ad', 'Min', $initial);
         $user->markEmailVerified(new \DateTimeImmutable('2026-01-01 00:00:00'));
         $user->transitionTo(UserStatus::Active);
-        if (UserRole::SuperAdmin === $role) {
-            $user->addGlobalRole(UserRole::SuperAdmin);
-        } elseif (UserRole::Admin === $role) {
-            $user->addGlobalRole(UserRole::Admin);
+        if ($initial !== $role) {
+            $user->addGlobalRole($role);
         }
         /** @var UserRepository $users */
         $users = static::getContainer()->get(UserRepository::class);
@@ -272,11 +271,10 @@ final class AdminReconciliationListHttpTest extends WebTestCase
     private function submitLogin(KernelBrowser $client, string $email): void
     {
         $crawler = $client->request('GET', '/giris');
-        $form = $crawler->selectButton('Giriş yap')->form([
-            'email' => $email,
-            'password' => 'Guclu-Parola-123!',
-        ]);
-        $client->submit($form);
+        $client->submit($crawler->selectButton('Giriş yap')->form([
+            '_username' => $email,
+            '_password' => 'Guclu-Parola-123!',
+        ]));
         $client->followRedirect();
     }
 }

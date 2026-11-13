@@ -39,12 +39,26 @@ final class BrowserReconciliationListSeeder
 
         $base = new \DateTimeImmutable('2026-09-13 15:00:00', new \DateTimeZone('UTC'));
 
-        $this->persist('completed', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base, PaymentReconciliationRunStatus::Completed, 2, 2, 0, 0);
-        $this->persist('failed', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+1 minute'), PaymentReconciliationRunStatus::Failed, 1, 0, 0, 1);
-        $this->persist('discrepancy', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+2 minutes'), PaymentReconciliationRunStatus::CompletedWithDiscrepancies, 3, 1, 2, 0);
-        $this->persist('running', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+3 minutes'), PaymentReconciliationRunStatus::Running, 0, 0, 0, 0);
-        $this->persist('long', self::LONG_PROVIDER, PaymentProviderEnvironment::Sandbox, $base->modify('+4 minutes'), PaymentReconciliationRunStatus::Completed, 1, 1, 0, 0);
+        // Long provider stays older so mixed top-of-list shots differ from scrolled uzun shots.
+        $this->persist('long', self::LONG_PROVIDER, PaymentProviderEnvironment::Sandbox, $base, PaymentReconciliationRunStatus::Completed, 1, 1, 0, 0);
+        $this->persist('completed', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+1 minute'), PaymentReconciliationRunStatus::Completed, 2, 2, 0, 0);
+        $this->persist('failed', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+2 minutes'), PaymentReconciliationRunStatus::Failed, 1, 0, 0, 1);
+        $this->persist('discrepancy', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+3 minutes'), PaymentReconciliationRunStatus::CompletedWithDiscrepancies, 3, 1, 2, 0);
+        $this->persist('running', 'sandbox_provider', PaymentProviderEnvironment::Sandbox, $base->modify('+4 minutes'), PaymentReconciliationRunStatus::Running, 0, 0, 0, 0);
         $this->persist('live', 'sandbox_provider', PaymentProviderEnvironment::Production, $base->modify('+5 minutes'), PaymentReconciliationRunStatus::Completed, 1, 1, 0, 0);
+        for ($i = 1; $i <= 18; ++$i) {
+            $this->persist(
+                'fill'.$i,
+                'sandbox_provider',
+                PaymentProviderEnvironment::Sandbox,
+                $base->modify('+'.(5 + $i).' minutes'),
+                PaymentReconciliationRunStatus::Completed,
+                1,
+                1,
+                0,
+                0,
+            );
+        }
 
         $this->entityManager->flush();
 
