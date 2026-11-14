@@ -9,6 +9,7 @@ use App\Presentation\AdminStatusLabels;
 use App\Presentation\PaymentAttemptListLabels;
 use App\Presentation\ReconciliationDiscrepancyListLabels;
 use App\Presentation\ReconciliationRunListLabels;
+use App\Presentation\SecurityAuditListLabels;
 use App\Presentation\WebhookInboxListLabels;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -22,6 +23,7 @@ final class AdminUiExtension extends AbstractExtension
         private readonly WebhookInboxListLabels $webhookInboxListLabels,
         private readonly ReconciliationRunListLabels $reconciliationRunListLabels,
         private readonly ReconciliationDiscrepancyListLabels $reconciliationDiscrepancyListLabels,
+        private readonly SecurityAuditListLabels $securityAuditListLabels,
     ) {
     }
 
@@ -43,6 +45,9 @@ final class AdminUiExtension extends AbstractExtension
             new TwigFunction('admin_reconciliation_outcome', $this->reconciliationDiscrepancyListLabels->outcome(...)),
             new TwigFunction('admin_reconciliation_action', $this->reconciliationDiscrepancyListLabels->action(...)),
             new TwigFunction('admin_reconciliation_provider_state', $this->reconciliationDiscrepancyListLabels->providerState(...)),
+            new TwigFunction('admin_audit_action', $this->securityAuditListLabels->action(...)),
+            new TwigFunction('admin_audit_actor_type', $this->securityAuditListLabels->actorType(...)),
+            new TwigFunction('admin_audit_outcome', $this->securityAuditListLabels->outcome(...)),
         ];
     }
 }

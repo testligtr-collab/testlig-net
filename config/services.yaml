@@ -269,6 +269,10 @@ when@test:
             autowire: true
             autoconfigure: true
 
+        App\Tests\Browser\BrowserAuditListSeeder:
+            autowire: true
+            autoconfigure: true
+
         App\Tests\Browser\PrepareBrowserAcceptanceCommand:
             autowire: true
             autoconfigure: true

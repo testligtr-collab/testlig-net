@@ -1,6 +1,6 @@
 {% extends 'admin/layout.html.twig' %}
 
-{% block title %}Güvenlik denetimi — Testlig{% endblock %}
+{% block title %}Denetim — Testlig{% endblock %}
 
 {% block panel_content %}
     <nav class="admin-breadcrumb" aria-label="Konum">
@@ -8,55 +8,105 @@
         <span aria-hidden="true">/</span>
         <span>Denetim</span>
     </nav>
-    <h1 class="panel-greeting">Güvenlik denetim olayları</h1>
+    <div class="admin-audit-list">
+        <header class="admin-user-head admin-audit-list__head">
+            <div>
+                <h1 class="panel-greeting">Güvenlik denetim olayları</h1>
+                <p>Sistem güvenlik olaylarının salt okunur kaydı. Bu ekrandan olay oluşturulmaz veya değiştirilmez.</p>
+            </div>
+        </header>
 
-    {% if webRuntimeIdentityEnabled and webRuntimeIdentityNonce %}
-        <form method="post" action="{{ path('app_admin_web_runtime_identity') }}">
-            <input type="hidden" name="_token" value="{{ csrf_token('web_runtime_identity') }}">
-            <input type="hidden" name="nonce" value="{{ webRuntimeIdentityNonce }}">
-            <button type="submit">Çalışma kimliğini ölç</button>
-        </form>
-    {% endif %}
+        {% if webRuntimeIdentityEnabled and webRuntimeIdentityNonce %}
+            <form class="admin-audit-list__identity" method="post" action="{{ path('app_admin_web_runtime_identity') }}">
+                <input type="hidden" name="_token" value="{{ csrf_token('web_runtime_identity') }}">
+                <input type="hidden" name="nonce" value="{{ webRuntimeIdentityNonce }}">
+                <button type="submit" class="btn">Çalışma kimliğini ölç</button>
+            </form>
+        {% endif %}
 
-    {% if result.items is empty %}
-        {% include 'components/empty_state.html.twig' with {
-            title: 'Olay yok',
-            body: 'Gösterilecek denetim kaydı bulunamadı.'
-        } %}
-    {% else %}
-        <div class="admin-table-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Zaman</th>
-                        <th>Aksiyon</th>
-                        <th>Aktör</th>
-                        <th>Sonuç</th>
-                        <th>Metadata</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in result.items %}
-                        <tr>
-                            <td>{{ row.occurredAt|utc_present }}</td>
-                            <td>{{ row.action.value }}</td>
-                            <td>{{ row.actorType.value }}</td>
-                            <td>{{ row.outcome.value }}</td>
-                            <td>
-                                <ul class="list-plain admin-meta-list">
-                                    {% for key, value in row.metadata %}
-                                        <li><code>{{ key }}</code>: {{ value }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {% if result.items is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Olay yok',
+                body: 'Gösterilecek denetim kaydı bulunamadı.'
+            } %}
+        {% else %}
+            <section class="admin-audit-list__card" aria-labelledby="audit-list-heading">
+                <h2 id="audit-list-heading">Denetim olayları</h2>
+                <div class="admin-table-wrap">
+                    <table class="admin-table admin-audit-table">
+                        <thead>
+                            <tr>
+                                <th>Zaman</th>
+                                <th>Aksiyon</th>
+                                <th>Aktör</th>
+                                <th>Sonuç</th>
+                                <th>Metadata</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in result.items %}
+                                {% set action_label = admin_audit_action(row.action.value) %}
+                                {% set actor_label = admin_audit_actor_type(row.actorType.value) %}
+                                {% set outcome = admin_audit_outcome(row.outcome.value) %}
+                                <tr>
+                                    <td class="admin-audit__when-cell">
+                                        <div class="admin-audit__desktop-when">{{ row.occurredAt|utc_present }}</div>
+                                        <div class="admin-audit__mobile">
+                                            <div class="admin-audit__mobile-head">
+                                                <span class="admin-audit__mobile-when">{{ row.occurredAt|utc_present }}</span>
+                                                <span class="admin-status admin-status--{{ outcome.variant }} admin-audit__card-status"><span class="admin-status__dot" aria-hidden="true"></span>{{ outcome.label }}</span>
+                                            </div>
+                                            <div class="admin-audit__mobile-row">
+                                                <span class="admin-audit__label">Aksiyon</span>
+                                                <span class="admin-audit__action">{{ action_label }}</span>
+                                            </div>
+                                            <div class="admin-audit__mobile-row">
+                                                <span class="admin-audit__label">Aktör</span>
+                                                <span class="admin-audit__actor">{{ actor_label }}</span>
+                                            </div>
+                                            {% if row.metadata is not empty %}
+                                                <div class="admin-audit__mobile-row">
+                                                    <span class="admin-audit__label">Metadata</span>
+                                                    <ul class="list-plain admin-meta-list admin-audit__meta">
+                                                        {% for key, value in row.metadata %}
+                                                            <li><code>{{ key }}</code>: {% if value is iterable %}{{ value|join(', ') }}{% else %}{{ value }}{% endif %}</li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="admin-audit__action-cell">
+                                        <span class="admin-audit__action">{{ action_label }}</span>
+                                    </td>
+                                    <td class="admin-audit__actor-cell">
+                                        <span class="admin-audit__actor">{{ actor_label }}</span>
+                                    </td>
+                                    <td class="admin-audit__outcome">
+                                        <span class="admin-status admin-status--{{ outcome.variant }}"><span class="admin-status__dot" aria-hidden="true"></span>{{ outcome.label }}</span>
+                                    </td>
+                                    <td class="admin-audit__meta-cell">
+                                        {% if row.metadata is empty %}
+                                            <span class="admin-audit__meta-empty">—</span>
+                                        {% else %}
+                                            <ul class="list-plain admin-meta-list admin-audit__meta">
+                                                {% for key, value in row.metadata %}
+                                                    <li><code>{{ key }}</code>: {% if value is iterable %}{{ value|join(', ') }}{% else %}{{ value }}{% endif %}</li>
+                                                {% endfor %}
+                                            </ul>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+
         {% include 'components/admin_pagination.html.twig' with {
             result: result,
             route: 'app_admin_audit'
         } %}
-    {% endif %}
+    </div>
 {% endblock %}

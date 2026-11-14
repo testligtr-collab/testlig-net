@@ -6993,3 +6993,140 @@ body.is-admin-panel {
         font-weight: 650;
     }
 }
+
+/* Denetim olay listesi — scoped to .admin-audit-list */
+.is-admin-panel .admin-audit-list .admin-audit-list__head {
+    margin-bottom: 1rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__head p {
+    margin: 0.35rem 0 0;
+    color: #52667d;
+    max-width: 42rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__identity {
+    margin: 0 0 1rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__identity .btn {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__identity .btn:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__card {
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: 1px solid #e2eaf4;
+    border-radius: 0.9rem;
+    background: #fff;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__card h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit-list__card .admin-table-wrap {
+    margin: 0;
+}
+.is-admin-panel .admin-audit-list .admin-audit__mobile { display: none; }
+.is-admin-panel .admin-audit-list .admin-audit__action,
+.is-admin-panel .admin-audit-list .admin-audit__actor,
+.is-admin-panel .admin-audit-list .admin-audit__meta {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+.is-admin-panel .admin-audit-list .admin-audit__meta {
+    margin: 0;
+    padding: 0;
+}
+.is-admin-panel .admin-audit-list .admin-audit__meta li {
+    margin: 0 0 0.25rem;
+}
+.is-admin-panel .admin-audit-list .admin-audit__meta-empty {
+    color: #52667d;
+}
+.is-admin-panel .admin-audit-list .admin-pagination {
+    margin-top: 0.85rem;
+}
+.is-admin-panel .admin-audit-list .admin-pagination a {
+    min-height: 2.75rem;
+}
+.is-admin-panel .admin-audit-list .admin-pagination a:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+@media (min-width: 1024px) {
+    .is-admin-panel .admin-audit-list .admin-audit-table { width: 100%; table-layout: fixed; }
+    .is-admin-panel .admin-audit-list .admin-audit-table th:nth-child(1),
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__when-cell { width: 16%; min-width: 0; }
+    .is-admin-panel .admin-audit-list .admin-audit-table th:nth-child(2),
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__action-cell { width: 28%; min-width: 0; }
+    .is-admin-panel .admin-audit-list .admin-audit-table th:nth-child(3),
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__actor-cell { width: 12%; }
+    .is-admin-panel .admin-audit-list .admin-audit-table th:nth-child(4),
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__outcome { width: 14%; }
+    .is-admin-panel .admin-audit-list .admin-audit-table th:nth-child(5),
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__meta-cell { width: 30%; min-width: 0; }
+    .is-admin-panel .admin-audit-list .admin-audit-table .admin-audit__outcome {
+        vertical-align: middle;
+    }
+}
+@media (max-width: 1023px) {
+    .is-admin-panel .admin-audit-list .admin-audit-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+    .is-admin-panel .admin-audit-list .admin-audit-table,
+    .is-admin-panel .admin-audit-list .admin-audit-table tbody,
+    .is-admin-panel .admin-audit-list .admin-audit-table tr,
+    .is-admin-panel .admin-audit-list .admin-audit-table td { display: block; width: auto; }
+    .is-admin-panel .admin-audit-list .admin-audit-table tr {
+        margin: 0 0 0.85rem;
+        padding: 0.85rem 0.9rem;
+        border: 1px solid #e2eaf4;
+        border-radius: 0.85rem;
+        background: #f8fbfe;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit-table td { padding: 0; border: 0; }
+    .is-admin-panel .admin-audit-list .admin-audit-table td.admin-audit__action-cell,
+    .is-admin-panel .admin-audit-list .admin-audit-table td.admin-audit__actor-cell,
+    .is-admin-panel .admin-audit-list .admin-audit-table td.admin-audit__outcome,
+    .is-admin-panel .admin-audit-list .admin-audit-table td.admin-audit__meta-cell,
+    .is-admin-panel .admin-audit-list .admin-audit__desktop-when { display: none; }
+    .is-admin-panel .admin-audit-list .admin-audit__mobile { display: grid; gap: 0.55rem; }
+    .is-admin-panel .admin-audit-list .admin-audit__mobile-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.75rem;
+        align-items: flex-start;
+        justify-content: space-between;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit__mobile-when {
+        color: #16324f;
+        font-weight: 650;
+        overflow-wrap: anywhere;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit__card-status { display: inline-flex; }
+    .is-admin-panel .admin-audit-list .admin-audit__mobile-row {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit__label {
+        color: #52667d;
+        font-size: 0.82rem;
+        font-weight: 650;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit-list__card {
+        padding: 0.85rem;
+        background: transparent;
+        border: 0;
+    }
+    .is-admin-panel .admin-audit-list .admin-audit-list__card h2 { margin-bottom: 0.65rem; }
+}
+
