@@ -92,6 +92,12 @@ test('account password form layout, role shells, and failed-submit visuals', asy
     },
   ] as const;
 
+  const notes = pageNotes(teacher);
+  // Planted before any password POST window — must not be consumed by form-validation accounting.
+  notes.push(
+    'console: unrelated-route-probe Failed to load resource: the server responded with a status of 422 (Unprocessable Content)',
+  );
+
   let expectedFormValidation422 = 0;
   for (const scenario of errorCases) {
     for (const viewport of VIEWPORTS) {
@@ -100,6 +106,7 @@ test('account password form layout, role shells, and failed-submit visuals', asy
       await teacher.locator('input[name="change_password_form[currentPassword]"]').fill(scenario.fill.current);
       await teacher.locator('input[name="change_password_form[newPassword][first]"]').fill(scenario.fill.first);
       await teacher.locator('input[name="change_password_form[newPassword][second]"]').fill(scenario.fill.second);
+      const notesBeforePost = notes.length;
       const postResponse = teacher.waitForResponse((response) => {
         try {
           const url = new URL(response.url());
@@ -112,6 +119,12 @@ test('account password form layout, role shells, and failed-submit visuals', asy
       const response = await postResponse;
       if (scenario.name === 'eslesme' || scenario.name === 'kisa') {
         expect(response.status(), `${scenario.name} @${viewport.name}`).toBe(422);
+        // watch() stores only message.text() — no request URL. Bind console drop to this
+        // verified PASSWORD_PATH POST by removing one console 422 note created after click.
+        expect(
+          dropOneConsole422Since(notes, notesBeforePost),
+          `${scenario.name} @${viewport.name} console 422 after verified POST`,
+        ).toBe(true);
         expectedFormValidation422 += 1;
       } else {
         expect(response.ok(), `${scenario.name} @${viewport.name}`).toBeTruthy();
@@ -125,25 +138,39 @@ test('account password form layout, role shells, and failed-submit visuals', asy
     }
   }
   expect(expectedFormValidation422).toBe(8);
+  expect(
+    notes.some((note) => note.includes('unrelated-route-probe')),
+    'unrelated 422 console probe must not be absorbed as a password-form note',
+  ).toBe(true);
+  notes.splice(
+    notes.findIndex((note) => note.includes('unrelated-route-probe')),
+    1,
+  );
+  expect(notes.filter((note) => note.includes('status of 422'))).toEqual([]);
 
   await teacher.setViewportSize({ width: 1440, height: 900 });
   await teacher.goto(PASSWORD_PATH);
-  // Drop only Chromium's console noise for the expected form-validation 422 POSTs above.
-  const notes = (teacher as Page & { __notes?: string[] }).__notes ?? [];
-  let ignoredValidationResponses = 0;
-  (teacher as Page & { __notes?: string[] }).__notes = notes.filter((note) => {
-    if (ignoredValidationResponses < expectedFormValidation422 && note.includes('status of 422')) {
-      ignoredValidationResponses += 1;
-
-      return false;
-    }
-
-    return true;
-  });
-  expect(ignoredValidationResponses).toBe(expectedFormValidation422);
   await assertClean(teacher);
   await teacher.context().close();
 });
+
+function pageNotes(page: Page): string[] {
+  return (page as Page & { __notes?: string[] }).__notes ?? [];
+}
+
+/** Drop one console 422 note appended at/after sinceIndex (temporal bind to a verified POST). */
+function dropOneConsole422Since(notes: string[], sinceIndex: number): boolean {
+  for (let index = sinceIndex; index < notes.length; index += 1) {
+    const note = notes[index];
+    if (note.startsWith('console:') && note.includes('status of 422')) {
+      notes.splice(index, 1);
+
+      return true;
+    }
+  }
+
+  return false;
+}
 
 async function openRole(browser: Browser, email: string): Promise<Page> {
   const context = await browser.newContext();
