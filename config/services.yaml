@@ -273,6 +273,10 @@ when@test:
             autowire: true
             autoconfigure: true
 
+        App\Tests\Browser\BrowserAccountSummarySeeder:
+            autowire: true
+            autoconfigure: true
+
         App\Tests\Browser\PrepareBrowserAcceptanceCommand:
             autowire: true
             autoconfigure: true

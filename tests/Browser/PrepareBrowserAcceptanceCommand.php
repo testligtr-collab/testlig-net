@@ -142,6 +142,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserReconciliationListSeeder $reconciliationListSeeder,
         private readonly BrowserReconciliationDetailSeeder $reconciliationDetailSeeder,
         private readonly BrowserAuditListSeeder $auditListSeeder,
+        private readonly BrowserAccountSummarySeeder $accountSummarySeeder,
     ) {
         parent::__construct();
     }
@@ -904,6 +905,8 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $reconciliationScreens = $this->reconciliationListSeeder->seed($superAdmin, $subject);
         // Audit rows are independent of payment/webhook/recon fixtures; append after them.
         $auditScreens = $this->auditListSeeder->seed($superAdmin, $subject);
+        // Account summary uses a separate institution so shared classroom counts stay stable.
+        $accountScreens = $this->accountSummarySeeder->seed($superAdmin);
 
         $manifest = [
             'password' => self::PASSWORD,
@@ -1065,6 +1068,11 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'auditLongReason' => $auditScreens['longReason'],
                 'auditLongActionLabel' => $auditScreens['longActionLabel'],
                 'auditPagination' => $auditScreens['pagination'],
+                'accountSummary' => $accountScreens['path'],
+                'accountLongEmail' => $accountScreens['longEmail'],
+                'accountLongInstitution' => $accountScreens['longInstitution'],
+                'accountLongClassroom' => $accountScreens['longClassroom'],
+                'accountLongUser' => $accountScreens['longUser'],
             ],
         ];
         $path = $this->kernel->getProjectDir().\DIRECTORY_SEPARATOR.'var'.\DIRECTORY_SEPARATOR.'browser-acceptance.json';
