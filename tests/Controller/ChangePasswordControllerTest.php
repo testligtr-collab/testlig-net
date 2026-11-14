@@ -117,7 +117,7 @@ final class ChangePasswordControllerTest extends WebTestCase
             'change_password_form[newPassword][first]' => 'Yeni-Guclu-Parola-999!',
             'change_password_form[newPassword][second]' => 'Yeni-Guclu-Parola-111!',
         ]));
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'eşleşmiyor');
         $this->assertPasswordInputsHaveNoValue($crawler);
         self::assertSame($before, $this->userFingerprint($client, $user->getId()));
@@ -137,7 +137,7 @@ final class ChangePasswordControllerTest extends WebTestCase
             'change_password_form[newPassword][first]' => 'kisa12',
             'change_password_form[newPassword][second]' => 'kisa12',
         ]));
-        self::assertResponseIsSuccessful();
+        self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', PasswordPolicy::TOO_SHORT_MESSAGE);
         $this->assertPasswordInputsHaveNoValue($crawler);
         self::assertSame($before, $this->userFingerprint($client, $user->getId()));

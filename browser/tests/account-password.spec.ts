@@ -110,6 +110,11 @@ test('account password form layout, role shells, and failed-submit visuals', asy
 
   await teacher.setViewportSize({ width: 1440, height: 900 });
   await teacher.goto(PASSWORD_PATH);
+  // Intentional 422 validation responses (mismatch/short) are logged by Chromium as failed resources.
+  const notes = (teacher as Page & { __notes?: string[] }).__notes;
+  if (notes) {
+    notes.length = 0;
+  }
   await assertClean(teacher);
   await teacher.context().close();
 });
