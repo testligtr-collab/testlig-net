@@ -88,7 +88,7 @@ test('account password form layout, role shells, and failed-submit visuals', asy
         first: 'kisa12',
         second: 'kisa12',
       },
-      expectText: 'en az 8 karakter',
+      expectText: 'Parolanız en az 8 karakter olmalıdır.',
     },
   ] as const;
 

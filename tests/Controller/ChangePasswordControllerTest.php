@@ -348,7 +348,7 @@ final class ChangePasswordControllerTest extends WebTestCase
             'change_password_form[newPassword][first]',
             'change_password_form[newPassword][second]',
         ] as $name) {
-            $input = $crawler->filter(sprintf('input[name="%s"]', $name));
+            $input = $crawler->filter(\sprintf('input[name="%s"]', $name));
             self::assertCount(1, $input, $name);
             self::assertSame('', (string) $input->attr('value'));
         }
