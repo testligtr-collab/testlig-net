@@ -5,15 +5,20 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\User;
+use App\Enum\SecurityAuditAction;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Repository\ResetPasswordRequestRepository;
+use App\Repository\SecurityAuditEventRepository;
 use App\Repository\UserRepository;
+use App\Security\PasswordPolicy;
 use App\Service\UserAccountLifecycle;
 use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\Uid\Uuid;
 use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelperInterface;
 
 final class ChangePasswordControllerTest extends WebTestCase
@@ -62,31 +67,104 @@ final class ChangePasswordControllerTest extends WebTestCase
     public function testWrongCurrentPasswordRejected(): void
     {
         $client = static::createClient();
-        $this->createActiveUser($client, 'change-wrong@example.com', 'Guclu-Parola-123!');
+        $user = $this->createActiveUser($client, 'change-wrong@example.com', 'Guclu-Parola-123!');
+        $before = $this->userFingerprint($client, $user->getId());
+        $auditBefore = $this->passwordChangedAuditCount($client);
         $this->authenticate($client, 'change-wrong@example.com', 'Guclu-Parola-123!');
         $crawler = $client->request('GET', '/hesabim/sifre-degistir');
-        $client->submit($crawler->selectButton('Parolayı kaydet')->form([
+        $crawler = $client->submit($crawler->selectButton('Parolayı kaydet')->form([
             'change_password_form[currentPassword]' => 'Yanlis-Parola-000!',
             'change_password_form[newPassword][first]' => 'Yeni-Guclu-Parola-999!',
             'change_password_form[newPassword][second]' => 'Yeni-Guclu-Parola-999!',
         ]));
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'Parola değiştirilemedi');
+        $this->assertPasswordInputsHaveNoValue($crawler);
+        self::assertSame($before, $this->userFingerprint($client, $user->getId()));
+        self::assertSame($auditBefore, $this->passwordChangedAuditCount($client));
     }
 
     public function testSamePasswordRejected(): void
     {
         $client = static::createClient();
-        $this->createActiveUser($client, 'change-same@example.com', 'Guclu-Parola-123!');
+        $user = $this->createActiveUser($client, 'change-same@example.com', 'Guclu-Parola-123!');
+        $before = $this->userFingerprint($client, $user->getId());
+        $auditBefore = $this->passwordChangedAuditCount($client);
         $this->authenticate($client, 'change-same@example.com', 'Guclu-Parola-123!');
         $crawler = $client->request('GET', '/hesabim/sifre-degistir');
-        $client->submit($crawler->selectButton('Parolayı kaydet')->form([
+        $crawler = $client->submit($crawler->selectButton('Parolayı kaydet')->form([
             'change_password_form[currentPassword]' => 'Guclu-Parola-123!',
             'change_password_form[newPassword][first]' => 'Guclu-Parola-123!',
             'change_password_form[newPassword][second]' => 'Guclu-Parola-123!',
         ]));
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('body', 'farklı olmalıdır');
+        $this->assertPasswordInputsHaveNoValue($crawler);
+        self::assertSame($before, $this->userFingerprint($client, $user->getId()));
+        self::assertSame($auditBefore, $this->passwordChangedAuditCount($client));
+    }
+
+    public function testPasswordConfirmationMismatchRejectedWithoutWrite(): void
+    {
+        $client = static::createClient();
+        $user = $this->createActiveUser($client, 'change-mismatch@example.com', 'Guclu-Parola-123!');
+        $before = $this->userFingerprint($client, $user->getId());
+        $auditBefore = $this->passwordChangedAuditCount($client);
+        $this->authenticate($client, 'change-mismatch@example.com', 'Guclu-Parola-123!');
+        $crawler = $client->request('GET', '/hesabim/sifre-degistir');
+        $crawler = $client->submit($crawler->selectButton('Parolayı kaydet')->form([
+            'change_password_form[currentPassword]' => 'Guclu-Parola-123!',
+            'change_password_form[newPassword][first]' => 'Yeni-Guclu-Parola-999!',
+            'change_password_form[newPassword][second]' => 'Yeni-Guclu-Parola-111!',
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', 'eşleşmiyor');
+        $this->assertPasswordInputsHaveNoValue($crawler);
+        self::assertSame($before, $this->userFingerprint($client, $user->getId()));
+        self::assertSame($auditBefore, $this->passwordChangedAuditCount($client));
+    }
+
+    public function testShortNewPasswordRejectedWithoutWrite(): void
+    {
+        $client = static::createClient();
+        $user = $this->createActiveUser($client, 'change-short@example.com', 'Guclu-Parola-123!');
+        $before = $this->userFingerprint($client, $user->getId());
+        $auditBefore = $this->passwordChangedAuditCount($client);
+        $this->authenticate($client, 'change-short@example.com', 'Guclu-Parola-123!');
+        $crawler = $client->request('GET', '/hesabim/sifre-degistir');
+        $crawler = $client->submit($crawler->selectButton('Parolayı kaydet')->form([
+            'change_password_form[currentPassword]' => 'Guclu-Parola-123!',
+            'change_password_form[newPassword][first]' => 'kisa12',
+            'change_password_form[newPassword][second]' => 'kisa12',
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('body', PasswordPolicy::TOO_SHORT_MESSAGE);
+        $this->assertPasswordInputsHaveNoValue($crawler);
+        self::assertSame($before, $this->userFingerprint($client, $user->getId()));
+        self::assertSame($auditBefore, $this->passwordChangedAuditCount($client));
+    }
+
+    public function testGetRendersFormContractsWithoutPasswordWrite(): void
+    {
+        $client = static::createClient();
+        $user = $this->createActiveUser($client, 'change-get@example.com', 'Guclu-Parola-123!');
+        $before = $this->userFingerprint($client, $user->getId());
+        $auditBefore = $this->passwordChangedAuditCount($client);
+        $this->authenticate($client, 'change-get@example.com', 'Guclu-Parola-123!');
+        $crawler = $client->request('GET', '/hesabim/sifre-degistir');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('.account-password-page');
+        self::assertSelectorTextContains('#account-password-heading', 'Parola değiştir');
+        self::assertSelectorExists('form[name="change_password_form"]');
+        self::assertSelectorExists('input[name="change_password_form[currentPassword]"][autocomplete="current-password"]');
+        self::assertSelectorExists('input[name="change_password_form[newPassword][first]"][autocomplete="new-password"]');
+        self::assertSelectorExists('input[name="change_password_form[newPassword][second]"][autocomplete="new-password"]');
+        self::assertSelectorExists('input[name="change_password_form[_token]"]');
+        self::assertSelectorExists('a.account-password__back[href="/hesabim"]');
+        self::assertSelectorTextContains('.account-password__help', PasswordPolicy::HELP_TEXT);
+        $this->assertPasswordInputsHaveNoValue($crawler);
+        self::assertSame($before, $this->userFingerprint($client, $user->getId()));
+        self::assertSame($auditBefore, $this->passwordChangedAuditCount($client));
     }
 
     public function testInvalidCsrfRejected(): void
@@ -261,6 +339,53 @@ final class ChangePasswordControllerTest extends WebTestCase
         $lifecycle->markEmailVerifiedAndActivate($user);
 
         return $user;
+    }
+
+    private function assertPasswordInputsHaveNoValue(Crawler $crawler): void
+    {
+        foreach ([
+            'change_password_form[currentPassword]',
+            'change_password_form[newPassword][first]',
+            'change_password_form[newPassword][second]',
+        ] as $name) {
+            $input = $crawler->filter(sprintf('input[name="%s"]', $name));
+            self::assertCount(1, $input, $name);
+            self::assertSame('', (string) $input->attr('value'));
+        }
+        $html = $crawler->html();
+        self::assertStringNotContainsString('value="Guclu-Parola', $html);
+        self::assertStringNotContainsString('value="Yeni-Guclu-Parola', $html);
+        self::assertStringNotContainsString('value="Yanlis-Parola', $html);
+        self::assertStringNotContainsString('value="kisa12"', $html);
+    }
+
+    /**
+     * Narrow user fingerprint for GET/failed-POST no-write checks (not a full DB snapshot).
+     */
+    private function userFingerprint(KernelBrowser $client, Uuid $id): string
+    {
+        /** @var EntityManagerInterface $em */
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $row = $em->getConnection()->fetchAssociative(
+            'SELECT password, password_changed_at, status, email_verified_at FROM users WHERE id = ?',
+            [$id->toBinary()],
+        );
+        self::assertIsArray($row);
+
+        return implode('|', [
+            (string) $row['password'],
+            (string) $row['password_changed_at'],
+            (string) $row['status'],
+            (string) ($row['email_verified_at'] ?? ''),
+        ]);
+    }
+
+    private function passwordChangedAuditCount(KernelBrowser $client): int
+    {
+        /** @var SecurityAuditEventRepository $events */
+        $events = $client->getContainer()->get(SecurityAuditEventRepository::class);
+
+        return $events->countByAction(SecurityAuditAction::PasswordChanged->value);
     }
 
     protected function tearDown(): void
