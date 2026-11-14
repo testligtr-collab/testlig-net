@@ -3788,3 +3788,169 @@ textarea.revision-text { field-sizing: content; }
         transition: none;
     }
 }
+
+/* Account summary — scoped to .account-summary-page (shared ROLE_USER surface) */
+.account-summary-page {
+    box-sizing: border-box;
+}
+
+.account-summary-page .account-summary__head {
+    margin-bottom: 1.1rem;
+}
+
+.account-summary-page .account-summary__head h1 {
+    margin: 0;
+}
+
+.account-summary-page .account-summary__lede {
+    margin: 0.4rem 0 0;
+    color: var(--tl-ink-muted, #52667d);
+    max-width: 40rem;
+    line-height: 1.45;
+}
+
+.account-summary-page .account-summary__card {
+    margin: 0 0 1rem;
+    padding: 1rem 1.05rem;
+    border: var(--tl-border-width, 1px) solid var(--tl-border, #e2eaf4);
+    border-radius: var(--tl-radius-lg, 0.9rem);
+    background: var(--tl-surface, #fff);
+}
+
+.account-summary-page .account-summary__card h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.05rem;
+    color: var(--tl-ink, #16324f);
+}
+
+.account-summary-page .account-summary__dl {
+    margin: 0;
+    display: grid;
+    gap: 0.65rem;
+}
+
+.account-summary-page .account-summary__field {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.account-summary-page .account-summary__field dt {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 650;
+    color: var(--tl-ink-muted, #52667d);
+}
+
+.account-summary-page .account-summary__field dd {
+    margin: 0;
+}
+
+.account-summary-page .account-summary__value,
+.account-summary-page .account-summary__membership-name,
+.account-summary-page .account-summary__membership-meta,
+.account-summary-page .account-summary__membership-classrooms {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    min-width: 0;
+}
+
+.account-summary-page .account-summary__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin: 0 0 1rem;
+}
+
+.account-summary-page .account-summary__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    box-sizing: border-box;
+}
+
+.account-summary-page .account-summary__action:focus-visible {
+    outline: 2px solid #0f7a72;
+    outline-offset: 2px;
+}
+
+.account-summary-page .account-summary__memberships {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.account-summary-page .account-summary__membership {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--tl-border, #e2eaf4);
+    border-radius: 0.7rem;
+    background: #f8fbfe;
+}
+
+.account-summary-page .account-summary__membership-name {
+    font-weight: 650;
+    color: var(--tl-ink, #16324f);
+}
+
+.account-summary-page .account-summary__membership-meta,
+.account-summary-page .account-summary__membership-classrooms {
+    color: var(--tl-ink-muted, #52667d);
+    font-size: 0.92rem;
+}
+
+.account-summary-page .account-summary__metrics {
+    list-style: none;
+    margin: 0 0 0.85rem;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: 0.65rem;
+}
+
+.account-summary-page .account-summary__metric {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+    padding: 0.7rem 0.8rem;
+    border: 1px solid var(--tl-border, #e2eaf4);
+    border-radius: 0.7rem;
+    background: #f8fbfe;
+}
+
+.account-summary-page .account-summary__metric-label {
+    font-size: 0.82rem;
+    color: var(--tl-ink-muted, #52667d);
+    overflow-wrap: anywhere;
+}
+
+.account-summary-page .account-summary__metric-value {
+    font-size: 1.25rem;
+    font-weight: 650;
+    color: var(--tl-ink, #16324f);
+}
+
+.account-summary-page .account-summary__actions--workspace {
+    margin-bottom: 0;
+}
+
+@media (max-width: 480px) {
+    .account-summary-page .account-summary__metrics {
+        grid-template-columns: 1fr;
+    }
+
+    .account-summary-page .account-summary__actions {
+        flex-direction: column;
+    }
+
+    .account-summary-page .account-summary__action {
+        width: 100%;
+    }
+}
+
