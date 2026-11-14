@@ -92,6 +92,7 @@ test('account password form layout, role shells, and failed-submit visuals', asy
     },
   ] as const;
 
+  let expectedFormValidation422 = 0;
   for (const scenario of errorCases) {
     for (const viewport of VIEWPORTS) {
       await teacher.setViewportSize(viewport);
@@ -99,22 +100,47 @@ test('account password form layout, role shells, and failed-submit visuals', asy
       await teacher.locator('input[name="change_password_form[currentPassword]"]').fill(scenario.fill.current);
       await teacher.locator('input[name="change_password_form[newPassword][first]"]').fill(scenario.fill.first);
       await teacher.locator('input[name="change_password_form[newPassword][second]"]').fill(scenario.fill.second);
+      const postResponse = teacher.waitForResponse((response) => {
+        try {
+          const url = new URL(response.url());
+          return url.pathname === PASSWORD_PATH && response.request().method() === 'POST';
+        } catch {
+          return false;
+        }
+      });
       await teacher.locator('button.account-password__submit').click();
+      const response = await postResponse;
+      if (scenario.name === 'eslesme' || scenario.name === 'kisa') {
+        expect(response.status(), `${scenario.name} @${viewport.name}`).toBe(422);
+        expectedFormValidation422 += 1;
+      } else {
+        expect(response.ok(), `${scenario.name} @${viewport.name}`).toBeTruthy();
+      }
       await expect(teacher.getByText(scenario.expectText)).toBeVisible();
+      // Screenshot hygiene only — server value non-echo is asserted in ChangePasswordControllerTest.
       await clearPasswordInputs(teacher);
       await expectEmptyPasswordInputs(teacher);
       await assertLayout(teacher);
       await capture(teacher, info, `parola-${scenario.name}-${viewport.name}.png`);
     }
   }
+  expect(expectedFormValidation422).toBe(8);
 
   await teacher.setViewportSize({ width: 1440, height: 900 });
   await teacher.goto(PASSWORD_PATH);
-  // Intentional 422 validation responses (mismatch/short) are logged by Chromium as failed resources.
-  const notes = (teacher as Page & { __notes?: string[] }).__notes;
-  if (notes) {
-    notes.length = 0;
-  }
+  // Drop only Chromium's console noise for the expected form-validation 422 POSTs above.
+  const notes = (teacher as Page & { __notes?: string[] }).__notes ?? [];
+  let ignoredValidationResponses = 0;
+  (teacher as Page & { __notes?: string[] }).__notes = notes.filter((note) => {
+    if (ignoredValidationResponses < expectedFormValidation422 && note.includes('status of 422')) {
+      ignoredValidationResponses += 1;
+
+      return false;
+    }
+
+    return true;
+  });
+  expect(ignoredValidationResponses).toBe(expectedFormValidation422);
   await assertClean(teacher);
   await teacher.context().close();
 });
