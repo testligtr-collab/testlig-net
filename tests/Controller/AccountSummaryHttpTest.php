@@ -81,8 +81,8 @@ final class AccountSummaryHttpTest extends WebTestCase
             self::assertSelectorExists('.account-summary-page');
             self::assertSelectorTextContains('#account-summary-heading', 'Hesabım');
             self::assertSelectorTextContains('.account-summary__lede', 'salt okunur özeti');
-            self::assertSelectorTextContains('.account-summary__value', $first);
-            self::assertSelectorTextContains('.account-summary__value', $last);
+            self::assertSelectorTextContains('.account-summary__field:nth-child(1) .account-summary__value', $first);
+            self::assertSelectorTextContains('.account-summary__field:nth-child(2) .account-summary__value', $last);
             self::assertSelectorTextContains('.account-summary__value--wrap', $email);
             self::assertSelectorExists('a.account-summary__action[href="/hesabim/sifre-degistir"]');
             $html = (string) $client->getResponse()->getContent();

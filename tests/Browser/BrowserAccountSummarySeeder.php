@@ -28,8 +28,8 @@ use App\Service\UserFactory;
 final class BrowserAccountSummarySeeder
 {
     public const LONG_EMAIL = 'browser-account-long-email-wrap-xxxxxxxxxxxxxxxxxxxx@example.test';
-    public const LONG_INSTITUTION = 'Uzun Kurum Adi Hesap Ozeti Kartinda Sarilan Ornek Okulu';
-    public const LONG_CLASSROOM = 'Uzun Sinif Adi Hesap Ozeti Uyelik Satirinda Sarilir';
+    public const LONG_INSTITUTION = 'Hesap Ozeti Kartinda Sarilan Ornek Kurum Okulu';
+    public const LONG_CLASSROOM = 'Hesap Ozeti Uyelik Satirinda Sarilan Ornek Sinifi';
     private const PASSWORD = 'Guclu-Parola-123!';
 
     public function __construct(
@@ -58,8 +58,8 @@ final class BrowserAccountSummarySeeder
         $owner = $this->account('browser-account-owner@example.test', 'Hesap', 'Sahibi', UserRole::Teacher);
         $longTeacher = $this->account(
             self::LONG_EMAIL,
-            'UzunAdHesapOzetiSarim',
-            'UzunSoyadHesapOzetiSarim',
+            'HesapOzetiAdSarim',
+            'HesapOzetiSoyadSarim',
             UserRole::Teacher,
         );
 
