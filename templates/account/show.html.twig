@@ -26,53 +26,48 @@
 
 {% block body %}
 <div class="account-summary-page{% if is_granted('ROLE_STUDENT') %} student-page{% endif %}">
-    <section class="account-summary{% if is_granted('ROLE_STUDENT') %} student-form-card{% else %} page page--wide{% endif %}" aria-labelledby="account-summary-heading">
+    <section class="account-summary" aria-labelledby="account-summary-heading">
         <header class="account-summary__head">
             <h1 id="account-summary-heading">Hesabım</h1>
             <p class="account-summary__lede">Oturumunuzdaki hesabın salt okunur özeti. Başka kullanıcının bilgisi burada görünmez.</p>
         </header>
 
-        <section class="account-summary__card" aria-labelledby="account-identity-heading">
-            <h2 id="account-identity-heading">Kimlik</h2>
-            <dl class="account-summary__dl">
-                <div class="account-summary__field">
-                    <dt>Ad</dt>
-                    <dd class="account-summary__value">{{ user.firstName }}</dd>
-                </div>
-                <div class="account-summary__field">
-                    <dt>Soyad</dt>
-                    <dd class="account-summary__value">{{ user.lastName }}</dd>
-                </div>
-                <div class="account-summary__field">
-                    <dt>E-posta</dt>
-                    <dd class="account-summary__value account-summary__value--wrap">{{ user.email }}</dd>
-                </div>
-            </dl>
-        </section>
-
-        <nav class="account-summary__actions" aria-label="Hesap bağlantıları">
-            {% if teacher_classrooms_href %}
-                <a class="btn account-summary__action" href="{{ teacher_classrooms_href }}">Sınıflarım</a>
-            {% endif %}
-            <a class="btn account-summary__action" href="{{ path('app_account_change_password') }}">Parola değiştir</a>
-        </nav>
-
-        {% if institution_memberships is not empty %}
-            <section class="account-summary__card" aria-labelledby="account-memberships-heading">
-                <h2 id="account-memberships-heading">Kurum üyeliklerim</h2>
-                <ul class="account-summary__memberships">
-                    {% for membership in institution_memberships %}
-                        <li class="account-summary__membership">
-                            <span class="account-summary__membership-name">{{ membership.institutionName }}</span>
-                            <span class="account-summary__membership-meta">{{ membership.roleLabel }} · {{ membership.statusLabel }}</span>
-                            {% if membership.classroomNames is not empty %}
-                                <span class="account-summary__membership-classrooms">{{ membership.classroomNames|join(', ') }}</span>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                </ul>
+        <div class="account-summary__top{% if institution_memberships is not empty %} account-summary__top--split{% endif %}">
+            <section class="account-summary__card" aria-labelledby="account-identity-heading">
+                <h2 id="account-identity-heading">Kimlik</h2>
+                <dl class="account-summary__dl">
+                    <div class="account-summary__field">
+                        <dt>Ad</dt>
+                        <dd class="account-summary__value">{{ user.firstName }}</dd>
+                    </div>
+                    <div class="account-summary__field">
+                        <dt>Soyad</dt>
+                        <dd class="account-summary__value">{{ user.lastName }}</dd>
+                    </div>
+                    <div class="account-summary__field">
+                        <dt>E-posta</dt>
+                        <dd class="account-summary__value account-summary__value--wrap">{{ user.email }}</dd>
+                    </div>
+                </dl>
             </section>
-        {% endif %}
+
+            {% if institution_memberships is not empty %}
+                <section class="account-summary__card" aria-labelledby="account-memberships-heading">
+                    <h2 id="account-memberships-heading">Kurum üyeliklerim</h2>
+                    <ul class="account-summary__memberships">
+                        {% for membership in institution_memberships %}
+                            <li class="account-summary__membership">
+                                <span class="account-summary__membership-name">{{ membership.institutionName }}</span>
+                                <span class="account-summary__membership-meta">{{ membership.roleLabel }} · {{ membership.statusLabel }}</span>
+                                {% if membership.classroomNames is not empty %}
+                                    <span class="account-summary__membership-classrooms">Sınıflar: {{ membership.classroomNames|join(' · ') }}</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endif %}
+        </div>
 
         {% if workspace %}
             <section class="account-summary__card account-summary__workspace" aria-labelledby="workspace-heading">
@@ -97,16 +92,16 @@
                 </ul>
                 <nav class="account-summary__actions account-summary__actions--workspace" aria-label="Çalışma alanı bağlantıları">
                     {% if learning_contents_href %}
-                        <a class="btn btn--cta account-summary__action" href="{{ learning_contents_href }}">İçerikler</a>
+                        <a class="btn account-summary__action account-summary__action--primary" href="{{ learning_contents_href }}">İçerikler</a>
                     {% endif %}
                     {% if questions_href %}
-                        <a class="btn btn--ghost account-summary__action" href="{{ questions_href }}">Sorular</a>
+                        <a class="btn account-summary__action account-summary__action--outline" href="{{ questions_href }}">Sorular</a>
                     {% endif %}
                     {% if tests_href %}
-                        <a class="btn btn--ghost account-summary__action" href="{{ tests_href }}">Testler</a>
+                        <a class="btn account-summary__action account-summary__action--outline" href="{{ tests_href }}">Testler</a>
                     {% endif %}
                     {% if workspace.canCreateContent %}
-                        <a class="btn btn--ghost account-summary__action" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
+                        <a class="btn account-summary__action account-summary__action--outline" href="{{ path('app_admin_learning_content_new') }}">Yeni içerik</a>
                     {% endif %}
                 </nav>
             </section>
@@ -114,17 +109,24 @@
             {% if learning_contents_href or questions_href or tests_href %}
                 <nav class="account-summary__actions" aria-label="İçerik bağlantıları">
                     {% if learning_contents_href %}
-                        <a class="btn account-summary__action" href="{{ learning_contents_href }}">İçerikler</a>
+                        <a class="btn account-summary__action account-summary__action--primary" href="{{ learning_contents_href }}">İçerikler</a>
                     {% endif %}
                     {% if questions_href %}
-                        <a class="btn account-summary__action" href="{{ questions_href }}">Sorular</a>
+                        <a class="btn account-summary__action account-summary__action--outline" href="{{ questions_href }}">Sorular</a>
                     {% endif %}
                     {% if tests_href %}
-                        <a class="btn account-summary__action" href="{{ tests_href }}">Testler</a>
+                        <a class="btn account-summary__action account-summary__action--outline" href="{{ tests_href }}">Testler</a>
                     {% endif %}
                 </nav>
             {% endif %}
         {% endif %}
+
+        <nav class="account-summary__actions account-summary__actions--footer" aria-label="Hesap bağlantıları">
+            {% if teacher_classrooms_href %}
+                <a class="btn account-summary__action account-summary__action--primary" href="{{ teacher_classrooms_href }}">Sınıflarım</a>
+            {% endif %}
+            <a class="btn account-summary__action account-summary__action--outline" href="{{ path('app_account_change_password') }}">Parola değiştir</a>
+        </nav>
     </section>
 </div>
 {% endblock %}
