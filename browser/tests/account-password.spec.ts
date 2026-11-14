@@ -119,17 +119,25 @@ test('account password form layout, role shells, and failed-submit visuals', asy
       const response = await postResponse;
       if (scenario.name === 'eslesme' || scenario.name === 'kisa') {
         expect(response.status(), `${scenario.name} @${viewport.name}`).toBe(422);
-        // watch() stores only message.text() — no request URL. Bind console drop to this
-        // verified PASSWORD_PATH POST by removing one console 422 note created after click.
-        expect(
-          dropOneConsole422Since(notes, notesBeforePost),
-          `${scenario.name} @${viewport.name} console 422 after verified POST`,
-        ).toBe(true);
         expectedFormValidation422 += 1;
       } else {
         expect(response.ok(), `${scenario.name} @${viewport.name}`).toBeTruthy();
       }
       await expect(teacher.getByText(scenario.expectText)).toBeVisible();
+      if (scenario.name === 'eslesme' || scenario.name === 'kisa') {
+        // Chromium may emit the console 422 after the response event; wait then drop one
+        // note created in this verified PASSWORD_PATH POST window (watch has no request URL).
+        await expect
+          .poll(
+            () =>
+              notes
+                .slice(notesBeforePost)
+                .some((note) => note.startsWith('console:') && note.includes('status of 422')),
+            { message: `${scenario.name} @${viewport.name} console 422 after verified POST` },
+          )
+          .toBe(true);
+        expect(dropOneConsole422Since(notes, notesBeforePost)).toBe(true);
+      }
       // Screenshot hygiene only — server value non-echo is asserted in ChangePasswordControllerTest.
       await clearPasswordInputs(teacher);
       await expectEmptyPasswordInputs(teacher);
