@@ -92,14 +92,15 @@ final class AdminSystemControllerTest extends WebTestCase
 
     public function testDegradedProbeRendersWarningAndUnavailableLabels(): void
     {
+        // Create the fixture before the client so ensureKernelShutdown cannot drop the probe.
+        $this->createUser('admin_system_degraded@example.com', UserRole::Admin);
         $client = static::createClient();
         $client->disableReboot();
-        // Replace before login so AdminSystemHealthReadModel is not yet initialized.
         $client->getContainer()->set(
             HealthChecker::class,
             $this->buildHealthChecker($client, databaseOk: true, redisUrl: 'redis://127.0.0.1:9'),
         );
-        $this->loginAs($client, 'admin_system_degraded@example.com', UserRole::Admin);
+        $this->submitLogin($client, 'admin_system_degraded@example.com');
 
         $crawler = $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
@@ -113,6 +114,7 @@ final class AdminSystemControllerTest extends WebTestCase
 
     public function testUnavailableDatabaseRendersUnavailableApplication(): void
     {
+        $this->createUser('admin_system_unavailable@example.com', UserRole::Admin);
         $client = static::createClient();
         $client->disableReboot();
         $failingConnection = $this->createMock(Connection::class);
@@ -126,7 +128,7 @@ final class AdminSystemControllerTest extends WebTestCase
                 connection: $failingConnection,
             ),
         );
-        $this->loginAs($client, 'admin_system_unavailable@example.com', UserRole::Admin);
+        $this->submitLogin($client, 'admin_system_unavailable@example.com');
 
         $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
@@ -200,14 +202,19 @@ final class AdminSystemControllerTest extends WebTestCase
     private function loginAs(KernelBrowser $client, string $email, UserRole $role): User
     {
         $user = $this->createUser($email, $role);
+        $this->submitLogin($client, $email);
+
+        return $user;
+    }
+
+    private function submitLogin(KernelBrowser $client, string $email): void
+    {
         $crawler = $client->request('GET', '/giris');
         $client->submit($crawler->selectButton('Giriş yap')->form([
             '_username' => $email,
             '_password' => 'Guclu-Parola-123!',
         ]));
         $client->followRedirect();
-
-        return $user;
     }
 
     private function createUser(string $email, UserRole $role): User
