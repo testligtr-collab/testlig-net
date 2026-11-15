@@ -4037,3 +4037,164 @@ textarea.revision-text { field-sizing: content; }
     }
 }
 
+/* Account password change — scoped to .account-password-page (shared ROLE_USER surface) */
+.account-password-page {
+    --account-accent: #14b8a6;
+    --account-accent-strong: #0f9a8b;
+    --account-accent-soft: #e7f8f5;
+    --account-value-bg: #f3f6f9;
+    box-sizing: border-box;
+}
+
+.account-password-page .account-password {
+    box-sizing: border-box;
+    width: min(36rem, calc(100% - 2rem));
+    max-width: 100%;
+    margin: 2rem auto 2.5rem;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.account-password-page .account-password__head {
+    margin-bottom: 1.25rem;
+}
+
+.account-password-page .account-password__head h1 {
+    margin: 0;
+    color: var(--tl-ink, #1a2b3c);
+}
+
+.account-password-page .account-password__lede {
+    margin: 0.45rem 0 0;
+    color: var(--tl-ink-muted, #5a6b7c);
+    max-width: 36rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.account-password-page .account-password__card {
+    margin: 0;
+    padding: 1.2rem 1.25rem 1.35rem;
+    border: 1px solid var(--tl-border, #d4dde8);
+    border-radius: 1rem;
+    background: var(--tl-surface, #fff);
+    box-shadow: 0 1px 2px rgba(26, 43, 60, 0.04), 0 8px 22px rgba(26, 43, 60, 0.05);
+}
+
+.account-password-page .account-password__form {
+    display: grid;
+    gap: 1rem;
+}
+
+.account-password-page .account-password__field {
+    display: grid;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.account-password-page .account-password__field label {
+    font-size: 0.92rem;
+    font-weight: 650;
+    color: var(--tl-ink, #1a2b3c);
+}
+
+.account-password-page .account-password__input,
+.account-password-page .account-password__field input[type="password"] {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--tl-border, #d4dde8);
+    border-radius: 0.7rem;
+    background: var(--account-value-bg);
+    color: var(--tl-ink, #1a2b3c);
+    font: inherit;
+}
+
+.account-password-page .account-password__input:focus-visible,
+.account-password-page .account-password__field input[type="password"]:focus-visible {
+    outline: 2px solid var(--account-accent);
+    outline-offset: 2px;
+}
+
+.account-password-page .account-password__help,
+.account-password-page .account-password__field .form-error,
+.account-password-page .account-password__field ul,
+.account-password-page .account-password__form > ul {
+    margin: 0;
+    color: var(--tl-ink-muted, #5a6b7c);
+    font-size: 0.9rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.account-password-page .account-password__field ul,
+.account-password-page .account-password__form > ul {
+    color: var(--tl-danger, #8a1f1f);
+    padding-left: 1.1rem;
+}
+
+.account-password-page .account-password__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    margin-top: 0.35rem;
+}
+
+.account-password-page .account-password__submit,
+.account-password-page .account-password__back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0.55rem 1.1rem;
+    box-sizing: border-box;
+    border-radius: 0.7rem;
+    text-decoration: none;
+    font-weight: 650;
+}
+
+.account-password-page .account-password__submit {
+    background: var(--account-accent);
+    border: 1px solid var(--account-accent);
+    color: #fff;
+}
+
+.account-password-page .account-password__submit:hover {
+    background: var(--account-accent-strong);
+    border-color: var(--account-accent-strong);
+    color: #fff;
+}
+
+.account-password-page .account-password__back {
+    background: #fff;
+    border: 1px solid var(--account-accent);
+    color: var(--account-accent-strong);
+}
+
+.account-password-page .account-password__back:hover {
+    background: var(--account-accent-soft);
+    color: var(--account-accent-strong);
+}
+
+.account-password-page .account-password__submit:focus-visible,
+.account-password-page .account-password__back:focus-visible {
+    outline: 2px solid var(--account-accent);
+    outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+    .account-password-page .account-password__actions {
+        flex-direction: column;
+    }
+
+    .account-password-page .account-password__submit,
+    .account-password-page .account-password__back {
+        width: 100%;
+    }
+}
+
