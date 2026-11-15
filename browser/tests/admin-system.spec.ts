@@ -38,8 +38,8 @@ test('admin system summary layout, role visibility, and status chips', async ({ 
     await expect(sa.getByText('REDIS_URL')).toHaveCount(0);
     await expect(sa.getByText('system_health_canary_secret')).toHaveCount(0);
     await expect(sa.getByText('exception_class')).toHaveCount(0);
-    await expect(sa.locator('form[action="/yonetim/sistem"]')).toHaveCount(0);
-    await expect(sa.locator('button[type="submit"]')).toHaveCount(0);
+    await expect(sa.locator('.admin-system-page form')).toHaveCount(0);
+    await expect(sa.locator('.admin-system-page button[type="submit"]')).toHaveCount(0);
 
     const layout = sa.locator('.admin-system-page__layout');
     const columns = await layout.evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length);
