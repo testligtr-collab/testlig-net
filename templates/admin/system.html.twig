@@ -3,32 +3,95 @@
 {% block title %}Sistem durumu — Testlig{% endblock %}
 
 {% block panel_content %}
-    <nav class="admin-breadcrumb" aria-label="Konum">
-        {% include 'admin/_crumb_root.html.twig' %}
-        <span aria-hidden="true">/</span>
-        <span>Sistem</span>
-    </nav>
-    <h1 class="panel-greeting">Sistem durumu</h1>
+    {% set status_variant = {
+        'Çalışıyor': 'success',
+        'Uyarı': 'warning',
+        'Kullanılamıyor': 'danger',
+        'Güncel': 'success',
+        'Güncel değil': 'warning'
+    } %}
+    <div class="admin-system-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Sistem</span>
+        </nav>
 
-    <dl class="admin-health-list">
-        <div><dt>Uygulama</dt><dd>{{ system.applicationStatus }}</dd></div>
-        <div><dt>Veritabanı</dt><dd>{{ system.databaseStatus }}</dd></div>
-        <div><dt>Redis</dt><dd>{{ system.redisStatus }}</dd></div>
-        <div><dt>Migrasyon</dt><dd>{{ system.migrationStatus }}</dd></div>
-    </dl>
+        <header class="admin-system-page__head">
+            <div>
+                <h1 class="panel-greeting" id="admin-system-heading">Sistem durumu</h1>
+                <p class="admin-system-page__lede">Uygulama, veri deposu ve migrasyon durumunun salt okunur özeti. Bu ekrandan servis başlatılmaz veya yapılandırma değiştirilmez.</p>
+            </div>
+        </header>
 
-    <p class="muted">{{ system.utcNote }}</p>
+        <div class="admin-system-page__layout">
+            <section class="admin-system-page__card" aria-labelledby="admin-system-health-heading">
+                <h2 id="admin-system-health-heading">Sağlık özeti</h2>
+                <dl class="admin-system-page__facts">
+                    <div>
+                        <dt>Uygulama</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status_variant[system.applicationStatus]|default('danger') }}">
+                                <span class="admin-status__dot" aria-hidden="true"></span>{{ system.applicationStatus }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Veritabanı</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status_variant[system.databaseStatus]|default('danger') }}">
+                                <span class="admin-status__dot" aria-hidden="true"></span>{{ system.databaseStatus }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Redis</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status_variant[system.redisStatus]|default('danger') }}">
+                                <span class="admin-status__dot" aria-hidden="true"></span>{{ system.redisStatus }}
+                            </span>
+                        </dd>
+                    </div>
+                    <div>
+                        <dt>Migrasyon</dt>
+                        <dd>
+                            <span class="admin-status admin-status--{{ status_variant[system.migrationStatus]|default('danger') }}">
+                                <span class="admin-status__dot" aria-hidden="true"></span>{{ system.migrationStatus }}
+                            </span>
+                        </dd>
+                    </div>
+                </dl>
+                <p class="admin-system-page__note">{{ system.utcNote }}</p>
+            </section>
 
-    {% if system.webhookQueueSummary %}
-        <section class="surface stack-md" aria-labelledby="whq-heading">
-            <h2 id="whq-heading" class="u-h-sm">Webhook kuyruğu</h2>
-            <ul class="list-plain">
-                <li>Zamanı gelen: {{ system.webhookQueueSummary.due }}</li>
-                <li>Yeniden denenecek: {{ system.webhookQueueSummary.retry_pending }}</li>
-                <li>İşleniyor: {{ system.webhookQueueSummary.processing }}</li>
-                <li>Süresi geçmiş işlem: {{ system.webhookQueueSummary.stale_lease }}</li>
-                <li>Teslim edilemeyen: {{ system.webhookQueueSummary.dead_letter }}</li>
-            </ul>
-        </section>
-    {% endif %}
+            {% if system.webhookQueueSummary %}
+                <section class="admin-system-page__card" aria-labelledby="admin-system-webhook-heading">
+                    <h2 id="admin-system-webhook-heading">Webhook kuyruğu</h2>
+                    <p class="admin-system-page__card-lede">Yalnız ödeme işlemi yetkisi olan hesapta görünen salt okunur kuyruk sayıları.</p>
+                    <dl class="admin-system-page__facts admin-system-page__facts--queue">
+                        <div>
+                            <dt>Zamanı gelen</dt>
+                            <dd>{{ system.webhookQueueSummary.due }}</dd>
+                        </div>
+                        <div>
+                            <dt>Yeniden denenecek</dt>
+                            <dd>{{ system.webhookQueueSummary.retry_pending }}</dd>
+                        </div>
+                        <div>
+                            <dt>İşleniyor</dt>
+                            <dd>{{ system.webhookQueueSummary.processing }}</dd>
+                        </div>
+                        <div>
+                            <dt>Süresi geçmiş işlem</dt>
+                            <dd>{{ system.webhookQueueSummary.stale_lease }}</dd>
+                        </div>
+                        <div>
+                            <dt>Teslim edilemeyen</dt>
+                            <dd>{{ system.webhookQueueSummary.dead_letter }}</dd>
+                        </div>
+                    </dl>
+                </section>
+            {% endif %}
+        </div>
+    </div>
 {% endblock %}

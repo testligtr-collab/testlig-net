@@ -7130,3 +7130,96 @@ body.is-admin-panel {
     .is-admin-panel .admin-audit-list .admin-audit-list__card h2 { margin-bottom: 0.65rem; }
 }
 
+/* System status — scoped to .admin-system-page */
+.is-admin-panel .admin-system-page {
+    box-sizing: border-box;
+}
+.is-admin-panel .admin-system-page__head {
+    margin: 0 0 1.15rem;
+}
+.is-admin-panel .admin-system-page__lede,
+.is-admin-panel .admin-system-page__card-lede,
+.is-admin-panel .admin-system-page__note {
+    margin: 0.4rem 0 0;
+    color: #52667d;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.is-admin-panel .admin-system-page__layout {
+    display: grid;
+    gap: 1rem;
+}
+.is-admin-panel .admin-system-page__card {
+    margin: 0;
+    padding: 1.1rem 1.15rem 1.2rem;
+    border: 1px solid #d4dde8;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(26, 43, 60, 0.04), 0 8px 22px rgba(26, 43, 60, 0.05);
+}
+.is-admin-panel .admin-system-page__card h2 {
+    margin: 0 0 0.85rem;
+    color: #16324f;
+    font-size: 1.05rem;
+}
+.is-admin-panel .admin-system-page__facts {
+    display: grid;
+    gap: 0.75rem;
+    margin: 0;
+}
+.is-admin-panel .admin-system-page__facts > div {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.75rem 0.85rem;
+    border-radius: 0.75rem;
+    background: #f3f6f9;
+}
+.is-admin-panel .admin-system-page__facts dt {
+    margin: 0;
+    color: #52667d;
+    font-size: 0.86rem;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-system-page__facts dd {
+    margin: 0;
+    min-width: 0;
+}
+.is-admin-panel .admin-system-page__facts .admin-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.75rem;
+    padding: 0.35rem 0.7rem;
+    border-radius: 999px;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+}
+.is-admin-panel .admin-system-page__facts--queue dd {
+    color: #16324f;
+    font-size: 1.15rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.is-admin-panel .admin-system-page__note {
+    margin-top: 0.9rem;
+}
+@media (min-width: 900px) {
+    .is-admin-panel .admin-system-page__layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: start;
+    }
+    .is-admin-panel .admin-system-page__facts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 899px) {
+    .is-admin-panel .admin-system-page__layout,
+    .is-admin-panel .admin-system-page__facts {
+        grid-template-columns: 1fr;
+    }
+}
+
+
