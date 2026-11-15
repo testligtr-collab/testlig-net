@@ -8,7 +8,6 @@ use App\Entity\User;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Repository\UserRepository;
-use App\Service\Admin\AdminSystemHealthReadModel;
 use App\Service\HealthChecker;
 use App\Service\UserFactory;
 use Doctrine\DBAL\Connection;
@@ -95,11 +94,12 @@ final class AdminSystemControllerTest extends WebTestCase
     {
         $client = static::createClient();
         $client->disableReboot();
-        $this->loginAs($client, 'admin_system_degraded@example.com', UserRole::Admin);
-        $this->replaceHealthChecker(
-            $client,
+        // Replace before login so AdminSystemHealthReadModel is not yet initialized.
+        $client->getContainer()->set(
+            HealthChecker::class,
             $this->buildHealthChecker($client, databaseOk: true, redisUrl: 'redis://127.0.0.1:9'),
         );
+        $this->loginAs($client, 'admin_system_degraded@example.com', UserRole::Admin);
 
         $crawler = $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
@@ -115,13 +115,18 @@ final class AdminSystemControllerTest extends WebTestCase
     {
         $client = static::createClient();
         $client->disableReboot();
-        $this->loginAs($client, 'admin_system_unavailable@example.com', UserRole::Admin);
         $failingConnection = $this->createMock(Connection::class);
         $failingConnection->method('executeQuery')->willThrowException(new \RuntimeException('db_probe_fail'));
-        $this->replaceHealthChecker(
-            $client,
-            $this->buildHealthChecker($client, databaseOk: false, redisUrl: 'redis://127.0.0.1:6379', connection: $failingConnection),
+        $client->getContainer()->set(
+            HealthChecker::class,
+            $this->buildHealthChecker(
+                $client,
+                databaseOk: false,
+                redisUrl: 'redis://127.0.0.1:6379',
+                connection: $failingConnection,
+            ),
         );
+        $this->loginAs($client, 'admin_system_unavailable@example.com', UserRole::Admin);
 
         $client->request('GET', '/yonetim/sistem');
         self::assertResponseIsSuccessful();
@@ -158,24 +163,6 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertInstanceOf(LoggerInterface::class, $logger);
 
         return new HealthChecker($connection, 'test', $redisUrl, $logger);
-    }
-
-    private function replaceHealthChecker(KernelBrowser $client, HealthChecker $checker): void
-    {
-        $original = $client->getContainer()->get(AdminSystemHealthReadModel::class);
-        self::assertInstanceOf(AdminSystemHealthReadModel::class, $original);
-
-        // Readonly constructor props cannot be overwritten on a live instance; rebuild
-        // an uninitialized ReadModel and copy dependencies, swapping only HealthChecker.
-        $reflection = new \ReflectionClass(AdminSystemHealthReadModel::class);
-        $replacement = $reflection->newInstanceWithoutConstructor();
-        foreach ($reflection->getProperties() as $property) {
-            $value = 'healthChecker' === $property->getName()
-                ? $checker
-                : $property->getValue($original);
-            $property->setValue($replacement, $value);
-        }
-        $client->getContainer()->set(AdminSystemHealthReadModel::class, $replacement);
     }
 
     /**
