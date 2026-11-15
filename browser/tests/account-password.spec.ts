@@ -10,6 +10,13 @@ const VIEWPORTS = [
 ] as const;
 
 const PASSWORD_PATH = '/hesabim/sifre-degistir';
+const UNRELATED_422_PATH = '/__x10_unrelated_422_probe';
+
+type HttpFailure = {
+  method: string;
+  pathname: string;
+  status: number;
+};
 
 test('account password form layout, role shells, and failed-submit visuals', async ({ browser }, info) => {
   test.setTimeout(300_000);
@@ -53,6 +60,9 @@ test('account password form layout, role shells, and failed-submit visuals', asy
   await student.context().close();
 
   const teacher = await openRole(browser, data.users.teacher);
+  // HTTP is authoritative for 422/500. Playwright console location().url is a resource/source
+  // location, not a request id — do not treat console text/time-window drops as route proof.
+  const httpFailures = attachHttpFailureWatch(teacher);
   const errorCases = [
     {
       name: 'yanlis',
@@ -92,12 +102,6 @@ test('account password form layout, role shells, and failed-submit visuals', asy
     },
   ] as const;
 
-  const notes = pageNotes(teacher);
-  // Planted before any password POST window — must not be consumed by form-validation accounting.
-  notes.push(
-    'console: unrelated-route-probe Failed to load resource: the server responded with a status of 422 (Unprocessable Content)',
-  );
-
   let expectedFormValidation422 = 0;
   for (const scenario of errorCases) {
     for (const viewport of VIEWPORTS) {
@@ -106,7 +110,6 @@ test('account password form layout, role shells, and failed-submit visuals', asy
       await teacher.locator('input[name="change_password_form[currentPassword]"]').fill(scenario.fill.current);
       await teacher.locator('input[name="change_password_form[newPassword][first]"]').fill(scenario.fill.first);
       await teacher.locator('input[name="change_password_form[newPassword][second]"]').fill(scenario.fill.second);
-      const notesBeforePost = notes.length;
       const postResponse = teacher.waitForResponse((response) => {
         try {
           const url = new URL(response.url());
@@ -124,20 +127,6 @@ test('account password form layout, role shells, and failed-submit visuals', asy
         expect(response.ok(), `${scenario.name} @${viewport.name}`).toBeTruthy();
       }
       await expect(teacher.getByText(scenario.expectText)).toBeVisible();
-      if (scenario.name === 'eslesme' || scenario.name === 'kisa') {
-        // Chromium may emit the console 422 after the response event; wait then drop one
-        // note created in this verified PASSWORD_PATH POST window (watch has no request URL).
-        await expect
-          .poll(
-            () =>
-              notes
-                .slice(notesBeforePost)
-                .some((note) => note.startsWith('console:') && note.includes('status of 422')),
-            { message: `${scenario.name} @${viewport.name} console 422 after verified POST` },
-          )
-          .toBe(true);
-        expect(dropOneConsole422Since(notes, notesBeforePost)).toBe(true);
-      }
       // Screenshot hygiene only — server value non-echo is asserted in ChangePasswordControllerTest.
       await clearPasswordInputs(teacher);
       await expectEmptyPasswordInputs(teacher);
@@ -146,15 +135,14 @@ test('account password form layout, role shells, and failed-submit visuals', asy
     }
   }
   expect(expectedFormValidation422).toBe(8);
-  expect(
-    notes.some((note) => note.includes('unrelated-route-probe')),
-    'unrelated 422 console probe must not be absorbed as a password-form note',
-  ).toBe(true);
-  notes.splice(
-    notes.findIndex((note) => note.includes('unrelated-route-probe')),
-    1,
-  );
-  expect(notes.filter((note) => note.includes('status of 422'))).toEqual([]);
+  assertOnlyExpectedPasswordValidation422(httpFailures, expectedFormValidation422);
+
+  const notes = pageNotes(teacher);
+  await expect
+    .poll(() => notes.filter((note) => note.startsWith('console:') && note.includes('status of 422')).length)
+    .toBe(expectedFormValidation422);
+  // Safe only after HTTP proved exactly those password POST 422s and no other 422/500.
+  dropPasswordFormConsole422Noise(notes, expectedFormValidation422);
 
   await teacher.setViewportSize({ width: 1440, height: 900 });
   await teacher.goto(PASSWORD_PATH);
@@ -162,22 +150,127 @@ test('account password form layout, role shells, and failed-submit visuals', asy
   await teacher.context().close();
 });
 
-function pageNotes(page: Page): string[] {
-  return (page as Page & { __notes?: string[] }).__notes ?? [];
+test('password validation window fails closed on unrelated route 422', async ({ browser }) => {
+  const data = manifest();
+  const page = await openRole(browser, data.users.teacher);
+  const httpFailures = attachHttpFailureWatch(page);
+
+  await page.route(`**${UNRELATED_422_PATH}`, async (route) => {
+    await route.fulfill({
+      status: 422,
+      contentType: 'text/plain',
+      body: 'unrelated-route-422-probe',
+    });
+  });
+
+  await page.goto(PASSWORD_PATH);
+  await page.locator('input[name="change_password_form[currentPassword]"]').fill(data.password);
+  await page.locator('input[name="change_password_form[newPassword][first]"]').fill('Yeni-Guclu-Parola-999!');
+  await page.locator('input[name="change_password_form[newPassword][second]"]').fill('Yeni-Guclu-Parola-111!');
+
+  const postResponse = page.waitForResponse((response) => {
+    try {
+      const url = new URL(response.url());
+      return url.pathname === PASSWORD_PATH && response.request().method() === 'POST';
+    } catch {
+      return false;
+    }
+  });
+  await Promise.all([
+    page.locator('button.account-password__submit').click(),
+    page.evaluate((probePath) => fetch(probePath), UNRELATED_422_PATH),
+  ]);
+  const response = await postResponse;
+  expect(response.status()).toBe(422);
+  await expect(page.getByText('eşleşmiyor')).toBeVisible();
+
+  expect(
+    httpFailures.some(
+      (failure) => failure.pathname === UNRELATED_422_PATH && failure.status === 422,
+    ),
+    'unrelated route 422 must be recorded in the validation window',
+  ).toBe(true);
+  expect(
+    httpFailures.some(
+      (failure) =>
+        failure.pathname === PASSWORD_PATH && failure.method === 'POST' && failure.status === 422,
+    ),
+  ).toBe(true);
+  // Same gate the visual suite uses — must not treat the window as clean.
+  let gateAcceptedUnrelated422 = false;
+  try {
+    assertOnlyExpectedPasswordValidation422(httpFailures, 1);
+    gateAcceptedUnrelated422 = true;
+  } catch {
+    // expected: unrelated route 422 must keep the window unclean
+  }
+  expect(gateAcceptedUnrelated422, 'HTTP gate must fail closed on same-window unrelated 422').toBe(
+    false,
+  );
+
+  await page.context().close();
+});
+
+/**
+ * Record 422 and 5xx responses with route/method/status.
+ * Playwright ConsoleMessage.location().url is resource/source metadata, not request identity.
+ */
+function attachHttpFailureWatch(page: Page): HttpFailure[] {
+  const failures: HttpFailure[] = [];
+  page.on('response', (response) => {
+    const status = response.status();
+    if (status !== 422 && status < 500) {
+      return;
+    }
+    try {
+      const url = new URL(response.url());
+      failures.push({
+        method: response.request().method(),
+        pathname: url.pathname,
+        status,
+      });
+    } catch {
+      failures.push({
+        method: response.request().method(),
+        pathname: response.url(),
+        status,
+      });
+    }
+  });
+
+  return failures;
 }
 
-/** Drop one console 422 note appended at/after sinceIndex (temporal bind to a verified POST). */
-function dropOneConsole422Since(notes: string[], sinceIndex: number): boolean {
-  for (let index = sinceIndex; index < notes.length; index += 1) {
-    const note = notes[index];
-    if (note.startsWith('console:') && note.includes('status of 422')) {
-      notes.splice(index, 1);
+function assertOnlyExpectedPasswordValidation422(failures: HttpFailure[], expectedCount: number): void {
+  const expected = failures.filter(
+    (failure) =>
+      failure.pathname === PASSWORD_PATH && failure.method === 'POST' && failure.status === 422,
+  );
+  const unexpected = failures.filter(
+    (failure) =>
+      !(failure.pathname === PASSWORD_PATH && failure.method === 'POST' && failure.status === 422),
+  );
+  expect(unexpected, 'unexpected HTTP 422/500 outside password validation POST').toEqual([]);
+  expect(expected, 'expected password validation POST 422 count').toHaveLength(expectedCount);
+}
 
-      return true;
+function dropPasswordFormConsole422Noise(notes: string[], expectedCount: number): void {
+  let removed = 0;
+  const kept: string[] = [];
+  for (const note of notes) {
+    if (removed < expectedCount && note.startsWith('console:') && note.includes('status of 422')) {
+      removed += 1;
+      continue;
     }
+    kept.push(note);
   }
+  notes.length = 0;
+  notes.push(...kept);
+  expect(removed).toBe(expectedCount);
+}
 
-  return false;
+function pageNotes(page: Page): string[] {
+  return (page as Page & { __notes?: string[] }).__notes ?? [];
 }
 
 async function openRole(browser: Browser, email: string): Promise<Page> {
