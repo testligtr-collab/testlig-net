@@ -36,8 +36,8 @@ final class AdminSystemControllerTest extends WebTestCase
         self::assertSelectorExists('.admin-status');
         self::assertSelectorNotExists('#admin-system-webhook-heading');
         self::assertSelectorTextNotContains('body', 'Webhook kuyruğu');
-        self::assertSelectorNotExists('form[action="/yonetim/sistem"]');
-        self::assertSelectorNotExists('button[type="submit"]');
+        self::assertSelectorNotExists('.admin-system-page form');
+        self::assertSelectorNotExists('.admin-system-page button[type="submit"]');
         $this->assertNoSensitiveLeak((string) $client->getResponse()->getContent());
     }
 
@@ -157,8 +157,8 @@ final class AdminSystemControllerTest extends WebTestCase
      */
     private function replaceHealthProbe(KernelBrowser $client, array $payload): void
     {
-        $readModel = $client->getContainer()->get(AdminSystemHealthReadModel::class);
-        self::assertInstanceOf(AdminSystemHealthReadModel::class, $readModel);
+        $original = $client->getContainer()->get(AdminSystemHealthReadModel::class);
+        self::assertInstanceOf(AdminSystemHealthReadModel::class, $original);
 
         $probe = new class($payload) {
             /**
@@ -187,9 +187,17 @@ final class AdminSystemControllerTest extends WebTestCase
             }
         };
 
-        $property = new \ReflectionProperty(AdminSystemHealthReadModel::class, 'healthChecker');
-        $property->setValue($readModel, $probe);
-        $client->getContainer()->set(AdminSystemHealthReadModel::class, $readModel);
+        // Readonly constructor props cannot be overwritten on a live instance; rebuild
+        // an uninitialized ReadModel and copy dependencies, swapping only the probe.
+        $reflection = new \ReflectionClass(AdminSystemHealthReadModel::class);
+        $replacement = $reflection->newInstanceWithoutConstructor();
+        foreach ($reflection->getProperties() as $property) {
+            $value = 'healthChecker' === $property->getName()
+                ? $probe
+                : $property->getValue($original);
+            $property->setValue($replacement, $value);
+        }
+        $client->getContainer()->set(AdminSystemHealthReadModel::class, $replacement);
     }
 
     /**
