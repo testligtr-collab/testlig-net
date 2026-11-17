@@ -11,6 +11,7 @@ use App\Question\Image\Scan\QuestionImageScanVerdict;
 /**
  * Maps clamd INSTREAM replies onto homework PDF verdicts.
  * Uses PdfDocumentInspector::MAX_BYTES, not the question-image 10MB cap.
+ * Streams from the quarantine file's locked handle (same open inode).
  */
 final class ClamdHomeworkPdfScanAdapter implements HomeworkPdfScanAdapter
 {
@@ -24,18 +25,17 @@ final class ClamdHomeworkPdfScanAdapter implements HomeworkPdfScanAdapter
         return new self(new ClamdInstreamClient($transport, PdfDocumentInspector::MAX_BYTES));
     }
 
-    public function scan(string $absolutePath, int $byteSize, string $sha256): HomeworkPdfScanVerdict
+    public function scan(HomeworkPdfQuarantineFile $file): HomeworkPdfScanVerdict
     {
+        $byteSize = $file->byteSize();
+        $sha256 = $file->sha256();
         if ($byteSize < 1 || $byteSize > PdfDocumentInspector::MAX_BYTES) {
             return HomeworkPdfScanVerdict::SizeLimit;
         }
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $sha256)) {
             return HomeworkPdfScanVerdict::HashMismatch;
         }
-        if (is_link($absolutePath) || !is_file($absolutePath)) {
-            return HomeworkPdfScanVerdict::Error;
-        }
-        $result = $this->clamd->scan($absolutePath, $byteSize, $sha256);
+        $result = $this->clamd->scanHandle($file->handle(), $byteSize, $sha256);
         if (!$result->streamMatched && QuestionImageScanVerdict::Clean === $result->verdict) {
             return HomeworkPdfScanVerdict::HashMismatch;
         }

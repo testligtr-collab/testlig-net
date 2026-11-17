@@ -7,6 +7,9 @@ namespace App\Tests\Homework\Pdf;
 use App\Homework\Pdf\ClamdHomeworkPdfScanAdapter;
 use App\Homework\Pdf\ClosedHomeworkPdfScanReadiness;
 use App\Homework\Pdf\HomeworkPdfQuarantine;
+use App\Homework\Pdf\HomeworkPdfQuarantineByteSink;
+use App\Homework\Pdf\HomeworkPdfQuarantineFile;
+use App\Homework\Pdf\HomeworkPdfQuarantineKeySource;
 use App\Homework\Pdf\HomeworkPdfScanException;
 use App\Homework\Pdf\HomeworkPdfScanPipeline;
 use App\Homework\Pdf\HomeworkPdfScanReadiness;
@@ -72,29 +75,29 @@ final class HomeworkPdfScanFoundationTest extends TestCase
         ];
         foreach ($map as [$reply, $expected]) {
             $adapter = ClamdHomeworkPdfScanAdapter::withTransport(new RecordingClamdTransport($reply));
-            $path = $this->file('abc');
+            $file = $this->lockedFile('abc');
             try {
-                self::assertSame($expected, $adapter->scan($path, 3, hash('sha256', 'abc')));
+                self::assertSame($expected, $adapter->scan($file));
             } finally {
-                unlink($path);
+                $file->deleteQuietly();
             }
         }
-        $path = $this->file('abc');
+        $file = $this->lockedFile('abc');
         try {
             $timeout = ClamdHomeworkPdfScanAdapter::withTransport(
                 new ThrowingClamdTransport(ClamdTransportException::timedOut()),
             );
-            self::assertSame(HomeworkPdfScanVerdict::TimedOut, $timeout->scan($path, 3, hash('sha256', 'abc')));
+            self::assertSame(HomeworkPdfScanVerdict::TimedOut, $timeout->scan($file));
             $unavailable = ClamdHomeworkPdfScanAdapter::withTransport(
                 new ThrowingClamdTransport(ClamdTransportException::connectionFailed()),
             );
-            self::assertSame(HomeworkPdfScanVerdict::Unavailable, $unavailable->scan($path, 3, hash('sha256', 'abc')));
+            self::assertSame(HomeworkPdfScanVerdict::Unavailable, $unavailable->scan($file));
         } finally {
-            unlink($path);
+            $file->deleteQuietly();
         }
     }
 
-    public function testPdfMaxBytesAllowsAboveImageCapButRejectsAbovePdfCap(): void
+    public function testDefaultImageClientKeeps10MbWhileHomeworkUsesPdf25Mb(): void
     {
         $transport = new RecordingClamdTransport("stream: OK\n");
         $path = $this->file('x');
@@ -104,41 +107,106 @@ final class HomeworkPdfScanFoundationTest extends TestCase
         try {
             $imageClient = new ClamdInstreamClient($transport);
             self::assertSame(QuestionImageScanVerdict::SizeLimit, $imageClient->scan($path, $overImage, $sha)->verdict);
-            self::assertSame('', $transport->sent);
+            self::assertSame('', $transport->sent, 'default image client must not stream above 10MB');
 
             $pdfClient = new ClamdInstreamClient($transport, PdfDocumentInspector::MAX_BYTES);
             self::assertNotSame(QuestionImageScanVerdict::SizeLimit, $pdfClient->scan($path, $overImage, $sha)->verdict);
-            self::assertNotSame('', $transport->sent);
+            self::assertNotSame('', $transport->sent, 'PDF-capped client must allow sizes between 10MB and 25MB');
 
             $transport->sent = '';
             self::assertSame(QuestionImageScanVerdict::SizeLimit, $pdfClient->scan($path, $overPdf, $sha)->verdict);
             self::assertSame('', $transport->sent);
             self::assertSame(QuestionImageScanVerdict::SizeLimit, $imageClient->scan($path, $overPdf, $sha)->verdict);
+
+            $homeworkAdapter = ClamdHomeworkPdfScanAdapter::withTransport(new RecordingClamdTransport("stream: OK\n"));
+            $underPdf = $this->lockedFile('pdf-cap-probe');
+            try {
+                self::assertSame(HomeworkPdfScanVerdict::Clean, $homeworkAdapter->scan($underPdf));
+            } finally {
+                $underPdf->deleteQuietly();
+            }
+            $overPdfFile = $this->lockedFile('x', $overPdf);
+            try {
+                self::assertSame(HomeworkPdfScanVerdict::SizeLimit, $homeworkAdapter->scan($overPdfFile));
+            } finally {
+                $overPdfFile->deleteQuietly();
+            }
         } finally {
             unlink($path);
         }
     }
 
-    public function testQuarantineRejectsSymlinkAndCleansTempOnFailure(): void
+    public function testQuarantineRejectsPreexistingSymlinkTarget(): void
     {
         if ('\\' === \DIRECTORY_SEPARATOR) {
             self::markTestSkipped('symlink semantics differ on Windows CI agents');
         }
         $dir = $this->tempDir();
+        $key = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
         $target = $this->file('payload');
-        $link = $dir.\DIRECTORY_SEPARATOR.'link.bin';
+        $link = $dir.\DIRECTORY_SEPARATOR.$key.'.bin';
         self::assertTrue(symlink($target, $link));
-        $quarantine = new HomeworkPdfQuarantine($dir);
+        $keys = new class($key) implements HomeworkPdfQuarantineKeySource {
+            public function __construct(private string $key)
+            {
+            }
+
+            public function nextKey(): string
+            {
+                return $this->key;
+            }
+        };
+        $quarantine = new HomeworkPdfQuarantine($dir, $keys);
         try {
-            // staging always creates new random names; ensure directory itself cannot be escaped via key
-            $file = $quarantine->stage($this->minimalPdf());
-            self::assertTrue(is_file($file->absolutePath()));
-            self::assertFalse(is_link($file->absolutePath()));
-            $file->deleteQuietly();
+            $quarantine->stage($this->minimalPdf());
+            self::fail('expected symlink target rejection');
+        } catch (HomeworkPdfScanException $exception) {
+            self::assertSame('homework_pdf_path', $exception->getMessage());
+            self::assertStringNotContainsString($dir, $exception->getMessage());
+            self::assertStringNotContainsString($key, $exception->getMessage());
         } finally {
             @unlink($link);
             @unlink($target);
         }
+        self::assertSame([], array_values(array_filter(
+            glob($dir.\DIRECTORY_SEPARATOR.'*') ?: [],
+            static fn (string $p): bool => !is_link($p) && str_ends_with($p, '.tmp'),
+        )));
+    }
+
+    public function testQuarantineCleansPartialWriteWithoutLeavingArtifacts(): void
+    {
+        $dir = $this->tempDir();
+        $key = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
+        $keys = new class($key) implements HomeworkPdfQuarantineKeySource {
+            public function __construct(private string $key)
+            {
+            }
+
+            public function nextKey(): string
+            {
+                return $this->key;
+            }
+        };
+        $sink = new class implements HomeworkPdfQuarantineByteSink {
+            public function put(string $path, string $bytes): void
+            {
+                file_put_contents($path, substr($bytes, 0, 4), \LOCK_EX);
+                throw new \RuntimeException('simulated-partial-write');
+            }
+        };
+        $quarantine = new HomeworkPdfQuarantine($dir, $keys, $sink);
+        try {
+            $quarantine->stage($this->minimalPdf());
+            self::fail();
+        } catch (HomeworkPdfScanException $exception) {
+            self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+            self::assertStringNotContainsString('simulated-partial-write', $exception->getMessage());
+            self::assertStringNotContainsString($dir, $exception->getMessage());
+        }
+        self::assertFileDoesNotExist($dir.\DIRECTORY_SEPARATOR.$key.'.tmp');
+        self::assertFileDoesNotExist($dir.\DIRECTORY_SEPARATOR.$key.'.bin');
+        self::assertSame([], glob($dir.\DIRECTORY_SEPARATOR.'*') ?: []);
     }
 
     public function testPipelineCleansQuarantineWhenScanIsNotClean(): void
@@ -153,18 +221,20 @@ final class HomeworkPdfScanFoundationTest extends TestCase
             self::assertSame('homework_pdf_scan_infected', $exception->getMessage());
             self::assertStringNotContainsString('work.pdf', $exception->getMessage());
             self::assertStringNotContainsString($dir, $exception->getMessage());
+            self::assertStringNotContainsString('Eicar', $exception->getMessage());
         }
-        self::assertSame([], array_values(array_filter(glob($dir.\DIRECTORY_SEPARATOR.'*') ?: [], static fn (string $p): bool => !str_ends_with($p, '.tmp'))));
+        self::assertSame([], glob($dir.\DIRECTORY_SEPARATOR.'*') ?: []);
         self::assertCount(1, $fake->calls);
     }
 
-    public function testPipelineRejectsWhenBytesChangeDuringScan(): void
+    public function testPipelineRejectsWhenLockedHandleBytesChangeAfterScan(): void
     {
         $dir = $this->tempDir();
         $fake = new FakeHomeworkPdfScanAdapter(
             HomeworkPdfScanVerdict::Clean,
-            static function (string $path): void {
-                file_put_contents($path, '%PDF-1.4 mutated');
+            static function (HomeworkPdfQuarantineFile $file): void {
+                // Same-inode truncation while the lock is held; post-scan handle hash must fail closed.
+                file_put_contents($file->absolutePath(), '%PDF-1.4 mutated');
             },
         );
         $pipeline = $this->openPipeline($dir, $fake);
@@ -173,6 +243,8 @@ final class HomeworkPdfScanFoundationTest extends TestCase
             self::fail();
         } catch (HomeworkPdfScanException $exception) {
             self::assertSame('homework_pdf_scan_hash_mismatch', $exception->getMessage());
+            self::assertStringNotContainsString('mutated', $exception->getMessage());
+            self::assertStringNotContainsString($dir, $exception->getMessage());
         }
         self::assertSame([], glob($dir.\DIRECTORY_SEPARATOR.'*.bin') ?: []);
     }
@@ -188,13 +260,13 @@ final class HomeworkPdfScanFoundationTest extends TestCase
         self::assertFileDoesNotExist($staging->file()->absolutePath());
     }
 
-    public function testExceptionDuringScanStillDeletesQuarantine(): void
+    public function testExceptionDuringScanStillDeletesQuarantineAndKeepsSafeMessage(): void
     {
         $dir = $this->tempDir();
         $fake = new class implements \App\Homework\Pdf\HomeworkPdfScanAdapter {
-            public function scan(string $absolutePath, int $byteSize, string $sha256): HomeworkPdfScanVerdict
+            public function scan(HomeworkPdfQuarantineFile $file): HomeworkPdfScanVerdict
             {
-                throw new \RuntimeException('boom-with-secret-path-'.$absolutePath);
+                throw new \RuntimeException('boom-with-secret-path-'.$file->absolutePath());
             }
         };
         $pipeline = $this->openPipeline($dir, $fake);
@@ -205,8 +277,23 @@ final class HomeworkPdfScanFoundationTest extends TestCase
             self::assertSame('homework_pdf_scan_error', $exception->getMessage());
             self::assertStringNotContainsString('boom', $exception->getMessage());
             self::assertStringNotContainsString($dir, $exception->getMessage());
+            self::assertStringNotContainsString('ok.pdf', $exception->getMessage());
         }
         self::assertSame([], glob($dir.\DIRECTORY_SEPARATOR.'*.bin') ?: []);
+    }
+
+    public function testHomeworkPdfClassesDoNotEmitLogs(): void
+    {
+        $files = glob(\dirname(__DIR__, 2).'/src/Homework/Pdf/*.php') ?: [];
+        self::assertNotEmpty($files);
+        foreach ($files as $file) {
+            $src = (string) file_get_contents($file);
+            self::assertStringNotContainsString('LoggerInterface', $src, $file);
+            self::assertStringNotContainsString('->error(', $src, $file);
+            self::assertStringNotContainsString('->info(', $src, $file);
+            self::assertStringNotContainsString('->warning(', $src, $file);
+            self::assertStringNotContainsString('error_log(', $src, $file);
+        }
     }
 
     private function openPipeline(string $dir, \App\Homework\Pdf\HomeworkPdfScanAdapter $adapter): HomeworkPdfScanPipeline
@@ -229,6 +316,21 @@ final class HomeworkPdfScanFoundationTest extends TestCase
     private function minimalPdf(): string
     {
         return "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n";
+    }
+
+    private function lockedFile(string $bytes, ?int $declaredSize = null): HomeworkPdfQuarantineFile
+    {
+        $path = $this->file($bytes);
+        $handle = fopen($path, 'rb');
+        self::assertIsResource($handle);
+        self::assertTrue(flock($handle, \LOCK_EX | \LOCK_NB));
+
+        return new HomeworkPdfQuarantineFile(
+            $path,
+            $handle,
+            $declaredSize ?? \strlen($bytes),
+            hash('sha256', $bytes),
+        );
     }
 
     private function file(string $bytes): string

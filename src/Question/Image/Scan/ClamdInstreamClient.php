@@ -28,14 +28,35 @@ final class ClamdInstreamClient
 
     public function scan(string $path, int $expectedByteSize, string $expectedSha256): ClamdScanResult
     {
+        $handle = fopen($path, 'rb');
+        if (!\is_resource($handle)) {
+            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
+        }
+        try {
+            return $this->scanHandle($handle, $expectedByteSize, $expectedSha256);
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Streams from an already-open handle. The caller keeps ownership of the handle.
+     * The clean reply applies only to the bytes actually read from this handle.
+     *
+     * @param resource $handle
+     */
+    public function scanHandle($handle, int $expectedByteSize, string $expectedSha256): ClamdScanResult
+    {
+        if (!\is_resource($handle)) {
+            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
+        }
         if ($expectedByteSize < 1 || $expectedByteSize > $this->maxBytes) {
             return new ClamdScanResult(QuestionImageScanVerdict::SizeLimit, false);
         }
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $expectedSha256)) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);
         }
-        $handle = fopen($path, 'rb+');
-        if (!\is_resource($handle)) {
+        if (false === rewind($handle)) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
         }
         $completed = false;
@@ -55,8 +76,6 @@ final class ClamdInstreamClient
             }, false);
         } catch (\Throwable) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
-        } finally {
-            fclose($handle);
         }
         if (!$completed) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);

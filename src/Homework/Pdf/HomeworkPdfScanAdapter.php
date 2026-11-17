@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Homework\Pdf;
 
 /**
- * Scans one quarantine file whose size and SHA-256 are known.
- * Implementations must not treat MIME/PDF checks as a virus scan.
+ * Scans one locked quarantine file. Implementations must stream from the file handle,
+ * not reopen the path, so the verdict applies only to those bytes.
+ * MIME/PDF checks are not a virus scan.
  */
 interface HomeworkPdfScanAdapter
 {
-    public function scan(string $absolutePath, int $byteSize, string $sha256): HomeworkPdfScanVerdict;
+    public function scan(HomeworkPdfQuarantineFile $file): HomeworkPdfScanVerdict;
 }

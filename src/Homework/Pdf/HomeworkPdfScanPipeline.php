@@ -8,8 +8,8 @@ use App\Exception\LearningContentException;
 use App\LearningContent\Document\PdfDocumentInspector;
 
 /**
- * Gate → PDF inspect → private quarantine → scan. Fail-closed; no durable store or DB.
- * Does not claim a clean verdict means the file is harmless.
+ * Gate → PDF inspect → private quarantine → same-handle scan. Fail-closed; no durable store or DB.
+ * Clean means only the locked-handle bytes matched the streamed scan; durable+DB must re-verify.
  */
 final class HomeworkPdfScanPipeline
 {
@@ -31,32 +31,32 @@ final class HomeworkPdfScanPipeline
         }
         $file = $this->quarantine->stage($bytes);
         try {
-            $verdict = $this->scanner->scan($file->absolutePath(), $file->byteSize(), $file->sha256());
+            $verdict = $this->scanner->scan($file);
             if (HomeworkPdfScanVerdict::Clean !== $verdict) {
-                $file->deleteQuietly();
-                throw HomeworkPdfScanException::rejected($verdict);
+                $this->discardAndReject($file, $verdict);
             }
-            $rehash = hash_file('sha256', $file->absolutePath());
-            $resize = filesize($file->absolutePath());
-            if (
-                !\is_string($rehash)
-                || !\is_int($resize)
-                || $resize !== $file->byteSize()
-                || !hash_equals($file->sha256(), $rehash)
-                || is_link($file->absolutePath())
-                || !is_file($file->absolutePath())
-            ) {
-                $file->deleteQuietly();
-                throw HomeworkPdfScanException::rejected(HomeworkPdfScanVerdict::HashMismatch);
-            }
+            $file->hashFromLockedHandle();
 
             return new HomeworkPdfCleanStaging($file, $displayName);
         } catch (HomeworkPdfScanException $exception) {
             $file->deleteQuietly();
             throw $exception;
         } catch (\Throwable) {
-            $file->deleteQuietly();
+            if (!$file->delete()) {
+                throw HomeworkPdfScanException::quarantine();
+            }
             throw HomeworkPdfScanException::rejected(HomeworkPdfScanVerdict::Error);
         }
+    }
+
+    /**
+     * @return never
+     */
+    private function discardAndReject(HomeworkPdfQuarantineFile $file, HomeworkPdfScanVerdict $verdict): void
+    {
+        if (!$file->delete()) {
+            throw HomeworkPdfScanException::quarantine();
+        }
+        throw HomeworkPdfScanException::rejected($verdict);
     }
 }

@@ -28,4 +28,9 @@ final class HomeworkPdfScanException extends \RuntimeException
     {
         return new self('homework_pdf_path');
     }
+
+    public static function hashMismatch(): self
+    {
+        return self::rejected(HomeworkPdfScanVerdict::HashMismatch);
+    }
 }
