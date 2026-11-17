@@ -19,21 +19,45 @@ final class ClamdInstreamClient
 
     public function __construct(
         private readonly ClamdInstreamTransport $transport,
+        private readonly int $maxBytes = QuestionImageInspector::MAX_BYTES,
     ) {
+        if ($this->maxBytes < 1) {
+            throw new \InvalidArgumentException('maxBytes must be at least 1.');
+        }
     }
 
     public function scan(string $path, int $expectedByteSize, string $expectedSha256): ClamdScanResult
     {
-        if ($expectedByteSize < 1 || $expectedByteSize > QuestionImageInspector::MAX_BYTES) {
+        $handle = fopen($path, 'r');
+        if (!\is_resource($handle)) {
+            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
+        }
+        try {
+            return $this->scanHandle($handle, $expectedByteSize, $expectedSha256);
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Streams from an already-open handle. The caller keeps ownership of the handle.
+     * The clean reply applies only to the bytes actually read from this handle.
+     *
+     * @param resource $handle
+     */
+    public function scanHandle($handle, int $expectedByteSize, string $expectedSha256): ClamdScanResult
+    {
+        if (!\is_resource($handle)) {
+            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
+        }
+        if ($expectedByteSize < 1 || $expectedByteSize > $this->maxBytes) {
             return new ClamdScanResult(QuestionImageScanVerdict::SizeLimit, false);
         }
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $expectedSha256)) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);
         }
-        $handle = fopen($path, 'rb+');
-        if (!\is_resource($handle)) {
-            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
-        }
+        // Caller must present the handle at the first byte. Do not rewind here:
+        // non-seekable transports (and some userland wrappers) warn on rewind().
         $completed = false;
         try {
             $response = $this->transport->exchange(
@@ -51,8 +75,6 @@ final class ClamdInstreamClient
             }, false);
         } catch (\Throwable) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
-        } finally {
-            fclose($handle);
         }
         if (!$completed) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);

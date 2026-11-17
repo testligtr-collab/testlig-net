@@ -29,6 +29,7 @@ parameters:
     env(BUNNY_STORAGE_ENDPOINT): ''
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
     env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
+    env(HOMEWORK_PDF_UPLOAD_ENABLED): '0'
     env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
     env(WEB_RUNTIME_IDENTITY_EXPIRES_AT): ''
     payment_platform_settlement_actor_id_default: ''
@@ -99,6 +100,31 @@ services:
     App\Question\Image\Scan\ClamdInstreamTransport:
         alias: App\Question\Image\Scan\UnixClamdTransport
         public: true
+
+    App\Homework\Pdf\HomeworkClamdInstreamClient:
+        class: App\Question\Image\Scan\ClamdInstreamClient
+        arguments:
+            $transport: '@App\Question\Image\Scan\ClamdInstreamTransport'
+            $maxBytes: !php/const App\LearningContent\Document\PdfDocumentInspector::MAX_BYTES
+
+    App\Homework\Pdf\ClamdHomeworkPdfScanAdapter:
+        arguments:
+            $clamd: '@App\Homework\Pdf\HomeworkClamdInstreamClient'
+
+    App\Homework\Pdf\HomeworkPdfScanAdapter:
+        alias: App\Homework\Pdf\ClamdHomeworkPdfScanAdapter
+
+    App\Homework\Pdf\HomeworkPdfScanReadiness:
+        alias: App\Homework\Pdf\ClosedHomeworkPdfScanReadiness
+
+    App\Homework\Pdf\HomeworkPdfUploadGate:
+        arguments:
+            $uploadEnabled: '%env(bool:HOMEWORK_PDF_UPLOAD_ENABLED)%'
+
+    App\Homework\Pdf\HomeworkPdfQuarantine:
+        arguments:
+            $directory: '%kernel.project_dir%/var/homework-pdf-quarantine'
+            $maxBytes: !php/const App\LearningContent\Document\PdfDocumentInspector::MAX_BYTES
 
     App\Question\Image\Scan\CvdDatabaseDirectoryReader:
         arguments:
