@@ -1119,7 +1119,8 @@
         "PR #195: öğretmen değerlendirme dilimi (incelemede; main merge/deploy/production kabulü YOK)",
         "2026-11-15 canlı kabul hazırlığı kapanışı (yalnız ortam/önkoşul; kod kusuru veya tamamlanmış ürün kabulü değildir): Canlı öğretmen–öğrenci metin döngüsü kabulü, kurum lider oturumu ve aktif öğretmen–sınıf ataması önkoşulları sağlanmadığı için tamamlanamadı. Öğrenci-B: GET /ogrenci/odevler açık, boş liste; aktif üyelik/sınıf etiketi görüldü. Öğretmen-A: /ogretmen/odevler ve /yeni 404; Aktif sınıflarım 0. Öğretmen atama UI’sı Owner/Manager ister. Düz Admin atama veya Manager rol değişimi yapamaz. SuperAdmin’in mevcut üyeliği Manager yapma yolu bulunması, mevcut hesabın SA olduğunu kanıtlamaz. Teacher→Manager yapılmadı. Taslak/atama/teslim/değerlendirme ve kurum/üyelik/rol/sınıf yazımı yapılmadı. Yeniden açılma: Aynı kurumda uygun Owner/Manager oturumu ve Öğretmen-A’nın Öğrenci-B’nin sınıfına, Teacher rolü korunarak aktif ataması sağlandığında canlı kabul sürdürülebilir.",
         "PR #216: X01 canlı metin döngüsü kabul engeli kaydı (yalnız docs/roadmap; merge/deploy/production kabulü YOK)",
-        "Kod (kapalı PDF tarama altyapısı, feature/x01-homework-pdf-scan-foundation; upload UI/route/feature açma YOK): src/Homework/Pdf/* quarantine + HomeworkPdfScanPipeline + ClamdHomeworkPdfScanAdapter (PdfDocumentInspector::MAX_BYTES) + HomeworkPdfUploadGate varsayılan kapalı + ClosedHomeworkPdfScanReadiness; ClamdInstreamClient opsiyonel maxBytes (image 10MB korunur); docs/architecture-homework-pdf-scan.md; tests/Homework/Pdf/HomeworkPdfScanFoundationTest.php. Attachment entity/migration/UI yok. Taramasız kabul yok. Metin akışı değişmez. Canlı scanner kabulü ve PDF ürün kabulü AÇIK."
+        "Kod (kapalı PDF tarama altyapısı, feature/x01-homework-pdf-scan-foundation; upload UI/route/feature açma YOK): src/Homework/Pdf/* quarantine + HomeworkPdfScanPipeline + ClamdHomeworkPdfScanAdapter (PdfDocumentInspector::MAX_BYTES) + HomeworkPdfUploadGate varsayılan kapalı + ClosedHomeworkPdfScanReadiness; ClamdInstreamClient opsiyonel maxBytes (image 10MB korunur); docs/architecture-homework-pdf-scan.md; tests/Homework/Pdf/HomeworkPdfScanFoundationTest.php. Attachment entity/migration/UI yok. Taramasız kabul yok. Metin akışı değişmez. Canlı scanner kabulü ve PDF ürün kabulü AÇIK.",
+        "PR #217: X01 kapalı homework PDF tarama altyapısı (draft; upload/feature açma/main merge/deploy/production kabulü YOK)"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
@@ -1128,7 +1129,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/193",
         "https://github.com/testligtr-collab/testlig-net/pull/194",
         "https://github.com/testligtr-collab/testlig-net/pull/195",
-        "https://github.com/testligtr-collab/testlig-net/pull/216"
+        "https://github.com/testligtr-collab/testlig-net/pull/216",
+        "https://github.com/testligtr-collab/testlig-net/pull/217"
       ],
       "acceptance": "Durum partial: öğretmen taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda. Kapalı PDF tarama altyapısı (quarantine/adaptör/gate) kodda; upload UI/route açık değil; taramasız kabul yok. Canlı öğretmen–öğrenci metin döngüsü kabulü, kurum lider oturumu ve aktif öğretmen–sınıf ataması önkoşulları sağlanmadığı için tamamlanamadı (kod kusuru değildir). Dosya ürünü, bildirim, veli, yeniden/geç teslim açık. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur. active_feature_ids=[X01-homework] korunur.",
       "scope_decision": null
