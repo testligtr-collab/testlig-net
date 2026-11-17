@@ -56,10 +56,8 @@ final class ClamdInstreamClient
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $expectedSha256)) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);
         }
-        $meta = stream_get_meta_data($handle);
-        if ($meta['seekable'] && false === rewind($handle)) {
-            return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
-        }
+        // Caller must present the handle at the first byte. Do not rewind here:
+        // non-seekable transports (and some userland wrappers) warn on rewind().
         $completed = false;
         try {
             $response = $this->transport->exchange(
