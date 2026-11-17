@@ -284,7 +284,8 @@ final class HomeworkPdfScanFoundationTest extends TestCase
 
     public function testHomeworkPdfClassesDoNotEmitLogs(): void
     {
-        $files = glob(\dirname(__DIR__, 2).'/src/Homework/Pdf/*.php') ?: [];
+        // tests/Homework/Pdf → project root is three levels up.
+        $files = glob(\dirname(__DIR__, 3).'/src/Homework/Pdf/*.php') ?: [];
         self::assertNotEmpty($files);
         foreach ($files as $file) {
             $src = (string) file_get_contents($file);
