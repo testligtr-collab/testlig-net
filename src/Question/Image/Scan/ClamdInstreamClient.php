@@ -57,7 +57,7 @@ final class ClamdInstreamClient
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);
         }
         $meta = stream_get_meta_data($handle);
-        if (($meta['seekable'] ?? false) && false === rewind($handle)) {
+        if ($meta['seekable'] && false === rewind($handle)) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
         }
         $completed = false;
