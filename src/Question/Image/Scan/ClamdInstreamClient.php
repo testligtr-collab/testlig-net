@@ -56,7 +56,8 @@ final class ClamdInstreamClient
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $expectedSha256)) {
             return new ClamdScanResult(QuestionImageScanVerdict::HashMismatch, false);
         }
-        if (false === rewind($handle)) {
+        $meta = stream_get_meta_data($handle);
+        if (($meta['seekable'] ?? false) && false === rewind($handle)) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
         }
         $completed = false;
