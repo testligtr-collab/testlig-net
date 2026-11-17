@@ -19,12 +19,16 @@ final class ClamdInstreamClient
 
     public function __construct(
         private readonly ClamdInstreamTransport $transport,
+        private readonly int $maxBytes = QuestionImageInspector::MAX_BYTES,
     ) {
+        if ($this->maxBytes < 1) {
+            throw new \InvalidArgumentException('maxBytes must be at least 1.');
+        }
     }
 
     public function scan(string $path, int $expectedByteSize, string $expectedSha256): ClamdScanResult
     {
-        if ($expectedByteSize < 1 || $expectedByteSize > QuestionImageInspector::MAX_BYTES) {
+        if ($expectedByteSize < 1 || $expectedByteSize > $this->maxBytes) {
             return new ClamdScanResult(QuestionImageScanVerdict::SizeLimit, false);
         }
         if (1 !== preg_match('/^[0-9a-f]{64}$/', $expectedSha256)) {

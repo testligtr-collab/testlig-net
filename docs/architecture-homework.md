@@ -95,6 +95,10 @@ Bu dilim 0.1c + §4.4 / §3.4 kararları üzerine biner. Main merge, deploy ve *
 
 Kapsam dışı (bu dilimde de yok): dosya/PDF, bildirim, veli, yeniden/geç teslim, puan/rubrik.
 
+### 0.1e Kapalı PDF tarama altyapısı (kodda; upload yok)
+
+Metin zorunlu + isteğe bağlı tek PDF ürün kararı ve antivirüs seçimi **A** (tarama hazır olmadan yükleme açılmaz). Bu dilim yalnız private quarantine, PDF inspect, clamd INSTREAM adaptörü (25 MB), fail-closed sonuçlar ve varsayılan kapalı `HomeworkPdfUploadGate` ekler. Attachment entity/UI/route yok. Ayrıntı: `docs/architecture-homework-pdf-scan.md`.
+
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |
