@@ -70,7 +70,7 @@ final class HomeworkPdfQuarantine
                 @unlink($final);
                 throw HomeworkPdfScanException::quarantine();
             }
-            $handle = fopen($final, 'rb');
+            $handle = fopen($final, 'r');
             if (!\is_resource($handle)) {
                 @unlink($final);
                 throw HomeworkPdfScanException::quarantine();

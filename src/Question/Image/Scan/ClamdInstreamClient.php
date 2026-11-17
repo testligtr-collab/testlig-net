@@ -28,7 +28,7 @@ final class ClamdInstreamClient
 
     public function scan(string $path, int $expectedByteSize, string $expectedSha256): ClamdScanResult
     {
-        $handle = fopen($path, 'rb');
+        $handle = fopen($path, 'r');
         if (!\is_resource($handle)) {
             return new ClamdScanResult(QuestionImageScanVerdict::Error, false);
         }

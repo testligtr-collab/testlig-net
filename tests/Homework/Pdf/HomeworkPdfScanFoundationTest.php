@@ -321,7 +321,7 @@ final class HomeworkPdfScanFoundationTest extends TestCase
     private function lockedFile(string $bytes, ?int $declaredSize = null): HomeworkPdfQuarantineFile
     {
         $path = $this->file($bytes);
-        $handle = fopen($path, 'rb');
+        $handle = fopen($path, 'r');
         self::assertIsResource($handle);
         self::assertTrue(flock($handle, \LOCK_EX | \LOCK_NB));
 
