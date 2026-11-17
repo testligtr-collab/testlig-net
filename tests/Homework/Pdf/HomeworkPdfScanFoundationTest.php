@@ -156,7 +156,7 @@ final class HomeworkPdfScanFoundationTest extends TestCase
                 return $this->key;
             }
         };
-        $quarantine = new HomeworkPdfQuarantine($dir, $keys);
+        $quarantine = new HomeworkPdfQuarantine($dir, keys: $keys);
         try {
             $quarantine->stage($this->minimalPdf());
             self::fail('expected symlink target rejection');
@@ -195,7 +195,7 @@ final class HomeworkPdfScanFoundationTest extends TestCase
                 throw new \RuntimeException('simulated-partial-write');
             }
         };
-        $quarantine = new HomeworkPdfQuarantine($dir, $keys, $sink);
+        $quarantine = new HomeworkPdfQuarantine($dir, keys: $keys, sink: $sink);
         try {
             $quarantine->stage($this->minimalPdf());
             self::fail();
