@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Homework\Pdf;
 
-use App\LearningContent\Document\PdfDocumentInspector;
 use App\Exception\LearningContentException;
+use App\LearningContent\Document\PdfDocumentInspector;
 
 /**
  * Gate → PDF inspect → private quarantine → scan. Fail-closed; no durable store or DB.

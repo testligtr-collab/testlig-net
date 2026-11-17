@@ -15,10 +15,10 @@ use App\Homework\Pdf\HomeworkPdfUploadGate;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\Question\Image\QuestionImageInspector;
 use App\Question\Image\Scan\ClamdInstreamClient;
+use App\Question\Image\Scan\ClamdTransportException;
 use App\Question\Image\Scan\QuestionImageScanVerdict;
 use App\Tests\Question\Image\RecordingClamdTransport;
 use App\Tests\Question\Image\ThrowingClamdTransport;
-use App\Question\Image\Scan\ClamdTransportException;
 use PHPUnit\Framework\TestCase;
 
 final class HomeworkPdfScanFoundationTest extends TestCase
@@ -72,7 +72,7 @@ final class HomeworkPdfScanFoundationTest extends TestCase
         ];
         foreach ($map as [$reply, $expected]) {
             $adapter = ClamdHomeworkPdfScanAdapter::withTransport(new RecordingClamdTransport($reply));
-            $path = $this->file("abc");
+            $path = $this->file('abc');
             try {
                 self::assertSame($expected, $adapter->scan($path, 3, hash('sha256', 'abc')));
             } finally {
