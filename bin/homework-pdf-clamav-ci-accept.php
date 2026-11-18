@@ -19,6 +19,7 @@ use App\Homework\Pdf\HomeworkPdfUploadGate;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\Question\Image\Scan\ClamavPublishedDatabaseVersion;
 use App\Question\Image\Scan\UnixClamdTransport;
+use RuntimeException;
 
 if (\PHP_SAPI !== 'cli') {
     fwrite(\STDERR, "accept_error=cli_only\n");
@@ -327,7 +328,7 @@ function nearLimitPdf(int $maxBytes): string
     $suffix = "\n%%EOF\n";
     $fill = $maxBytes - strlen($prefix) - strlen($suffix);
     if ($fill < 1) {
-        throw new \RuntimeException('near_limit_size');
+        throw new RuntimeException('near_limit_size');
     }
 
     return $prefix.str_repeat('0', $fill).$suffix;
@@ -343,18 +344,18 @@ function lockedTempFile(string $bytes): HomeworkPdfQuarantineFile
 {
     $path = tempnam(sys_get_temp_dir(), 'hwpdfci');
     if (!is_string($path)) {
-        throw new \RuntimeException('temp');
+        throw new RuntimeException('temp');
     }
     file_put_contents($path, $bytes);
     $handle = fopen($path, 'r');
     if (!is_resource($handle)) {
         @unlink($path);
-        throw new \RuntimeException('open');
+        throw new RuntimeException('open');
     }
     if (!flock($handle, \LOCK_EX | \LOCK_NB)) {
         fclose($handle);
         @unlink($path);
-        throw new \RuntimeException('lock');
+        throw new RuntimeException('lock');
     }
 
     return new HomeworkPdfQuarantineFile($path, $handle, strlen($bytes), hash('sha256', $bytes));
