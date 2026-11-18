@@ -1,9 +1,13 @@
 name: X01 homework PDF ClamAV CI accept
 
 # Isolated real-clamd acceptance on an ephemeral ubuntu-24.04 runner.
-# Manual only. Does not touch production VDS, deploy, or required CI checks.
+# Manual dispatch, or push only to the PR #218 branch in this repository.
+# Does not touch production VDS, deploy, or required CI checks.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - feature/x01-homework-pdf-clamav-ci-accept
 
 permissions:
   contents: read
@@ -15,6 +19,11 @@ concurrency:
 jobs:
   accept:
     name: Isolated clamd accept
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+       github.repository == 'testligtr-collab/testlig-net' &&
+       github.ref == 'refs/heads/feature/x01-homework-pdf-clamav-ci-accept')
     runs-on: ubuntu-24.04
     timeout-minutes: 35
 

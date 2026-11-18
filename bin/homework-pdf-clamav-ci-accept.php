@@ -9,6 +9,7 @@ declare(strict_types=1);
  */
 
 use App\Homework\Pdf\ClamdHomeworkPdfScanAdapter;
+use App\Homework\Pdf\HomeworkPdfCiAcceptTransfer;
 use App\Homework\Pdf\HomeworkPdfQuarantine;
 use App\Homework\Pdf\HomeworkPdfQuarantineFile;
 use App\Homework\Pdf\HomeworkPdfScanException;
@@ -221,27 +222,26 @@ function runNearLimitPdf(string $socket, string $quarantineRoot): bool
     emit('scenario_near_limit_max_file_bytes='.('' !== $confFile ? $confFile : 'unset'));
 
     $pipeline = openPipeline($socket, $quarantineRoot);
-    $transferComplete = 'no';
+    $cleanStagingSucceeded = false;
     $verdictLabel = 'error';
     try {
         $staging = $pipeline->stageCleanCandidate($bytes, 'near-limit.pdf');
-        $transferComplete = 'yes';
+        $cleanStagingSucceeded = true;
         $verdictLabel = 'clean';
         $staging->abandon();
     } catch (HomeworkPdfScanException $exception) {
         $verdictLabel = $exception->getMessage();
-        // Size-limit from clamd after a full client send still means transfer reached the daemon path;
-        // connection failures do not.
-        if (str_starts_with($exception->getMessage(), 'homework_pdf_scan_')) {
-            $transferComplete = 'yes';
-        }
+        // Unavailable / timeout / connection / other rejects do not prove expected-byte transfer.
+        $cleanStagingSucceeded = false;
     }
+    $transferComplete = HomeworkPdfCiAcceptTransfer::nearLimitTransferComplete($cleanStagingSucceeded) ? 'yes' : 'no';
     emit('scenario_near_limit_transfer_complete='.$transferComplete);
     emit('scenario_near_limit_verdict='.$verdictLabel);
     emit('scenario_near_limit_quarantine='.(quarantineEmpty($quarantineRoot) ? 'empty' : 'dirty'));
 
     $streamOk = '' !== $confStream && ctype_digit($confStream) && (int) $confStream >= $byteCount;
     $fileOk = '' !== $confFile && ctype_digit($confFile) && (int) $confFile >= $byteCount;
+    // Transfer completion and full scan coverage are reported separately.
     $coverage = 'unproven';
     if ('yes' === $transferComplete && 'clean' === $verdictLabel && $streamOk && $fileOk) {
         // clean+limits-above-size still cannot alone prove no internal truncation; mark full only

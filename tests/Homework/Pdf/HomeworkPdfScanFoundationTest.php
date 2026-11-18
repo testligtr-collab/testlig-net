@@ -6,6 +6,7 @@ namespace App\Tests\Homework\Pdf;
 
 use App\Homework\Pdf\ClamdHomeworkPdfScanAdapter;
 use App\Homework\Pdf\ClosedHomeworkPdfScanReadiness;
+use App\Homework\Pdf\HomeworkPdfCiAcceptTransfer;
 use App\Homework\Pdf\HomeworkPdfQuarantine;
 use App\Homework\Pdf\HomeworkPdfQuarantineByteSink;
 use App\Homework\Pdf\HomeworkPdfQuarantineFile;
@@ -295,6 +296,12 @@ final class HomeworkPdfScanFoundationTest extends TestCase
             self::assertStringNotContainsString('->warning(', $src, $file);
             self::assertStringNotContainsString('error_log(', $src, $file);
         }
+    }
+
+    public function testNearLimitTransferCompleteRequiresSuccessfulStagingNotUnavailable(): void
+    {
+        self::assertTrue(HomeworkPdfCiAcceptTransfer::nearLimitTransferComplete(true));
+        self::assertFalse(HomeworkPdfCiAcceptTransfer::nearLimitTransferComplete(false));
     }
 
     private function openPipeline(string $dir, \App\Homework\Pdf\HomeworkPdfScanAdapter $adapter): HomeworkPdfScanPipeline
