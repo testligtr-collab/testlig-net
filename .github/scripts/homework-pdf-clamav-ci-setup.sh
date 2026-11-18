@@ -52,7 +52,9 @@ start_clamd() {
   state_file="${WORK_ROOT}/setup.env"
 
   mkdir -p "$WORK_ROOT" "$db_dir" "$log_dir"
-  chmod 700 "$WORK_ROOT"
+  # freshclam drops to the clamav user; 700 on WORK_ROOT makes the DB path look missing.
+  chmod 755 "$WORK_ROOT"
+  chmod 755 "$db_dir" "$log_dir"
   emit "setup_work_root=${WORK_ROOT}"
 
   export DEBIAN_FRONTEND=noninteractive
@@ -62,16 +64,17 @@ start_clamd() {
   sudo systemctl stop clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
   sudo systemctl disable clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
 
-  # freshclam's default UpdateLogFile is /var/log/clamav (root-owned). Custom
-  # --config-file rewrites failed to parse on this runner image, so update as root
-  # into the isolated DB dir, then hand ownership to the unprivileged accept user.
-  # Official signature path via freshclam CDN. Fail closed; no blind retry.
-  if ! timeout 600 sudo freshclam --datadir="$db_dir" --stdout; then
+  # Official signature path via freshclam CDN into isolated DB. Fail closed; no blind retry.
+  # Run as clamav (same as package default) so UpdateLogFile under /var/log/clamav works.
+  sudo chown -R clamav:clamav "$db_dir"
+  if ! timeout 600 sudo -u clamav freshclam --datadir="$db_dir" --stdout; then
     emit "signature_update=failed"
     exit 1
   fi
+  # Accept PHP + private clamd run as the unprivileged runner user.
   sudo chown -R "$(id -u):$(id -g)" "$db_dir"
   chmod -R u+rwX "$db_dir"
+  chmod 700 "$WORK_ROOT"
   emit "signature_update=ok"
 
   cat >"$conf_path" <<EOF
