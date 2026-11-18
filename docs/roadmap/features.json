@@ -1132,7 +1132,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/194",
         "https://github.com/testligtr-collab/testlig-net/pull/195",
         "https://github.com/testligtr-collab/testlig-net/pull/216",
-        "https://github.com/testligtr-collab/testlig-net/pull/217"
+        "https://github.com/testligtr-collab/testlig-net/pull/217",
+        "https://github.com/testligtr-collab/testlig-net/pull/218"
       ],
       "acceptance": "Durum partial: öğretmen taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda. Kapalı PDF tarama altyapısı (quarantine/adaptör/gate) kodda; upload UI/route açık değil; taramasız kabul yok. Canlı öğretmen–öğrenci metin döngüsü kabulü, kurum lider oturumu ve aktif öğretmen–sınıf ataması önkoşulları sağlanmadığı için tamamlanamadı (kod kusuru değildir). Dosya ürünü, bildirim, veli, yeniden/geç teslim açık. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur. active_feature_ids=[X01-homework] korunur.",
       "scope_decision": null
