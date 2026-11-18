@@ -1121,7 +1121,16 @@
         "PR #216: X01 canlı metin döngüsü kabul engeli kaydı (yalnız docs/roadmap; merge/deploy/production kabulü YOK)",
         "Kod (kapalı PDF tarama altyapısı, feature/x01-homework-pdf-scan-foundation; upload UI/route/feature açma YOK): src/Homework/Pdf/* quarantine + HomeworkPdfScanPipeline + ClamdHomeworkPdfScanAdapter (PdfDocumentInspector::MAX_BYTES) + HomeworkPdfUploadGate varsayılan kapalı + ClosedHomeworkPdfScanReadiness; ClamdInstreamClient opsiyonel maxBytes (image 10MB korunur); docs/architecture-homework-pdf-scan.md; tests/Homework/Pdf/HomeworkPdfScanFoundationTest.php. Attachment entity/migration/UI yok. Taramasız kabul yok. Metin akışı değişmez. Canlı scanner kabulü ve PDF ürün kabulü AÇIK.",
         "PR #217: X01 kapalı homework PDF tarama altyapısı (draft; upload/feature açma/main merge/deploy/production kabulü YOK)",
-        "PR #217 güvenlik daraltması (aynı draft; upload hâlâ kapalı): aynı açık handle + LOCK_EX ile bayt kimliği (path üçlü hash TOCTOU çözümü sayılmaz); preexisting symlink hedef reddi testi; deterministik partial-write cleanup seam; fail-closed cleanup; homework Pdf log yok (redaksiyon iddiası yok); image 10MB / PDF 25MB regresyon; same-UID/path tehdit sınırı ve durable+DB yeniden doğrulama yükümlülüğü docs’ta. Canlı scanner/freshness/StreamMaxLength, kota/retention/orphan, ürün kabulü AÇIK."
+        "PR #217 güvenlik daraltması (aynı draft; upload hâlâ kapalı): aynı açık handle + LOCK_EX ile bayt kimliği (path üçlü hash TOCTOU çözümü sayılmaz); preexisting symlink hedef reddi testi; deterministik partial-write cleanup seam; fail-closed cleanup; homework Pdf log yok (redaksiyon iddiası yok); image 10MB / PDF 25MB regresyon; same-UID/path tehdit sınırı ve durable+DB yeniden doğrulama yükümlülüğü docs’ta. Canlı scanner/freshness/StreamMaxLength, kota/retention/orphan, ürün kabulü AÇIK.",
+        "Izole GHA ClamAV kabul (draft): .github/workflows/x01-homework-pdf-clamav-ci-accept.yml (yalniz workflow_dispatch); .github/scripts/homework-pdf-clamav-ci-setup.sh; bin/homework-pdf-clamav-ci-accept.php; docs/architecture-homework-pdf-scan.md izolasyon bolumu. Ubuntu runner + Unix socket; TCP yok; production secret/SSH/deploy yok. Upload/ClosedHomeworkPdfScanReadiness/UI/route degismez. Runner basarisi production OLS/lsphp soket, limit, imza veya readiness kaniti degildir. PR draft; merge/deploy/production kabulu YOK.",
+        "PR #218 duzeltme: near-limit transfer_complete yalniz clean staging basarisinda; unavailable/baglanti exception ile yes yazilmaz. Push tetikleyici yalniz feature/x01-homework-pdf-clamav-ci-accept. Upload kapali. Draft.",
+        "PR #218: run 44350416417 Start isolated clamd fail — freshclam UpdateLogFile /var/log/clamav permission denied; isolated freshclam.conf under WORK_ROOT. Upload kapali. Draft.",
+        "PR #218: run 44350849052 freshclam.conf parse fail (true/false); rewrite system conf UpdateLogFile+DatabaseDirectory under WORK_ROOT. Upload kapali. Draft.",
+        "PR #218: run 44351125723 custom freshclam.conf still unparsable; switch to sudo freshclam --datadir + chown for isolated DB. Upload kapali. Draft.",
+        "PR #218: run 44352068725 freshclam clamav drop + WORK_ROOT 700 => db missing; chown clamav for update then reclaim for runner. Upload kapali. Draft.",
+        "PR #218: run 44352359851 clamav cannot traverse RUNNER_TEMP; signature DB moved to /tmp/x01-hw-pdf-clamav-db. Upload kapali. Draft.",
+        "PR #218: run 44352763515 signature_update=ok; clamd log Permission denied under RUNNER_TEMP — move socket/pid/log to /tmp DB root. Upload kapali. Draft.",
+        "PR #218 SHA 230c5ec: izole ClamAV job https://github.com/testligtr-collab/testlig-net/actions/runs/44353762057 success. Scenarios: signature/clean/near_limit(transfer_complete=yes,coverage=unproven)/av_sample/missing_socket/quarantine_cleanup pass. PR CI+roadmap green on same SHA. Upload kapali. Draft. Runner!=production; X01 partial."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
@@ -1131,7 +1140,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/194",
         "https://github.com/testligtr-collab/testlig-net/pull/195",
         "https://github.com/testligtr-collab/testlig-net/pull/216",
-        "https://github.com/testligtr-collab/testlig-net/pull/217"
+        "https://github.com/testligtr-collab/testlig-net/pull/217",
+        "https://github.com/testligtr-collab/testlig-net/pull/218"
       ],
       "acceptance": "Durum partial: öğretmen taslak + atama + öğrenci metin teslimi + öğretmen değerlendirme kodda. Kapalı PDF tarama altyapısı (quarantine/adaptör/gate) kodda; upload UI/route açık değil; taramasız kabul yok. Canlı öğretmen–öğrenci metin döngüsü kabulü, kurum lider oturumu ve aktif öğretmen–sınıf ataması önkoşulları sağlanmadığı için tamamlanamadı (kod kusuru değildir). Dosya ürünü, bildirim, veli, yeniden/geç teslim açık. CI/preview production kabulü değildir. M18-local-pdf depends_on korunur. X10 partial korunur. active_feature_ids=[X01-homework] korunur.",
       "scope_decision": null

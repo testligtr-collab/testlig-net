@@ -18,7 +18,8 @@
 | `PdfDocumentInspector` + clamd INSTREAM adapter (25 MB) | Student/teacher upload or download controllers |
 | Fail-closed verdicts + default-closed upload gate | Enabling upload in production |
 | Same-handle scan + locked-inode post-hash | Claiming durable store integrity |
-| Fake/transport tests (symlink reject, partial-write cleanup) | Real clamd install, ops workflows, Bunny/R2 |
+| Fake/transport tests (symlink reject, partial-write cleanup) | Production clamd/OLS accept, Bunny/R2, upload UI |
+| Isolated `workflow_dispatch` runner clamd accept (Unix socket) | Production VDS SSH ops as this accept |
 
 Default binding: `ClosedHomeworkPdfScanReadiness` (never ready) + `HOMEWORK_PDF_UPLOAD_ENABLED=0`. Setting enabled alone does **not** open upload.
 
@@ -55,7 +56,20 @@ Default binding: `ClosedHomeworkPdfScanReadiness` (never ready) + `HOMEWORK_PDF_
 6. On DB/write failure: delete durable candidate; **keep existing draft attachment**  
 7. On success replace: delete previous durable draft object  
 
-Still open: live scanner/freshness/StreamMaxLength acceptance, quota/retention/orphan cleanup. Unlimited storage is not assumed.
+Still open: production OLS/lsphp socket access, production StreamMaxLength/MaxFileSize measurement, production signature freshness + readiness wiring, quota/retention/orphan cleanup. Unlimited storage is not assumed.
+
+## Isolated GitHub Actions ClamAV accept (runner only)
+
+Manual workflow: `.github/workflows/x01-homework-pdf-clamav-ci-accept.yml` (`workflow_dispatch` only).  
+Harness: `bin/homework-pdf-clamav-ci-accept.php` + `.github/scripts/homework-pdf-clamav-ci-setup.sh`.
+
+- Ephemeral `ubuntu-24.04` runner installs Ubuntu `clamav` packages, runs one `freshclam` into an isolated DB dir, starts `clamd` with a **Unix socket only** (no TCP), then runs the homework pipeline/adapter as the unprivileged runner user.
+- Test process uses a temporary open gate/readiness; production remains `HOMEWORK_PDF_UPLOAD_ENABLED=0` + `ClosedHomeworkPdfScanReadiness`.
+- **Signature pass criterion (before scenarios):** disk `main`/`daily`/`bytecode` versions from `sigtool` must equal the consensus TXT from `current.cvd.clamav.net`, **and** `nPING` → `PONG` on the job socket. A successful download alone is not enough.
+- Near-limit INSTREAM records configured `StreamMaxLength` / `MaxFileSize` (bytes) and transfer completion. `clean` or `streamMatched` alone is not full-coverage proof; if a same-size trailing AV-marker probe does not detect, coverage stays `unproven` (`tam_kapsam_dogrulanmadi`).
+- Runner success is **not** production OLS/lsphp socket permission proof, production limit proof, production signature freshness, or readiness wiring.
+
+Fake PHPUnit cases (timeout, malformed reply, hash mismatch, symlink, partial write, gate matrix) stay in `tests/Homework/Pdf/HomeworkPdfScanFoundationTest.php`.
 
 ## Clean verdict wording
 
