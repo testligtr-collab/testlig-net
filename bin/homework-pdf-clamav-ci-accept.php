@@ -36,7 +36,7 @@ require $autoload;
 $socket = getenv('HOMEWORK_PDF_CLAMAV_SOCKET') ?: '';
 $dbDir = getenv('HOMEWORK_PDF_CLAMAV_DB') ?: '';
 $workRoot = getenv('HOMEWORK_PDF_CLAMAV_WORK') ?: '';
-if ($socket === '' || $dbDir === '' || $workRoot === '') {
+if ('' === $socket || '' === $dbDir || '' === $workRoot) {
     emit('accept_error=env_missing');
     exit(1);
 }
@@ -80,14 +80,14 @@ function runSignatureGate(string $dbDir): bool
     // the consensus published TXT from current.cvd.clamav.net. freshclam download
     // success alone is not enough; clamd must also answer PING after loading that DB.
     $records = @dns_get_record('current.cvd.clamav.net', \DNS_TXT);
-    if (!\is_array($records) || [] === $records) {
+    if (!is_array($records) || [] === $records) {
         emit('signature_dns=unavailable');
         emit('scenario_signature=fail');
 
         return false;
     }
     $published = ClamavPublishedDatabaseVersion::published($records);
-    if ('ok' !== $published['status'] || !\is_array($published['versions'])) {
+    if ('ok' !== $published['status'] || !is_array($published['versions'])) {
         emit('signature_dns='.$published['status']);
         emit('scenario_signature=fail');
 
@@ -123,7 +123,7 @@ function runClamdPing(string $socket): bool
     $errno = 0;
     $errstr = '';
     $fp = @stream_socket_client('unix://'.$socket, $errno, $errstr, 5.0);
-    if (!\is_resource($fp)) {
+    if (!is_resource($fp)) {
         emit('clamd_ping=failed');
 
         return false;
@@ -131,7 +131,7 @@ function runClamdPing(string $socket): bool
     try {
         fwrite($fp, "nPING\n");
         $reply = stream_get_contents($fp, 32);
-        $ok = \is_string($reply) && str_starts_with($reply, 'PONG');
+        $ok = is_string($reply) && str_starts_with($reply, 'PONG');
         emit($ok ? 'clamd_ping=pong' : 'clamd_ping=unexpected');
 
         return $ok;
@@ -148,7 +148,7 @@ function signatureVersionFromDisk(string $directory, string $name): ?int
             continue;
         }
         $info = shell_exec('sigtool --info '.escapeshellarg($path).' 2>/dev/null');
-        if (!\is_string($info) || 1 !== preg_match('/^Version: ([0-9]+)$/m', $info, $matches)) {
+        if (!is_string($info) || 1 !== preg_match('/^Version: ([0-9]+)$/m', $info, $matches)) {
             return null;
         }
 
@@ -210,14 +210,14 @@ function runNearLimitPdf(string $socket, string $quarantineRoot): bool
 {
     $appMax = PdfDocumentInspector::MAX_BYTES;
     $bytes = nearLimitPdf($appMax);
-    $byteCount = \strlen($bytes);
+    $byteCount = strlen($bytes);
     emit('scenario_near_limit_bytes='.$byteCount);
     emit('scenario_near_limit_app_max='.$appMax);
 
     $confStream = getenv('HOMEWORK_PDF_CLAMAV_STREAM_MAX_BYTES') ?: '';
     $confFile = getenv('HOMEWORK_PDF_CLAMAV_MAX_FILE_BYTES') ?: '';
-    emit('scenario_near_limit_stream_max_bytes='.($confStream !== '' ? $confStream : 'unset'));
-    emit('scenario_near_limit_max_file_bytes='.($confFile !== '' ? $confFile : 'unset'));
+    emit('scenario_near_limit_stream_max_bytes='.('' !== $confStream ? $confStream : 'unset'));
+    emit('scenario_near_limit_max_file_bytes='.('' !== $confFile ? $confFile : 'unset'));
 
     $pipeline = openPipeline($socket, $quarantineRoot);
     $transferComplete = 'no';
@@ -239,10 +239,10 @@ function runNearLimitPdf(string $socket, string $quarantineRoot): bool
     emit('scenario_near_limit_verdict='.$verdictLabel);
     emit('scenario_near_limit_quarantine='.(quarantineEmpty($quarantineRoot) ? 'empty' : 'dirty'));
 
-    $streamOk = $confStream !== '' && ctype_digit($confStream) && (int) $confStream >= $byteCount;
-    $fileOk = $confFile !== '' && ctype_digit($confFile) && (int) $confFile >= $byteCount;
+    $streamOk = '' !== $confStream && ctype_digit($confStream) && (int) $confStream >= $byteCount;
+    $fileOk = '' !== $confFile && ctype_digit($confFile) && (int) $confFile >= $byteCount;
     $coverage = 'unproven';
-    if ($transferComplete === 'yes' && $verdictLabel === 'clean' && $streamOk && $fileOk) {
+    if ('yes' === $transferComplete && 'clean' === $verdictLabel && $streamOk && $fileOk) {
         // clean+limits-above-size still cannot alone prove no internal truncation; mark full only
         // when a trailing AV marker is also detected at the same size class (adapter probe).
         $coverage = probeTrailingDetection($socket, $byteCount) ? 'full' : 'unproven';
@@ -262,10 +262,10 @@ function runNearLimitPdf(string $socket, string $quarantineRoot): bool
 function probeTrailingDetection(string $socket, int $targetSize): bool
 {
     $marker = standardAvSampleBytes();
-    if ($targetSize <= \strlen($marker) + 64) {
+    if ($targetSize <= strlen($marker) + 64) {
         return false;
     }
-    $payload = str_repeat('A', $targetSize - \strlen($marker)).$marker;
+    $payload = str_repeat('A', $targetSize - strlen($marker)).$marker;
     $adapter = ClamdHomeworkPdfScanAdapter::withTransport(new UnixClamdTransport($socket));
     $file = lockedTempFile($payload);
     try {
@@ -325,7 +325,7 @@ function nearLimitPdf(int $maxBytes): string
 {
     $prefix = "%PDF-1.4\n";
     $suffix = "\n%%EOF\n";
-    $fill = $maxBytes - \strlen($prefix) - \strlen($suffix);
+    $fill = $maxBytes - strlen($prefix) - strlen($suffix);
     if ($fill < 1) {
         throw new \RuntimeException('near_limit_size');
     }
@@ -342,12 +342,12 @@ function standardAvSampleBytes(): string
 function lockedTempFile(string $bytes): HomeworkPdfQuarantineFile
 {
     $path = tempnam(sys_get_temp_dir(), 'hwpdfci');
-    if (!\is_string($path)) {
+    if (!is_string($path)) {
         throw new \RuntimeException('temp');
     }
     file_put_contents($path, $bytes);
     $handle = fopen($path, 'r');
-    if (!\is_resource($handle)) {
+    if (!is_resource($handle)) {
         @unlink($path);
         throw new \RuntimeException('open');
     }
@@ -357,7 +357,7 @@ function lockedTempFile(string $bytes): HomeworkPdfQuarantineFile
         throw new \RuntimeException('lock');
     }
 
-    return new HomeworkPdfQuarantineFile($path, $handle, \strlen($bytes), hash('sha256', $bytes));
+    return new HomeworkPdfQuarantineFile($path, $handle, strlen($bytes), hash('sha256', $bytes));
 }
 
 function cleanupTree(string $dir): void
