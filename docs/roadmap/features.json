@@ -1129,7 +1129,8 @@
         "PR #218: run 44351125723 custom freshclam.conf still unparsable; switch to sudo freshclam --datadir + chown for isolated DB. Upload kapali. Draft.",
         "PR #218: run 44352068725 freshclam clamav drop + WORK_ROOT 700 => db missing; chown clamav for update then reclaim for runner. Upload kapali. Draft.",
         "PR #218: run 44352359851 clamav cannot traverse RUNNER_TEMP; signature DB moved to /tmp/x01-hw-pdf-clamav-db. Upload kapali. Draft.",
-        "PR #218: run 44352763515 signature_update=ok; clamd log Permission denied under RUNNER_TEMP — move socket/pid/log to /tmp DB root. Upload kapali. Draft."
+        "PR #218: run 44352763515 signature_update=ok; clamd log Permission denied under RUNNER_TEMP — move socket/pid/log to /tmp DB root. Upload kapali. Draft.",
+        "PR #218 SHA 230c5ec: izole ClamAV job https://github.com/testligtr-collab/testlig-net/actions/runs/44353762057 success. Scenarios: signature/clean/near_limit(transfer_complete=yes,coverage=unproven)/av_sample/missing_socket/quarantine_cleanup pass. PR CI+roadmap green on same SHA. Upload kapali. Draft. Runner!=production; X01 partial."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
