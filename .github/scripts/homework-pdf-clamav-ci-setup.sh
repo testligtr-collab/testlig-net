@@ -22,9 +22,9 @@ require_work_root() {
 stop_clamd() {
   require_work_root
   local pid_file conf_path socket_path
-  pid_file="${WORK_ROOT}/clamd.pid"
+  pid_file="${DB_ROOT}/clamd.pid"
   conf_path="${WORK_ROOT}/clamd.conf"
-  socket_path="${WORK_ROOT}/clamd.sock"
+  socket_path="${DB_ROOT}/clamd.sock"
   if [ -f "$pid_file" ]; then
     pid="$(tr -d '\r\n' < "$pid_file" 2>/dev/null || true)"
     if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
@@ -47,15 +47,17 @@ stop_clamd() {
 
 start_clamd() {
   require_work_root
-  local socket_path conf_path db_dir log_dir pid_file state_file clamd_bin
-  socket_path="${WORK_ROOT}/clamd.sock"
+  local socket_path conf_path db_dir log_file pid_file state_file clamd_bin
+  # Runtime socket/pid/log stay under /tmp with the DB — clamav/runner can both use it.
+  # WORK_ROOT (RUNNER_TEMP) stays for conf/state/quarantine only.
+  socket_path="${DB_ROOT}/clamd.sock"
   conf_path="${WORK_ROOT}/clamd.conf"
   db_dir="${DB_ROOT}/db"
-  log_dir="${WORK_ROOT}/log"
-  pid_file="${WORK_ROOT}/clamd.pid"
+  log_file="${DB_ROOT}/clamd.log"
+  pid_file="${DB_ROOT}/clamd.pid"
   state_file="${WORK_ROOT}/setup.env"
 
-  mkdir -p "$WORK_ROOT" "$log_dir"
+  mkdir -p "$WORK_ROOT"
   chmod 700 "$WORK_ROOT"
   emit "setup_work_root=${WORK_ROOT}"
   emit "setup_db_root=${DB_ROOT}"
@@ -80,6 +82,8 @@ start_clamd() {
   # Accept PHP + private clamd run as the unprivileged runner user.
   sudo chown -R "$(id -u):$(id -g)" "$DB_ROOT"
   chmod -R u+rwX "$DB_ROOT"
+  : >"$log_file"
+  chmod 600 "$log_file"
   emit "signature_update=ok"
 
   cat >"$conf_path" <<EOF
@@ -88,7 +92,7 @@ LocalSocketMode 660
 FixStaleSocket true
 DatabaseDirectory ${db_dir}
 PidFile ${pid_file}
-LogFile ${log_dir}/clamd.log
+LogFile ${log_file}
 LogTime true
 Foreground false
 ScanPDF yes
