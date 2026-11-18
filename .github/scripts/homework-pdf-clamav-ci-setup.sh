@@ -5,6 +5,8 @@ set -euo pipefail
 
 cmd="${1:-}"
 WORK_ROOT="${HOMEWORK_PDF_CLAMAV_CI_ROOT:-}"
+# Signature DB lives under /tmp: clamav cannot traverse runner-owned 0700 RUNNER_TEMP paths.
+DB_ROOT="${HOMEWORK_PDF_CLAMAV_DB_ROOT:-/tmp/x01-hw-pdf-clamav-db}"
 
 emit() {
   printf '%s\n' "$1"
@@ -38,6 +40,8 @@ stop_clamd() {
     pkill -f "clamd --config-file=${conf_path}" 2>/dev/null || true
   fi
   rm -f "$socket_path" "$pid_file" 2>/dev/null || true
+  rm -rf "$DB_ROOT" 2>/dev/null || true
+  sudo rm -rf "$DB_ROOT" 2>/dev/null || true
   emit "clamd_stop=ok"
 }
 
@@ -46,16 +50,15 @@ start_clamd() {
   local socket_path conf_path db_dir log_dir pid_file state_file clamd_bin
   socket_path="${WORK_ROOT}/clamd.sock"
   conf_path="${WORK_ROOT}/clamd.conf"
-  db_dir="${WORK_ROOT}/db"
+  db_dir="${DB_ROOT}/db"
   log_dir="${WORK_ROOT}/log"
   pid_file="${WORK_ROOT}/clamd.pid"
   state_file="${WORK_ROOT}/setup.env"
 
-  mkdir -p "$WORK_ROOT" "$db_dir" "$log_dir"
-  # freshclam drops to the clamav user; 700 on WORK_ROOT makes the DB path look missing.
-  chmod 755 "$WORK_ROOT"
-  chmod 755 "$db_dir" "$log_dir"
+  mkdir -p "$WORK_ROOT" "$log_dir"
+  chmod 700 "$WORK_ROOT"
   emit "setup_work_root=${WORK_ROOT}"
+  emit "setup_db_root=${DB_ROOT}"
 
   export DEBIAN_FRONTEND=noninteractive
   sudo apt-get update -qq
@@ -64,17 +67,19 @@ start_clamd() {
   sudo systemctl stop clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
   sudo systemctl disable clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
 
+  # /tmp is traversable by clamav; runner home/_temp often is not.
+  sudo rm -rf "$DB_ROOT"
+  sudo mkdir -p "$db_dir"
+  sudo chown -R clamav:clamav "$DB_ROOT"
+
   # Official signature path via freshclam CDN into isolated DB. Fail closed; no blind retry.
-  # Run as clamav (same as package default) so UpdateLogFile under /var/log/clamav works.
-  sudo chown -R clamav:clamav "$db_dir"
   if ! timeout 600 sudo -u clamav freshclam --datadir="$db_dir" --stdout; then
     emit "signature_update=failed"
     exit 1
   fi
   # Accept PHP + private clamd run as the unprivileged runner user.
-  sudo chown -R "$(id -u):$(id -g)" "$db_dir"
-  chmod -R u+rwX "$db_dir"
-  chmod 700 "$WORK_ROOT"
+  sudo chown -R "$(id -u):$(id -g)" "$DB_ROOT"
+  chmod -R u+rwX "$DB_ROOT"
   emit "signature_update=ok"
 
   cat >"$conf_path" <<EOF
@@ -126,6 +131,7 @@ EOF
   {
     echo "HOMEWORK_PDF_CLAMAV_SOCKET=${socket_path}"
     echo "HOMEWORK_PDF_CLAMAV_DB=${db_dir}"
+    echo "HOMEWORK_PDF_CLAMAV_DB_ROOT=${DB_ROOT}"
     echo "HOMEWORK_PDF_CLAMAV_CONF=${conf_path}"
     echo "HOMEWORK_PDF_CLAMAV_WORK=${WORK_ROOT}"
     echo "HOMEWORK_PDF_CLAMAV_STREAM_MAX_BYTES=${stream_max_bytes}"

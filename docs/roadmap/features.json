@@ -1127,7 +1127,8 @@
         "PR #218: run 44350416417 Start isolated clamd fail — freshclam UpdateLogFile /var/log/clamav permission denied; isolated freshclam.conf under WORK_ROOT. Upload kapali. Draft.",
         "PR #218: run 44350849052 freshclam.conf parse fail (true/false); rewrite system conf UpdateLogFile+DatabaseDirectory under WORK_ROOT. Upload kapali. Draft.",
         "PR #218: run 44351125723 custom freshclam.conf still unparsable; switch to sudo freshclam --datadir + chown for isolated DB. Upload kapali. Draft.",
-        "PR #218: run 44352068725 freshclam clamav drop + WORK_ROOT 700 => db missing; chown clamav for update then reclaim for runner. Upload kapali. Draft."
+        "PR #218: run 44352068725 freshclam clamav drop + WORK_ROOT 700 => db missing; chown clamav for update then reclaim for runner. Upload kapali. Draft.",
+        "PR #218: run 44352359851 clamav cannot traverse RUNNER_TEMP; signature DB moved to /tmp/x01-hw-pdf-clamav-db. Upload kapali. Draft."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
