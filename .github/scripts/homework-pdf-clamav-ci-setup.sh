@@ -62,37 +62,16 @@ start_clamd() {
   sudo systemctl stop clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
   sudo systemctl disable clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
 
-  # Unprivileged runner cannot write /var/log/clamav; isolate UpdateLogFile under WORK_ROOT.
-  # Prefer a rewritten system conf (mirrors/DNS intact); fall back to a minimal yes/no conf.
-  local freshclam_conf
-  freshclam_conf="${WORK_ROOT}/freshclam.conf"
-  if [ -f /etc/clamav/freshclam.conf ]; then
-    sed -E \
-      -e "s|^[[:space:]]*#?[[:space:]]*DatabaseDirectory[[:space:]].*|DatabaseDirectory ${db_dir}|" \
-      -e "s|^[[:space:]]*#?[[:space:]]*UpdateLogFile[[:space:]].*|UpdateLogFile ${log_dir}/freshclam.log|" \
-      -e "s|^[[:space:]]*#?[[:space:]]*PidFile[[:space:]].*|PidFile ${WORK_ROOT}/freshclam.pid|" \
-      /etc/clamav/freshclam.conf | tr -d '\r' >"$freshclam_conf"
-    if ! grep -qE '^[[:space:]]*DatabaseDirectory[[:space:]]' "$freshclam_conf"; then
-      printf 'DatabaseDirectory %s\n' "$db_dir" >>"$freshclam_conf"
-    fi
-    if ! grep -qE '^[[:space:]]*UpdateLogFile[[:space:]]' "$freshclam_conf"; then
-      printf 'UpdateLogFile %s\n' "${log_dir}/freshclam.log" >>"$freshclam_conf"
-    fi
-  else
-    {
-      printf 'DatabaseDirectory %s\n' "$db_dir"
-      printf 'UpdateLogFile %s\n' "${log_dir}/freshclam.log"
-      printf 'LogSyslog no\n'
-      printf 'Foreground yes\n'
-    } >"$freshclam_conf"
-  fi
-  chmod 600 "$freshclam_conf"
-
-  # Official signature path via freshclam CDN into isolated DB. Fail closed; no blind retry.
-  if ! timeout 600 freshclam --config-file="$freshclam_conf" --datadir="$db_dir" --stdout; then
+  # freshclam's default UpdateLogFile is /var/log/clamav (root-owned). Custom
+  # --config-file rewrites failed to parse on this runner image, so update as root
+  # into the isolated DB dir, then hand ownership to the unprivileged accept user.
+  # Official signature path via freshclam CDN. Fail closed; no blind retry.
+  if ! timeout 600 sudo freshclam --datadir="$db_dir" --stdout; then
     emit "signature_update=failed"
     exit 1
   fi
+  sudo chown -R "$(id -u):$(id -g)" "$db_dir"
+  chmod -R u+rwX "$db_dir"
   emit "signature_update=ok"
 
   cat >"$conf_path" <<EOF
