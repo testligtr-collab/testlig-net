@@ -63,14 +63,29 @@ start_clamd() {
   sudo systemctl disable clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
 
   # Unprivileged runner cannot write /var/log/clamav; isolate UpdateLogFile under WORK_ROOT.
+  # Prefer a rewritten system conf (mirrors/DNS intact); fall back to a minimal yes/no conf.
   local freshclam_conf
   freshclam_conf="${WORK_ROOT}/freshclam.conf"
-  cat >"$freshclam_conf" <<EOF
-DatabaseDirectory ${db_dir}
-UpdateLogFile ${log_dir}/freshclam.log
-LogSyslog false
-Foreground true
-EOF
+  if [ -f /etc/clamav/freshclam.conf ]; then
+    sed -E \
+      -e "s|^[[:space:]]*#?[[:space:]]*DatabaseDirectory[[:space:]].*|DatabaseDirectory ${db_dir}|" \
+      -e "s|^[[:space:]]*#?[[:space:]]*UpdateLogFile[[:space:]].*|UpdateLogFile ${log_dir}/freshclam.log|" \
+      -e "s|^[[:space:]]*#?[[:space:]]*PidFile[[:space:]].*|PidFile ${WORK_ROOT}/freshclam.pid|" \
+      /etc/clamav/freshclam.conf | tr -d '\r' >"$freshclam_conf"
+    if ! grep -qE '^[[:space:]]*DatabaseDirectory[[:space:]]' "$freshclam_conf"; then
+      printf 'DatabaseDirectory %s\n' "$db_dir" >>"$freshclam_conf"
+    fi
+    if ! grep -qE '^[[:space:]]*UpdateLogFile[[:space:]]' "$freshclam_conf"; then
+      printf 'UpdateLogFile %s\n' "${log_dir}/freshclam.log" >>"$freshclam_conf"
+    fi
+  else
+    {
+      printf 'DatabaseDirectory %s\n' "$db_dir"
+      printf 'UpdateLogFile %s\n' "${log_dir}/freshclam.log"
+      printf 'LogSyslog no\n'
+      printf 'Foreground yes\n'
+    } >"$freshclam_conf"
+  fi
   chmod 600 "$freshclam_conf"
 
   # Official signature path via freshclam CDN into isolated DB. Fail closed; no blind retry.
