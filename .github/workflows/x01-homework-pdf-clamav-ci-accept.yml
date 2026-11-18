@@ -1,0 +1,84 @@
+name: X01 homework PDF ClamAV CI accept
+
+# Isolated real-clamd acceptance on an ephemeral ubuntu-24.04 runner.
+# Manual only. Does not touch production VDS, deploy, or required CI checks.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x01-homework-pdf-clamav-ci-accept
+  cancel-in-progress: false
+
+jobs:
+  accept:
+    name: Isolated clamd accept
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, intl, zip, opcache
+          coverage: none
+          tools: composer:v2
+          ini-values: date.timezone=UTC
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php8.3-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-php8.3-
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev
+
+      - name: Prepare work root
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/x01-hw-pdf-clamav"
+          mkdir -p "$root"
+          chmod 700 "$root"
+          echo "HOMEWORK_PDF_CLAMAV_CI_ROOT=$root" >> "$GITHUB_ENV"
+
+      - name: Start isolated clamd
+        run: |
+          set -euo pipefail
+          chmod +x .github/scripts/homework-pdf-clamav-ci-setup.sh
+          .github/scripts/homework-pdf-clamav-ci-setup.sh start
+
+      - name: Run homework PDF ClamAV accept
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC1090
+          set -a
+          # shellcheck source=/dev/null
+          source "${HOMEWORK_PDF_CLAMAV_CI_ROOT}/setup.env"
+          set +a
+          # Unprivileged runner user (default GHA user) — not root.
+          if [ "$(id -u)" = "0" ]; then
+            echo "accept_error=must_not_run_as_root"
+            exit 1
+          fi
+          id -un
+          php bin/homework-pdf-clamav-ci-accept.php
+
+      - name: Stop clamd and clean work root
+        if: always()
+        run: |
+          set +e
+          chmod +x .github/scripts/homework-pdf-clamav-ci-setup.sh
+          .github/scripts/homework-pdf-clamav-ci-setup.sh stop
+          if [ -n "${HOMEWORK_PDF_CLAMAV_CI_ROOT:-}" ]; then
+            rm -rf "${HOMEWORK_PDF_CLAMAV_CI_ROOT}"
+          fi
+          echo "work_root_cleanup=done"
