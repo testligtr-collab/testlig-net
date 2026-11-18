@@ -62,8 +62,19 @@ start_clamd() {
   sudo systemctl stop clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
   sudo systemctl disable clamav-daemon.service clamav-daemon.socket clamav-freshclam.service 2>/dev/null || true
 
+  # Unprivileged runner cannot write /var/log/clamav; isolate UpdateLogFile under WORK_ROOT.
+  local freshclam_conf
+  freshclam_conf="${WORK_ROOT}/freshclam.conf"
+  cat >"$freshclam_conf" <<EOF
+DatabaseDirectory ${db_dir}
+UpdateLogFile ${log_dir}/freshclam.log
+LogSyslog false
+Foreground true
+EOF
+  chmod 600 "$freshclam_conf"
+
   # Official signature path via freshclam CDN into isolated DB. Fail closed; no blind retry.
-  if ! timeout 600 freshclam --datadir="$db_dir" --stdout; then
+  if ! timeout 600 freshclam --config-file="$freshclam_conf" --datadir="$db_dir" --stdout; then
     emit "signature_update=failed"
     exit 1
   fi

@@ -1123,7 +1123,8 @@
         "PR #217: X01 kapalı homework PDF tarama altyapısı (draft; upload/feature açma/main merge/deploy/production kabulü YOK)",
         "PR #217 güvenlik daraltması (aynı draft; upload hâlâ kapalı): aynı açık handle + LOCK_EX ile bayt kimliği (path üçlü hash TOCTOU çözümü sayılmaz); preexisting symlink hedef reddi testi; deterministik partial-write cleanup seam; fail-closed cleanup; homework Pdf log yok (redaksiyon iddiası yok); image 10MB / PDF 25MB regresyon; same-UID/path tehdit sınırı ve durable+DB yeniden doğrulama yükümlülüğü docs’ta. Canlı scanner/freshness/StreamMaxLength, kota/retention/orphan, ürün kabulü AÇIK.",
         "Izole GHA ClamAV kabul (draft): .github/workflows/x01-homework-pdf-clamav-ci-accept.yml (yalniz workflow_dispatch); .github/scripts/homework-pdf-clamav-ci-setup.sh; bin/homework-pdf-clamav-ci-accept.php; docs/architecture-homework-pdf-scan.md izolasyon bolumu. Ubuntu runner + Unix socket; TCP yok; production secret/SSH/deploy yok. Upload/ClosedHomeworkPdfScanReadiness/UI/route degismez. Runner basarisi production OLS/lsphp soket, limit, imza veya readiness kaniti degildir. PR draft; merge/deploy/production kabulu YOK.",
-        "PR #218 duzeltme: near-limit transfer_complete yalniz clean staging basarisinda; unavailable/baglanti exception ile yes yazilmaz. Push tetikleyici yalniz feature/x01-homework-pdf-clamav-ci-accept. Upload kapali. Draft."
+        "PR #218 duzeltme: near-limit transfer_complete yalniz clean staging basarisinda; unavailable/baglanti exception ile yes yazilmaz. Push tetikleyici yalniz feature/x01-homework-pdf-clamav-ci-accept. Upload kapali. Draft.",
+        "PR #218: run 44350416417 Start isolated clamd fail — freshclam UpdateLogFile /var/log/clamav permission denied; isolated freshclam.conf under WORK_ROOT. Upload kapali. Draft."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/190",
