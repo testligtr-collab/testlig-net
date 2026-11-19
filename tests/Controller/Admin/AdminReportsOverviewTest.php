@@ -30,9 +30,9 @@ final class AdminReportsOverviewTest extends WebTestCase
         $this->rebindDeliveryFixtures();
         $this->cleanupDeliveryFixtures();
 
-        $ctx = $this->publishedDeliveryContext('rpt-ov');
-        $platformTitle = 'Delivery Blueprint rpt-ov';
-        $institutionTitle = 'Kurum Gizli Rapor Testi rpt-ov';
+        $ctx = $this->publishedDeliveryContext('rpt_ov');
+        $platformTitle = 'Delivery Blueprint rpt_ov';
+        $institutionTitle = 'Kurum Gizli Rapor Testi rpt_ov';
         $this->createInstitutionDraft($ctx, $institutionTitle);
 
         $before = $this->assessmentsCount();
@@ -71,7 +71,7 @@ final class AdminReportsOverviewTest extends WebTestCase
         $client = static::createClient();
         $this->rebindDeliveryFixtures();
         $this->cleanupDeliveryFixtures();
-        $sa = $this->activeUser('rpt-empty-sa@example.com', UserRole::SuperAdmin);
+        $sa = $this->superAdmin('rpt_empty_sa@example.com');
 
         $client->loginUser($sa);
         $client->request('GET', '/yonetim/bolum/raporlar');
@@ -86,15 +86,18 @@ final class AdminReportsOverviewTest extends WebTestCase
         $this->rebindDeliveryFixtures();
         $this->cleanupDeliveryFixtures();
 
-        foreach ([
-            ['rpt-deny-admin@example.com', UserRole::Admin, 403],
-            ['rpt-deny-teacher@example.com', UserRole::Teacher, 403],
-        ] as [$email, $role, $status]) {
-            $user = $this->activeUser($email, $role);
-            $client->loginUser($user);
-            $client->request('GET', '/yonetim/bolum/raporlar');
-            self::assertResponseStatusCodeSame($status);
-        }
+        $admin = $this->activeUser('rpt_deny_admin@example.com', UserRole::Teacher);
+        $admin->addGlobalRole(UserRole::Admin);
+        $this->users->save($admin);
+        $teacher = $this->activeUser('rpt_deny_teacher@example.com', UserRole::Teacher);
+
+        $client->loginUser($admin);
+        $client->request('GET', '/yonetim/bolum/raporlar');
+        self::assertResponseStatusCodeSame(403);
+
+        $client->loginUser($teacher);
+        $client->request('GET', '/yonetim/bolum/raporlar');
+        self::assertResponseStatusCodeSame(403);
 
         $anon = static::createClient();
         $anon->request('GET', '/yonetim/bolum/raporlar');
@@ -106,7 +109,7 @@ final class AdminReportsOverviewTest extends WebTestCase
         $client = static::createClient();
         $this->rebindDeliveryFixtures();
         $this->cleanupDeliveryFixtures();
-        $sa = $this->activeUser('rpt-nav-sa@example.com', UserRole::SuperAdmin);
+        $sa = $this->superAdmin('rpt_nav_sa@example.com');
         $client->loginUser($sa);
 
         $crawler = $client->request('GET', '/yonetim');

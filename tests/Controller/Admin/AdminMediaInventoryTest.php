@@ -27,7 +27,6 @@ final class AdminMediaInventoryTest extends WebTestCase
 {
     public function testSuperAdminSeesOnlyPlatformSafeFields(): void
     {
-        $client = $this->browser();
         $this->cleanupMedia();
         $sa = $this->activeUser('media-inv-sa@example.com', UserRole::SuperAdmin);
         $owner = $this->activeUser('media-inv-owner@example.com', UserRole::InstitutionManager);
@@ -41,7 +40,7 @@ final class AdminMediaInventoryTest extends WebTestCase
         $secretFilename = 'gizli-platform-dosya-adi.png';
         $secretHash = str_repeat('ab', 32);
         $secretKeyHint = 'platform/gizli-storage-key';
-        $institutionFilename = 'kurum-gizli-medya.png';
+        $institutionFilename = 'kurum-gizli-medya.pdf';
         $institutionHash = str_repeat('cd', 32);
 
         $media = $this->media();
@@ -73,6 +72,7 @@ final class AdminMediaInventoryTest extends WebTestCase
         );
 
         $before = $this->assetCount();
+        $client = $this->browser();
         $client->loginUser($sa);
         $crawler = $client->request('GET', '/yonetim/bolum/medya');
         self::assertResponseIsSuccessful();
@@ -110,9 +110,9 @@ final class AdminMediaInventoryTest extends WebTestCase
 
     public function testEmptyStateAndAccessGates(): void
     {
-        $client = $this->browser();
         $this->cleanupMedia();
         $sa = $this->activeUser('media-empty-sa@example.com', UserRole::SuperAdmin);
+        $client = $this->browser();
         $client->loginUser($sa);
         $client->request('GET', '/yonetim/bolum/medya');
         self::assertResponseIsSuccessful();
@@ -138,8 +138,9 @@ final class AdminMediaInventoryTest extends WebTestCase
 
     public function testNavMarksMediaReadyAndCurrentOnce(): void
     {
-        $client = $this->browser();
+        $this->cleanupMedia();
         $sa = $this->activeUser('media-nav-sa@example.com', UserRole::SuperAdmin);
+        $client = $this->browser();
         $client->loginUser($sa);
         $crawler = $client->request('GET', '/yonetim');
         self::assertResponseIsSuccessful();
