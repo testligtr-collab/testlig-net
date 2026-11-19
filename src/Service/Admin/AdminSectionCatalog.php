@@ -28,7 +28,6 @@ final class AdminSectionCatalog
     public static function all(): array
     {
         return [
-            self::entry('odevler', 'assignments', 'Ödev ve projeler', 'learning', 'Ödev ve proje vermek, teslim almak ve değerlendirmek.', ['Test ve öğrenme içeriği ayrı adreslerde yönetilir.'], ['Ödev, proje, teslim ve değerlendirme yoktur.'], 'Ödev akışı test ve içerik yayınından ayrı kurulacak.'),
             self::entry('raporlar', 'reports', 'Raporlar', 'learning', 'Yönetim için sonuç ve kullanım raporlarını görmek.', ['Bir testin sonuçları, o testin kendi ekranında açılır.'], ['Yönetim rapor kataloğu ve dışa aktarma bu adreste yoktur.'], 'Raporlar mevcut test sonucu akışına bağlanacak.', 'app_admin_tests', 'Test ve sınavlar'),
             self::entry('medya', 'storage', 'Medya ve depolama', 'media', 'Dosya envanterini ve depolama durumunu görmek.', ['Ders içeriğindeki PDF saklama mevcuttur.'], ['Medya envanteri, kota ve dosya yaşam döngüsü yoktur.', 'Haber görseli bu depoya bağlı değildir.'], 'Depolama yönetimi, mevcut PDF saklama bozulmadan eklenecek.'),
             self::entry('dokumanlar', 'documents', 'Dokümanlar', 'media', 'Bağımsız doküman kütüphanesini yönetmek.', ['Doküman, ders içeriğinin içindeki PDF blok olarak durur.'], ['Ayrı doküman kataloğu, inceleme kuyruğu ve yayın yoktur.'], 'Doküman kütüphanesi ders içeriğindeki PDF akışından ayrılacak.'),
