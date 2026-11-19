@@ -82,6 +82,6 @@ final class AdminMediaInventoryLabels
     {
         $rounded = round($value, 1);
 
-        return str_replace('.', ',', rtrim(rtrim(sprintf('%.1f', $rounded), '0'), '.'));
+        return str_replace('.', ',', rtrim(rtrim(\sprintf('%.1f', $rounded), '0'), '.'));
     }
 }
