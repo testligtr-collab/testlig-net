@@ -35,7 +35,6 @@ test('admin payments list layout, filters, empty result, long reference, paginat
     await expect(page.locator('.admin-status:visible', { hasText: 'Başlatıldı' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Başarısız' }).first()).toBeVisible();
     await expect(page.locator('.admin-status:visible', { hasText: 'Yetkilendirildi' }).first()).toBeVisible();
-    await expect(page.locator('.admin-status:visible', { hasText: 'Tahsil edildi' }).first()).toBeVisible();
     await expect(page.locator('.admin-payment__environment--sandbox:visible').first()).toBeVisible();
     await expect(page.locator('.admin-payment__environment--sandbox:visible').first()).toHaveText('Test (sandbox)');
     await expect(page.locator('.admin-payment__environment--production:visible').first()).toBeVisible();
@@ -64,6 +63,15 @@ test('admin payments list layout, filters, empty result, long reference, paginat
     await assertLayout(page);
     await capture(page, info, `admin-odemeler-${viewport.name}.png`);
   }
+
+  // Verify the captured fixture in the captured list, independently of the shared first page.
+  await page.goto('/yonetim/odemeler?status=captured');
+  const capturedPath = data.paths.paymentDetailCaptured as string;
+  const capturedRow = page.locator('tr').filter({
+    has: page.locator(`a[href=${JSON.stringify(capturedPath)}]`),
+  });
+  await expect(capturedRow).toHaveCount(1);
+  await expect(capturedRow.locator('.admin-status:visible', { hasText: 'Tahsil edildi' })).toBeVisible();
 
   // Distinct long-reference screen: filtered to the domain-max ORD reference only (not a re-shot of the full list).
   for (const viewport of VIEWPORTS) {
