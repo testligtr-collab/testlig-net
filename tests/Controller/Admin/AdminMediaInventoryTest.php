@@ -84,8 +84,16 @@ final class AdminMediaInventoryTest extends WebTestCase
 
         $rows = $crawler->filter('.admin-media-inventory-page__table tbody tr');
         self::assertCount(1, $rows);
-        $cells = $rows->filter('td')->each(static fn (Crawler $cell): string => trim($cell->text()));
-        self::assertSame(['Görsel', '2 KB', 'Yerel', 'Hazır'], $cells);
+        $values = $rows->filter('.admin-result-field__value')->each(
+            static fn (Crawler $cell): string => trim($cell->text()),
+        );
+        self::assertSame(['Görsel', '2 KB', 'Yerel', 'Hazır'], $values);
+        self::assertSame(
+            ['Tür', 'Boyut', 'Depolama', 'Durum'],
+            $rows->filter('.admin-result-field__label')->each(
+                static fn (Crawler $cell): string => trim($cell->text()),
+            ),
+        );
 
         $html = $crawler->html();
         foreach ([

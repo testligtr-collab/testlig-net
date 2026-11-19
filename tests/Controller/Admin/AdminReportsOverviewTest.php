@@ -99,6 +99,7 @@ final class AdminReportsOverviewTest extends WebTestCase
         $client->request('GET', '/yonetim/bolum/raporlar');
         self::assertResponseStatusCodeSame(403);
 
+        self::ensureKernelShutdown();
         $anon = static::createClient();
         $anon->request('GET', '/yonetim/bolum/raporlar');
         self::assertResponseRedirects('/giris');
