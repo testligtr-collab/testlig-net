@@ -29,9 +29,9 @@ final class HomeworkAssignmentRepository extends ServiceEntityRepository
     {
         /** @var list<array{title: string, classroom: string, recipients: int|string, submitted: int|string}> $rows */
         $rows = $this->createQueryBuilder('assignment')
-            ->select('assignment.title AS title', 'classroom.name AS classroom', 'assignment.recipientCount AS recipients')
+            ->select('assignment.title AS title', 'assignedClassroom.name AS classroom', 'assignment.recipientCount AS recipients')
             ->addSelect('(SELECT COUNT(submission.id) FROM '.HomeworkSubmission::class.' submission WHERE IDENTITY(submission.assignment) = assignment.id AND submission.status = :submitted) AS submitted')
-            ->join('assignment.classroom', 'classroom')
+            ->join('assignment.classroom', 'assignedClassroom')
             ->setParameter('submitted', HomeworkSubmissionStatus::Submitted->value)
             ->orderBy('assignment.assignedAt', 'DESC')
             ->addOrderBy('assignment.id', 'DESC')

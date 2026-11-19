@@ -78,6 +78,7 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
         self::assertSelectorTextContains('h1', 'Ödev ve projeler');
         self::assertSelectorNotExists('.admin-stage');
+        self::assertSelectorTextContains('body', 'Henüz atanmış ödev yok');
 
         $client->request('GET', '/yonetim/bolum/ogretmenler');
         self::assertResponseStatusCodeSame(404);
