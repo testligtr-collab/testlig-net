@@ -132,6 +132,7 @@ final class AdminNavBuilder
             $items[] = $this->item('audit', 'Denetim', 'app_admin_audit', $currentPath);
         }
         if ($this->adminAuthorization->canViewPlannedAdminSections($actor)) {
+            $items[] = $this->item('reports', 'Raporlar', 'app_admin_reports_overview', $currentPath, null, false, 'tests');
             foreach (AdminSectionCatalog::all() as $section) {
                 $items[] = $this->plannedItem($section['id'], $section['label'], $section['key'], $currentPath);
             }

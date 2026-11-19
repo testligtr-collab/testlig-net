@@ -196,6 +196,57 @@ class AssessmentRepository extends ServiceEntityRepository
         }
     }
 
+    /**
+     * Platform assessments that the admin result report screen can open.
+     * Institution assessments are excluded in the query, not in Twig.
+     */
+    public function countPlatformForAdminReports(): int
+    {
+        return (int) $this->createQueryBuilder('assessment')
+            ->select('COUNT(assessment.id)')
+            ->andWhere('assessment.scope = :scope')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @return list<array{id: string, title: string}>
+     */
+    public function listPlatformForAdminReports(int $offset, int $limit): array
+    {
+        /** @var list<array{id: mixed, title: mixed}> $rows */
+        $rows = $this->createQueryBuilder('assessment')
+            ->select('assessment.id AS id')
+            ->addSelect('COALESCE(publishedRevision.title, currentRevision.title, \'\') AS title')
+            ->leftJoin('assessment.publishedRevision', 'publishedRevision')
+            ->leftJoin('assessment.currentRevision', 'currentRevision')
+            ->andWhere('assessment.scope = :scope')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->orderBy('assessment.updatedAt', 'DESC')
+            ->addOrderBy('assessment.id', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getScalarResult();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $id = $row['id'] ?? null;
+            if ($id instanceof Uuid) {
+                $id = $id->toRfc4122();
+            } elseif (!\is_string($id) || '' === $id) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'title' => \is_string($row['title'] ?? null) ? $row['title'] : '',
+            ];
+        }
+
+        return $out;
+    }
+
     private function platformVisibleQuery(User $actor, bool $seeAll): QueryBuilder
     {
         $qb = $this->createQueryBuilder('a')

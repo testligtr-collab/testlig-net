@@ -545,6 +545,7 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(documents).toContainText('Geliştirme aşamasında');
   await expect(mediaCard.locator('a[href="/yonetim/bolum/videolar"]')).toContainText('Ders ve anlatım videoları.');
   await expect(mediaCard.locator('a[href="/yonetim/bolum/medya"]')).toContainText('Dosyalar ve depolama alanı.');
+  await expect(learningCard.getByRole('link', { name: /Raporlar/ })).toContainText('Çalışıyor');
   await mediaCard.locator('summary').focus();
   await saPage.keyboard.press('Enter');
   await expect(mediaDetails).toHaveJSProperty('open', false);
@@ -666,6 +667,44 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await assertLayout(saPage);
   await shot(saPage, info, 'superadmin', 'denetim', '1280');
   await assertClean(saPage);
+  await sa.close();
+});
+
+test('superadmin reports directory page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const learning = page.locator('#nav-group-learning');
+  if ((await learning.getAttribute('open')) === null) {
+    await learning.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/raporlar"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/raporlar/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  await expect(page.getByText('Gösterilecek platform testi yok')).toBeVisible();
+
+  for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/raporlar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    const focusTarget = page.locator('.admin-reports-page a, .admin-reports-page [tabindex="0"]').first();
+    if (await focusTarget.count()) {
+      await focusTarget.focus();
+      const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
+      expect(['solid', 'auto']).toContain(focusStyle);
+    }
+    await shot(page, info, 'superadmin', 'raporlar', viewport.name);
+  }
+
+  await assertClean(page);
   await sa.close();
 });
 

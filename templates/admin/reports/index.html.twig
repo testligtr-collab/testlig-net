@@ -1,0 +1,70 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Raporlar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-reports-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Raporlar</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Raporlar</h1>
+                <p>Platform testlerinin sonuç ekranına buradan geçebilirsiniz. Kurum testleri bu listede yer almaz.</p>
+            </div>
+        </header>
+
+        {% if rows is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Gösterilecek platform testi yok',
+                body: 'Sonuç ekranı açılabilen bir platform testi yayınlandığında burada listelenir.'
+            } %}
+        {% else %}
+            <section class="admin-section admin-reports-page__list" aria-labelledby="reports-list-heading">
+                <h2 id="reports-list-heading">Platform testleri</h2>
+                <p class="admin-reports-page__count" role="status">{{ total }} kayıt</p>
+                <div class="admin-table-wrap" role="region" aria-label="Platform testleri" tabindex="0">
+                    <table class="admin-table admin-reports-page__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Test</th>
+                                <th scope="col">İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Test</span>
+                                            <span class="admin-result-field__value">{{ row.title }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">İşlem</span>
+                                            <a class="admin-reports-page__open" href="{{ path('app_admin_test_results', {id: row.id}) }}">{{ row.title }} sonuçlarını aç</a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if last_page > 1 %}
+                    <nav class="admin-pagination" aria-label="Rapor listesi sayfaları">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_reports_overview', {page: page - 1}) }}">Önceki</a>
+                        {% endif %}
+                        <span>Sayfa {{ page }} / {{ last_page }}</span>
+                        {% if page < last_page %}
+                            <a href="{{ path('app_admin_reports_overview', {page: page + 1}) }}">Sonraki</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}
