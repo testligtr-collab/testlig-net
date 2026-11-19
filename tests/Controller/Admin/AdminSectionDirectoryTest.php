@@ -73,6 +73,12 @@ final class AdminSectionDirectoryTest extends WebTestCase
             self::assertSelectorNotExists('button:contains("Oluştur")');
         }
 
+        $client->request('GET', '/yonetim/bolum/odevler');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSelectorTextContains('h1', 'Ödev ve projeler');
+        self::assertSelectorNotExists('.admin-stage');
+
         $client->request('GET', '/yonetim/bolum/ogretmenler');
         self::assertResponseStatusCodeSame(404);
         $client->request('GET', '/yonetim/bolum/subeler');
@@ -114,6 +120,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSelectorNotExists('article.admin-directory-card--media');
         self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
         self::assertSelectorNotExists('a[href="/yonetim/rol-yetkileri"]');
+        $client->request('GET', '/yonetim/bolum/odevler');
+        self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/ogretmenler');
         self::assertResponseIsSuccessful();
         $client->request('GET', '/yonetim/rol-yetkileri');

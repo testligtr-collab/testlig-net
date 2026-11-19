@@ -1,0 +1,53 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Ödev ve projeler — Testlig{% endblock %}
+
+{% block panel_content %}
+    <nav class="admin-breadcrumb" aria-label="Konum">
+        {% include 'admin/_crumb_root.html.twig' %}
+        <span aria-hidden="true">/</span>
+        <span>Ödev ve projeler</span>
+    </nav>
+    <header class="admin-user-head">
+        <div>
+            <h1 class="panel-greeting">Ödev ve projeler</h1>
+            <p>Sınıflara verilen ödevleri ve teslim durumlarını görüntüleyin.</p>
+        </div>
+    </header>
+    {% if rows is empty %}
+        {% include 'components/empty_state.html.twig' with {
+            title: 'Henüz atanmış ödev yok',
+            body: 'Öğretmenler sınıflarına ödev atadığında kayıtlar burada görünür.'
+        } %}
+    {% else %}
+        <section class="admin-section admin-homework-overview" aria-labelledby="homework-list-heading">
+            <h2 id="homework-list-heading">Ödev listesi</h2>
+            <div class="admin-table-wrap" role="region" aria-label="Ödev listesi" tabindex="0">
+                <table class="admin-table">
+                    <thead><tr><th scope="col">Ödev</th><th scope="col">Sınıf</th><th scope="col">Durum</th><th scope="col">Teslimler</th></tr></thead>
+                    <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.title }}</td>
+                            <td>{{ row.classroom }}</td>
+                            <td><span class="admin-homework-overview__status">Atandı</span></td>
+                            <td>{{ row.submitted }} / {{ row.recipients }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if last_page > 1 %}
+                <nav class="admin-pagination" aria-label="Ödev listesi sayfaları">
+                    {% if page > 1 %}
+                        <a href="{{ path('app_admin_homework_overview', {page: page - 1}) }}">Önceki</a>
+                    {% endif %}
+                    <span>Sayfa {{ page }} / {{ last_page }}</span>
+                    {% if page < last_page %}
+                        <a href="{{ path('app_admin_homework_overview', {page: page + 1}) }}">Sonraki</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
