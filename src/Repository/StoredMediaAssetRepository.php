@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\StoredMediaAsset;
+use App\Enum\StoredMediaAssetKind;
 use App\Enum\StoredMediaAssetScope;
+use App\Enum\StoredMediaAssetStatus;
+use App\Enum\StoredMediaStorageProvider;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -49,7 +52,7 @@ class StoredMediaAssetRepository extends ServiceEntityRepository
     /**
      * Safe scalar fields for the SuperAdmin inventory screen.
      *
-     * @return list<array{kind: string, byte_size: int|string, storage_provider: string, status: string}>
+     * @return list<array{kind: string, byte_size: int, storage_provider: string, status: string}>
      */
     public function listPlatformInventory(int $offset, int $limit): array
     {
@@ -70,18 +73,69 @@ class StoredMediaAssetRepository extends ServiceEntityRepository
 
         $out = [];
         foreach ($rows as $row) {
-            $kind = $row['kind'] ?? null;
-            $provider = $row['storage_provider'] ?? null;
-            $status = $row['status'] ?? null;
-            $bytes = $row['byte_size'] ?? 0;
+            $kind = $this->normalizeKind($row['kind'] ?? null);
+            $provider = $this->normalizeStorageProvider($row['storage_provider'] ?? null);
+            $status = $this->normalizeStatus($row['status'] ?? null);
+            $byteSize = $this->normalizeByteSize($row['byte_size'] ?? null);
+            if (null === $kind || null === $provider || null === $status || null === $byteSize) {
+                continue;
+            }
             $out[] = [
-                'kind' => $kind instanceof \BackedEnum ? $kind->value : (\is_string($kind) ? $kind : ''),
-                'byte_size' => \is_int($bytes) ? $bytes : (int) $bytes,
-                'storage_provider' => $provider instanceof \BackedEnum ? $provider->value : (\is_string($provider) ? $provider : ''),
-                'status' => $status instanceof \BackedEnum ? $status->value : (\is_string($status) ? $status : ''),
+                'kind' => $kind,
+                'byte_size' => $byteSize,
+                'storage_provider' => $provider,
+                'status' => $status,
             ];
         }
 
         return $out;
+    }
+
+    private function normalizeKind(mixed $value): ?string
+    {
+        if ($value instanceof StoredMediaAssetKind) {
+            return $value->value;
+        }
+        if (!\is_string($value) || '' === $value) {
+            return null;
+        }
+
+        return StoredMediaAssetKind::tryFrom($value)?->value;
+    }
+
+    private function normalizeStorageProvider(mixed $value): ?string
+    {
+        if ($value instanceof StoredMediaStorageProvider) {
+            return $value->value;
+        }
+        if (!\is_string($value) || '' === $value) {
+            return null;
+        }
+
+        return StoredMediaStorageProvider::tryFrom($value)?->value;
+    }
+
+    private function normalizeStatus(mixed $value): ?string
+    {
+        if ($value instanceof StoredMediaAssetStatus) {
+            return $value->value;
+        }
+        if (!\is_string($value) || '' === $value) {
+            return null;
+        }
+
+        return StoredMediaAssetStatus::tryFrom($value)?->value;
+    }
+
+    private function normalizeByteSize(mixed $value): ?int
+    {
+        if (\is_int($value)) {
+            return max(0, $value);
+        }
+        if (\is_string($value) && is_numeric($value)) {
+            return max(0, (int) $value);
+        }
+
+        return null;
     }
 }

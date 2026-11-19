@@ -689,12 +689,19 @@ test('superadmin reports directory page', async ({ browser }, info) => {
   await expect(page).toHaveURL(/\/yonetim\/bolum\/raporlar/);
   await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
   await expect(page.locator('.admin-stage')).toHaveCount(0);
-  await expect(page.getByText('Gösterilecek platform testi yok')).toBeVisible();
+  // Seeded suite has platform assessments; empty copy is covered by HTTP when none exist.
+  await expect(page.getByText('Gösterilecek platform testi yok')).toHaveCount(0);
+  await expect(page.locator('.admin-reports-page__table')).toContainText('Toplama testi');
+  const openResults = page.getByRole('link', { name: 'Toplama testi sonuçlarını aç' });
+  await expect(openResults).toBeVisible();
+  const openBox = await openResults.boundingBox();
+  expect(openBox && openBox.height >= 44).toBeTruthy();
 
   for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/bolum/raporlar');
     await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
+    await expect(page.locator('.admin-reports-page__table')).toContainText('Toplama testi');
     await assertLayout(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow).toBe(false);

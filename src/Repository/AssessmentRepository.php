@@ -211,16 +211,18 @@ class AssessmentRepository extends ServiceEntityRepository
     }
 
     /**
+     * Title resolution matches the admin result screen: published, else current.
+     *
      * @return list<array{id: string, title: string}>
      */
     public function listPlatformForAdminReports(int $offset, int $limit): array
     {
-        /** @var list<array{id: mixed, title: mixed}> $rows */
-        $rows = $this->createQueryBuilder('assessment')
-            ->select('assessment.id AS id')
-            ->addSelect('COALESCE(publishedRevision.title, currentRevision.title, \'\') AS title')
+        /** @var list<Assessment> $assessments */
+        $assessments = $this->createQueryBuilder('assessment')
             ->leftJoin('assessment.publishedRevision', 'publishedRevision')
+            ->addSelect('publishedRevision')
             ->leftJoin('assessment.currentRevision', 'currentRevision')
+            ->addSelect('currentRevision')
             ->andWhere('assessment.scope = :scope')
             ->setParameter('scope', AssessmentScope::Platform)
             ->orderBy('assessment.updatedAt', 'DESC')
@@ -228,19 +230,15 @@ class AssessmentRepository extends ServiceEntityRepository
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->getQuery()
-            ->getScalarResult();
+            ->getResult();
 
         $out = [];
-        foreach ($rows as $row) {
-            $id = $row['id'] ?? null;
-            if ($id instanceof Uuid) {
-                $id = $id->toRfc4122();
-            } elseif (!\is_string($id) || '' === $id) {
-                continue;
-            }
+        foreach ($assessments as $assessment) {
             $out[] = [
-                'id' => $id,
-                'title' => \is_string($row['title'] ?? null) ? $row['title'] : '',
+                'id' => $assessment->getId()->toRfc4122(),
+                'title' => $assessment->getPublishedRevision()?->getTitle()
+                    ?? $assessment->getCurrentRevision()?->getTitle()
+                    ?? '',
             ];
         }
 
