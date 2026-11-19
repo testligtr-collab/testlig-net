@@ -734,13 +734,24 @@ test('superadmin media inventory page', async ({ browser }, info) => {
   await expect(page).toHaveURL(/\/yonetim\/bolum\/medya/);
   await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
   await expect(page.locator('.admin-stage')).toHaveCount(0);
-  await expect(page.getByText('Platform medya kaydı yok')).toBeVisible();
+  // Seeded suite has one ready platform image; empty copy is covered by HTTP when none exist.
+  await expect(page.getByText('Platform medya kaydı yok')).toHaveCount(0);
+  await expect(page.getByText('1 platform kaydı')).toBeVisible();
+  const inventory = page.locator('.admin-media-inventory-page__table');
+  await expect(inventory).toContainText('Görsel');
+  await expect(inventory).toContainText('2 KB');
+  await expect(inventory).toContainText('Yerel');
+  await expect(inventory).toContainText('Hazır');
+  await expect(page.getByText('browser-platform-secret-name.png')).toHaveCount(0);
+  await expect(page.getByText('browser-institution-secret.pdf')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Yükle|Sil|İndir/ })).toHaveCount(0);
 
   for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
     await page.setViewportSize(viewport);
     await page.goto('/yonetim/bolum/medya');
     await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
+    await expect(page.locator('.admin-media-inventory-page__table')).toContainText('Görsel');
+    await expect(page.locator('.admin-media-inventory-page__table')).toContainText('Hazır');
     await assertLayout(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow).toBe(false);
