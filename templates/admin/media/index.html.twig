@@ -1,0 +1,91 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Medya ve depolama — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-media-inventory-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Medya ve depolama</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Medya ve depolama</h1>
+                <p>Platform kapsamındaki kayıtlı medya varlıklarının salt okunur envanteri. Bu sayfa depoya bağlanmaz; Hazır yalnız kayıt durumudur.</p>
+            </div>
+        </header>
+
+        <section class="admin-section admin-media-inventory-page__summary" aria-labelledby="media-summary-heading">
+            <h2 id="media-summary-heading">Medya envanteri</h2>
+            <p class="admin-media-inventory-page__count" role="status">{{ total }} platform kaydı</p>
+        </section>
+
+        {% if rows is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Platform medya kaydı yok',
+                body: 'Platform kapsamında kayıtlı bir medya varlığı oluştuğunda burada görünür. Kurum kayıtları listelenmez.'
+            } %}
+        {% else %}
+            <section class="admin-section admin-media-inventory-page__list" aria-labelledby="media-list-heading">
+                <h2 id="media-list-heading">Kayıt listesi</h2>
+                <div class="admin-table-wrap" role="region" aria-label="Medya envanteri" tabindex="0">
+                    <table class="admin-table admin-media-inventory-page__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Tür</th>
+                                <th scope="col">Boyut</th>
+                                <th scope="col">Depolama</th>
+                                <th scope="col">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Tür</span>
+                                            <span class="admin-result-field__value">{{ row.kind_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Boyut</span>
+                                            <span class="admin-result-field__value">{{ row.byte_size_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Depolama</span>
+                                            <span class="admin-result-field__value">{{ row.storage_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Durum</span>
+                                            <span class="admin-status admin-status--{{ row.status_tone }}">
+                                                <span class="admin-status__dot" aria-hidden="true"></span>
+                                                <span>{{ row.status_label }}</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if last_page > 1 %}
+                    <nav class="admin-pagination" aria-label="Medya envanteri sayfaları">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_media_inventory', {page: page - 1}) }}">Önceki</a>
+                        {% endif %}
+                        <span>Sayfa {{ page }} / {{ last_page }}</span>
+                        {% if page < last_page %}
+                            <a href="{{ path('app_admin_media_inventory', {page: page + 1}) }}">Sonraki</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

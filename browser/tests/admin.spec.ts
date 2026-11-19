@@ -544,7 +544,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(documents).toContainText('PDF ve eğitim materyalleri.');
   await expect(documents).toContainText('Geliştirme aşamasında');
   await expect(mediaCard.locator('a[href="/yonetim/bolum/videolar"]')).toContainText('Ders ve anlatım videoları.');
-  await expect(mediaCard.locator('a[href="/yonetim/bolum/medya"]')).toContainText('Dosyalar ve depolama alanı.');
+  const storageCard = mediaCard.locator('a[href="/yonetim/bolum/medya"]');
+  await expect(storageCard).toContainText('Dosyalar ve depolama alanı.');
+  await expect(storageCard).toContainText('Çalışıyor');
+  await expect(storageCard).not.toContainText('Geliştirme aşamasında');
   await expect(learningCard.getByRole('link', { name: /Raporlar/ })).toContainText('Çalışıyor');
   await mediaCard.locator('summary').focus();
   await saPage.keyboard.press('Enter');
@@ -702,6 +705,39 @@ test('superadmin reports directory page', async ({ browser }, info) => {
       expect(['solid', 'auto']).toContain(focusStyle);
     }
     await shot(page, info, 'superadmin', 'raporlar', viewport.name);
+  }
+
+  await assertClean(page);
+  await sa.close();
+});
+
+test('superadmin media inventory page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const mediaNav = page.locator('#nav-group-media');
+  if ((await mediaNav.getAttribute('open')) === null) {
+    await mediaNav.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/medya"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/medya/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  await expect(page.getByText('Platform medya kaydı yok')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Yükle|Sil|İndir/ })).toHaveCount(0);
+
+  for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/medya');
+    await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    await shot(page, info, 'superadmin', 'medya-envanter', viewport.name);
   }
 
   await assertClean(page);

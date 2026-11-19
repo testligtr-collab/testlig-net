@@ -33,7 +33,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertStringContainsString('Ders ve anlatım videoları.', $mediaLinks->eq(1)->text());
         self::assertSame('/yonetim/bolum/medya', $mediaLinks->eq(2)->attr('href'));
         self::assertStringContainsString('Dosyalar ve depolama alanı.', $mediaLinks->eq(2)->text());
-        self::assertStringContainsString('Geliştirme aşamasında', $mediaLinks->eq(2)->text());
+        self::assertStringContainsString('Çalışıyor', $mediaLinks->eq(2)->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $mediaLinks->eq(2)->text());
         self::assertSame(0, $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-media-link')->count());
         self::assertSame(0, $client->getCrawler()->filter('article.admin-directory-card--media a.admin-mini-link')->count());
         $learningLinks = $client->getCrawler()->filter('article[aria-labelledby="nav-shortcut-learning"] a.admin-mini-link');
@@ -86,6 +87,13 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSelectorNotExists('.admin-stage');
         self::assertSelectorTextContains('body', 'Gösterilecek platform testi yok');
 
+        $client->request('GET', '/yonetim/bolum/medya');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSelectorTextContains('h1', 'Medya ve depolama');
+        self::assertSelectorNotExists('.admin-stage');
+        self::assertSelectorTextContains('body', 'Platform medya kaydı yok');
+
         $client->request('GET', '/yonetim/bolum/ogretmenler');
         self::assertResponseStatusCodeSame(404);
         $client->request('GET', '/yonetim/bolum/subeler');
@@ -129,6 +137,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSelectorNotExists('a[href="/yonetim/odemeler"]');
         self::assertSelectorNotExists('a[href="/yonetim/rol-yetkileri"]');
         $client->request('GET', '/yonetim/bolum/raporlar');
+        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', '/yonetim/bolum/medya');
         self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/ogretmenler');
         self::assertResponseIsSuccessful();

@@ -29,7 +29,6 @@ final class AdminSectionCatalog
     {
         return [
             self::entry('odevler', 'assignments', 'Ödev ve projeler', 'learning', 'Ödev ve proje vermek, teslim almak ve değerlendirmek.', ['Test ve öğrenme içeriği ayrı adreslerde yönetilir.'], ['Ödev, proje, teslim ve değerlendirme yoktur.'], 'Ödev akışı test ve içerik yayınından ayrı kurulacak.'),
-            self::entry('medya', 'storage', 'Medya ve depolama', 'media', 'Dosya envanterini ve depolama durumunu görmek.', ['Ders içeriğindeki PDF saklama mevcuttur.'], ['Medya envanteri, kota ve dosya yaşam döngüsü yoktur.', 'Haber görseli bu depoya bağlı değildir.'], 'Depolama yönetimi, mevcut PDF saklama bozulmadan eklenecek.'),
             self::entry('dokumanlar', 'documents', 'Dokümanlar', 'media', 'Bağımsız doküman kütüphanesini yönetmek.', ['Doküman, ders içeriğinin içindeki PDF blok olarak durur.'], ['Ayrı doküman kataloğu, inceleme kuyruğu ve yayın yoktur.'], 'Doküman kütüphanesi ders içeriğindeki PDF akışından ayrılacak.'),
             self::entry('videolar', 'videos', 'Videolar', 'media', 'Video kütüphanesini yönetmek.', ['YouTube ve Vimeo bağlantısı ders içeriğinin içinde kullanılabilir.'], ['Video kataloğu, dosya videosu ve yayın kuyruğu yoktur.'], 'Video kütüphanesi mevcut ders videosu akışını bozmadan eklenecek.'),
             self::entry('simulasyonlar', 'simulations', 'Simülasyonlar', 'interactive', 'Etkileşimli simülasyonları yayınlamak.', [], ['Simülasyon kataloğu, yayın ve öğrenci etkinliği yoktur.'], 'Simülasyonlar güvenli bir içerik modeli kurulunca eklenecek.'),
