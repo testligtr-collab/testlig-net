@@ -113,10 +113,14 @@ final class AdminMediaInventoryTest extends WebTestCase
         ] as $privateValue) {
             self::assertStringNotContainsString($privateValue, $html);
         }
-        self::assertStringNotContainsString('Yükle', $html);
-        self::assertStringNotContainsString('Sil', $html);
-        self::assertSelectorNotExists('form');
-        self::assertSelectorNotExists('button');
+        $page = $crawler->filter('.admin-media-inventory-page');
+        self::assertGreaterThanOrEqual(1, $page->count());
+        $pageHtml = $page->html();
+        self::assertStringNotContainsString('Yükle', $pageHtml);
+        self::assertStringNotContainsString('Sil', $pageHtml);
+        // Layout logout may submit; the inventory shell itself must stay read-only.
+        self::assertSelectorNotExists('.admin-media-inventory-page form');
+        self::assertSelectorNotExists('.admin-media-inventory-page button');
     }
 
     public function testEmptyStateAndAccessGates(): void
