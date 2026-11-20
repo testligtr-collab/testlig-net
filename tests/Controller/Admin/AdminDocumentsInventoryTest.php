@@ -43,10 +43,14 @@ final class AdminDocumentsInventoryTest extends WebTestCase
     public function testSuperAdminSeesOnlyPlatformLinkedSafeFields(): void
     {
         $this->cleanupDocumentAssets();
-        $sa = $this->activeUser('docs-inv-sa@example.com', UserRole::SuperAdmin);
-        $admin = $this->activeUser('docs-inv-admin@example.com', UserRole::Admin);
-        $teacher = $this->activeUser('docs-inv-teacher@example.com', UserRole::Teacher);
-        $owner = $this->activeUser('docs-inv-owner@example.com', UserRole::InstitutionManager);
+        // One kernel for all fixtures: LearningDocumentManager::receive persists createdBy
+        // and rejects a User from a shut-down EntityManager as "Doküman kaydedilemedi."
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $sa = $this->persistUser('docs-inv-sa@example.com', UserRole::SuperAdmin);
+        $admin = $this->persistUser('docs-inv-admin@example.com', UserRole::Admin);
+        $teacher = $this->persistUser('docs-inv-teacher@example.com', UserRole::Teacher);
+        $owner = $this->persistUser('docs-inv-owner@example.com', UserRole::InstitutionManager);
 
         [$subject, $outcome] = $this->seedCurriculum($sa, 'docs_inv');
         $institutions = static::getContainer()->get(InstitutionCreator::class);
@@ -252,7 +256,8 @@ final class AdminDocumentsInventoryTest extends WebTestCase
 
     private function receivePdf(LearningDocumentManager $documents, User $actor, string $name): LearningDocumentAsset
     {
-        $path = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'docs-inv-'.bin2hex(random_bytes(4)).'.pdf';
+        $path = tempnam(sys_get_temp_dir(), 'pdf');
+        self::assertNotFalse($path);
         file_put_contents($path, "%PDF-1.4\n".$name."\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
         $file = new UploadedFile($path, $name, 'application/pdf', \UPLOAD_ERR_OK, true);
 
@@ -305,6 +310,12 @@ final class AdminDocumentsInventoryTest extends WebTestCase
     {
         self::ensureKernelShutdown();
         self::bootKernel();
+
+        return $this->persistUser($email, $role);
+    }
+
+    private function persistUser(string $email, UserRole $role): User
+    {
         $factory = static::getContainer()->get(UserFactory::class);
         self::assertInstanceOf(UserFactory::class, $factory);
         $initial = $role->isPrivilegedBootstrapRole() ? UserRole::Teacher : $role;
