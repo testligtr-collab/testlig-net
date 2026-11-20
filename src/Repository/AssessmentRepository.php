@@ -196,6 +196,55 @@ class AssessmentRepository extends ServiceEntityRepository
         }
     }
 
+    /**
+     * Platform assessments that the admin result report screen can open.
+     * Institution assessments are excluded in the query, not in Twig.
+     */
+    public function countPlatformForAdminReports(): int
+    {
+        return (int) $this->createQueryBuilder('assessment')
+            ->select('COUNT(assessment.id)')
+            ->andWhere('assessment.scope = :scope')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Title resolution matches the admin result screen: published, else current.
+     *
+     * @return list<array{id: string, title: string}>
+     */
+    public function listPlatformForAdminReports(int $offset, int $limit): array
+    {
+        /** @var list<Assessment> $assessments */
+        $assessments = $this->createQueryBuilder('assessment')
+            ->leftJoin('assessment.publishedRevision', 'publishedRevision')
+            ->addSelect('publishedRevision')
+            ->leftJoin('assessment.currentRevision', 'currentRevision')
+            ->addSelect('currentRevision')
+            ->andWhere('assessment.scope = :scope')
+            ->setParameter('scope', AssessmentScope::Platform)
+            ->orderBy('assessment.updatedAt', 'DESC')
+            ->addOrderBy('assessment.id', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        $out = [];
+        foreach ($assessments as $assessment) {
+            $out[] = [
+                'id' => $assessment->getId()->toRfc4122(),
+                'title' => $assessment->getPublishedRevision()?->getTitle()
+                    ?? $assessment->getCurrentRevision()?->getTitle()
+                    ?? '',
+            ];
+        }
+
+        return $out;
+    }
+
     private function platformVisibleQuery(User $actor, bool $seeAll): QueryBuilder
     {
         $qb = $this->createQueryBuilder('a')

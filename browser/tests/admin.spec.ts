@@ -544,7 +544,11 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(documents).toContainText('PDF ve eğitim materyalleri.');
   await expect(documents).toContainText('Geliştirme aşamasında');
   await expect(mediaCard.locator('a[href="/yonetim/bolum/videolar"]')).toContainText('Ders ve anlatım videoları.');
-  await expect(mediaCard.locator('a[href="/yonetim/bolum/medya"]')).toContainText('Dosyalar ve depolama alanı.');
+  const storageCard = mediaCard.locator('a[href="/yonetim/bolum/medya"]');
+  await expect(storageCard).toContainText('Dosyalar ve depolama alanı.');
+  await expect(storageCard).toContainText('Çalışıyor');
+  await expect(storageCard).not.toContainText('Geliştirme aşamasında');
+  await expect(learningCard.getByRole('link', { name: /Raporlar/ })).toContainText('Çalışıyor');
   await mediaCard.locator('summary').focus();
   await saPage.keyboard.press('Enter');
   await expect(mediaDetails).toHaveJSProperty('open', false);
@@ -666,6 +670,95 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await assertLayout(saPage);
   await shot(saPage, info, 'superadmin', 'denetim', '1280');
   await assertClean(saPage);
+  await sa.close();
+});
+
+test('superadmin reports directory page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const learning = page.locator('#nav-group-learning');
+  if ((await learning.getAttribute('open')) === null) {
+    await learning.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/raporlar"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/raporlar/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  // Seeded suite has platform assessments; empty copy is covered by HTTP when none exist.
+  await expect(page.getByText('Gösterilecek platform testi yok')).toHaveCount(0);
+  await expect(page.locator('.admin-reports-page__table')).toContainText('Toplama testi');
+  const openResults = page.getByRole('link', { name: 'Toplama testi sonuçlarını aç' });
+  await expect(openResults).toBeVisible();
+  const openBox = await openResults.boundingBox();
+  expect(openBox && openBox.height >= 44).toBeTruthy();
+
+  for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/raporlar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Raporlar' })).toBeVisible();
+    await expect(page.locator('.admin-reports-page__table')).toContainText('Toplama testi');
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    const focusTarget = page.locator('.admin-reports-page a, .admin-reports-page [tabindex="0"]').first();
+    if (await focusTarget.count()) {
+      await focusTarget.focus();
+      const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
+      expect(['solid', 'auto']).toContain(focusStyle);
+    }
+    await shot(page, info, 'superadmin', 'raporlar', viewport.name);
+  }
+
+  await assertClean(page);
+  await sa.close();
+});
+
+test('superadmin media inventory page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const mediaNav = page.locator('#nav-group-media');
+  if ((await mediaNav.getAttribute('open')) === null) {
+    await mediaNav.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/medya"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/medya/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  // Seeded suite has one ready platform image; empty copy is covered by HTTP when none exist.
+  await expect(page.getByText('Platform medya kaydı yok')).toHaveCount(0);
+  await expect(page.getByText('1 platform kaydı')).toBeVisible();
+  const inventory = page.locator('.admin-media-inventory-page__table');
+  await expect(inventory).toContainText('Görsel');
+  await expect(inventory).toContainText('2 KB');
+  await expect(inventory).toContainText('Yerel');
+  await expect(inventory).toContainText('Hazır');
+  await expect(page.getByText('browser-platform-secret-name.png')).toHaveCount(0);
+  await expect(page.getByText('browser-institution-secret.pdf')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Yükle|Sil|İndir/ })).toHaveCount(0);
+
+  for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/medya');
+    await expect(page.getByRole('heading', { level: 1, name: 'Medya ve depolama' })).toBeVisible();
+    await expect(page.locator('.admin-media-inventory-page__table')).toContainText('Görsel');
+    await expect(page.locator('.admin-media-inventory-page__table')).toContainText('Hazır');
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    await shot(page, info, 'superadmin', 'medya-envanter', viewport.name);
+  }
+
+  await assertClean(page);
   await sa.close();
 });
 

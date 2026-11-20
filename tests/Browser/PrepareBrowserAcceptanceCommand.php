@@ -30,6 +30,10 @@ use App\Enum\QuestionScope;
 use App\Enum\QuestionType;
 use App\Enum\ResourceAccessClass;
 use App\Enum\ResultReleasePolicy;
+use App\Enum\StoredMediaAssetKind;
+use App\Enum\StoredMediaAssetScope;
+use App\Enum\StoredMediaScanStatus;
+use App\Enum\StoredMediaStorageProvider;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
@@ -64,6 +68,7 @@ use App\Service\LearningContentManager;
 use App\Service\LearningDocumentManager;
 use App\Service\ParentStudentLinkCodeManager;
 use App\Service\QuestionManager;
+use App\Service\StoredMediaAssetManager;
 use App\Service\StudentAssessmentPractice;
 use App\Service\StudentProfileManager;
 use App\Service\SubjectManager;
@@ -143,6 +148,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserReconciliationDetailSeeder $reconciliationDetailSeeder,
         private readonly BrowserAuditListSeeder $auditListSeeder,
         private readonly BrowserAccountSummarySeeder $accountSummarySeeder,
+        private readonly StoredMediaAssetManager $storedMedia,
     ) {
         parent::__construct();
     }
@@ -907,6 +913,36 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $auditScreens = $this->auditListSeeder->seed($superAdmin, $subject);
         // Account summary uses a separate institution so shared classroom counts stay stable.
         $accountScreens = $this->accountSummarySeeder->seed($superAdmin);
+
+        // Platform media inventory row for admin Medya screenshots (test env only).
+        $platformMediaSecretName = 'browser-platform-secret-name.png';
+        $platformMedia = $this->storedMedia->registerMetadata(
+            $superAdmin,
+            StoredMediaAssetScope::Platform,
+            null,
+            StoredMediaAssetKind::Image,
+            StoredMediaStorageProvider::Local,
+            $platformMediaSecretName,
+            'image/png',
+            2048,
+            str_repeat('ab', 32),
+            'browser_reg_platform_media',
+        );
+        $this->storedMedia->markScanStatus($platformMedia, $superAdmin, StoredMediaScanStatus::Clean, 'browser_scan_platform_media');
+        $this->storedMedia->markReady($platformMedia, $superAdmin, 'browser_ready_platform_media');
+        // Institution media must stay off the platform inventory screenshots.
+        $this->storedMedia->registerMetadata(
+            $owner,
+            StoredMediaAssetScope::Institution,
+            $institution,
+            StoredMediaAssetKind::Document,
+            StoredMediaStorageProvider::Local,
+            'browser-institution-secret.pdf',
+            'application/pdf',
+            4096,
+            str_repeat('cd', 32),
+            'browser_reg_institution_media',
+        );
 
         $manifest = [
             'password' => self::PASSWORD,
