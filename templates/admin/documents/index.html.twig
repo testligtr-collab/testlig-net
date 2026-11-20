@@ -1,0 +1,91 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Dokümanlar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-documents-inventory-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Dokümanlar</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Dokümanlar</h1>
+                <p>Yalnız platform ders içeriğine bağlı doküman kayıtları listelenir. Kurum içeriği ve bağımsız dosya kayıtları burada yer almaz.</p>
+            </div>
+        </header>
+
+        <section class="admin-section admin-documents-inventory-page__summary" aria-labelledby="documents-summary-heading">
+            <h2 id="documents-summary-heading">Doküman envanteri</h2>
+            <p class="admin-documents-inventory-page__count" role="status">{{ total }} kayıt</p>
+        </section>
+
+        {% if rows is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Gösterilecek platform dokümanı yok',
+                body: 'Platform ders içeriğinin güncel sürümüne bağlı bir PDF olduğunda burada görünür. Kurum kayıtları ve içeriğe bağlanmamış dosyalar listelenmez.'
+            } %}
+        {% else %}
+            <section class="admin-section admin-documents-inventory-page__list" aria-labelledby="documents-list-heading">
+                <h2 id="documents-list-heading">Kayıt listesi</h2>
+                <div class="admin-table-wrap" role="region" aria-label="Doküman envanteri" tabindex="0">
+                    <table class="admin-table admin-documents-inventory-page__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">İçerik</th>
+                                <th scope="col">Tür</th>
+                                <th scope="col">Boyut</th>
+                                <th scope="col">Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">İçerik</span>
+                                            <a class="admin-documents-inventory-page__open" href="{{ path('app_admin_learning_content', {id: row.content_id}) }}">{{ row.content_title }}</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Tür</span>
+                                            <span class="admin-result-field__value">{{ row.kind_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Boyut</span>
+                                            <span class="admin-result-field__value">{{ row.byte_size_label }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Durum</span>
+                                            <span class="admin-status admin-status--{{ row.status_tone }}">
+                                                <span class="admin-status__dot" aria-hidden="true"></span>
+                                                <span>{{ row.status_label }}</span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if last_page > 1 %}
+                    <nav class="admin-pagination" aria-label="Doküman envanteri sayfaları">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_documents_inventory', {page: page - 1}) }}">Önceki</a>
+                        {% endif %}
+                        <span>Sayfa {{ page }} / {{ last_page }}</span>
+                        {% if page < last_page %}
+                            <a href="{{ path('app_admin_documents_inventory', {page: page + 1}) }}">Sonraki</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}

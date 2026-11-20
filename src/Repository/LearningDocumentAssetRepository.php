@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\LearningContent;
 use App\Entity\LearningDocumentAsset;
 use App\Entity\User;
+use App\Enum\LearningContentScope;
 use App\Enum\LearningDocumentStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -73,6 +75,106 @@ class LearningDocumentAssetRepository extends ServiceEntityRepository
 
         /** @var list<LearningDocumentAsset> $rows */
         $rows = $qb->getQuery()->getResult();
+
+        return $rows;
+    }
+
+    public function countPlatformLinkedForAdminDocuments(): int
+    {
+        return \count($this->platformLinkedInventoryRows());
+    }
+
+    /**
+     * Platform LearningContent current-revision document blocks only.
+     *
+     * @return list<array{
+     *     content_id: string,
+     *     content_title: string,
+     *     media_type: string,
+     *     byte_size: int,
+     *     status: string
+     * }>
+     */
+    public function listPlatformLinkedForAdminDocuments(int $offset, int $limit): array
+    {
+        $rows = $this->platformLinkedInventoryRows();
+        if ($offset < 0) {
+            $offset = 0;
+        }
+        if ($limit < 1) {
+            return [];
+        }
+
+        return \array_slice($rows, $offset, $limit);
+    }
+
+    /**
+     * Two queries: platform contents with current revision, then batch asset hydrate.
+     *
+     * @return list<array{
+     *     content_id: string,
+     *     content_title: string,
+     *     media_type: string,
+     *     byte_size: int,
+     *     status: string
+     * }>
+     */
+    private function platformLinkedInventoryRows(): array
+    {
+        /** @var list<LearningContent> $contents */
+        $contents = $this->getEntityManager()->createQueryBuilder()
+            ->select('content', 'revision')
+            ->from(LearningContent::class, 'content')
+            ->innerJoin('content.currentRevision', 'revision')
+            ->andWhere('content.scope = :scope')
+            ->setParameter('scope', LearningContentScope::Platform)
+            ->orderBy('content.updatedAt', 'DESC')
+            ->addOrderBy('content.id', 'DESC')
+            ->getQuery()
+            ->getResult();
+
+        /** @var list<array{content: LearningContent, asset_id: string}> $pairs */
+        $pairs = [];
+        /** @var list<Uuid> $assetIds */
+        $assetIds = [];
+        foreach ($contents as $content) {
+            $revision = $content->getCurrentRevision();
+            if (null === $revision) {
+                continue;
+            }
+            $blocks = $revision->getStructuredContent()['blocks'] ?? [];
+            if (!\is_array($blocks)) {
+                continue;
+            }
+            foreach ($blocks as $block) {
+                if (!\is_array($block) || 'document' !== ($block['type'] ?? null)) {
+                    continue;
+                }
+                $assetId = $block['assetId'] ?? null;
+                if (!\is_string($assetId) || !Uuid::isValid($assetId)) {
+                    continue;
+                }
+                $pairs[] = ['content' => $content, 'asset_id' => $assetId];
+                $assetIds[] = Uuid::fromString($assetId);
+            }
+        }
+
+        $assets = $this->findMappedByIds($assetIds);
+        $rows = [];
+        foreach ($pairs as $pair) {
+            $asset = $assets[$pair['asset_id']] ?? null;
+            if (!$asset instanceof LearningDocumentAsset) {
+                continue;
+            }
+            $title = trim($pair['content']->getTitle());
+            $rows[] = [
+                'content_id' => $pair['content']->getId()->toRfc4122(),
+                'content_title' => '' !== $title ? $title : 'Başlıksız içerik',
+                'media_type' => $asset->getMediaType(),
+                'byte_size' => $asset->getByteSize(),
+                'status' => $asset->getStatus()->value,
+            ];
+        }
 
         return $rows;
     }

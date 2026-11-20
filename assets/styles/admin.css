@@ -7222,23 +7222,27 @@ body.is-admin-panel {
     }
 }
 
-/* Admin reports directory (X10 + M13 read links). Scoped; no global table/card rewrite. */
+/* Admin reports / media / documents inventories (X10). Scoped; no global table/card rewrite. */
 .is-admin-panel .admin-reports-page__count,
-.is-admin-panel .admin-media-inventory-page__count {
+.is-admin-panel .admin-media-inventory-page__count,
+.is-admin-panel .admin-documents-inventory-page__count {
     margin: 0 0 0.85rem;
     color: #52667d;
     font-size: 0.92rem;
     font-weight: 650;
 }
 .is-admin-panel .admin-reports-page .admin-table-wrap,
-.is-admin-panel .admin-media-inventory-page .admin-table-wrap {
+.is-admin-panel .admin-media-inventory-page .admin-table-wrap,
+.is-admin-panel .admin-documents-inventory-page .admin-table-wrap {
     overflow-x: auto;
 }
 .is-admin-panel .admin-reports-page td,
-.is-admin-panel .admin-media-inventory-page td {
+.is-admin-panel .admin-media-inventory-page td,
+.is-admin-panel .admin-documents-inventory-page td {
     overflow-wrap: anywhere;
 }
-.is-admin-panel .admin-reports-page__open {
+.is-admin-panel .admin-reports-page__open,
+.is-admin-panel .admin-documents-inventory-page__open {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
@@ -7250,14 +7254,19 @@ body.is-admin-panel {
 }
 .is-admin-panel .admin-reports-page__open:focus-visible,
 .is-admin-panel .admin-reports-page .admin-pagination a:focus-visible,
-.is-admin-panel .admin-media-inventory-page .admin-pagination a:focus-visible {
+.is-admin-panel .admin-media-inventory-page .admin-pagination a:focus-visible,
+.is-admin-panel .admin-documents-inventory-page__open:focus-visible,
+.is-admin-panel .admin-documents-inventory-page .admin-pagination a:focus-visible,
+.is-admin-panel .admin-documents-inventory-page .admin-table-wrap:focus-visible {
     outline: 3px solid #0b7a6e;
     outline-offset: 2px;
 }
-.is-admin-panel .admin-media-inventory-page__summary {
+.is-admin-panel .admin-media-inventory-page__summary,
+.is-admin-panel .admin-documents-inventory-page__summary {
     margin-bottom: 1rem;
 }
-.is-admin-panel .admin-media-inventory-page .admin-status {
+.is-admin-panel .admin-media-inventory-page .admin-status,
+.is-admin-panel .admin-documents-inventory-page .admin-status {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -7268,7 +7277,8 @@ body.is-admin-panel {
 }
 @media (max-width: 767px) {
     .is-admin-panel .admin-reports-page__table thead,
-    .is-admin-panel .admin-media-inventory-page__table thead {
+    .is-admin-panel .admin-media-inventory-page__table thead,
+    .is-admin-panel .admin-documents-inventory-page__table thead {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -7286,12 +7296,17 @@ body.is-admin-panel {
     .is-admin-panel .admin-media-inventory-page__table,
     .is-admin-panel .admin-media-inventory-page__table tbody,
     .is-admin-panel .admin-media-inventory-page__table tr,
-    .is-admin-panel .admin-media-inventory-page__table td {
+    .is-admin-panel .admin-media-inventory-page__table td,
+    .is-admin-panel .admin-documents-inventory-page__table,
+    .is-admin-panel .admin-documents-inventory-page__table tbody,
+    .is-admin-panel .admin-documents-inventory-page__table tr,
+    .is-admin-panel .admin-documents-inventory-page__table td {
         display: block;
         width: 100%;
     }
     .is-admin-panel .admin-reports-page__table tr,
-    .is-admin-panel .admin-media-inventory-page__table tr {
+    .is-admin-panel .admin-media-inventory-page__table tr,
+    .is-admin-panel .admin-documents-inventory-page__table tr {
         margin: 0 0 0.85rem;
         padding: 0.85rem 1rem;
         border: 1px solid #d7e3ef;
@@ -7299,18 +7314,21 @@ body.is-admin-panel {
         background: #fff;
     }
     .is-admin-panel .admin-reports-page__table td,
-    .is-admin-panel .admin-media-inventory-page__table td {
+    .is-admin-panel .admin-media-inventory-page__table td,
+    .is-admin-panel .admin-documents-inventory-page__table td {
         padding: 0.35rem 0;
         border: 0;
     }
     .is-admin-panel .admin-reports-page .admin-result-field__label,
-    .is-admin-panel .admin-media-inventory-page .admin-result-field__label {
+    .is-admin-panel .admin-media-inventory-page .admin-result-field__label,
+    .is-admin-panel .admin-documents-inventory-page .admin-result-field__label {
         display: block;
     }
 }
 @media (min-width: 768px) {
     .is-admin-panel .admin-reports-page .admin-result-field__label,
-    .is-admin-panel .admin-media-inventory-page .admin-result-field__label {
+    .is-admin-panel .admin-media-inventory-page .admin-result-field__label,
+    .is-admin-panel .admin-documents-inventory-page .admin-result-field__label {
         position: absolute;
         width: 1px;
         height: 1px;
