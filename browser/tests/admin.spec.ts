@@ -544,7 +544,10 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
   await expect(documents).toContainText('PDF ve eğitim materyalleri.');
   await expect(documents).toContainText('Çalışıyor');
   await expect(documents).not.toContainText('Geliştirme aşamasında');
-  await expect(mediaCard.locator('a[href="/yonetim/bolum/videolar"]')).toContainText('Ders ve anlatım videoları.');
+  const videosCard = mediaCard.locator('a[href="/yonetim/bolum/videolar"]');
+  await expect(videosCard).toContainText('Ders ve anlatım videoları.');
+  await expect(videosCard).toContainText('Çalışıyor');
+  await expect(videosCard).not.toContainText('Geliştirme aşamasında');
   const storageCard = mediaCard.locator('a[href="/yonetim/bolum/medya"]');
   await expect(storageCard).toContainText('Dosyalar ve depolama alanı.');
   await expect(storageCard).toContainText('Çalışıyor');
@@ -807,6 +810,59 @@ test('superadmin documents inventory page', async ({ browser }, info) => {
       expect(['solid', 'auto']).toContain(focusStyle);
     }
     await shot(page, info, 'superadmin', 'dokumanlar', viewport.name);
+  }
+
+  await assertClean(page);
+  await sa.close();
+});
+
+test('superadmin videos inventory page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const mediaNav = page.locator('#nav-group-media');
+  if ((await mediaNav.getAttribute('open')) === null) {
+    await mediaNav.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/videolar"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/videolar/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Videolar' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  // Seeded suite links youtube BrowserVid1 + vimeo into platform content "Toplama anlatimi".
+  await expect(page.getByText('Gösterilecek platform videosu yok')).toHaveCount(0);
+  await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Toplama anlatimi');
+  await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('YouTube');
+  await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Vimeo');
+  const openContent = page.getByRole('link', { name: 'Toplama anlatimi' }).first();
+  await expect(openContent).toBeVisible();
+  const openBox = await openContent.boundingBox();
+  expect(openBox && openBox.height >= 44).toBeTruthy();
+  await expect(page.getByText('BrowserVid1')).toHaveCount(0);
+  await expect(page.getByText('246813579')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Yükle|Sil/ })).toHaveCount(0);
+  await expect(page.locator('.admin-videos-inventory-page iframe')).toHaveCount(0);
+
+  for (const viewport of [...NEWS_VIEWPORTS, { name: '1440', width: 1440, height: 900 }, { name: '1920', width: 1920, height: 1080 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/videolar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Videolar' })).toBeVisible();
+    await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Toplama anlatimi');
+    await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('YouTube');
+    await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Vimeo');
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    const focusTarget = page.locator('.admin-videos-inventory-page a, .admin-videos-inventory-page [tabindex="0"]').first();
+    if (await focusTarget.count()) {
+      await focusTarget.focus();
+      const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
+      expect(['solid', 'auto']).toContain(focusStyle);
+    }
+    await shot(page, info, 'superadmin', 'videolar', viewport.name);
   }
 
   await assertClean(page);

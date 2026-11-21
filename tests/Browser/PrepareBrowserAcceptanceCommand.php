@@ -1423,6 +1423,13 @@ final class PrepareBrowserAcceptanceCommand extends Command
                     'title' => 'Konu videosu',
                     'description' => 'Kisa aciklama',
                 ],
+                [
+                    'type' => 'video',
+                    'provider' => 'vimeo',
+                    'providerVideoId' => '246813579',
+                    'title' => 'Konu vimeo',
+                    'description' => '',
+                ],
                 ['type' => 'document', 'assetId' => $assetId, 'label' => 'Calisma notu'],
             ],
         ]);
