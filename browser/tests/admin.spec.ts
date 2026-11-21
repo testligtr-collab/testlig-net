@@ -570,7 +570,8 @@ test('admin and superadmin menus stay inside their roles', async ({ browser }, i
     await saPage.setViewportSize(viewport);
     await saPage.goto('/yonetim/bolum/simulasyonlar');
     await expect(saPage.getByRole('heading', { level: 1, name: 'Simülasyonlar' })).toBeVisible();
-    await expect(saPage.getByText('Geliştirme aşamasında').first()).toBeVisible();
+    await expect(saPage.locator('.admin-stage')).toHaveCount(0);
+    await expect(saPage.locator('.admin-simulations-drafts-page')).toBeVisible();
     await assertLayout(saPage);
     await shot(saPage, info, 'superadmin', 'bolum', viewport.name);
   }
@@ -866,6 +867,72 @@ test('superadmin videos inventory page', async ({ browser }, info) => {
     const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
     expect(['solid', 'auto']).toContain(focusStyle);
     await shot(page, info, 'superadmin', 'videolar', viewport.name);
+  }
+
+  await assertClean(page);
+  await sa.close();
+});
+
+test('superadmin simulations drafts page', async ({ browser }, info) => {
+  const data = manifest();
+  const sa = await browser.newContext();
+  const page = await sa.newPage();
+  installVideoAbort(page);
+  await watch(page);
+  await login(page, data.users.superadmin);
+
+  const interactive = page.locator('#nav-group-interactive');
+  if ((await interactive.getAttribute('open')) === null) {
+    await interactive.locator('summary').click();
+  }
+  await page.locator('#panel-sidebar a[href="/yonetim/bolum/simulasyonlar"]').click();
+  await expect(page).toHaveURL(/\/yonetim\/bolum\/simulasyonlar/);
+  await expect(page.getByRole('heading', { level: 1, name: 'Simülasyonlar' })).toBeVisible();
+  await expect(page.locator('.admin-stage')).toHaveCount(0);
+  // Seeded suite has one platform simulation draft; empty copy is covered by HTTP when none exist.
+  await expect(page.getByText('Gösterilecek simülasyon taslağı yok')).toHaveCount(0);
+  const longTitle = 'Tarayici Simülasyon Taslagi Uzun Baslik Durum Etiketiyle Carpismaz Ve Dar Ekranda Kendi Alaninda Sarilir';
+  await expect(page.locator('.admin-simulations-drafts-page__table')).toContainText(longTitle);
+  const openDraft = page.getByRole('link', { name: longTitle });
+  await expect(openDraft).toHaveCount(1);
+  await expect(openDraft).toBeVisible();
+  const openBox = await openDraft.boundingBox();
+  expect(openBox && openBox.height >= 44).toBeTruthy();
+  await expect(page.getByRole('link', { name: 'Yeni taslak' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Yükle|Yayınla|Skor/ })).toHaveCount(0);
+  await expect(page.locator('.admin-simulations-drafts-page iframe')).toHaveCount(0);
+
+  for (const viewport of [{ name: '390', width: 390, height: 844 }, { name: '1280', width: 1280, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/yonetim/bolum/simulasyonlar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Simülasyonlar' })).toBeVisible();
+    await expect(page.locator('.admin-simulations-drafts-page__table')).toContainText(longTitle);
+    await assertLayout(page);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(overflow).toBe(false);
+    const titleLink = page.getByRole('link', { name: longTitle });
+    await titleLink.focus();
+    const focusStyle = await titleLink.evaluate((node) => getComputedStyle(node).outlineStyle);
+    expect(['solid', 'auto']).toContain(focusStyle);
+    const titleWrap = await titleLink.evaluate((node) => {
+      const style = getComputedStyle(node);
+      return {
+        overflowX: style.overflowX,
+        whiteSpace: style.whiteSpace,
+        scrollWider: node.scrollWidth > node.clientWidth + 1,
+      };
+    });
+    expect(titleWrap.whiteSpace === 'nowrap').toBe(false);
+    expect(titleWrap.scrollWider).toBe(false);
+    await shot(page, info, 'superadmin', 'simulasyonlar', viewport.name);
+
+    await page.goto('/yonetim/bolum/simulasyonlar/yeni');
+    await expect(page.getByRole('heading', { level: 1, name: 'Yeni simülasyon taslağı' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Taslak oluştur' })).toBeVisible();
+    await assertLayout(page);
+    const formOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
+    expect(formOverflow).toBe(false);
+    await shot(page, info, 'superadmin', 'simulasyonlar-yeni', viewport.name);
   }
 
   await assertClean(page);

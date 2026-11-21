@@ -252,8 +252,10 @@ final class AdminLearningContentController extends AdminBaseController
                 'has_published_placement' => $hasPublishedPlacement,
                 'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE)
                     || $this->isGranted(LearningContentPermission::MANAGE, $content),
-                'can_submit_review' => $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
-                'can_publish' => $this->isGranted(LearningContentPermission::PUBLISH, $content),
+                'can_submit_review' => LearningContentType::Simulation !== $content->getContentType()
+                    && $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
+                'can_publish' => LearningContentType::Simulation !== $content->getContentType()
+                    && $this->isGranted(LearningContentPermission::PUBLISH, $content),
                 'can_set_policy' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
                 'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
                     && LearningContentStatus::Archived !== $content->getStatus(),
@@ -268,9 +270,11 @@ final class AdminLearningContentController extends AdminBaseController
             'reason_placement_archive' => ContentWorkflowReason::PLACEMENT_ARCHIVE,
             'can_manage' => $this->isGranted(AdminPermission::ADMIN_LEARNING_CONTENT_MANAGE),
             'can_set_policy' => $this->isGranted(AdminPermission::ADMIN_CATALOG_MAP_CANONICAL),
-            'can_submit_review' => $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
+            'can_submit_review' => LearningContentType::Simulation !== $content->getContentType()
+                && $this->isGranted(LearningContentPermission::SUBMIT_REVIEW, $content),
             'can_return_draft' => $this->isGranted(LearningContentPermission::RETURN_DRAFT, $content),
-            'can_publish' => $this->isGranted(LearningContentPermission::PUBLISH, $content),
+            'can_publish' => LearningContentType::Simulation !== $content->getContentType()
+                && $this->isGranted(LearningContentPermission::PUBLISH, $content),
             'can_archive' => $this->isGranted(LearningContentPermission::ARCHIVE, $content),
             'can_create_placement' => $this->isGranted(CatalogTopicLessonPermission::CREATE)
                 && LearningContentStatus::Archived !== $content->getStatus(),

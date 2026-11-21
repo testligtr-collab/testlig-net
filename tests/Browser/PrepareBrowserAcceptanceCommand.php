@@ -257,6 +257,22 @@ final class PrepareBrowserAcceptanceCommand extends Command
             'browser_videos_inventory',
         );
 
+        // Platform simulation draft for Admin Simülasyonlar list (no motor/publish).
+        $this->contents->createDraft(
+            $admin,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::Simulation,
+            'browser_simulations_draft',
+            'Tarayici Simülasyon Taslagi Uzun Baslik Durum Etiketiyle Carpismaz Ve Dar Ekranda Kendi Alaninda Sarilir',
+            null,
+            LearningContentDocument::paragraph('Simülasyon taslağı.'),
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            'browser_simulations_draft',
+        );
+
         $draft = $this->contents->createDraft(
             $teacher,
             LearningContentScope::Platform,

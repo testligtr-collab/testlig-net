@@ -136,6 +136,7 @@ final class AdminNavBuilder
             $items[] = $this->item('documents', 'Dokümanlar', 'app_admin_documents_inventory', $currentPath, null, false, 'media_pdf');
             $items[] = $this->item('videos', 'Videolar', 'app_admin_videos_inventory', $currentPath, null, false, 'media_play');
             $items[] = $this->item('storage', 'Medya ve depolama', 'app_admin_media_inventory', $currentPath, null, false, 'media_cloud');
+            $items[] = $this->item('simulations', 'Simülasyonlar', 'app_admin_simulations', $currentPath, null, false, 'questions');
             foreach (AdminSectionCatalog::all() as $section) {
                 $items[] = $this->plannedItem($section['id'], $section['label'], $section['key'], $currentPath);
             }

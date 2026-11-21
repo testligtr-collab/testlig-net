@@ -8,6 +8,7 @@ use App\Entity\LearningContent;
 use App\Entity\Subject;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentStatus;
+use App\Enum\LearningContentType;
 use App\LearningContent\Document\VideoUrlParser;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -75,6 +76,66 @@ class LearningContentRepository extends ServiceEntityRepository
         if ($flush) {
             $this->getEntityManager()->flush();
         }
+    }
+
+    public function countPlatformSimulationDraftsForAdmin(): int
+    {
+        return (int) $this->createQueryBuilder('content')
+            ->select('COUNT(content.id)')
+            ->andWhere('content.scope = :scope')
+            ->andWhere('content.contentType = :type')
+            ->andWhere('content.status = :status')
+            ->setParameter('scope', LearningContentScope::Platform)
+            ->setParameter('type', LearningContentType::Simulation)
+            ->setParameter('status', LearningContentStatus::Draft)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Platform simulation drafts only (no institution scope).
+     *
+     * @return list<array{content_id: string, content_title: string, subject_name: string, updated_at: \DateTimeImmutable}>
+     */
+    public function listPlatformSimulationDraftsForAdmin(int $offset, int $limit): array
+    {
+        if ($offset < 0) {
+            $offset = 0;
+        }
+        if ($limit < 1) {
+            return [];
+        }
+
+        /** @var list<LearningContent> $contents */
+        $contents = $this->createQueryBuilder('content')
+            ->select('content', 'subject')
+            ->innerJoin('content.subject', 'subject')
+            ->andWhere('content.scope = :scope')
+            ->andWhere('content.contentType = :type')
+            ->andWhere('content.status = :status')
+            ->setParameter('scope', LearningContentScope::Platform)
+            ->setParameter('type', LearningContentType::Simulation)
+            ->setParameter('status', LearningContentStatus::Draft)
+            ->orderBy('content.updatedAt', 'DESC')
+            ->addOrderBy('content.id', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+
+        $rows = [];
+        foreach ($contents as $content) {
+            $title = trim($content->getTitle());
+            $subjectName = trim($content->getSubject()->getName());
+            $rows[] = [
+                'content_id' => $content->getId()->toRfc4122(),
+                'content_title' => '' !== $title ? $title : 'Başlıksız içerik',
+                'subject_name' => '' !== $subjectName ? $subjectName : 'Ders yok',
+                'updated_at' => $content->getUpdatedAt(),
+            ];
+        }
+
+        return $rows;
     }
 
     public function countPlatformLinkedVideosForAdmin(): int

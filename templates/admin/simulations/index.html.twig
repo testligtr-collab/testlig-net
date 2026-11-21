@@ -1,0 +1,82 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Simülasyonlar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-simulations-drafts-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Simülasyonlar</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Simülasyonlar</h1>
+                <p>Yalnız platform simülasyon taslakları listelenir. Çalışan motor, yayın ve öğrenci etkinliği bu ekranda yoktur.</p>
+            </div>
+            <a class="btn btn--primary" href="{{ path('app_admin_simulations_new') }}">Yeni taslak</a>
+        </header>
+
+        <section class="admin-section admin-simulations-drafts-page__summary" aria-labelledby="simulations-summary-heading">
+            <h2 id="simulations-summary-heading">Simülasyon taslakları</h2>
+            <p class="admin-simulations-drafts-page__count" role="status">{{ total }} kayıt</p>
+        </section>
+
+        {% if rows is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Gösterilecek simülasyon taslağı yok',
+                body: 'Yeni taslak oluşturduğunuzda burada görünür. Kurum kayıtları listelenmez. Motor ve yayın ayrı açık işlerdir.'
+            } %}
+        {% else %}
+            <section class="admin-section admin-simulations-drafts-page__list" aria-labelledby="simulations-list-heading">
+                <h2 id="simulations-list-heading">Kayıt listesi</h2>
+                <div class="admin-table-wrap" role="region" aria-label="Simülasyon taslakları" tabindex="0">
+                    <table class="admin-table admin-simulations-drafts-page__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Başlık</th>
+                                <th scope="col">Ders</th>
+                                <th scope="col">Güncellendi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Başlık</span>
+                                            <a class="admin-simulations-drafts-page__open" href="{{ path('app_admin_learning_content', {id: row.content_id}) }}">{{ row.content_title }}</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Ders</span>
+                                            <span class="admin-result-field__value">{{ row.subject_name }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Güncellendi</span>
+                                            <span class="admin-result-field__value">{{ row.updated_at_label }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if last_page > 1 %}
+                    <nav class="admin-pagination" aria-label="Simülasyon taslakları sayfaları">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_simulations', {page: page - 1}) }}">Önceki</a>
+                        {% endif %}
+                        <span>Sayfa {{ page }} / {{ last_page }}</span>
+                        {% if page < last_page %}
+                            <a href="{{ path('app_admin_simulations', {page: page + 1}) }}">Sonraki</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}
