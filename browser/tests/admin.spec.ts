@@ -832,15 +832,19 @@ test('superadmin videos inventory page', async ({ browser }, info) => {
   await expect(page).toHaveURL(/\/yonetim\/bolum\/videolar/);
   await expect(page.getByRole('heading', { level: 1, name: 'Videolar' })).toBeVisible();
   await expect(page.locator('.admin-stage')).toHaveCount(0);
-  // Seeded suite links youtube BrowserVid1 + vimeo into platform content "Toplama anlatimi".
+  // Student topic lesson keeps YouTube only; Vimeo lives on a separate inventory-only content.
   await expect(page.getByText('Gösterilecek platform videosu yok')).toHaveCount(0);
   await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Toplama anlatimi');
+  await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Envanter Vimeo Ornek');
   await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('YouTube');
   await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Vimeo');
-  const openContent = page.getByRole('link', { name: 'Toplama anlatimi' }).first();
-  await expect(openContent).toBeVisible();
-  const openBox = await openContent.boundingBox();
-  expect(openBox && openBox.height >= 44).toBeTruthy();
+  const openYoutube = page.getByRole('link', { name: 'Toplama anlatimi' });
+  await expect(openYoutube).toHaveCount(1);
+  await expect(openYoutube).toBeVisible();
+  const openYoutubeBox = await openYoutube.boundingBox();
+  expect(openYoutubeBox && openYoutubeBox.height >= 44).toBeTruthy();
+  const openVimeo = page.getByRole('link', { name: 'Envanter Vimeo Ornek' });
+  await expect(openVimeo).toHaveCount(1);
   await expect(page.getByText('BrowserVid1')).toHaveCount(0);
   await expect(page.getByText('246813579')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Yükle|Sil/ })).toHaveCount(0);
@@ -851,17 +855,16 @@ test('superadmin videos inventory page', async ({ browser }, info) => {
     await page.goto('/yonetim/bolum/videolar');
     await expect(page.getByRole('heading', { level: 1, name: 'Videolar' })).toBeVisible();
     await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Toplama anlatimi');
+    await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Envanter Vimeo Ornek');
     await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('YouTube');
     await expect(page.locator('.admin-videos-inventory-page__table')).toContainText('Vimeo');
     await assertLayout(page);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
     expect(overflow).toBe(false);
-    const focusTarget = page.locator('.admin-videos-inventory-page a, .admin-videos-inventory-page [tabindex="0"]').first();
-    if (await focusTarget.count()) {
-      await focusTarget.focus();
-      const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
-      expect(['solid', 'auto']).toContain(focusStyle);
-    }
+    const focusTarget = page.getByRole('link', { name: 'Toplama anlatimi' });
+    await focusTarget.focus();
+    const focusStyle = await focusTarget.evaluate((node) => getComputedStyle(node).outlineStyle);
+    expect(['solid', 'auto']).toContain(focusStyle);
     await shot(page, info, 'superadmin', 'videolar', viewport.name);
   }
 

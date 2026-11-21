@@ -89,7 +89,7 @@ final class AdminVideosInventoryTest extends WebTestCase
                 'blocks' => [
                     [
                         'type' => 'paragraph',
-                        'text' => 'Serbest metinde https://youtu.be/'.$secretYoutubeId.' olmamali.',
+                        'text' => 'Serbest metinde video baglantisi olmamali.',
                     ],
                     [
                         'type' => 'callout',

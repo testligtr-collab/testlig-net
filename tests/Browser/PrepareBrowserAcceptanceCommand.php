@@ -231,6 +231,31 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $lesson = $this->placements->create($admin, $topic->getId(), $published->getId(), 'Toplama anlatimi', null, 0, 'browser_place', 'toplama-anlatimi');
         $this->placements->publish($admin, $lesson->getId(), 'browser_publish');
 
+        // Separate from the student topic lesson so topic pages keep a single YouTube player.
+        $this->contents->createDraft(
+            $teacher,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::TopicExplanation,
+            'browser_videos_inventory_vimeo',
+            'Envanter Vimeo Ornek',
+            null,
+            LearningContentDocument::fromArray([
+                'schemaVersion' => 1,
+                'blocks' => [[
+                    'type' => 'video',
+                    'provider' => 'vimeo',
+                    'providerVideoId' => '246813579',
+                    'title' => 'Envanter vimeo',
+                    'description' => '',
+                ]],
+            ]),
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            'browser_videos_inventory',
+        );
+
         $draft = $this->contents->createDraft(
             $teacher,
             LearningContentScope::Platform,
@@ -1422,13 +1447,6 @@ final class PrepareBrowserAcceptanceCommand extends Command
                     'providerVideoId' => 'BrowserVid1',
                     'title' => 'Konu videosu',
                     'description' => 'Kisa aciklama',
-                ],
-                [
-                    'type' => 'video',
-                    'provider' => 'vimeo',
-                    'providerVideoId' => '246813579',
-                    'title' => 'Konu vimeo',
-                    'description' => '',
                 ],
                 ['type' => 'document', 'assetId' => $assetId, 'label' => 'Calisma notu'],
             ],

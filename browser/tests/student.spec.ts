@@ -48,8 +48,11 @@ test('student lesson, blocked video host, and one test attempt', async ({ page, 
   await expect(page.getByText('Iki sayiyi toplariz')).toBeVisible();
   await expect(page.getByText('Once onluklari yaz')).toBeVisible();
   await expect(page.getByText('2 + 2 = 4')).toBeVisible();
-  const frame = page.locator('iframe');
+  const frame = page.locator('iframe[title="Konu videosu"]');
+  await expect(frame).toHaveCount(1);
   await expect(frame).toHaveAttribute('src', /youtube-nocookie\.com/);
+  await expect(page.locator('iframe[src*="player.vimeo.com"]')).toHaveCount(0);
+  await expect(page.locator('iframe[src*="www.youtube.com"]')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /PDF/ })).toHaveAttribute('href', /\/pdf\//);
   const html = await page.content();
   expect(html).not.toMatch(/storageKey|ciphertext|correctStableKey/i);
