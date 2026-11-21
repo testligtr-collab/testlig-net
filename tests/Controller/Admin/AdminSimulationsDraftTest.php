@@ -15,11 +15,14 @@ use App\Enum\InstitutionType;
 use App\Enum\LearningContentScope;
 use App\Enum\LearningContentStatus;
 use App\Enum\LearningContentType;
+use App\Enum\ResourceAccessClass;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\LearningContent\Content\LearningContentDocument;
+use App\Repository\LearningContentAccessPolicyRepository;
 use App\Repository\LearningContentRepository;
 use App\Repository\UserRepository;
+use App\Service\AccessPackageManager;
 use App\Service\CurriculumLearningOutcomeManager;
 use App\Service\CurriculumProgramManager;
 use App\Service\CurriculumTopicManager;
@@ -189,6 +192,27 @@ final class AdminSimulationsDraftTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Simülasyon taslakları henüz incelemeye veya yayına alınamaz.');
         self::assertSelectorTextContains('body', 'Taslak');
 
+        // publish() checks access policy before the Simulation domain gate; seed policy only.
+        $packages = static::getContainer()->get(AccessPackageManager::class);
+        self::assertInstanceOf(AccessPackageManager::class, $packages);
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $contentEntity = $em->find(LearningContent::class, $content->getId());
+        $actor = $em->find(User::class, $sa->getId());
+        self::assertInstanceOf(LearningContent::class, $contentEntity);
+        self::assertInstanceOf(User::class, $actor);
+        $packages->setLearningContentAccessPolicy(
+            $contentEntity,
+            $actor,
+            ResourceAccessClass::EntitlementRequired,
+            'sim_publish_policy',
+        );
+        $policies = static::getContainer()->get(LearningContentAccessPolicyRepository::class);
+        self::assertInstanceOf(LearningContentAccessPolicyRepository::class, $policies);
+        self::assertNotNull($policies->findForContent($content->getId()));
+
+        $client->request('GET', '/yonetim/icerikler/'.$id);
+        self::assertResponseIsSuccessful();
         $lifecycle2 = $this->csrf($client, 'learning_content_lifecycle_'.$id);
         $client->request('POST', '/yonetim/icerikler/'.$id.'/yayimla', [
             '_token' => $lifecycle2,
