@@ -231,6 +231,32 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $lesson = $this->placements->create($admin, $topic->getId(), $published->getId(), 'Toplama anlatimi', null, 0, 'browser_place', 'toplama-anlatimi');
         $this->placements->publish($admin, $lesson->getId(), 'browser_publish');
 
+        // Inventory-only Vimeo row: owned by Admin so teacher workspace draft count stays 1.
+        // Kept off the student topic lesson so that page still has a single YouTube player.
+        $this->contents->createDraft(
+            $admin,
+            LearningContentScope::Platform,
+            null,
+            $subject,
+            GradeLevel::Grade1,
+            LearningContentType::TopicExplanation,
+            'browser_videos_inventory_vimeo',
+            'Envanter Vimeo Ornek',
+            null,
+            LearningContentDocument::fromArray([
+                'schemaVersion' => 1,
+                'blocks' => [[
+                    'type' => 'video',
+                    'provider' => 'vimeo',
+                    'providerVideoId' => '246813579',
+                    'title' => 'Envanter vimeo',
+                    'description' => '',
+                ]],
+            ]),
+            [['learningOutcome' => $outcome, 'isPrimary' => true]],
+            'browser_videos_inventory',
+        );
+
         $draft = $this->contents->createDraft(
             $teacher,
             LearningContentScope::Platform,

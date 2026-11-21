@@ -32,6 +32,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertStringNotContainsString('Geliştirme aşamasında', $mediaLinks->eq(0)->text());
         self::assertSame('/yonetim/bolum/videolar', $mediaLinks->eq(1)->attr('href'));
         self::assertStringContainsString('Ders ve anlatım videoları.', $mediaLinks->eq(1)->text());
+        self::assertStringContainsString('Çalışıyor', $mediaLinks->eq(1)->text());
+        self::assertStringNotContainsString('Geliştirme aşamasında', $mediaLinks->eq(1)->text());
         self::assertSame('/yonetim/bolum/medya', $mediaLinks->eq(2)->attr('href'));
         self::assertStringContainsString('Dosyalar ve depolama alanı.', $mediaLinks->eq(2)->text());
         self::assertStringContainsString('Çalışıyor', $mediaLinks->eq(2)->text());
@@ -102,6 +104,13 @@ final class AdminSectionDirectoryTest extends WebTestCase
         self::assertSelectorNotExists('.admin-stage');
         self::assertSelectorExists('.admin-documents-inventory-page');
 
+        $client->request('GET', '/yonetim/bolum/videolar');
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'no-store, private');
+        self::assertSelectorTextContains('h1', 'Videolar');
+        self::assertSelectorNotExists('.admin-stage');
+        self::assertSelectorExists('.admin-videos-inventory-page');
+
         $client->request('GET', '/yonetim/bolum/ogretmenler');
         self::assertResponseStatusCodeSame(404);
         $client->request('GET', '/yonetim/bolum/subeler');
@@ -147,6 +156,8 @@ final class AdminSectionDirectoryTest extends WebTestCase
         $client->request('GET', '/yonetim/bolum/raporlar');
         self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/bolum/dokumanlar');
+        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', '/yonetim/bolum/videolar');
         self::assertResponseStatusCodeSame(403);
         $client->request('GET', '/yonetim/bolum/medya');
         self::assertResponseStatusCodeSame(403);

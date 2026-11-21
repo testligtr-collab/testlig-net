@@ -1,0 +1,74 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Videolar — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-videos-inventory-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <span>Videolar</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Videolar</h1>
+                <p>Yalnız platform ders içeriğine bağlı YouTube ve Vimeo kayıtları listelenir. Kurum içeriği ve serbest metindeki bağlantılar burada yer almaz.</p>
+            </div>
+        </header>
+
+        <section class="admin-section admin-videos-inventory-page__summary" aria-labelledby="videos-summary-heading">
+            <h2 id="videos-summary-heading">Video envanteri</h2>
+            <p class="admin-videos-inventory-page__count" role="status">{{ total }} kayıt</p>
+        </section>
+
+        {% if rows is empty %}
+            {% include 'components/empty_state.html.twig' with {
+                title: 'Gösterilecek platform videosu yok',
+                body: 'Platform ders içeriğinin güncel sürümüne bağlı bir YouTube veya Vimeo bloğu olduğunda burada görünür. Kurum kayıtları listelenmez.'
+            } %}
+        {% else %}
+            <section class="admin-section admin-videos-inventory-page__list" aria-labelledby="videos-list-heading">
+                <h2 id="videos-list-heading">Kayıt listesi</h2>
+                <div class="admin-table-wrap" role="region" aria-label="Video envanteri" tabindex="0">
+                    <table class="admin-table admin-videos-inventory-page__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">İçerik</th>
+                                <th scope="col">Sağlayıcı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">İçerik</span>
+                                            <a class="admin-videos-inventory-page__open" href="{{ path('app_admin_learning_content', {id: row.content_id}) }}">{{ row.content_title }}</a>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="admin-result-field">
+                                            <span class="admin-result-field__label">Sağlayıcı</span>
+                                            <span class="admin-result-field__value">{{ row.provider_label }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if last_page > 1 %}
+                    <nav class="admin-pagination" aria-label="Video envanteri sayfaları">
+                        {% if page > 1 %}
+                            <a href="{{ path('app_admin_videos_inventory', {page: page - 1}) }}">Önceki</a>
+                        {% endif %}
+                        <span>Sayfa {{ page }} / {{ last_page }}</span>
+                        {% if page < last_page %}
+                            <a href="{{ path('app_admin_videos_inventory', {page: page + 1}) }}">Sonraki</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}
