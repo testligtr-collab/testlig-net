@@ -231,9 +231,10 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $lesson = $this->placements->create($admin, $topic->getId(), $published->getId(), 'Toplama anlatimi', null, 0, 'browser_place', 'toplama-anlatimi');
         $this->placements->publish($admin, $lesson->getId(), 'browser_publish');
 
-        // Separate from the student topic lesson so topic pages keep a single YouTube player.
+        // Inventory-only Vimeo row: owned by Admin so teacher workspace draft count stays 1.
+        // Kept off the student topic lesson so that page still has a single YouTube player.
         $this->contents->createDraft(
-            $teacher,
+            $admin,
             LearningContentScope::Platform,
             null,
             $subject,
