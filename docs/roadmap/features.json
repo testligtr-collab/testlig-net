@@ -280,7 +280,8 @@
       "depends_on": [],
       "evidence": [
         "src/Controller/InstitutionWorkspaceController.php (#111)",
-        "Süper yönetici akademik yıl listesi, oluşturma, detay ve onaylı aktifleştirme /yonetim/akademik-yillar adresindedir. Oluşturma planlandı yıl bırakır. Aktifleştirme mevcut AcademicYearManager kilidiyle aynı kurumdaki önceki aktif yılı kapatır ve sınıf veya öğrenci kaydını taşımaz. Kurum paneli aynı adreste kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir."
+        "Süper yönetici akademik yıl listesi, oluşturma, detay ve onaylı aktifleştirme /yonetim/akademik-yillar adresindedir. Oluşturma planlandı yıl bırakır. Aktifleştirme mevcut AcademicYearManager kilidiyle aynı kurumdaki önceki aktif yılı kapatır ve sınıf veya öğrenci kaydını taşımaz. Kurum paneli aynı adreste kalır. Bu ekran M06 modülünü tamamlamaz. Ekran görüntüsü canlı görsel kabulü değildir.",
+        "2026-11-21: InstitutionAcademicYearWriteTest kapalı dönem satırında silme denetimini ham HTML \"Sil\" aramasından DomCrawler satır/düğme kontrolüne aldı. CSRF token içindeki rastgele \"Sil\" alt dizgesi yanlış başarısızlık üretiyordu. Ürün davranışı değişmedi."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/172"

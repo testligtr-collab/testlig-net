@@ -24,6 +24,7 @@ use App\Tests\Support\QuestionBankDbCleanup;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
 
 final class InstitutionAcademicYearWriteTest extends WebTestCase
 {
@@ -158,9 +159,31 @@ final class InstitutionAcademicYearWriteTest extends WebTestCase
         self::assertSame('panel_year_activate', $closed['reason_code'] ?? null);
         self::assertSame('active', $closed['old_status'] ?? null);
         self::assertSame('closed', $closed['new_status'] ?? null);
-        $html = (string) $owner->getResponse()->getContent();
-        self::assertStringContainsString('Kapandı', $html);
-        self::assertStringNotContainsString('Sil', $html);
+        $yearsPage = $owner->getCrawler();
+        self::assertSelectorTextContains('body', 'Kapandı');
+        // Avoid raw HTML "Sil" substring checks: CSRF token values can contain those letters.
+        $closedRow = $yearsPage->filter('table.institution-table tbody tr')->reduce(
+            static fn (Crawler $row): bool => str_contains($row->filter('td[data-label="Dönem"]')->text(), 'Pilot Donemi'),
+        );
+        self::assertCount(1, $closedRow);
+        self::assertStringContainsString('Kapandı', $closedRow->filter('td[data-label="Durum"]')->text());
+        $actionCell = $closedRow->filter('td[data-label="İşlem"]');
+        self::assertSame(
+            0,
+            $actionCell->filter('button, a')->reduce(
+                static fn (Crawler $node): bool => str_contains($node->text(), 'Sil'),
+            )->count(),
+        );
+        self::assertSame(
+            0,
+            $actionCell->filter('form')->reduce(
+                static function (Crawler $form): bool {
+                    $action = mb_strtolower((string) $form->attr('action'));
+
+                    return str_contains($action, 'sil');
+                },
+            )->count(),
+        );
 
         $owner->request('GET', '/kurum/siniflar/yeni');
         $classroom = (string) $owner->getResponse()->getContent();
