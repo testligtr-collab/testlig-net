@@ -33,6 +33,7 @@ use App\Service\UserFactory;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 
 final class AdminSimulationsDraftTest extends WebTestCase
@@ -177,10 +178,8 @@ final class AdminSimulationsDraftTest extends WebTestCase
         self::assertSelectorNotExists('form[action$="/incelemeye-gonder"]');
         self::assertSelectorNotExists('form[action$="/yayimla"]');
 
-        $tokens = static::getContainer()->get(CsrfTokenManagerInterface::class);
-        self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
-        $lifecycle = $tokens->getToken('learning_content_lifecycle_'.$id)->getValue();
-
+        // Forms are hidden for Simulation; mint CSRF in the client session like other HTTP tests.
+        $lifecycle = $this->csrf($client, 'learning_content_lifecycle_'.$id);
         $client->request('POST', '/yonetim/icerikler/'.$id.'/incelemeye-gonder', [
             '_token' => $lifecycle,
             'note' => 'sim_submit_blocked',
@@ -190,7 +189,7 @@ final class AdminSimulationsDraftTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Simülasyon taslakları henüz incelemeye veya yayına alınamaz.');
         self::assertSelectorTextContains('body', 'Taslak');
 
-        $lifecycle2 = $tokens->getToken('learning_content_lifecycle_'.$id)->getValue();
+        $lifecycle2 = $this->csrf($client, 'learning_content_lifecycle_'.$id);
         $client->request('POST', '/yonetim/icerikler/'.$id.'/yayimla', [
             '_token' => $lifecycle2,
             'note' => 'sim_publish_blocked',
@@ -198,6 +197,7 @@ final class AdminSimulationsDraftTest extends WebTestCase
         self::assertResponseRedirects('/yonetim/icerikler/'.$id);
         $client->followRedirect();
         self::assertSelectorTextContains('body', 'Simülasyon taslakları henüz incelemeye veya yayına alınamaz.');
+        self::assertSelectorTextContains('body', 'Taslak');
 
         $em = static::getContainer()->get(EntityManagerInterface::class);
         self::assertInstanceOf(EntityManagerInterface::class, $em);
@@ -343,5 +343,24 @@ final class AdminSimulationsDraftTest extends WebTestCase
         self::ensureKernelShutdown();
 
         return static::createClient();
+    }
+
+    private function csrf(KernelBrowser $client, string $intention): string
+    {
+        $request = $client->getRequest();
+        $session = $request->getSession();
+        $stack = $client->getContainer()->get('request_stack');
+        self::assertInstanceOf(RequestStack::class, $stack);
+        $stack->push($request);
+        try {
+            $tokens = $client->getContainer()->get('security.csrf.token_manager');
+            self::assertInstanceOf(CsrfTokenManagerInterface::class, $tokens);
+            $value = $tokens->getToken($intention)->getValue();
+            $session->save();
+
+            return $value;
+        } finally {
+            $stack->pop();
+        }
     }
 }
