@@ -530,6 +530,7 @@ final class LearningContentManager
 
     public function submitForReview(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
+        $this->assertSimulationLifecycleClosed($content);
         $this->transition($content, $actor, $reasonCode, SecurityAuditAction::LearningContentSubmittedForReview, true, static function (LearningContent $c, LearningContentRevision $r, \DateTimeImmutable $now): void {
             if (!$r->isSealed()) {
                 $r->seal($now);
@@ -554,6 +555,7 @@ final class LearningContentManager
 
     public function publish(LearningContent $content, User $actor, string $reasonCode, ?string $operatorNote = null): void
     {
+        $this->assertSimulationLifecycleClosed($content);
         $reasonCode = $this->normalizeReasonCode($reasonCode);
         $operatorNote = $this->boundedOperatorNote($operatorNote);
         $contentId = $content->getId();
@@ -573,6 +575,7 @@ final class LearningContentManager
                 if (!$lockedContent instanceof LearningContent) {
                     throw LearningContentException::notFound();
                 }
+                $this->assertSimulationLifecycleClosed($lockedContent);
                 $this->assertContentSnapshotUnchanged($lockedContent, $snapshot, full: true);
 
                 if (null === $snapshot['current_revision_id']) {
@@ -1549,6 +1552,16 @@ final class LearningContentManager
         }
         if (!$contentInstitution->getId()->equals($assetInstitution->getId())) {
             throw LearningContentException::scopeMismatch();
+        }
+    }
+
+    /**
+     * Simulation drafts stay out of review/publish until a later M21 motor slice.
+     */
+    private function assertSimulationLifecycleClosed(LearningContent $content): void
+    {
+        if (LearningContentType::Simulation === $content->getContentType()) {
+            throw LearningContentException::invalidInput('Simülasyon taslakları henüz incelemeye veya yayına alınamaz.');
         }
     }
 

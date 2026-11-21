@@ -29,7 +29,6 @@ final class AdminSectionCatalog
     {
         return [
             self::entry('odevler', 'assignments', 'Ödev ve projeler', 'learning', 'Ödev ve proje vermek, teslim almak ve değerlendirmek.', ['Test ve öğrenme içeriği ayrı adreslerde yönetilir.'], ['Ödev, proje, teslim ve değerlendirme yoktur.'], 'Ödev akışı test ve içerik yayınından ayrı kurulacak.'),
-            self::entry('simulasyonlar', 'simulations', 'Simülasyonlar', 'interactive', 'Etkileşimli simülasyonları yayınlamak.', [], ['Simülasyon kataloğu, yayın ve öğrenci etkinliği yoktur.'], 'Simülasyonlar güvenli bir içerik modeli kurulunca eklenecek.'),
             self::entry('oyunlar', 'games', 'Eğitsel oyunlar', 'interactive', 'Eğitsel oyunları kataloglamak ve skoru tutmak.', [], ['Oyun kataloğu, çalıştırma ve skor yoktur.'], 'Oyunlar oyunlaştırmadan ayrı bir katalog olarak eklenecek.'),
             self::entry('canli-dersler', 'live_lessons', 'Canlı dersler', 'interactive', 'Canlı ders planlamak ve katılımı görmek.', [], ['Canlı ders, katılım ve kayıt yoktur.'], 'Canlı ders takvimi ve katılım kuralları sonra eklenecek.'),
             self::entry('soru-cevap', 'qna', 'Soru-cevap', 'interactive', 'Öğrenci sorusunu ve uzman cevabını yönetmek.', [], ['Soru sorma, cevap, moderasyon ve gizleme yoktur.'], 'Soru-cevap, kötüye kullanım kurallarıyla eklenecek.'),

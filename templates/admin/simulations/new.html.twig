@@ -1,0 +1,37 @@
+{% extends 'admin/layout.html.twig' %}
+
+{% block title %}Yeni simülasyon taslağı — Testlig{% endblock %}
+
+{% block panel_content %}
+    <div class="admin-simulations-drafts-page">
+        <nav class="admin-breadcrumb" aria-label="Konum">
+            {% include 'admin/_crumb_root.html.twig' %}
+            <span aria-hidden="true">/</span>
+            <a href="{{ path('app_admin_simulations') }}">Simülasyonlar</a>
+            <span aria-hidden="true">/</span>
+            <span>Yeni taslak</span>
+        </nav>
+        <header class="admin-user-head">
+            <div>
+                <h1 class="panel-greeting">Yeni simülasyon taslağı</h1>
+                <p>Tür platform simülasyonu olarak kaydedilir. Bu form inceleme, yayın veya motor yüklemez.</p>
+            </div>
+            <a class="btn btn--ghost" href="{{ path('app_admin_simulations') }}">Listeye dön</a>
+        </header>
+
+        {{ form_start(form, { attr: { class: 'admin-simulations-draft-create' } }) }}
+            <section class="admin-section" aria-labelledby="sim-draft-fields-heading">
+                <h2 id="sim-draft-fields-heading">Taslak bilgileri</h2>
+                {{ form_row(form.title) }}
+                {{ form_row(form.summary) }}
+                {{ form_row(form.code) }}
+                {{ form_row(form.gradeLevel) }}
+                {{ form_row(form.subjectId) }}
+                {{ form_row(form.learningOutcomeId) }}
+                <div class="admin-form-actions">
+                    <button type="submit" class="btn btn--primary">Taslak oluştur</button>
+                </div>
+            </section>
+        {{ form_end(form) }}
+    </div>
+{% endblock %}
