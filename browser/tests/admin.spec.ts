@@ -928,10 +928,42 @@ test('superadmin simulations drafts page', async ({ browser }, info) => {
 
     await page.goto('/yonetim/bolum/simulasyonlar/yeni');
     await expect(page.getByRole('heading', { level: 1, name: 'Yeni simülasyon taslağı' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Taslak oluştur' })).toBeVisible();
+    const createDraft = page.getByRole('button', { name: 'Taslak oluştur' });
+    await expect(createDraft).toBeVisible();
+    const outcomeSelect = page.locator('select[name="admin_simulation_draft_create[learningOutcomeId]"]');
+    await expect(outcomeSelect).toBeVisible();
+    // Live 247f2d6: long Kazanım option widened native <select> (~669px) and produced scrollWidth 685 at 390.
+    const longOutcomeLabel =
+      '[MAT] MAT.9.1.1 — Canli benzeri uzun kazanım: Kuvvet ve hareket ünitesinde bir cismin hareketini etkileyen net kuvveti ölçer, grafiklerle yorumlar ve günlük yaşam örnekleriyle ilişkilendirir; ek açıklama satırı taşma regresyonunu zorlar.';
+    const outcomeValue = await outcomeSelect.evaluate((node, label) => {
+      const select = node as HTMLSelectElement;
+      const opt = Array.from(select.options).find((o) => o.value !== '');
+      if (!opt) {
+        throw new Error('Kazanım seçeneği yok');
+      }
+      opt.textContent = label;
+      select.value = opt.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return opt.value;
+    }, longOutcomeLabel);
+    await expect(outcomeSelect).toHaveValue(outcomeValue);
+    await expect(outcomeSelect.locator('option:checked')).toHaveText(longOutcomeLabel);
     await assertLayout(page);
-    const formOverflow = await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1);
-    expect(formOverflow).toBe(false);
+    const formMetrics = await page.evaluate(() => {
+      const select = document.querySelector(
+        'select[name="admin_simulation_draft_create[learningOutcomeId]"]',
+      ) as HTMLSelectElement | null;
+      return {
+        scrollWidth: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0),
+        clientWidth: document.documentElement.clientWidth,
+        selectWidth: select ? select.getBoundingClientRect().width : 0,
+      };
+    });
+    expect(formMetrics.scrollWidth, `scrollWidth@${viewport.name}`).toBeLessThanOrEqual(formMetrics.clientWidth + 1);
+    expect(formMetrics.selectWidth, `Kazanım select@${viewport.name}`).toBeLessThanOrEqual(formMetrics.clientWidth);
+    await expect(createDraft).toBeEnabled();
+    const createBox = await createDraft.boundingBox();
+    expect(createBox && createBox.width > 0 && createBox.height >= 24).toBeTruthy();
     await shot(page, info, 'superadmin', 'simulasyonlar-yeni', viewport.name);
   }
 

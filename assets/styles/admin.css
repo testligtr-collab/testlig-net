@@ -7233,6 +7233,26 @@ body.is-admin-panel {
     font-size: 0.92rem;
     font-weight: 650;
 }
+/* Yeni simülasyon taslağı: uzun Kazanım seçeneği native <select> intrinsic genişliğini şişirmesin. */
+.is-admin-panel .admin-simulations-drafts-page .admin-simulations-draft-create {
+    display: grid;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 40rem;
+    min-width: 0;
+}
+.is-admin-panel .admin-simulations-drafts-page .admin-simulations-draft-create .admin-section,
+.is-admin-panel .admin-simulations-drafts-page .admin-simulations-draft-create .admin-section > div {
+    min-width: 0;
+    max-width: 100%;
+}
+.is-admin-panel .admin-simulations-drafts-page .admin-simulations-draft-create :is(input, select, textarea) {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
 .is-admin-panel .admin-reports-page .admin-table-wrap,
 .is-admin-panel .admin-media-inventory-page .admin-table-wrap,
 .is-admin-panel .admin-documents-inventory-page .admin-table-wrap,
