@@ -99,6 +99,10 @@ Kapsam dışı (bu dilimde de yok): dosya/PDF, bildirim, veli, yeniden/geç tesl
 
 Metin zorunlu + isteğe bağlı tek PDF ürün kararı ve antivirüs seçimi **A** (tarama hazır olmadan yükleme açılmaz). Bu dilim yalnız private quarantine, PDF inspect, clamd INSTREAM adaptörü (25 MB), fail-closed sonuçlar ve varsayılan kapalı `HomeworkPdfUploadGate` ekler. Attachment entity/UI/route yok. Ayrıntı: `docs/architecture-homework-pdf-scan.md`.
 
+### 0.1f Öğrenci PDF ek (kodda; production upload kapalı)
+
+İsteğe bağlı tek PDF, yalnız düzenlenebilir öğrenci taslağına. Gate + `PdfDocumentInspector` + quarantine/scan + private durable (`var/homework-pdf`) + `homework_submission_attachments` (UNIQUE submission). Eklemek göndermez; mevcut ek sessizce değiştirilmez; indirme/public URL yok. Production: `HOMEWORK_PDF_UPLOAD_ENABLED=0` + `ClosedHomeworkPdfScanReadiness`. Ayrıntı: `docs/architecture-homework-pdf-scan.md`.
+
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |

@@ -15,6 +15,9 @@ final class HomeworkSubmissionException extends \RuntimeException
     public const REASON_CONFIRMATION_REQUIRED = 'confirmation_required';
     public const REASON_CONFLICT = 'conflict';
     public const REASON_CLOSED = 'closed';
+    public const REASON_PDF_CLOSED = 'pdf_closed';
+    public const REASON_PDF_REJECTED = 'pdf_rejected';
+    public const REASON_PDF_EXISTS = 'pdf_exists';
 
     /**
      * @param array<string, string> $fieldErrors
@@ -103,6 +106,33 @@ final class HomeworkSubmissionException extends \RuntimeException
             self::REASON_CLOSED,
             'Bu ödeve şu an yazılamaz.',
             ['access' => 'Bu ödeve şu an yazılamaz.'],
+        );
+    }
+
+    public static function pdfClosed(): self
+    {
+        return new self(
+            self::REASON_PDF_CLOSED,
+            'PDF ekleme şu an kapalı.',
+            ['pdf' => 'PDF ekleme şu an kapalı.'],
+        );
+    }
+
+    public static function pdfRejected(string $message = 'PDF eklenemedi.'): self
+    {
+        return new self(
+            self::REASON_PDF_REJECTED,
+            $message,
+            ['pdf' => $message],
+        );
+    }
+
+    public static function pdfExists(): self
+    {
+        return new self(
+            self::REASON_PDF_EXISTS,
+            'Bu ödeve zaten bir PDF eklenmiş.',
+            ['pdf' => 'Bu ödeve zaten bir PDF eklenmiş.'],
         );
     }
 }

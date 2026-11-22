@@ -27,6 +27,9 @@ final readonly class HomeworkStudentDetail
         public ?string $evaluationLabelKey = null,
         public ?string $evaluationLabelTr = null,
         public ?string $feedback = null,
+        public bool $pdfUploadOpen = false,
+        public bool $hasPdfAttachment = false,
+        public ?string $pdfDisplayName = null,
     ) {
     }
 }
