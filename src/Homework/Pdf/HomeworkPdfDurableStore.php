@@ -36,7 +36,7 @@ final class HomeworkPdfDurableStore
         if (false === rewind($handle)) {
             throw HomeworkPdfScanException::quarantine();
         }
-        $out = fopen($temp, 'wb');
+        $out = fopen($temp, 'w');
         if (!\is_resource($out)) {
             throw HomeworkPdfScanException::quarantine();
         }
