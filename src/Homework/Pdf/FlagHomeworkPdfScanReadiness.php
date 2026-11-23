@@ -18,7 +18,7 @@ final class FlagHomeworkPdfScanReadiness implements HomeworkPdfScanReadiness
         $raw = $_ENV['HOMEWORK_PDF_SCAN_READY']
             ?? $_SERVER['HOMEWORK_PDF_SCAN_READY']
             ?? getenv('HOMEWORK_PDF_SCAN_READY');
-        if (false === $raw || null === $raw || '' === $raw) {
+        if (false === $raw || '' === $raw) {
             return false;
         }
 

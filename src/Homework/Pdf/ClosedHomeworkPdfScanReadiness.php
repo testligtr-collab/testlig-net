@@ -9,9 +9,6 @@ namespace App\Homework\Pdf;
  */
 final class ClosedHomeworkPdfScanReadiness implements HomeworkPdfScanReadiness
 {
-    /**
-     * @phpstan-impure
-     */
     public function isReady(): bool
     {
         return false;
