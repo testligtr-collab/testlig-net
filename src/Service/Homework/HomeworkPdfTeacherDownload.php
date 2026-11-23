@@ -43,69 +43,82 @@ final class HomeworkPdfTeacherDownload
 
     public function download(User $actor, Uuid $submissionId): BinaryFileResponse
     {
-        $freshActor = $this->freshUsers->findFreshLockedUser($actor->getId(), LockMode::PESSIMISTIC_READ);
-        if (!$freshActor instanceof User || !$this->activeUsers->isActiveAndVerified($freshActor)) {
-            throw HomeworkSubmissionException::forbidden();
-        }
-
-        /** @var HomeworkSubmission|null $submission */
-        $submission = $this->entityManager->createQueryBuilder()
-            ->select('s', 'a', 'r', 'd', 'c', 'i')
-            ->from(HomeworkSubmission::class, 's')
-            ->innerJoin('s.assignment', 'a')
-            ->innerJoin('s.recipient', 'r')
-            ->innerJoin('a.definition', 'd')
-            ->innerJoin('a.classroom', 'c')
-            ->innerJoin('a.institution', 'i')
-            ->andWhere('s.id = :id')
-            ->andWhere('s.status = :submitted')
-            ->setParameter('id', $submissionId, 'uuid')
-            ->setParameter('submitted', HomeworkSubmissionStatus::Submitted)
-            ->getQuery()
-            ->getOneOrNullResult();
-        if (!$submission instanceof HomeworkSubmission) {
-            throw HomeworkSubmissionException::notFound();
-        }
-        if (!$this->scope->canManageSubmitted($freshActor, $submission, true)) {
-            throw HomeworkSubmissionException::notFound();
-        }
-
-        $attachment = $this->attachments->findForSubmission($submission);
-        if (!$attachment instanceof HomeworkSubmissionAttachment) {
-            throw HomeworkSubmissionException::notFound();
-        }
-
+        // Pessimistic user lock requires an open TX; this path only reads + audits.
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
         try {
-            $path = $this->durable->assertReadable(
-                $attachment->getStorageKey(),
-                $attachment->getSha256(),
-                $attachment->getByteSize(),
-            );
-        } catch (HomeworkPdfScanException) {
-            throw HomeworkSubmissionException::notFound();
-        }
+            $freshActor = $this->freshUsers->findFreshLockedUser($actor->getId(), LockMode::PESSIMISTIC_READ);
+            if (!$freshActor instanceof User || !$this->activeUsers->isActiveAndVerified($freshActor)) {
+                throw HomeworkSubmissionException::forbidden();
+            }
 
-        $this->auditRecorder->record(new SecurityAuditContext(
-            action: SecurityAuditAction::HomeworkSubmissionPdfDownloaded,
-            actorType: SecurityAuditActorType::User,
-            outcome: SecurityAuditOutcome::Success,
-            actorUser: $freshActor,
-            metadata: [
-                'resource_type' => 'homework_submission_attachment',
-                'resource_id' => $attachment->getId()->toRfc4122(),
-                'submission_id' => $submission->getId()->toRfc4122(),
-                'assignment_id' => $submission->getAssignment()->getId()->toRfc4122(),
-                'institution_id' => $submission->getAssignment()->getInstitution()->getId()->toRfc4122(),
-                'byte_size' => $attachment->getByteSize(),
-            ],
-            correlationId: Uuid::v7()->toRfc4122(),
-        ));
+            /** @var HomeworkSubmission|null $submission */
+            $submission = $this->entityManager->createQueryBuilder()
+                ->select('s', 'a', 'r', 'd', 'c', 'i')
+                ->from(HomeworkSubmission::class, 's')
+                ->innerJoin('s.assignment', 'a')
+                ->innerJoin('s.recipient', 'r')
+                ->innerJoin('a.definition', 'd')
+                ->innerJoin('a.classroom', 'c')
+                ->innerJoin('a.institution', 'i')
+                ->andWhere('s.id = :id')
+                ->andWhere('s.status = :submitted')
+                ->setParameter('id', $submissionId, 'uuid')
+                ->setParameter('submitted', HomeworkSubmissionStatus::Submitted)
+                ->getQuery()
+                ->getOneOrNullResult();
+            if (!$submission instanceof HomeworkSubmission) {
+                throw HomeworkSubmissionException::notFound();
+            }
+            if (!$this->scope->canManageSubmitted($freshActor, $submission, true)) {
+                throw HomeworkSubmissionException::notFound();
+            }
+
+            $attachment = $this->attachments->findForSubmission($submission);
+            if (!$attachment instanceof HomeworkSubmissionAttachment) {
+                throw HomeworkSubmissionException::notFound();
+            }
+
+            try {
+                $path = $this->durable->assertReadable(
+                    $attachment->getStorageKey(),
+                    $attachment->getSha256(),
+                    $attachment->getByteSize(),
+                );
+            } catch (HomeworkPdfScanException) {
+                throw HomeworkSubmissionException::notFound();
+            }
+
+            $displayName = $attachment->getDisplayName();
+            $this->auditRecorder->record(new SecurityAuditContext(
+                action: SecurityAuditAction::HomeworkSubmissionPdfDownloaded,
+                actorType: SecurityAuditActorType::User,
+                outcome: SecurityAuditOutcome::Success,
+                actorUser: $freshActor,
+                metadata: [
+                    'resource_type' => 'homework_submission_attachment',
+                    'resource_id' => $attachment->getId()->toRfc4122(),
+                    'submission_id' => $submission->getId()->toRfc4122(),
+                    'assignment_id' => $submission->getAssignment()->getId()->toRfc4122(),
+                    'institution_id' => $submission->getAssignment()->getInstitution()->getId()->toRfc4122(),
+                    'byte_size' => $attachment->getByteSize(),
+                ],
+                correlationId: Uuid::v7()->toRfc4122(),
+            ));
+
+            $connection->commit();
+        } catch (\Throwable $exception) {
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+            throw $exception;
+        }
 
         $response = new BinaryFileResponse($path);
         $response->headers->set('Content-Type', 'application/pdf');
         $response->setContentDisposition(
             ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $attachment->getDisplayName(),
+            $displayName,
         );
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Cache-Control', 'no-store, private');
