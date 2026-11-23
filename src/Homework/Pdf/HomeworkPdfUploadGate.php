@@ -18,6 +18,11 @@ final class HomeworkPdfUploadGate
     ) {
     }
 
+    /**
+     * Readiness may change between pre-scan and post-scan checks (external/runtime state).
+     *
+     * @phpstan-impure
+     */
     public function mayAcceptUpload(): bool
     {
         return $this->uploadEnabled && $this->readiness->isReady();

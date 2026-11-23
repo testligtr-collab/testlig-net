@@ -10,10 +10,12 @@ use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Enum\HomeworkSubmissionStatus;
 use App\Exception\HomeworkSubmissionException;
+use App\Homework\Pdf\HomeworkPdfDurableStore;
 use App\Homework\Pdf\HomeworkPdfScanVerdict;
 use App\Homework\Pdf\HomeworkPdfUploadGate;
 use App\LearningContent\Document\PdfDocumentInspector;
 use App\Service\Homework\HomeworkPdfAttachmentManager;
+use App\Service\Homework\HomeworkStudentQuery;
 use App\Service\Homework\HomeworkSubmissionManager;
 use App\Tests\Homework\Pdf\FakeHomeworkPdfScanAdapter;
 use App\Tests\Support\HomeworkTestFixtures;
@@ -56,17 +58,15 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-ok');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Taslak metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Taslak metin', 0);
 
         $attachment = $this->attachments()->attach($student, $assignmentId, $this->minimalPdf(), 'Odev.pdf', 1);
         self::assertSame('Odev.pdf', $attachment->getDisplayName());
         self::assertFileExists(
-            static::getContainer()->get(\App\Homework\Pdf\HomeworkPdfDurableStore::class)
-                ->absolutePath($attachment->getStorageKey()),
+            $this->durableStore()->absolutePath($attachment->getStorageKey()),
         );
 
-        $detail = $this->homeworkStudentQuery()->detailFor($student, $assignmentId);
+        $detail = $this->studentQuery()->detailFor($student, $assignmentId);
         self::assertNotNull($detail);
         self::assertTrue($detail->hasPdfAttachment);
         self::assertSame('Odev.pdf', $detail->pdfDisplayName);
@@ -87,8 +87,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-dup');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Metin', 0);
         $this->attachments()->attach($student, $assignmentId, $this->minimalPdf(), 'Bir.pdf', 1);
 
         try {
@@ -107,8 +106,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-inf');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Metin', 0);
         $this->fakeScanner()->setVerdict(HomeworkPdfScanVerdict::Infected);
 
         try {
@@ -133,8 +131,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-closed');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Metin', 0);
 
         try {
             $this->attachments()->attach($student, $assignmentId, $this->minimalPdf(), 'Kapali.pdf', 1);
@@ -142,7 +139,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         } catch (HomeworkSubmissionException $e) {
             self::assertSame(HomeworkSubmissionException::REASON_PDF_CLOSED, $e->getReason());
         }
-        self::assertFalse(static::getContainer()->get(HomeworkPdfUploadGate::class)->mayAcceptUpload());
+        self::assertFalse($this->pdfGate()->mayAcceptUpload());
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_submission_attachments'));
     }
 
@@ -150,8 +147,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
     {
         $s = $this->scenario('pdf-other', 2);
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($s['users'][0], $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($s['users'][0], $assignmentId, 'Metin', 0);
 
         try {
             $this->attachments()->attach($s['users'][1], $assignmentId, $this->minimalPdf(), 'Baska.pdf', 0);
@@ -167,7 +163,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-sub');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        $manager = static::getContainer()->get(HomeworkSubmissionManager::class);
+        $manager = $this->submissionManager();
         $manager->saveDraft($student, $assignmentId, 'Metin', 0);
         $manager->submit($student, $assignmentId, 'Metin', 1, true);
 
@@ -184,8 +180,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-type');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Metin', 0);
 
         try {
             $this->attachments()->attach($student, $assignmentId, 'not-a-pdf', 'X.pdf', 1);
@@ -201,8 +196,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-size');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        static::getContainer()->get(HomeworkSubmissionManager::class)
-            ->saveDraft($student, $assignmentId, 'Metin', 0);
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Metin', 0);
         $bytes = $this->minimalPdf().str_repeat('A', PdfDocumentInspector::MAX_BYTES);
 
         try {
@@ -219,7 +213,7 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         $s = $this->scenario('pdf-text');
         $student = $s['users'][0];
         $assignmentId = $s['assignment']->getId();
-        $manager = static::getContainer()->get(HomeworkSubmissionManager::class);
+        $manager = $this->submissionManager();
         $manager->saveDraft($student, $assignmentId, 'Sadece metin', 0);
         $manager->submit($student, $assignmentId, 'Sadece metin', 1, true);
         self::assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM homework_submission_attachments'));
@@ -252,7 +246,42 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
 
     private function attachments(): HomeworkPdfAttachmentManager
     {
-        return static::getContainer()->get(HomeworkPdfAttachmentManager::class);
+        $manager = static::getContainer()->get(HomeworkPdfAttachmentManager::class);
+        self::assertInstanceOf(HomeworkPdfAttachmentManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function submissionManager(): HomeworkSubmissionManager
+    {
+        $manager = static::getContainer()->get(HomeworkSubmissionManager::class);
+        self::assertInstanceOf(HomeworkSubmissionManager::class, $manager);
+
+        return $manager;
+    }
+
+    private function studentQuery(): HomeworkStudentQuery
+    {
+        $query = static::getContainer()->get(HomeworkStudentQuery::class);
+        self::assertInstanceOf(HomeworkStudentQuery::class, $query);
+
+        return $query;
+    }
+
+    private function durableStore(): HomeworkPdfDurableStore
+    {
+        $store = static::getContainer()->get(HomeworkPdfDurableStore::class);
+        self::assertInstanceOf(HomeworkPdfDurableStore::class, $store);
+
+        return $store;
+    }
+
+    private function pdfGate(): HomeworkPdfUploadGate
+    {
+        $gate = static::getContainer()->get(HomeworkPdfUploadGate::class);
+        self::assertInstanceOf(HomeworkPdfUploadGate::class, $gate);
+
+        return $gate;
     }
 
     private function fakeScanner(): FakeHomeworkPdfScanAdapter

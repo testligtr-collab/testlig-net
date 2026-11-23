@@ -38,8 +38,6 @@ final class StudentHomeworkController extends AbstractController
     public function __construct(
         private readonly HomeworkStudentQuery $query,
         private readonly HomeworkSubmissionManager $manager,
-        private readonly HomeworkPdfAttachmentManager $pdfAttachments,
-        private readonly HomeworkPdfUploadGate $pdfGate,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
     ) {
     }
@@ -118,15 +116,19 @@ final class StudentHomeworkController extends AbstractController
     }
 
     #[Route('/{id}/pdf', name: 'app_student_homework_pdf', methods: ['POST'], requirements: ['id' => self::ID])]
-    public function attachPdf(string $id, Request $request): Response
-    {
+    public function attachPdf(
+        string $id,
+        Request $request,
+        HomeworkPdfAttachmentManager $pdfAttachments,
+        HomeworkPdfUploadGate $pdfGate,
+    ): Response {
         $actor = $this->account();
         $this->assertCsrf($request, self::CSRF_PDF);
         $assignmentId = $this->uuid($id);
         $revision = $request->request->getInt('revision');
         $values = ['body' => $request->request->getString('body'), 'revision' => $revision, 'confirm' => false];
 
-        if (!$this->pdfGate->mayAcceptUpload()) {
+        if (!$pdfGate->mayAcceptUpload()) {
             return $this->failure(
                 $actor,
                 $assignmentId,
@@ -179,7 +181,7 @@ final class StudentHomeworkController extends AbstractController
         }
 
         try {
-            $this->pdfAttachments->attach(
+            $pdfAttachments->attach(
                 $actor,
                 $assignmentId,
                 $bytes,

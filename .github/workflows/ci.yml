@@ -313,4 +313,6 @@ jobs:
           path: |
             browser/test-results
             browser/playwright-report
+            var/browser-server.log
+            var/log
           if-no-files-found: ignore

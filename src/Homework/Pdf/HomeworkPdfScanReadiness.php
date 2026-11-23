@@ -9,5 +9,10 @@ namespace App\Homework\Pdf;
  */
 interface HomeworkPdfScanReadiness
 {
+    /**
+     * May observe external/runtime state and change between calls in one request.
+     *
+     * @phpstan-impure
+     */
     public function isReady(): bool;
 }

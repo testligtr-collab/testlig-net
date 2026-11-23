@@ -75,7 +75,8 @@ final class HomeworkPdfAttachmentManager
             throw $this->mapScanException($exception);
         }
 
-        $durableKey = null;
+        /** @var array{0?: string} $durableKeys */
+        $durableKeys = [];
         try {
             // Re-assert gate after scan (flag/readiness must still be open before durable+DB).
             if (!$this->gate->mayAcceptUpload()) {
@@ -88,7 +89,7 @@ final class HomeworkPdfAttachmentManager
                 $assignmentId,
                 $expectedRevision,
                 $staging,
-                &$durableKey,
+                &$durableKeys,
             ): HomeworkSubmissionAttachment|HomeworkSubmissionException {
                 $actorId = $actor->getId();
                 $peek = $this->entityManager->createQueryBuilder()
@@ -200,14 +201,14 @@ final class HomeworkPdfAttachmentManager
                 }
 
                 try {
-                    $durableKey = $this->durable->commitFromQuarantine($staging->file());
+                    $durableKeys[0] = $this->durable->commitFromQuarantine($staging->file());
                 } catch (HomeworkPdfScanException $exception) {
                     return $this->mapScanException($exception);
                 }
 
                 $attachment = HomeworkSubmissionAttachment::register(
                     $submission,
-                    $durableKey,
+                    $durableKeys[0],
                     $staging->displayName(),
                     $staging->file()->byteSize(),
                     $staging->file()->sha256(),
@@ -237,41 +238,41 @@ final class HomeworkPdfAttachmentManager
             });
         } catch (UniqueConstraintViolationException) {
             $staging->abandon();
-            if (\is_string($durableKey)) {
-                $this->durable->deleteQuietly($durableKey);
-            }
+            $this->discardDurableKeys($durableKeys);
             throw HomeworkSubmissionException::pdfExists();
         } catch (DeadlockException|LockWaitTimeoutException) {
             $staging->abandon();
-            if (\is_string($durableKey)) {
-                $this->durable->deleteQuietly($durableKey);
-            }
+            $this->discardDurableKeys($durableKeys);
             throw HomeworkSubmissionException::conflict();
         } catch (HomeworkSubmissionException $e) {
             $staging->abandon();
-            if (\is_string($durableKey)) {
-                $this->durable->deleteQuietly($durableKey);
-            }
+            $this->discardDurableKeys($durableKeys);
             throw $e;
         } catch (\Throwable) {
             $staging->abandon();
-            if (\is_string($durableKey)) {
-                $this->durable->deleteQuietly($durableKey);
-            }
+            $this->discardDurableKeys($durableKeys);
             throw HomeworkSubmissionException::pdfRejected();
         }
 
         if ($attachment instanceof HomeworkSubmissionException) {
             $staging->abandon();
-            if (\is_string($durableKey)) {
-                $this->durable->deleteQuietly($durableKey);
-            }
+            $this->discardDurableKeys($durableKeys);
             throw $attachment;
         }
 
         $staging->abandon();
 
         return $attachment;
+    }
+
+    /**
+     * @param array{0?: string} $durableKeys
+     */
+    private function discardDurableKeys(array $durableKeys): void
+    {
+        if (isset($durableKeys[0])) {
+            $this->durable->deleteQuietly($durableKeys[0]);
+        }
     }
 
     private function mapScanException(HomeworkPdfScanException $exception): HomeworkSubmissionException
