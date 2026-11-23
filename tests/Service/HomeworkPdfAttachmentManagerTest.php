@@ -145,12 +145,14 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
 
     public function testOtherStudentForbidden(): void
     {
-        $s = $this->scenario('pdf-other', 2);
+        $s = $this->scenario('pdf-other');
         $assignmentId = $s['assignment']->getId();
         $this->submissionManager()->saveDraft($s['users'][0], $assignmentId, 'Metin', 0);
+        $outsiderCtx = $this->homeworkContext('pdf-outsider');
+        $outsider = $this->enrollStudents($outsiderCtx, 1)[0]->getUser();
 
         try {
-            $this->attachments()->attach($s['users'][1], $assignmentId, $this->minimalPdf(), 'Baska.pdf', 0);
+            $this->attachments()->attach($outsider, $assignmentId, $this->minimalPdf(), 'Baska.pdf', 0);
             self::fail('expected not found');
         } catch (HomeworkSubmissionException $e) {
             self::assertSame(HomeworkSubmissionException::REASON_NOT_FOUND, $e->getReason());
