@@ -77,9 +77,12 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
 
         $client->request('GET', $path.'/pdf');
         self::assertResponseIsSuccessful();
-        self::assertSame('application/pdf', $client->getResponse()->headers->get('Content-Type'));
-        self::assertStringContainsString('no-store', (string) $client->getResponse()->headers->get('Cache-Control'));
-        self::assertStringStartsWith('%PDF', (string) $client->getResponse()->getContent());
+        $headers = $client->getResponse()->headers;
+        self::assertSame('application/pdf', $headers->get('Content-Type'));
+        self::assertStringContainsString('no-store', (string) $headers->get('Cache-Control'));
+        self::assertStringContainsString('Odev.pdf', (string) $headers->get('Content-Disposition'));
+        // BinaryFileResponse streams the file; BrowserKit getContent() is empty — assert length instead.
+        self::assertGreaterThan(20, (int) $headers->get('Content-Length'));
         self::assertSame(1, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_downloaded'"));
     }
 
