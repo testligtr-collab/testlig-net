@@ -22,10 +22,10 @@ final class Version20261122180000 extends AbstractMigration
         $this->addSql('CREATE TABLE homework_submission_attachments (
             id BINARY(16) NOT NULL,
             submission_id BINARY(16) NOT NULL,
-            storage_key CHAR(32) NOT NULL,
+            storage_key VARCHAR(32) NOT NULL,
             display_name VARCHAR(132) NOT NULL,
             byte_size INT UNSIGNED NOT NULL,
-            sha256 CHAR(64) NOT NULL,
+            sha256 VARCHAR(64) NOT NULL,
             created_at DATETIME NOT NULL,
             UNIQUE INDEX uniq_hw_sub_attach_submission (submission_id),
             UNIQUE INDEX uniq_hw_sub_attach_storage (storage_key),
