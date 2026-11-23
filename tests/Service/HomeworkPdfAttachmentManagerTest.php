@@ -387,7 +387,8 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
 
     private function quarantineFileCount(): int
     {
-        $projectDir = (string) static::getContainer()->getParameter('kernel.project_dir');
+        $projectDir = static::getContainer()->getParameter('kernel.project_dir');
+        self::assertIsString($projectDir);
         $dir = $projectDir.'/var/homework-pdf-quarantine';
         if (!is_dir($dir)) {
             return 0;
