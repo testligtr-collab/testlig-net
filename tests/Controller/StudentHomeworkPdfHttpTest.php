@@ -28,6 +28,8 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
     protected function setUp(): void
     {
         $this->frozenUtc = null;
+        FakeHomeworkPdfScanAdapter::forceVerdict(null);
+        ControllableHomeworkPdfDurableStore::resetFailNextCommit();
         self::ensureKernelShutdown();
         putenv('HOMEWORK_PDF_UPLOAD_ENABLED=0');
         putenv('HOMEWORK_PDF_SCAN_READY=0');
@@ -42,6 +44,8 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
 
     protected function tearDown(): void
     {
+        FakeHomeworkPdfScanAdapter::forceVerdict(null);
+        ControllableHomeworkPdfDurableStore::resetFailNextCommit();
         $this->resetClock();
         self::ensureKernelShutdown();
         putenv('HOMEWORK_PDF_UPLOAD_ENABLED=0');
@@ -122,6 +126,7 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
         $id = $s['assignment']->getId()->toRfc4122();
         $detail = '/ogrenci/odevler/'.$id;
         $client = $this->clientFor($s['emails'][0]);
+        $client->disableReboot();
         $crawler = $client->request('GET', $detail);
         $client->request('POST', $detail.'/taslak', [
             '_token' => (string) $crawler->filter('#shw-draft-form input[name="_token"]')->attr('value'),
@@ -129,6 +134,7 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
             'body' => 'Metin',
         ]);
         $crawler = $client->followRedirect();
+        FakeHomeworkPdfScanAdapter::forceVerdict(HomeworkPdfScanVerdict::Infected);
         $this->fakeScanner()->setVerdict(HomeworkPdfScanVerdict::Infected);
 
         $client->request('POST', $detail.'/pdf', [
@@ -147,6 +153,7 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
         $id = $s['assignment']->getId()->toRfc4122();
         $detail = '/ogrenci/odevler/'.$id;
         $client = $this->clientFor($s['emails'][0]);
+        $client->disableReboot();
         $crawler = $client->request('GET', $detail);
         $client->request('POST', $detail.'/taslak', [
             '_token' => (string) $crawler->filter('#shw-draft-form input[name="_token"]')->attr('value'),
@@ -154,6 +161,7 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
             'body' => 'Korunan http',
         ]);
         $crawler = $client->followRedirect();
+        ControllableHomeworkPdfDurableStore::armFailNextCommit();
         $this->controllableDurable()->failNextCommit();
 
         $client->request('POST', $detail.'/pdf', [

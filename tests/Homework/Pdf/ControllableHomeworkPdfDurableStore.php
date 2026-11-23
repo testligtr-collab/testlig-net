@@ -10,20 +10,35 @@ use App\Homework\Pdf\HomeworkPdfScanException;
 
 /**
  * Test seam: after a clean scan, fail durable commit on demand.
+ * Static arm survives KernelBrowser reboot between HTTP requests.
  */
 final class ControllableHomeworkPdfDurableStore extends HomeworkPdfDurableStore
 {
-    private bool $failNextCommit = false;
+    private static bool $failNextCommit = false;
+
+    private bool $failThisInstance = false;
+
+    public static function armFailNextCommit(): void
+    {
+        self::$failNextCommit = true;
+    }
+
+    public static function resetFailNextCommit(): void
+    {
+        self::$failNextCommit = false;
+    }
 
     public function failNextCommit(): void
     {
-        $this->failNextCommit = true;
+        $this->failThisInstance = true;
+        self::$failNextCommit = true;
     }
 
     public function commitFromQuarantine(HomeworkPdfQuarantineFile $file): string
     {
-        if ($this->failNextCommit) {
-            $this->failNextCommit = false;
+        if (self::$failNextCommit || $this->failThisInstance) {
+            self::$failNextCommit = false;
+            $this->failThisInstance = false;
             throw HomeworkPdfScanException::quarantine();
         }
 

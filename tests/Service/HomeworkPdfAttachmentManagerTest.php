@@ -44,6 +44,8 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
 
     protected function tearDown(): void
     {
+        FakeHomeworkPdfScanAdapter::forceVerdict(null);
+        ControllableHomeworkPdfDurableStore::resetFailNextCommit();
         $this->cleanupHomework();
         putenv('HOMEWORK_PDF_UPLOAD_ENABLED=0');
         putenv('HOMEWORK_PDF_SCAN_READY=0');
