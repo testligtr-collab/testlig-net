@@ -8,7 +8,7 @@ namespace App\Homework\Pdf;
  * Private durable homework PDF objects under a non-web root.
  * Keys are 32-hex; client names never become paths. Re-verifies size+SHA on commit.
  */
-final class HomeworkPdfDurableStore
+class HomeworkPdfDurableStore
 {
     public function __construct(
         private readonly string $directory,

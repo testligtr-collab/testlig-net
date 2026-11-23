@@ -8,6 +8,7 @@ use App\Entity\HomeworkAssignment;
 use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Homework\Pdf\HomeworkPdfScanVerdict;
+use App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore;
 use App\Tests\Homework\Pdf\FakeHomeworkPdfScanAdapter;
 use App\Tests\Support\HomeworkTestFixtures;
 use Doctrine\DBAL\Connection;
@@ -139,6 +140,34 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
         self::assertSame(0, $this->rowCount('homework_submission_attachments'));
     }
 
+    public function testDurableFailureReturns422WithoutChangingDraft(): void
+    {
+        $this->bootOpenGate();
+        $s = $this->scenario('pdfhttp-dur');
+        $id = $s['assignment']->getId()->toRfc4122();
+        $detail = '/ogrenci/odevler/'.$id;
+        $client = $this->clientFor($s['emails'][0]);
+        $crawler = $client->request('GET', $detail);
+        $client->request('POST', $detail.'/taslak', [
+            '_token' => (string) $crawler->filter('#shw-draft-form input[name="_token"]')->attr('value'),
+            'revision' => '0',
+            'body' => 'Korunan http',
+        ]);
+        $crawler = $client->followRedirect();
+        $this->controllableDurable()->failNextCommit();
+
+        $client->request('POST', $detail.'/pdf', [
+            '_token' => (string) $crawler->filter('#shw-pdf-form input[name="_token"]')->attr('value'),
+            'revision' => (string) $crawler->filter('#shw-pdf-form input[name="revision"]')->attr('value'),
+            'body' => 'Korunan http',
+        ], ['pdf' => $this->tempPdfFile('Dur.pdf')]);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->rowCount('homework_submission_attachments'));
+        self::assertSame('Korunan http', (string) $this->db()->fetchOne('SELECT body FROM homework_submissions'));
+        self::assertSame(1, (int) $this->db()->fetchOne('SELECT revision_number FROM homework_submissions'));
+        self::assertSame(0, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_attached'"));
+    }
+
     private function bootOpenGate(): void
     {
         self::ensureKernelShutdown();
@@ -160,6 +189,14 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
         self::assertInstanceOf(FakeHomeworkPdfScanAdapter::class, $fake);
 
         return $fake;
+    }
+
+    private function controllableDurable(): ControllableHomeworkPdfDurableStore
+    {
+        $store = static::getContainer()->get(ControllableHomeworkPdfDurableStore::class);
+        self::assertInstanceOf(ControllableHomeworkPdfDurableStore::class, $store);
+
+        return $store;
     }
 
     private function tempPdfFile(string $name = 'odev.pdf'): UploadedFile

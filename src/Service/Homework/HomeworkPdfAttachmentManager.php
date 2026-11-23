@@ -84,7 +84,9 @@ final class HomeworkPdfAttachmentManager
                 throw HomeworkSubmissionException::pdfClosed();
             }
 
-            $attachment = $this->entityManager->wrapInTransaction(function () use (
+            // Connection-level transaction (not wrapInTransaction): durable failure must roll back
+            // draft/revision without closing the EntityManager so the controller can render 422.
+            $attachment = $this->runInTransaction(function () use (
                 $actor,
                 $assignmentId,
                 $expectedRevision,
@@ -192,6 +194,7 @@ final class HomeworkPdfAttachmentManager
                     }
                     $submission = HomeworkSubmission::openDraft($recipient, '', $now);
                     $this->entityManager->persist($submission);
+                    // Flush inside the open transaction so durable failure can roll the draft back.
                     $this->entityManager->flush();
                     try {
                         $submission->bumpRevisionForAttachment($submission->getRevisionNumber(), $now);
@@ -203,7 +206,8 @@ final class HomeworkPdfAttachmentManager
                 try {
                     $durableKeys[0] = $this->durable->commitFromQuarantine($staging->file());
                 } catch (HomeworkPdfScanException $exception) {
-                    return $this->mapScanException($exception);
+                    // Throw (do not return) so wrapInTransaction rolls back draft/revision writes.
+                    throw $this->mapScanException($exception);
                 }
 
                 $attachment = HomeworkSubmissionAttachment::register(
@@ -239,24 +243,29 @@ final class HomeworkPdfAttachmentManager
         } catch (UniqueConstraintViolationException) {
             $staging->abandon();
             $this->discardDurableKeys($durableKeys);
+            $this->clearIdentityMap();
             throw HomeworkSubmissionException::pdfExists();
         } catch (DeadlockException|LockWaitTimeoutException) {
             $staging->abandon();
             $this->discardDurableKeys($durableKeys);
+            $this->clearIdentityMap();
             throw HomeworkSubmissionException::conflict();
         } catch (HomeworkSubmissionException $e) {
             $staging->abandon();
             $this->discardDurableKeys($durableKeys);
+            $this->clearIdentityMap();
             throw $e;
         } catch (\Throwable) {
             $staging->abandon();
             $this->discardDurableKeys($durableKeys);
+            $this->clearIdentityMap();
             throw HomeworkSubmissionException::pdfRejected();
         }
 
         if ($attachment instanceof HomeworkSubmissionException) {
             $staging->abandon();
             $this->discardDurableKeys($durableKeys);
+            $this->clearIdentityMap();
             throw $attachment;
         }
 
@@ -272,6 +281,44 @@ final class HomeworkPdfAttachmentManager
     {
         if (isset($durableKeys[0])) {
             $this->durable->deleteQuietly($durableKeys[0]);
+        }
+    }
+
+    /**
+     * After rollback, drop managed entities so follow-up reads (error page) see DB state.
+     */
+    private function clearIdentityMap(): void
+    {
+        if ($this->entityManager->isOpen()) {
+            $this->entityManager->clear();
+        }
+    }
+
+    /**
+     * Like wrapInTransaction, but does not close the EntityManager on failure.
+     *
+     * @template T
+     *
+     * @param callable(): T $callback
+     *
+     * @return T
+     */
+    private function runInTransaction(callable $callback): mixed
+    {
+        $connection = $this->entityManager->getConnection();
+        $connection->beginTransaction();
+        try {
+            $result = $callback();
+            $this->entityManager->flush();
+            $connection->commit();
+
+            return $result;
+        } catch (\Throwable $exception) {
+            if ($connection->isTransactionActive()) {
+                $connection->rollBack();
+            }
+            $this->clearIdentityMap();
+            throw $exception;
         }
     }
 

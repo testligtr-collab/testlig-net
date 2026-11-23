@@ -304,6 +304,15 @@ when@test:
             arguments:
                 $uploadEnabled: '%env(bool:HOMEWORK_PDF_UPLOAD_ENABLED)%'
 
+        App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore:
+            public: true
+            arguments:
+                $directory: '%kernel.project_dir%/var/homework-pdf'
+
+        App\Homework\Pdf\HomeworkPdfDurableStore:
+            alias: App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore
+            public: true
+
         App\Tests\Browser\BrowserPaymentListSeeder:
             autowire: true
             autoconfigure: true

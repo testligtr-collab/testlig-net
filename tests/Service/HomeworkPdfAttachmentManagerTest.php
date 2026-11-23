@@ -17,6 +17,7 @@ use App\LearningContent\Document\PdfDocumentInspector;
 use App\Service\Homework\HomeworkPdfAttachmentManager;
 use App\Service\Homework\HomeworkStudentQuery;
 use App\Service\Homework\HomeworkSubmissionManager;
+use App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore;
 use App\Tests\Homework\Pdf\FakeHomeworkPdfScanAdapter;
 use App\Tests\Support\HomeworkTestFixtures;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -225,6 +226,80 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         );
     }
 
+    public function testDurableFailureKeepsExistingDraftUnchanged(): void
+    {
+        $s = $this->scenario('pdf-dur-keep');
+        $student = $s['users'][0];
+        $assignmentId = $s['assignment']->getId();
+        $this->submissionManager()->saveDraft($student, $assignmentId, 'Korunan metin', 0);
+
+        $conn = $this->em->getConnection();
+        $before = $conn->fetchAssociative(
+            'SELECT body, status, revision_number FROM homework_submissions ORDER BY id ASC LIMIT 1',
+        );
+        self::assertIsArray($before);
+        self::assertSame('Korunan metin', (string) $before['body']);
+        self::assertSame(HomeworkSubmissionStatus::Draft->value, (string) $before['status']);
+        self::assertSame(1, (int) $before['revision_number']);
+
+        $this->controllableDurable()->failNextCommit();
+        try {
+            $this->attachments()->attach($student, $assignmentId, $this->minimalPdf('dur-keep'), 'Dur.pdf', 1);
+            self::fail('expected durable reject');
+        } catch (HomeworkSubmissionException $e) {
+            self::assertSame(HomeworkSubmissionException::REASON_PDF_REJECTED, $e->getReason());
+        }
+
+        self::assertTrue($this->em->isOpen(), 'EM must stay open for controller 422 render');
+        $after = $conn->fetchAssociative(
+            'SELECT body, status, revision_number FROM homework_submissions ORDER BY id ASC LIMIT 1',
+        );
+        self::assertIsArray($after);
+        self::assertSame((string) $before['body'], (string) $after['body']);
+        self::assertSame((string) $before['status'], (string) $after['status']);
+        self::assertSame((int) $before['revision_number'], (int) $after['revision_number']);
+        self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM homework_submission_attachments'));
+        self::assertSame(0, $this->auditCount('homework_submission_pdf_attached'));
+        self::assertSame(0, $this->quarantineFileCount());
+
+        $detail = $this->studentQuery()->detailFor($student, $assignmentId);
+        self::assertNotNull($detail);
+        self::assertSame('Korunan metin', $detail->body);
+        self::assertSame(1, $detail->revisionNumber);
+        self::assertFalse($detail->hasPdfAttachment);
+    }
+
+    public function testDurableFailureDoesNotCreateDraftWhenNoneExists(): void
+    {
+        $s = $this->scenario('pdf-dur-none');
+        $student = $s['users'][0];
+        $assignmentId = $s['assignment']->getId();
+
+        $conn = $this->em->getConnection();
+        self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM homework_submissions'));
+
+        $this->controllableDurable()->failNextCommit();
+        try {
+            $this->attachments()->attach($student, $assignmentId, $this->minimalPdf('dur-none'), 'Yeni.pdf', 0);
+            self::fail('expected durable reject');
+        } catch (HomeworkSubmissionException $e) {
+            self::assertSame(HomeworkSubmissionException::REASON_PDF_REJECTED, $e->getReason());
+        }
+
+        self::assertTrue($this->em->isOpen(), 'EM must stay open for controller 422 render');
+        self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM homework_submissions'));
+        self::assertSame(0, (int) $conn->fetchOne('SELECT COUNT(*) FROM homework_submission_attachments'));
+        self::assertSame(0, $this->auditCount('homework_submission_pdf_attached'));
+        self::assertSame(0, $this->quarantineFileCount());
+
+        $detail = $this->studentQuery()->detailFor($student, $assignmentId);
+        self::assertNotNull($detail);
+        self::assertSame('', $detail->body);
+        self::assertSame(0, $detail->revisionNumber);
+        self::assertFalse($detail->hasPdfAttachment);
+        self::assertFalse($detail->submitted);
+    }
+
     /**
      * @return array{
      *     ctx: array{owner: User, sa: User, institution: \App\Entity\Institution, year: \App\Entity\AcademicYear, classroom: Classroom, teacher: User, teacherMembership: InstitutionMembership},
@@ -278,6 +353,14 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         return $store;
     }
 
+    private function controllableDurable(): ControllableHomeworkPdfDurableStore
+    {
+        $store = static::getContainer()->get(ControllableHomeworkPdfDurableStore::class);
+        self::assertInstanceOf(ControllableHomeworkPdfDurableStore::class, $store);
+
+        return $store;
+    }
+
     private function pdfGate(): HomeworkPdfUploadGate
     {
         $gate = static::getContainer()->get(HomeworkPdfUploadGate::class);
@@ -292,6 +375,25 @@ final class HomeworkPdfAttachmentManagerTest extends KernelTestCase
         self::assertInstanceOf(FakeHomeworkPdfScanAdapter::class, $fake);
 
         return $fake;
+    }
+
+    private function auditCount(string $action): int
+    {
+        return (int) $this->em->getConnection()->fetchOne(
+            'SELECT COUNT(*) FROM security_audit_events WHERE action = ?',
+            [$action],
+        );
+    }
+
+    private function quarantineFileCount(): int
+    {
+        $dir = self::$kernel->getProjectDir().'/var/homework-pdf-quarantine';
+        if (!is_dir($dir)) {
+            return 0;
+        }
+        $files = glob($dir.'/*') ?: [];
+
+        return \count(array_filter($files, static fn (string $path): bool => is_file($path)));
     }
 
     private function minimalPdf(string $marker = 'ok'): string
