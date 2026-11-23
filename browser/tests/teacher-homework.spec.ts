@@ -455,6 +455,8 @@ test('teacher reviews submissions: list states, unevaluated, saved, long feedbac
   await expect(page.locator('[data-testid="hw-submission-body"]')).toContainText('Henuz kontrol edilmemis yanitim.');
   await expect(page.getByRole('button', { name: 'Kaydet', exact: true })).toBeVisible();
   await expect(page.locator('[data-testid="hw-submission-body"] textarea, [data-testid="hw-submission-body"] input')).toHaveCount(0);
+  // Browser seed is text-only; PDF card stays hidden without an attachment.
+  await expect(page.locator('[data-testid="hw-submission-pdf"]')).toHaveCount(0);
   await expect(page.locator('input[name="expected_current_evaluation_id"]')).toHaveValue('');
   // Native radiogroup: accessible name, visible focus, ArrowDown moves selection.
   await expect(page.getByRole('radiogroup', { name: 'Değerlendirme' })).toBeVisible();

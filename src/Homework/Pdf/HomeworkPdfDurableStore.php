@@ -125,6 +125,23 @@ class HomeworkPdfDurableStore
         return $this->join($storageKey.'.bin');
     }
 
+    /**
+     * Fail-closed read gate before streaming: regular file, size, and SHA must match.
+     */
+    public function assertReadable(string $storageKey, string $sha256, int $byteSize): string
+    {
+        $path = $this->absolutePath($storageKey);
+        clearstatcache(true, $path);
+        if (!$this->isSafeRegularFile($path) || filesize($path) !== $byteSize) {
+            throw HomeworkPdfScanException::quarantine();
+        }
+        if (!hash_equals($sha256, hash_file('sha256', $path) ?: '')) {
+            throw HomeworkPdfScanException::hashMismatch();
+        }
+
+        return $path;
+    }
+
     private function ensureRoot(): void
     {
         $root = $this->directory;

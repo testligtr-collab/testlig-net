@@ -11,6 +11,7 @@ use App\Entity\HomeworkSubmission;
 use App\Entity\User;
 use App\Exception\HomeworkDefinitionException;
 use App\Exception\HomeworkEvaluationException;
+use App\Exception\HomeworkSubmissionException;
 use App\Repository\HomeworkSubmissionRepository;
 use App\Security\HomeworkDefinitionPermission;
 use App\Security\HomeworkEvaluationPermission;
@@ -19,6 +20,7 @@ use App\Service\Homework\HomeworkAssignmentManager;
 use App\Service\Homework\HomeworkDefinitionManager;
 use App\Service\Homework\HomeworkDefinitionQuery;
 use App\Service\Homework\HomeworkEvaluationManager;
+use App\Service\Homework\HomeworkPdfTeacherDownload;
 use App\Service\Homework\HomeworkTeacherScope;
 use App\Service\Homework\HomeworkTeacherSubmissionQuery;
 use App\Service\Homework\HomeworkText;
@@ -34,8 +36,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Teacher homework: drafts, classroom assign with recipient snapshot, submitted-work review and
- * append-only evaluation (label + optional feedback). Evaluation never grants a resubmit.
+ * Teacher homework: drafts, classroom assign with recipient snapshot, submitted-work review,
+ * append-only evaluation (label + optional feedback), and private PDF download.
+ * Evaluation never grants a resubmit.
  */
 #[Route('/ogretmen/odevler')]
 #[IsGranted('ROLE_USER')]
@@ -55,6 +58,7 @@ final class TeacherHomeworkController extends AbstractController
         private readonly HomeworkTeacherSubmissionQuery $submissionQuery,
         private readonly HomeworkEvaluationManager $evaluations,
         private readonly HomeworkSubmissionRepository $submissions,
+        private readonly HomeworkPdfTeacherDownload $pdfDownloads,
     ) {
     }
 
@@ -193,6 +197,21 @@ final class TeacherHomeworkController extends AbstractController
         }
 
         return $this->noStore($this->renderSubmission($detail, $this->evaluationValuesFrom($detail), []));
+    }
+
+    #[Route('/teslim/{id}/pdf', name: 'app_teacher_homework_submission_pdf', methods: ['GET'], requirements: ['id' => self::ID])]
+    public function submissionPdf(string $id): Response
+    {
+        $actor = $this->account();
+        try {
+            return $this->pdfDownloads->download($actor, Uuid::fromString($id));
+        } catch (HomeworkSubmissionException $exception) {
+            if (HomeworkSubmissionException::REASON_FORBIDDEN === $exception->getReason()) {
+                throw new AccessDeniedHttpException('Forbidden');
+            }
+
+            throw new NotFoundHttpException('Not Found');
+        }
     }
 
     #[Route('/teslim/{id}/degerlendir', name: 'app_teacher_homework_submission_evaluate', methods: ['POST'], requirements: ['id' => self::ID])]
