@@ -111,6 +111,23 @@ class HomeworkSubmission
     }
 
     /**
+     * Bump revision after attaching a PDF without changing the text body.
+     *
+     * @internal prefer HomeworkPdfAttachmentManager
+     */
+    public function bumpRevisionForAttachment(int $expectedRevision, \DateTimeImmutable $now): void
+    {
+        if (HomeworkSubmissionStatus::Draft !== $this->status) {
+            throw HomeworkSubmissionException::alreadySubmitted();
+        }
+        if ($expectedRevision !== $this->revisionNumber) {
+            throw HomeworkSubmissionException::staleRevision();
+        }
+        $this->updatedAt = UtcInstant::ensure($now);
+        ++$this->revisionNumber;
+    }
+
+    /**
      * @internal prefer HomeworkSubmissionManager
      */
     public function markSubmitted(string $body, int $expectedRevision, \DateTimeImmutable $now): void

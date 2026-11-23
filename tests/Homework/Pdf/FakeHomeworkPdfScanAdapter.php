@@ -13,15 +13,23 @@ final class FakeHomeworkPdfScanAdapter implements HomeworkPdfScanAdapter
     /** @var list<array{path: string, size: int, sha: string}> */
     public array $calls = [];
 
+    private static ?HomeworkPdfScanVerdict $forcedVerdict = null;
+
     public function __construct(
         private HomeworkPdfScanVerdict $verdict = HomeworkPdfScanVerdict::Clean,
         private ?\Closure $afterScan = null,
     ) {
     }
 
+    public static function forceVerdict(?HomeworkPdfScanVerdict $verdict): void
+    {
+        self::$forcedVerdict = $verdict;
+    }
+
     public function setVerdict(HomeworkPdfScanVerdict $verdict): void
     {
         $this->verdict = $verdict;
+        self::$forcedVerdict = $verdict;
     }
 
     public function scan(HomeworkPdfQuarantineFile $file): HomeworkPdfScanVerdict
@@ -35,6 +43,6 @@ final class FakeHomeworkPdfScanAdapter implements HomeworkPdfScanAdapter
             ($this->afterScan)($file);
         }
 
-        return $this->verdict;
+        return self::$forcedVerdict ?? $this->verdict;
     }
 }

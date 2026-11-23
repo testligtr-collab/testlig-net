@@ -96,6 +96,31 @@
                 {% endif %}
             </article>
 
+            {% if detail.pdfUploadOpen or detail.hasPdfAttachment %}
+                <article class="shw-card" data-testid="shw-pdf">
+                    <h2>PDF ek</h2>
+                    {% if detail.hasPdfAttachment %}
+                        <p class="shw-hint" data-testid="shw-pdf-name">{{ detail.pdfDisplayName }}</p>
+                        <p class="shw-hint">PDF eklendi; indirme bu dilimde yok.</p>
+                    {% elseif detail.pdfUploadOpen %}
+                        <form id="shw-pdf-form" method="post" action="{{ path('app_student_homework_pdf', {id: detail.assignmentId}) }}" enctype="multipart/form-data" class="shw-form" data-testid="shw-pdf-form">
+                            <input type="hidden" name="_token" value="{{ csrf_token('student_homework_pdf') }}">
+                            <input type="hidden" name="revision" value="{{ values.revision }}">
+                            <input type="hidden" name="body" value="{{ values.body }}">
+                            <label class="sr-only" for="shw-pdf">PDF dosyası</label>
+                            <input id="shw-pdf" type="file" name="pdf" accept="application/pdf,.pdf" required>
+                            {% if errors.pdf|default(false) %}
+                                <p class="shw-field-error">{{ errors.pdf }}</p>
+                            {% endif %}
+                            <p class="shw-hint">İsteğe bağlı tek PDF. Eklemek ödevini göndermez. En fazla 25 MB.</p>
+                            <div class="shw-actions">
+                                <button type="submit" class="btn shw-btn shw-btn--ghost">PDF ekle</button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </article>
+            {% endif %}
+
             {% if detail.submitted %}
                 <article class="shw-card shw-eval" aria-labelledby="shw-eval-heading" data-testid="shw-evaluation">
                     <h2 id="shw-eval-heading">Öğretmen değerlendirmesi</h2>

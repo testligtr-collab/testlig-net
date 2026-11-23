@@ -509,6 +509,9 @@ trait HomeworkTestFixtures
             $connection->executeStatement('UPDATE homework_evaluations SET supersedes_evaluation_id = NULL');
             $connection->executeStatement('DELETE FROM homework_evaluations');
         }
+        if ($connection->createSchemaManager()->tablesExist(['homework_submission_attachments'])) {
+            $connection->executeStatement('DELETE FROM homework_submission_attachments');
+        }
         foreach (['homework_submissions', 'homework_recipients', 'homework_assignments'] as $table) {
             if ($connection->createSchemaManager()->tablesExist([$table])) {
                 $connection->executeStatement('DELETE FROM '.$table);

@@ -6,11 +6,15 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Exception\HomeworkSubmissionException;
+use App\Homework\Pdf\HomeworkPdfUploadGate;
+use App\LearningContent\Document\PdfDocumentInspector;
 use App\Service\ActiveVerifiedUserPolicy;
+use App\Service\Homework\HomeworkPdfAttachmentManager;
 use App\Service\Homework\HomeworkStudentQuery;
 use App\Service\Homework\HomeworkSubmissionManager;
 use App\Service\Homework\HomeworkText;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -20,7 +24,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Student homework list + text draft/submit. No evaluation/file/parent views.
+ * Student homework list + text draft/submit + optional gated PDF attach (no download UI).
  */
 #[Route('/ogrenci/odevler')]
 #[IsGranted('ROLE_STUDENT')]
@@ -28,6 +32,7 @@ final class StudentHomeworkController extends AbstractController
 {
     private const CSRF_DRAFT = 'student_homework_draft';
     private const CSRF_SUBMIT = 'student_homework_submit';
+    private const CSRF_PDF = 'student_homework_pdf';
     private const ID = '[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 
     public function __construct(
@@ -110,6 +115,87 @@ final class StudentHomeworkController extends AbstractController
         }
     }
 
+    #[Route('/{id}/pdf', name: 'app_student_homework_pdf', methods: ['POST'], requirements: ['id' => self::ID])]
+    public function attachPdf(
+        string $id,
+        Request $request,
+        HomeworkPdfAttachmentManager $pdfAttachments,
+        HomeworkPdfUploadGate $pdfGate,
+    ): Response {
+        $actor = $this->account();
+        $this->assertCsrf($request, self::CSRF_PDF);
+        $assignmentId = $this->uuid($id);
+        $revision = $request->request->getInt('revision');
+        $values = ['body' => $request->request->getString('body'), 'revision' => $revision, 'confirm' => false];
+
+        if (!$pdfGate->mayAcceptUpload()) {
+            return $this->failure(
+                $actor,
+                $assignmentId,
+                HomeworkSubmissionException::pdfClosed(),
+                $values,
+                self::CSRF_PDF,
+            );
+        }
+
+        $upload = $request->files->get('pdf');
+        if (!$upload instanceof UploadedFile || !$upload->isValid()) {
+            return $this->failure(
+                $actor,
+                $assignmentId,
+                HomeworkSubmissionException::pdfRejected(PdfDocumentInspector::MESSAGE_TYPE),
+                $values,
+                self::CSRF_PDF,
+            );
+        }
+
+        $path = $upload->getRealPath();
+        if (!\is_string($path) || !is_file($path)) {
+            return $this->failure(
+                $actor,
+                $assignmentId,
+                HomeworkSubmissionException::pdfRejected(PdfDocumentInspector::MESSAGE_TYPE),
+                $values,
+                self::CSRF_PDF,
+            );
+        }
+        $size = filesize($path);
+        if (false === $size || $size < 1 || $size > PdfDocumentInspector::MAX_BYTES) {
+            return $this->failure(
+                $actor,
+                $assignmentId,
+                HomeworkSubmissionException::pdfRejected(PdfDocumentInspector::MESSAGE_SIZE),
+                $values,
+                self::CSRF_PDF,
+            );
+        }
+        $bytes = file_get_contents($path);
+        if (!\is_string($bytes) || '' === $bytes) {
+            return $this->failure(
+                $actor,
+                $assignmentId,
+                HomeworkSubmissionException::pdfRejected(PdfDocumentInspector::MESSAGE_TYPE),
+                $values,
+                self::CSRF_PDF,
+            );
+        }
+
+        try {
+            $pdfAttachments->attach(
+                $actor,
+                $assignmentId,
+                $bytes,
+                $upload->getClientOriginalName() ?: 'odev.pdf',
+                $revision,
+            );
+            $this->addFlash('success', 'PDF eklendi. Ödevin henüz gönderilmedi.');
+
+            return $this->redirectToRoute('app_student_homework_show', ['id' => $id]);
+        } catch (HomeworkSubmissionException $e) {
+            return $this->failure($actor, $assignmentId, $e, $values, self::CSRF_PDF);
+        }
+    }
+
     /**
      * @param array{body: string, revision: int, confirm: bool} $values
      */
@@ -145,7 +231,10 @@ final class StudentHomeworkController extends AbstractController
             HomeworkSubmissionException::REASON_ALREADY_SUBMITTED,
             HomeworkSubmissionException::REASON_CLOSED,
             HomeworkSubmissionException::REASON_STALE_REVISION,
-            HomeworkSubmissionException::REASON_CONFLICT => Response::HTTP_UNPROCESSABLE_ENTITY,
+            HomeworkSubmissionException::REASON_CONFLICT,
+            HomeworkSubmissionException::REASON_PDF_CLOSED,
+            HomeworkSubmissionException::REASON_PDF_REJECTED,
+            HomeworkSubmissionException::REASON_PDF_EXISTS => Response::HTTP_UNPROCESSABLE_ENTITY,
             default => Response::HTTP_BAD_REQUEST,
         };
 

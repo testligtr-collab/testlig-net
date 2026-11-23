@@ -19,6 +19,8 @@ use App\Enum\InstitutionMembershipRole;
 use App\Enum\InstitutionMembershipStatus;
 use App\Enum\InstitutionStatus;
 use App\Enum\StudentEnrollmentStatus;
+use App\Homework\Pdf\HomeworkPdfUploadGate;
+use App\Repository\HomeworkSubmissionAttachmentRepository;
 use App\Service\ActiveVerifiedUserPolicy;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
@@ -38,6 +40,8 @@ final class HomeworkStudentQuery
         private readonly HomeworkStudentScope $scope,
         private readonly ActiveVerifiedUserPolicy $activeUsers,
         private readonly ClockInterface $clock,
+        private readonly HomeworkPdfUploadGate $pdfGate,
+        private readonly HomeworkSubmissionAttachmentRepository $attachments,
     ) {
     }
 
@@ -250,6 +254,11 @@ final class HomeworkStudentQuery
             }
         }
 
+        $attachment = $submission instanceof HomeworkSubmission
+            ? $this->attachments->findForSubmission($submission)
+            : null;
+        $pdfUploadOpen = $this->pdfGate->mayAcceptUpload() && $writable && null === $attachment;
+
         return new HomeworkStudentDetail(
             assignmentId: $assignment->getId()->toRfc4122(),
             title: $assignment->getTitle(),
@@ -268,6 +277,9 @@ final class HomeworkStudentQuery
             evaluationLabelKey: $evaluationLabelKey,
             evaluationLabelTr: $evaluationLabelTr,
             feedback: $feedback,
+            pdfUploadOpen: $pdfUploadOpen,
+            hasPdfAttachment: null !== $attachment,
+            pdfDisplayName: $attachment?->getDisplayName(),
         );
     }
 

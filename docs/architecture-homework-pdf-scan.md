@@ -46,17 +46,19 @@ Default binding: `ClosedHomeworkPdfScanReadiness` (never ready) + `HOMEWORK_PDF_
 - Cleanup failure is fail-closed (`homework_pdf_quarantine`); it is never converted into a clean staging result.
 - Homework PDF classes do **not** log. Exception messages are stable codes only (no path, body, virus name, or secret). There is no log-redaction suite because there is no logging.
 
-## Next integration contract (not implemented here)
+## Student PDF attach integration (0.1f; production upload still closed)
 
-1. Gate assert  
+Implemented in application code (tests open the gate with Fake scanner + env flags):
+
+1. Gate assert (`HomeworkPdfUploadGate` + readiness)  
 2. Inspect bytes → quarantine stage (locked handle + SHA)  
 3. Scan same handle → only `clean` continues  
-4. Re-verify bytes when copying/renaming to **durable** private key  
-5. DB commit (revision)  
-6. On DB/write failure: delete durable candidate; **keep existing draft attachment**  
-7. On success replace: delete previous durable draft object  
+4. Re-verify bytes when copying to **durable** private key (`HomeworkPdfDurableStore` under `var/homework-pdf`)  
+5. DB commit (`homework_submission_attachments`, UNIQUE per submission; bump draft revision)  
+6. On DB/write failure: delete durable candidate; never leave an orphan attachment row  
+7. Existing attachment is **not** replaced in this slice (conflict / `pdf_exists`)
 
-Still open: production OLS/lsphp socket access, production StreamMaxLength/MaxFileSize measurement, production signature freshness + readiness wiring, quota/retention/orphan cleanup. Unlimited storage is not assumed.
+Still open for production enablement: OLS/lsphp clamd socket access, StreamMaxLength/MaxFileSize measurement, signature freshness + replacing `ClosedHomeworkPdfScanReadiness`, quota/retention/orphan cleanup, teacher download UI. Unlimited storage is not assumed. `HOMEWORK_PDF_UPLOAD_ENABLED` remains `0` in production.
 
 ## Isolated GitHub Actions ClamAV accept (runner only)
 

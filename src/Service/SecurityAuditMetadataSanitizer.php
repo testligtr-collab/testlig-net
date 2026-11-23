@@ -240,6 +240,8 @@ final class SecurityAuditMetadataSanitizer
         'submission_id',
         'label',
         'supersedes_evaluation_id',
+        // X01 optional PDF attach (size only; no filename/path/storage key).
+        'byte_size',
     ];
 
     /**

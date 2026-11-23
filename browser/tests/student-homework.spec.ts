@@ -16,6 +16,7 @@ async function gotoOk(page: Page, path: string): Promise<void> {
 async function noFake(page: Page): Promise<void> {
   await expect(page.locator('.shw-page').getByText(/Tasarım önerisi|Örnek veriler|puan|rubrik/i)).toHaveCount(0);
   await expect(page.locator('.shw-page').getByRole('link', { name: /Değerlendir|Dosya yükle|Yeniden teslim/i })).toHaveCount(0);
+  await expect(page.locator('[data-testid="shw-pdf-form"]')).toHaveCount(0);
 }
 
 async function touchTargets(page: Page): Promise<void> {
