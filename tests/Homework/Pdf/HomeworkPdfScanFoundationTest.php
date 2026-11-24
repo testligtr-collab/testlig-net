@@ -357,7 +357,7 @@ final class HomeworkPdfScanFoundationTest extends TestCase
                 $store->assertReadable($key, str_repeat('0', 64), $validSize);
                 self::fail('expected hash mismatch rejection');
             } catch (HomeworkPdfScanException $exception) {
-                self::assertSame('homework_pdf_hash', $exception->getMessage());
+                self::assertSame('homework_pdf_scan_hash_mismatch', $exception->getMessage());
             }
 
             if ('\\' !== \DIRECTORY_SEPARATOR) {

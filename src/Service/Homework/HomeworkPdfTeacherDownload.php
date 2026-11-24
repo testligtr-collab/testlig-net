@@ -136,12 +136,11 @@ final class HomeworkPdfTeacherDownload
 
     private function safeDownloadFilename(string $displayName): string
     {
-        $base = basename(str_replace('\\', '/', $displayName));
-        if (1 === preg_match('/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,120}\.pdf$/', $base)
-            && !str_contains($base, '..')
-            && 1 === substr_count($base, '.')
+        if (1 === preg_match('/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,120}\.pdf$/', $displayName)
+            && !str_contains($displayName, '..')
+            && 1 === substr_count($displayName, '.')
         ) {
-            return $base;
+            return $displayName;
         }
 
         return 'odev.pdf';
