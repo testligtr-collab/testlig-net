@@ -110,8 +110,10 @@ final class ReleaseDeployScriptTest extends TestCase
             self::assertTrue($process->isSuccessful(), 'Deploy '.$i.' failed: '.$process->getOutput().' / '.$process->getErrorOutput());
 
             // Ensure strictly increasing timestamps on release dirs so KEEP_RELEASES=5 prune order is deterministic.
+            clearstatcache(true);
             $target = realpath($siteRoot.'/app');
             self::assertIsString($target);
+            self::assertStringEndsWith('-'.substr($sha, 0, 12), $target);
             touch($target, 1_700_001_000 + ($i * 10));
 
             if (1 === $i) {
@@ -142,8 +144,11 @@ final class ReleaseDeployScriptTest extends TestCase
         self::assertSame('new-shared-pdf-bytes', file_get_contents($durableDir.'/'.$newSharedFile));
 
         // Active release must symlink var/log and public/uploads, NEVER var/homework-pdf.
+        clearstatcache(true);
         $activeRelease = realpath($siteRoot.'/app');
         self::assertIsString($activeRelease);
+        self::assertStringEndsWith('-7aaaaaaaaaaa', $activeRelease);
+        self::assertDirectoryExists($activeRelease);
         self::assertTrue(is_link($activeRelease.'/var/log'));
         self::assertTrue(is_link($activeRelease.'/public/uploads'));
         self::assertFalse(is_link($activeRelease.'/var/homework-pdf'));
