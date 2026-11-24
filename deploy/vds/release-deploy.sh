@@ -6,7 +6,8 @@ set -euo pipefail
 
 SHA="${1:?git sha required}"
 TARBALL="${2:?tarball path required}"
-SITE_ROOT="/home/testlig.net"
+# TESTLIG_RELEASE_SITE_ROOT is only for isolated PHPUnit deploy tests; production workflows must leave it unset.
+SITE_ROOT="${TESTLIG_RELEASE_SITE_ROOT:-/home/testlig.net}"
 RELEASES_DIR="${SITE_ROOT}/releases"
 SHARED_DIR="${SITE_ROOT}/shared"
 APP_LINK="${SITE_ROOT}/app"
@@ -57,6 +58,18 @@ fi
 
 # Shared writable paths (create if absent; link into release).
 mkdir -p "$SHARED_DIR/var/log" "$SHARED_DIR/public/uploads"
+# Private persistent homework PDF storage outside releases/ (never symlinked into release, never web-accessible).
+install -d -m 700 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/var/homework-pdf"
+install -d -m 700 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/var/homework-pdf-quarantine"
+if [[ -n "$PREV_TARGET" && -d "$PREV_TARGET/var/homework-pdf" && ! -L "$PREV_TARGET/var/homework-pdf" ]]; then
+  for pdf_obj in "$PREV_TARGET/var/homework-pdf"/*.bin; do
+    [[ -f "$pdf_obj" && ! -L "$pdf_obj" ]] || continue
+    pdf_base="$(basename "$pdf_obj")"
+    if [[ ! -e "$SHARED_DIR/var/homework-pdf/$pdf_base" && ! -L "$SHARED_DIR/var/homework-pdf/$pdf_base" ]]; then
+      install -m 600 -o "$APP_USER" -g "$APP_GROUP" "$pdf_obj" "$SHARED_DIR/var/homework-pdf/$pdf_base"
+    fi
+  done
+fi
 if [[ -d "$RELEASE_DIR/var" ]]; then
   rm -rf "$RELEASE_DIR/var/log"
 else

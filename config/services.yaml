@@ -28,9 +28,12 @@ parameters:
     env(BUNNY_STORAGE_ACCESS_KEY): ''
     env(BUNNY_STORAGE_ENDPOINT): ''
     env(QUESTION_IMAGE_UPLOAD_PROVIDER): 'local'
+    env(QUESTION_IMAGE_CLAMAV_SOCKET): ''
     env(QUESTION_IMAGE_CLAMAV_DATABASE): ''
     env(HOMEWORK_PDF_UPLOAD_ENABLED): '0'
     env(HOMEWORK_PDF_SCAN_READY): '0'
+    env(HOMEWORK_PDF_STORAGE_DIR): ''
+    env(HOMEWORK_PDF_QUARANTINE_DIR): ''
     env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
     env(WEB_RUNTIME_IDENTITY_EXPIRES_AT): ''
     payment_platform_settlement_actor_id_default: ''
@@ -115,21 +118,40 @@ services:
     App\Homework\Pdf\HomeworkPdfScanAdapter:
         alias: App\Homework\Pdf\ClamdHomeworkPdfScanAdapter
 
+    App\Homework\Pdf\HomeworkPdfStoragePaths:
+        arguments:
+            $durableConfigured: '%env(string:HOMEWORK_PDF_STORAGE_DIR)%'
+            $quarantineConfigured: '%env(string:HOMEWORK_PDF_QUARANTINE_DIR)%'
+            $projectDir: '%kernel.project_dir%'
+
+    App\Homework\Pdf\RuntimeHomeworkPdfScanReadiness:
+        arguments:
+            $scanReadyFlag: '%env(bool:HOMEWORK_PDF_SCAN_READY)%'
+            $socketPath: '%env(string:QUESTION_IMAGE_CLAMAV_SOCKET)%'
+            $storagePaths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
+            $localDatabaseVersions: '@App\Question\Image\Scan\CvdDatabaseDirectoryReader'
+            $clamdTransport: '@App\Question\Image\Scan\ClamdInstreamTransport'
+
     App\Homework\Pdf\HomeworkPdfScanReadiness:
-        alias: App\Homework\Pdf\ClosedHomeworkPdfScanReadiness
+        alias: App\Homework\Pdf\RuntimeHomeworkPdfScanReadiness
 
     App\Homework\Pdf\HomeworkPdfUploadGate:
         arguments:
             $uploadEnabled: '%env(bool:HOMEWORK_PDF_UPLOAD_ENABLED)%'
 
     App\Homework\Pdf\HomeworkPdfQuarantine:
+        factory: ['App\Homework\Pdf\HomeworkPdfStorageFactory', 'createQuarantine']
         arguments:
-            $directory: '%kernel.project_dir%/var/homework-pdf-quarantine'
-            $maxBytes: !php/const App\LearningContent\Document\PdfDocumentInspector::MAX_BYTES
+            $paths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
 
     App\Homework\Pdf\HomeworkPdfDurableStore:
+        factory: ['App\Homework\Pdf\HomeworkPdfStorageFactory', 'createDurableStore']
         arguments:
-            $directory: '%kernel.project_dir%/var/homework-pdf'
+            $paths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
+
+    App\Homework\Pdf\HomeworkPdfQuarantineCleaner:
+        arguments:
+            $paths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
 
     App\Question\Image\Scan\CvdDatabaseDirectoryReader:
         arguments:
@@ -280,6 +302,27 @@ services:
 
 when@test:
     services:
+        App\Homework\Pdf\HomeworkPdfStoragePaths:
+            public: true
+            arguments:
+                $durableConfigured: '%env(string:HOMEWORK_PDF_STORAGE_DIR)%'
+                $quarantineConfigured: '%env(string:HOMEWORK_PDF_QUARANTINE_DIR)%'
+                $projectDir: '%kernel.project_dir%'
+
+        App\Homework\Pdf\RuntimeHomeworkPdfScanReadiness:
+            public: true
+            arguments:
+                $scanReadyFlag: '%env(bool:HOMEWORK_PDF_SCAN_READY)%'
+                $socketPath: '%env(string:QUESTION_IMAGE_CLAMAV_SOCKET)%'
+                $storagePaths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
+                $localDatabaseVersions: '@App\Question\Image\Scan\CvdDatabaseDirectoryReader'
+                $clamdTransport: '@App\Question\Image\Scan\ClamdInstreamTransport'
+
+        App\Homework\Pdf\HomeworkPdfQuarantineCleaner:
+            public: true
+            arguments:
+                $paths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
+
         App\Homework\Pdf\FlagHomeworkPdfScanReadiness:
             public: true
             autowire: true

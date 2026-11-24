@@ -8,6 +8,7 @@ use App\Entity\HomeworkAssignment;
 use App\Entity\InstitutionMembership;
 use App\Entity\User;
 use App\Homework\Pdf\HomeworkPdfScanVerdict;
+use App\LearningContent\Document\PdfDocumentInspector;
 use App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore;
 use App\Tests\Homework\Pdf\FakeHomeworkPdfScanAdapter;
 use App\Tests\Support\HomeworkTestFixtures;
@@ -174,6 +175,41 @@ final class StudentHomeworkPdfHttpTest extends WebTestCase
         self::assertSame('Korunan http', (string) $this->db()->fetchOne('SELECT body FROM homework_submissions'));
         self::assertSame(1, (int) $this->db()->fetchOne('SELECT revision_number FROM homework_submissions'));
         self::assertSame(0, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_attached'"));
+    }
+
+    public function testPhpUploadSizeErrorReturnsSizeMessageWithoutCreatingRow(): void
+    {
+        $this->bootOpenGate();
+        $s = $this->scenario('pdfhttp-inisize');
+        $id = $s['assignment']->getId()->toRfc4122();
+        $detail = '/ogrenci/odevler/'.$id;
+        $client = $this->clientFor($s['emails'][0]);
+        $client->disableReboot();
+        $crawler = $client->request('GET', $detail);
+        $client->request('POST', $detail.'/taslak', [
+            '_token' => (string) $crawler->filter('#shw-draft-form input[name="_token"]')->attr('value'),
+            'revision' => '0',
+            'body' => 'Metin',
+        ]);
+        $crawler = $client->followRedirect();
+
+        $path = tempnam(sys_get_temp_dir(), 'hwpdfsize');
+        self::assertIsString($path);
+        file_put_contents($path, "%PDF-1.4\n%%EOF\n");
+        $oversizedUpload = new UploadedFile($path, 'dev.pdf', 'application/pdf', \UPLOAD_ERR_INI_SIZE, true);
+
+        try {
+            $client->request('POST', $detail.'/pdf', [
+                '_token' => (string) $crawler->filter('#shw-pdf-form input[name="_token"]')->attr('value'),
+                'revision' => (string) $crawler->filter('#shw-pdf-form input[name="revision"]')->attr('value'),
+                'body' => 'Metin',
+            ], ['pdf' => $oversizedUpload]);
+            self::assertResponseStatusCodeSame(422);
+            self::assertStringContainsString(PdfDocumentInspector::MESSAGE_SIZE, (string) $client->getResponse()->getContent());
+            self::assertSame(0, $this->rowCount('homework_submission_attachments'));
+        } finally {
+            @unlink($path);
+        }
     }
 
     private function bootOpenGate(): void

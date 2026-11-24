@@ -140,10 +140,15 @@ final class StudentHomeworkController extends AbstractController
 
         $upload = $request->files->get('pdf');
         if (!$upload instanceof UploadedFile || !$upload->isValid()) {
+            $message = ($upload instanceof UploadedFile
+                && \in_array($upload->getError(), [\UPLOAD_ERR_INI_SIZE, \UPLOAD_ERR_FORM_SIZE], true))
+                ? PdfDocumentInspector::MESSAGE_SIZE
+                : PdfDocumentInspector::MESSAGE_TYPE;
+
             return $this->failure(
                 $actor,
                 $assignmentId,
-                HomeworkSubmissionException::pdfRejected(PdfDocumentInspector::MESSAGE_TYPE),
+                HomeworkSubmissionException::pdfRejected($message),
                 $values,
                 self::CSRF_PDF,
             );

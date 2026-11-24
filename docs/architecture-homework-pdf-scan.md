@@ -60,6 +60,13 @@ Implemented in application code (tests open the gate with Fake scanner + env fla
 
 Still open for production enablement: OLS/lsphp clamd socket access, StreamMaxLength/MaxFileSize measurement, signature freshness + replacing `ClosedHomeworkPdfScanReadiness`, quota/retention/orphan cleanup, teacher download UI. Unlimited storage is not assumed. `HOMEWORK_PDF_UPLOAD_ENABLED` remains `0` in production.
 
+## Shared durable storage, runtime readiness, and quarantine purge (readiness slice)
+
+- **Shared non-release paths:** `HomeworkPdfStoragePaths` + `HomeworkPdfStorageFactory` resolve `HOMEWORK_PDF_STORAGE_DIR` (durable) and `HOMEWORK_PDF_QUARANTINE_DIR` (quarantine). Empty values fall back to `var/homework-pdf` and `var/homework-pdf-quarantine` in local/CI dev; release deployments must configure explicit shared directories outside `releases/` and outside `public/` / `public_html/` (e.g. `/home/testlig.net/shared/var/homework-pdf` and `/home/testlig.net/shared/var/homework-pdf-quarantine`).
+- **Deploy persistence (no symlink):** Because `HomeworkPdfDurableStore` rejects symlinked roots (`is_link`), `deploy/vds/release-deploy.sh` and `deploy/vds/bootstrap-layout.sh` provision `0700` shared directories under `shared/var/`, migrate any legacy non-symlink `*.bin` objects safely (`0600`, no-clobber), and keep `$RELEASE_DIR/var/homework-pdf` unsymlinked so `KEEP_RELEASES=5` pruning never deletes durable student files. `HomeworkPdfStoragePaths` rejects any path resolving inside `releases/<name>` (including through `app/` symlinks).
+- **Fail-closed runtime readiness:** Production wires `HomeworkPdfScanReadiness` to `RuntimeHomeworkPdfScanReadiness` (keeping `HOMEWORK_PDF_UPLOAD_ENABLED=0` and `HOMEWORK_PDF_SCAN_READY=0` by default). Readiness returns `true` only when `HOMEWORK_PDF_SCAN_READY=1`, both storage roots pass non-release/non-symlink/non-public/non-overlapping writable checks, `QUESTION_IMAGE_CLAMAV_SOCKET` passes `UnixClamdSocketPath`, `CvdDatabaseDirectoryReader` reads valid `main`/`daily`/`bytecode` headers, and a bounded (`1.5s`) `clamd` Unix socket check gets `nPING` → `PONG\n` plus `nVERSION` loaded `daily` equal to disk `daily`.
+- **Stale orphan quarantine cleanup:** `HomeworkPdfQuarantineCleaner` + `app:homework-pdf:purge-quarantine` (`--max-age >= 60`, `--dry-run`) remove only unlocked (`LOCK_EX | LOCK_NB`) stale 32-hex `.tmp`/`.bin` files in quarantine without touching symlinks, active uploads, or durable objects.
+
 ## Isolated GitHub Actions ClamAV accept (runner only)
 
 Manual workflow: `.github/workflows/x01-homework-pdf-clamav-ci-accept.yml` (`workflow_dispatch` only).  
