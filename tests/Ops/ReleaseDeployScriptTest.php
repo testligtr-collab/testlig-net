@@ -92,7 +92,7 @@ final class ReleaseDeployScriptTest extends TestCase
 
         $newSharedFile = '22222222222222222222222222222222.bin';
         for ($i = 1; $i <= 7; ++$i) {
-            $sha = str_pad(dechex($i), 40, 'a', \STR_PAD_LEFT);
+            $sha = str_pad(dechex($i), 40, 'a', \STR_PAD_RIGHT);
             $process = new Process(
                 ['bash', $repoRoot.'/deploy/vds/release-deploy.sh', $sha, $tarball],
                 null,
