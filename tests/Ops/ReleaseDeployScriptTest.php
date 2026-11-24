@@ -87,6 +87,9 @@ final class ReleaseDeployScriptTest extends TestCase
         $user = trim((string) (new Process(['id', '-un']))->mustRun()->getOutput());
         $group = trim((string) (new Process(['id', '-gn']))->mustRun()->getOutput());
 
+        $basePath = getenv('PATH');
+        $effectivePath = $binDir.':'.(\is_string($basePath) && '' !== $basePath ? $basePath : '/usr/local/bin:/usr/bin:/bin');
+
         $newSharedFile = '22222222222222222222222222222222.bin';
         for ($i = 1; $i <= 7; ++$i) {
             $sha = str_pad(dechex($i), 40, 'a', \STR_PAD_LEFT);
@@ -94,7 +97,7 @@ final class ReleaseDeployScriptTest extends TestCase
                 ['bash', $repoRoot.'/deploy/vds/release-deploy.sh', $sha, $tarball],
                 null,
                 [
-                    'PATH' => $binDir.':'.(string) getenv('PATH'),
+                    'PATH' => $effectivePath,
                     'TESTLIG_RELEASE_SITE_ROOT' => $siteRoot,
                     'APP_USER' => $user,
                     'APP_GROUP' => $group,

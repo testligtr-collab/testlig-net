@@ -57,9 +57,10 @@ final class HomeworkPdfReadinessAndStorageTest extends TestCase
         $quarantine = HomeworkPdfStorageFactory::createQuarantine($explicit);
         $candidate = $quarantine->stage("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n");
         try {
-            $stored = $durableStore->storeFromLockedHandle($candidate->file());
-            self::assertStringStartsWith($sharedDurable.\DIRECTORY_SEPARATOR, $stored->absolutePath());
-            self::assertFileExists($stored->absolutePath());
+            $storageKey = $durableStore->commitFromQuarantine($candidate);
+            $storedPath = $durableStore->absolutePath($storageKey);
+            self::assertStringStartsWith($sharedDurable.\DIRECTORY_SEPARATOR, $storedPath);
+            self::assertFileExists($storedPath);
         } finally {
             $candidate->deleteQuietly();
         }
@@ -355,14 +356,13 @@ PHP;
         try {
             // Dry run counts stale unlocked files without deleting.
             $dryCount = $cleaner->purgeStale(3600, $now, true);
-            $expectedCount = '\\' === \DIRECTORY_SEPARATOR ? 3 : 2;
-            self::assertSame($expectedCount, $dryCount);
+            self::assertSame(2, $dryCount);
             self::assertFileExists($staleTmp);
             self::assertFileExists($staleBin);
 
             // Real run deletes stale unlocked candidates only.
             $purged = $cleaner->purgeStale(3600, $now, false);
-            self::assertSame($expectedCount, $purged);
+            self::assertSame(2, $purged);
             self::assertFileDoesNotExist($staleTmp);
             self::assertFileDoesNotExist($staleBin);
             self::assertFileExists($freshTmp);
@@ -391,15 +391,21 @@ PHP;
     public function testConfigDefaultsKeepUploadClosedAndWireRuntimeReadinessInProd(): void
     {
         $root = \dirname(__DIR__, 3);
-        $services = Yaml::parseFile($root.'/config/services.yaml');
+        $services = Yaml::parseFile($root.'/config/services.yaml', Yaml::PARSE_CONSTANT | Yaml::PARSE_CUSTOM_TAGS);
         self::assertIsArray($services);
-        self::assertSame('0', $services['parameters']['env(HOMEWORK_PDF_UPLOAD_ENABLED)'] ?? null);
-        self::assertSame('0', $services['parameters']['env(HOMEWORK_PDF_SCAN_READY)'] ?? null);
-        self::assertSame('', $services['parameters']['env(HOMEWORK_PDF_STORAGE_DIR)'] ?? null);
-        self::assertSame('', $services['parameters']['env(HOMEWORK_PDF_QUARANTINE_DIR)'] ?? null);
+        $parameters = $services['parameters'] ?? null;
+        $serviceMap = $services['services'] ?? null;
+        self::assertIsArray($parameters);
+        self::assertIsArray($serviceMap);
+        self::assertSame('0', $parameters['env(HOMEWORK_PDF_UPLOAD_ENABLED)'] ?? null);
+        self::assertSame('0', $parameters['env(HOMEWORK_PDF_SCAN_READY)'] ?? null);
+        self::assertSame('', $parameters['env(HOMEWORK_PDF_STORAGE_DIR)'] ?? null);
+        self::assertSame('', $parameters['env(HOMEWORK_PDF_QUARANTINE_DIR)'] ?? null);
+        $readinessConfig = $serviceMap[HomeworkPdfScanReadiness::class] ?? null;
+        self::assertIsArray($readinessConfig);
         self::assertSame(
             RuntimeHomeworkPdfScanReadiness::class,
-            $services['services'][HomeworkPdfScanReadiness::class]['alias'] ?? null,
+            $readinessConfig['alias'] ?? null,
         );
 
         foreach (['.env', '.env.example', '.env.test'] as $envFile) {

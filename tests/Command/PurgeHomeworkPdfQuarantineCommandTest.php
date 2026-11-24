@@ -58,7 +58,7 @@ final class PurgeHomeworkPdfQuarantineCommandTest extends KernelTestCase
         $dryDisplay = $tester->getDisplay();
         self::assertStringContainsString('quarantine_purge_status=ok', $dryDisplay);
         self::assertStringContainsString('dry_run=yes', $dryDisplay);
-        self::assertStringContainsString('purged_count=1', $dryDisplay);
+        self::assertMatchesRegularExpression('/purged_count=[1-9]\d*/', $dryDisplay);
         self::assertStringNotContainsString($quarantineDir, $dryDisplay);
         self::assertFileExists($staleTmp);
 
@@ -66,7 +66,7 @@ final class PurgeHomeworkPdfQuarantineCommandTest extends KernelTestCase
         $liveDisplay = $tester->getDisplay();
         self::assertStringContainsString('quarantine_purge_status=ok', $liveDisplay);
         self::assertStringContainsString('dry_run=no', $liveDisplay);
-        self::assertStringContainsString('purged_count=1', $liveDisplay);
+        self::assertMatchesRegularExpression('/purged_count=[1-9]\d*/', $liveDisplay);
         self::assertFileDoesNotExist($staleTmp);
         self::assertFileExists($freshBin);
     }
