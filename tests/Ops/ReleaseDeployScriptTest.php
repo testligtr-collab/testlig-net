@@ -28,7 +28,7 @@ final class ReleaseDeployScriptTest extends TestCase
             self::markTestSkipped('POSIX bash required for deploy script syntax and execution tests');
         }
 
-        $root = \dirname(__DIR__, 3);
+        $root = \dirname(__DIR__, 2);
         foreach (['deploy/vds/release-deploy.sh', 'deploy/vds/bootstrap-layout.sh'] as $script) {
             $process = new Process(['bash', '-n', $root.'/'.$script]);
             $process->run();
@@ -47,7 +47,7 @@ final class ReleaseDeployScriptTest extends TestCase
             self::markTestSkipped('POSIX bash + symlinks required for release-deploy test');
         }
 
-        $repoRoot = \dirname(__DIR__, 3);
+        $repoRoot = \dirname(__DIR__, 2);
         $tmpRoot = $this->tempDir('hwpdf-deploy');
         $siteRoot = $tmpRoot.'/site';
         $binDir = $tmpRoot.'/bin';
