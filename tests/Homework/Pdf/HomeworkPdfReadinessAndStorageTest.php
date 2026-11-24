@@ -341,9 +341,8 @@ PHP;
         touch($freshTmp, $now - 100);
         touch($nonMatching, $now - 7200);
 
-        $symlinkEntry = null;
+        $symlinkEntry = $quarantine.\DIRECTORY_SEPARATOR.'ffffffffffffffffffffffffffffffff.bin';
         if ('\\' !== \DIRECTORY_SEPARATOR) {
-            $symlinkEntry = $quarantine.\DIRECTORY_SEPARATOR.'ffffffffffffffffffffffffffffffff.bin';
             self::assertTrue(symlink($durableFile, $symlinkEntry));
         }
 
@@ -370,7 +369,6 @@ PHP;
             self::assertFileExists($durableFile);
             if ('\\' !== \DIRECTORY_SEPARATOR) {
                 self::assertFileExists($lockedBin);
-                self::assertNotNull($symlinkEntry);
                 self::assertTrue(is_link($symlinkEntry));
             }
         } finally {
