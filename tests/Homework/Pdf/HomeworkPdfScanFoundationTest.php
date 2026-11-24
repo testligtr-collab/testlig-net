@@ -7,6 +7,7 @@ namespace App\Tests\Homework\Pdf;
 use App\Homework\Pdf\ClamdHomeworkPdfScanAdapter;
 use App\Homework\Pdf\ClosedHomeworkPdfScanReadiness;
 use App\Homework\Pdf\HomeworkPdfCiAcceptTransfer;
+use App\Homework\Pdf\HomeworkPdfDurableStore;
 use App\Homework\Pdf\HomeworkPdfQuarantine;
 use App\Homework\Pdf\HomeworkPdfQuarantineByteSink;
 use App\Homework\Pdf\HomeworkPdfQuarantineFile;
@@ -302,6 +303,93 @@ final class HomeworkPdfScanFoundationTest extends TestCase
     {
         self::assertTrue(HomeworkPdfCiAcceptTransfer::nearLimitTransferComplete(true));
         self::assertFalse(HomeworkPdfCiAcceptTransfer::nearLimitTransferComplete(false));
+    }
+
+    public function testDurableStoreAssertReadableFailsClosedWithoutCreatingDirectory(): void
+    {
+        $missingRoot = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'hwpdf-missing-'.bin2hex(random_bytes(4));
+        self::assertDirectoryDoesNotExist($missingRoot);
+        $store = new HomeworkPdfDurableStore($missingRoot);
+        $key = str_repeat('a', 32);
+        $sha = hash('sha256', $this->minimalPdf());
+
+        try {
+            $store->assertReadable($key, $sha, \strlen($this->minimalPdf()));
+            self::fail('expected quarantine failure for missing durable root');
+        } catch (HomeworkPdfScanException $exception) {
+            self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+        }
+        self::assertDirectoryDoesNotExist($missingRoot);
+
+        $root = $this->tempDir();
+        $store = new HomeworkPdfDurableStore($root);
+        $bytes = $this->minimalPdf();
+        $validSha = hash('sha256', $bytes);
+        $validSize = \strlen($bytes);
+        $file = $root.\DIRECTORY_SEPARATOR.$key.'.bin';
+
+        try {
+            try {
+                $store->assertReadable('../evil', $validSha, $validSize);
+                self::fail('expected invalid path rejection');
+            } catch (HomeworkPdfScanException $exception) {
+                self::assertSame('homework_pdf_path', $exception->getMessage());
+            }
+
+            try {
+                $store->assertReadable($key, $validSha, $validSize);
+                self::fail('expected missing file rejection');
+            } catch (HomeworkPdfScanException $exception) {
+                self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+            }
+
+            file_put_contents($file, $bytes);
+            self::assertSame(realpath($file), $store->assertReadable($key, $validSha, $validSize));
+
+            try {
+                $store->assertReadable($key, $validSha, $validSize + 1);
+                self::fail('expected size mismatch rejection');
+            } catch (HomeworkPdfScanException $exception) {
+                self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+            }
+
+            try {
+                $store->assertReadable($key, str_repeat('0', 64), $validSize);
+                self::fail('expected hash mismatch rejection');
+            } catch (HomeworkPdfScanException $exception) {
+                self::assertSame('homework_pdf_hash', $exception->getMessage());
+            }
+
+            if ('\\' !== \DIRECTORY_SEPARATOR) {
+                @chmod($file, 0000);
+                if (!is_readable($file)) {
+                    try {
+                        $store->assertReadable($key, $validSha, $validSize);
+                        self::fail('expected unreadable file rejection');
+                    } catch (HomeworkPdfScanException $exception) {
+                        self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+                    }
+                }
+                @chmod($file, 0600);
+
+                @unlink($file);
+                $outside = $this->file($bytes);
+                self::assertTrue(symlink($outside, $file));
+                try {
+                    $store->assertReadable($key, $validSha, $validSize);
+                    self::fail('expected symlink rejection');
+                } catch (HomeworkPdfScanException $exception) {
+                    self::assertSame('homework_pdf_quarantine', $exception->getMessage());
+                } finally {
+                    @unlink($file);
+                    @unlink($outside);
+                }
+            }
+        } finally {
+            @chmod($file, 0600);
+            @unlink($file);
+            @rmdir($root);
+        }
     }
 
     private function openPipeline(string $dir, \App\Homework\Pdf\HomeworkPdfScanAdapter $adapter): HomeworkPdfScanPipeline

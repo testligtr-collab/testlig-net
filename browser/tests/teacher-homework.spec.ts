@@ -396,6 +396,8 @@ test('other roles and teachers without assignment do not see teacher draft homew
   const page = await anonymous.newPage();
   await page.goto(data.paths.homeworkList);
   await expect(page).toHaveURL(/\/giris$/);
+  await page.goto(`${data.paths.evaluateSubmissionReviewed}/pdf`);
+  await expect(page).toHaveURL(/\/giris$/);
   await anonymous.close();
 });
 
@@ -455,8 +457,10 @@ test('teacher reviews submissions: list states, unevaluated, saved, long feedbac
   await expect(page.locator('[data-testid="hw-submission-body"]')).toContainText('Henuz kontrol edilmemis yanitim.');
   await expect(page.getByRole('button', { name: 'Kaydet', exact: true })).toBeVisible();
   await expect(page.locator('[data-testid="hw-submission-body"] textarea, [data-testid="hw-submission-body"] input')).toHaveCount(0);
-  // Browser seed is text-only; PDF card stays hidden without an attachment.
+  // Browser seed is text-only; PDF card stays hidden without an attachment and /pdf is 404.
   await expect(page.locator('[data-testid="hw-submission-pdf"]')).toHaveCount(0);
+  const missingPdf = await page.request.get(`${data.paths.evaluateSubmissionWait}/pdf`);
+  expect(missingPdf.status()).toBe(404);
   await expect(page.locator('input[name="expected_current_evaluation_id"]')).toHaveValue('');
   // Native radiogroup: accessible name, visible focus, ArrowDown moves selection.
   await expect(page.getByRole('radiogroup', { name: 'Değerlendirme' })).toBeVisible();
@@ -517,7 +521,12 @@ test('student cannot open the teacher evaluation pages', async ({ page }) => {
   const data = manifest();
   await watch(page);
   await login(page, data.users.evaluateStudentReviewed);
-  for (const path of [data.paths.evaluateList, data.paths.evaluateSubmissionReviewed, data.paths.evaluateSubmissionWait]) {
+  for (const path of [
+    data.paths.evaluateList,
+    data.paths.evaluateSubmissionReviewed,
+    `${data.paths.evaluateSubmissionReviewed}/pdf`,
+    data.paths.evaluateSubmissionWait,
+  ]) {
     const response = await page.request.get(path);
     expect([403, 404], path).toContain(response.status());
   }

@@ -21,6 +21,7 @@ use App\Service\FreshUserLoader;
 use App\Service\SecurityAuditRecorder;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Uid\Uuid;
@@ -66,6 +67,7 @@ final class HomeworkPdfTeacherDownload
                 ->setParameter('id', $submissionId, 'uuid')
                 ->setParameter('submitted', HomeworkSubmissionStatus::Submitted)
                 ->getQuery()
+                ->setHint(Query::HINT_REFRESH, true)
                 ->getOneOrNullResult();
             if (!$submission instanceof HomeworkSubmission) {
                 throw HomeworkSubmissionException::notFound();
@@ -75,7 +77,9 @@ final class HomeworkPdfTeacherDownload
             }
 
             $attachment = $this->attachments->findForSubmission($submission);
-            if (!$attachment instanceof HomeworkSubmissionAttachment) {
+            if (!$attachment instanceof HomeworkSubmissionAttachment
+                || !$attachment->getSubmission()->getId()->equals($submission->getId())
+            ) {
                 throw HomeworkSubmissionException::notFound();
             }
 
@@ -89,7 +93,7 @@ final class HomeworkPdfTeacherDownload
                 throw HomeworkSubmissionException::notFound();
             }
 
-            $displayName = $attachment->getDisplayName();
+            $displayName = $this->safeDownloadFilename($attachment->getDisplayName());
             $this->auditRecorder->record(new SecurityAuditContext(
                 action: SecurityAuditAction::HomeworkSubmissionPdfDownloaded,
                 actorType: SecurityAuditActorType::User,
@@ -122,8 +126,24 @@ final class HomeworkPdfTeacherDownload
         );
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Cache-Control', 'no-store, private');
+        $response->headers->set('Pragma', 'no-cache');
+        $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
         $response->setPrivate();
 
         return $response;
+    }
+
+    private function safeDownloadFilename(string $displayName): string
+    {
+        $base = basename(str_replace('\\', '/', $displayName));
+        if (1 === preg_match('/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,120}\.pdf$/', $base)
+            && !str_contains($base, '..')
+            && 1 === substr_count($base, '.')
+        ) {
+            return $base;
+        }
+
+        return 'odev.pdf';
     }
 }

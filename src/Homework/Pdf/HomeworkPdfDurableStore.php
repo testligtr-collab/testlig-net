@@ -126,20 +126,40 @@ class HomeworkPdfDurableStore
     }
 
     /**
-     * Fail-closed read gate before streaming: regular file, size, and SHA must match.
+     * Fail-closed read gate before streaming: existing root, regular readable file, size, and SHA must match.
+     * Never creates directories on a GET path and never leaks warnings into HTTP 500.
      */
     public function assertReadable(string $storageKey, string $sha256, int $byteSize): string
     {
-        $path = $this->absolutePath($storageKey);
-        clearstatcache(true, $path);
-        if (!$this->isSafeRegularFile($path) || filesize($path) !== $byteSize) {
+        if (1 !== preg_match('/^[0-9a-f]{32}$/', $storageKey)) {
+            throw HomeworkPdfScanException::invalidPath();
+        }
+        if (!is_dir($this->directory) || is_link($this->directory)) {
             throw HomeworkPdfScanException::quarantine();
         }
-        if (!hash_equals($sha256, hash_file('sha256', $path) ?: '')) {
+        $base = realpath($this->directory);
+        if (!\is_string($base)) {
+            throw HomeworkPdfScanException::quarantine();
+        }
+        $path = $base.\DIRECTORY_SEPARATOR.$storageKey.'.bin';
+        clearstatcache(true, $path);
+        if (!$this->isSafeRegularFile($path) || !is_readable($path)) {
+            throw HomeworkPdfScanException::quarantine();
+        }
+        $resolved = realpath($path);
+        if (!\is_string($resolved) || !str_starts_with($resolved, $base.\DIRECTORY_SEPARATOR)) {
+            throw HomeworkPdfScanException::invalidPath();
+        }
+        $actualSize = @filesize($resolved);
+        if (!\is_int($actualSize) || $actualSize !== $byteSize) {
+            throw HomeworkPdfScanException::quarantine();
+        }
+        $actualHash = @hash_file('sha256', $resolved);
+        if (!\is_string($actualHash) || !hash_equals($sha256, $actualHash)) {
             throw HomeworkPdfScanException::hashMismatch();
         }
 
-        return $path;
+        return $resolved;
     }
 
     private function ensureRoot(): void

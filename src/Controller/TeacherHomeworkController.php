@@ -203,8 +203,9 @@ final class TeacherHomeworkController extends AbstractController
     public function submissionPdf(string $id): Response
     {
         $actor = $this->account();
+        $submission = $this->viewableSubmission(Uuid::fromString($id));
         try {
-            return $this->pdfDownloads->download($actor, Uuid::fromString($id));
+            return $this->pdfDownloads->download($actor, $submission->getId());
         } catch (HomeworkSubmissionException $exception) {
             if (HomeworkSubmissionException::REASON_FORBIDDEN === $exception->getReason()) {
                 throw new AccessDeniedHttpException('Forbidden');
