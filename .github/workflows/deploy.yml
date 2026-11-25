@@ -119,6 +119,43 @@ jobs:
           VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
         run: bash workflow-src/deploy/vds/gha-ssh-config.sh
 
+      - name: Record runner egress diagnostics (before first remote transfer)
+        # Diagnostic log only: UTC time, run id/attempt, runner public IPv4 as observed over HTTPS.
+        # No remote connection, no secret, no environment dump. Never fails or delays the deploy.
+        continue-on-error: true
+        env:
+          DIAG_RUN_ID: ${{ github.run_id }}
+          DIAG_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set +e
+          diag_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          octet='(0|[1-9][0-9]{0,2})'
+          ipv4_re="^${octet}\.${octet}\.${octet}\.${octet}$"
+          raw="$(curl -4fsS --max-time 5 --proto '=https' https://api.ipify.org 2>/dev/null)"
+          curl_status=$?
+          raw="${raw%$'\r'}"
+          runner_ip=""
+          if [ "$curl_status" -eq 0 ] && [[ "$raw" =~ $ipv4_re ]]; then
+            octets_ok=1
+            for part in "${BASH_REMATCH[@]:1}"; do
+              if [ "$part" -gt 255 ]; then
+                octets_ok=0
+              fi
+            done
+            if [ "$octets_ok" -eq 1 ]; then
+              runner_ip="$raw"
+            fi
+          fi
+          echo "runner_egress_diagnostic_utc=${diag_utc}"
+          echo "runner_egress_run_id=${DIAG_RUN_ID} run_attempt=${DIAG_RUN_ATTEMPT}"
+          if [ -n "$runner_ip" ]; then
+            echo "runner_egress_public_ipv4=${runner_ip}"
+            echo "note: runner dış IPv4 adresi api.ipify.org üzerinden HTTPS ile gözlendi; VDS'nin gördüğü kesin kaynak adres olarak doğrulanmadı."
+          else
+            echo "runner public IPv4 alınamadı"
+          fi
+          exit 0
+
       - name: Upload bundle and activate release
         env:
           DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
