@@ -50,18 +50,33 @@ jobs:
     steps:
       - name: Resolve deploy SHA
         id: meta
+        # Expressions are passed through env and read as quoted shell variables. Never write
+        # github.event.* or inputs.* directly into run:, because Bash would parse the value as code.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_REF: ${{ github.event.inputs.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            SHA="${{ github.event.workflow_run.head_sha }}"
-            REF="$SHA"
-          elif [ -n "${{ github.event.inputs.ref }}" ]; then
-            REF="${{ github.event.inputs.ref }}"
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            SHA="${WORKFLOW_RUN_HEAD_SHA}"
+            REF="${SHA}"
+          elif [ -n "${INPUT_REF}" ]; then
+            REF="${INPUT_REF}"
             SHA=""
           else
-            REF="${{ github.sha }}"
-            SHA="${{ github.sha }}"
+            REF="${WORKFLOW_SHA}"
+            SHA="${WORKFLOW_SHA}"
           fi
+          # Git refs cannot contain control characters. A newline would add a forged line to
+          # GITHUB_OUTPUT, so stop without echoing the value. No other ref form is rejected here.
+          case "${REF}" in
+            *[[:cntrl:]]*)
+              echo "::error::Deploy ref contains a control character; refusing to continue."
+              exit 1
+              ;;
+          esac
           echo "ref=${REF}" >> "$GITHUB_OUTPUT"
           echo "sha_hint=${SHA}" >> "$GITHUB_OUTPUT"
 
