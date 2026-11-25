@@ -1238,14 +1238,16 @@
         "V2 CI/deploy temeli; tam kabul değil",
         "composer.lock: symfony/http-foundation v7.4.18 yerine v7.4.21. CVE-2026-108082 için belgelenmiş 7.4 düzeltme sınırı 7.4.19. 7.4.19 ve 7.4.20 boşluk ayırıcısında HeaderUtils::split gerilemesi taşır; resmi takip düzeltmesi 7.4.21 içindedir. Başka paket değişmedi. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/131",
         "2026-10-15 ClamAV izole kabulü M18 kaydındadır ve X06 backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. PR https://github.com/testligtr-collab/testlig-net/pull/132",
-        "2026-11-24 composer.lock: twig/twig v3.30.0 yerine v3.31.1 (composer.json ^2.12|^3.30 dokunulmadı; başka paket sürümü değişmedi, phpstan/phpstan 2.2.13 için published-time alanı Composer 2.11.3 tarafından eklendi). CVE-2026-133771 ve CVE-2026-133772 (3.31.0+), CVE-2026-133763..CVE-2026-133768 ve CVE-2026-133770 (3.31.1+) uyarılarını kapatır; composer audit temiz. Taslak; main'e alındıktan sonra #230 güncel main ile yeniden doğrulanmalıdır. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/231"
+        "2026-11-24 composer.lock: twig/twig v3.30.0 yerine v3.31.1 (composer.json ^2.12|^3.30 dokunulmadı; başka paket sürümü değişmedi, phpstan/phpstan 2.2.13 için published-time alanı Composer 2.11.3 tarafından eklendi). CVE-2026-133771 ve CVE-2026-133772 (3.31.0+), CVE-2026-133763..CVE-2026-133768 ve CVE-2026-133770 (3.31.1+) uyarılarını kapatır; composer audit temiz. Taslak; main'e alındıktan sonra #230 güncel main ile yeniden doğrulanmalıdır. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/231",
+        "2026-11-25 Deploy VDS tanılama (taslak, Bayi Hosting #235230): .github/workflows/deploy.yml Deploy to VDS job'ında, ilk uzak aktarımı (gha-deploy-once.sh içindeki scp) çalıştıran adımın hemen öncesine tek log adımı eklendi; ayrı job yok. Adım UTC zamanı, run_id/run_attempt ve api.ipify.org üzerinden HTTPS ile gözlenen runner dış IPv4 adresini yazar; geçerli tek IPv4 yoksa 'runner public IPv4 alınamadı' yazar ve deploy'u etkilemez (continue-on-error, exit 0). Uzak bağlantı, secret veya ortam dökümü yok. IP, VDS'nin gördüğü kesin kaynak adres değildir. SSH pause, testlig-vds-ssh kuyruğu, ConnectionAttempts 1, tek scp+ssh ve deploy SHA değişmedi. Test: tests/Ops/DeployRunnerEgressDiagnosticTest.php. VDS içindeki kök neden doğrulanmadı; merge, deploy ve production kabulü yok. Bu PR main'e alınırsa otomatik VDS dağıtımını tetikleyebilir. Backup, restore, gözlemleme ve erişilebilirlik kabulü açık kalır. PR https://github.com/testligtr-collab/testlig-net/pull/232"
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/131",
         "https://github.com/testligtr-collab/testlig-net/pull/132",
-        "https://github.com/testligtr-collab/testlig-net/pull/231"
+        "https://github.com/testligtr-collab/testlig-net/pull/231",
+        "https://github.com/testligtr-collab/testlig-net/pull/232"
       ],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. symfony/http-foundation ve twig/twig güvenlik kilitleri backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. Partial durum sürer.",
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. symfony/http-foundation ve twig/twig güvenlik kilitleri ile Deploy VDS runner çıkış IP tanı adımı backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. Partial durum sürer.",
       "scope_decision": null
     },
     {
