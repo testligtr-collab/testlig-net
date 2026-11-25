@@ -24,6 +24,10 @@ It logs three things: the UTC time, `run_id` with `run_attempt`, and the runner 
 
 The address is the runner's outbound IPv4 as seen by an HTTPS service. It is not the proven source address the VDS or the hosting network saw. A runner can use a different path to the VDS. Use it as the lead for the hosting ticket, not as proof.
 
+The same step also runs `deploy/vds/gha-ssh-target-diag.sh summary`. The script asks the OpenSSH client for the effective target with `ssh -G testlig-vds`, which only reads `~/.ssh/config` and opens no connection. It logs `ssh_target_kind` (`ipv4`, `ipv6`, `hostname`, `other`, or `unreadable`), `ssh_target_port`, and `ssh_target_matches_expected` (`yes` or `no` for a literal address compared with the fixed expected VDS IPv4 in the script, `not_evaluated` otherwise). It never prints the raw hostname, an address, or any other config value, and it always exits 0.
+
+When the target is a hostname, the next step `Evaluate SSH target DNS (bounded, read-only)` runs `gha-ssh-target-diag.sh dns`. It does one `getent ahosts` lookup limited by `timeout 5` (and `timeout-minutes: 1` on the step, `continue-on-error: true`) and logs only `ssh_target_dns` (`resolved`, `failed`, `timeout`, `empty`, or `not_applicable`), the IPv4 and IPv6 answer counts, `ssh_target_dns_includes_expected`, and `ssh_target_dns_only_expected`. Names and resolved addresses are not logged. A literal IPv4, IPv6, or unreadable target is not resolved. An IPv6 count above zero matters because the client may try an IPv6 answer. A DNS match does not prove which address `scp` connects to; the first `scp` still happens only in `Upload bundle and activate release`. These steps do not record a production run.
+
 For a support ticket after a controlled deploy, take from that run: the UTC time window of the failed connection, the logged runner IPv4, `run_id` and `run_attempt`, the job link, and the result. This section does not record a production run.
 
 ## Shared queue

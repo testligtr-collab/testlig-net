@@ -1119,6 +1119,7 @@ BASH);
         return [
             $this->root().'/deploy/vds/gha-ssh-config.sh',
             $this->root().'/deploy/vds/gha-ssh-close-master.sh',
+            $this->root().'/deploy/vds/gha-ssh-target-diag.sh',
             $this->root().'/deploy/vds/gha-deploy-once.sh',
             $this->root().'/deploy/vds/gha-learning-content-package-import-entry.sh',
             $this->root().'/deploy/vds/gha-learning-content-package-import-remote.sh',

@@ -17,6 +17,7 @@ use Symfony\Component\Yaml\Yaml;
 final class DeployRunnerEgressDiagnosticTest extends TestCase
 {
     private const DIAGNOSTIC_STEP = 'Record runner egress diagnostics (before first remote transfer)';
+    private const DNS_STEP = 'Evaluate SSH target DNS (bounded, read-only)';
     private const UPLOAD_STEP = 'Upload bundle and activate release';
 
     /** @var list<string> */
@@ -45,15 +46,16 @@ final class DeployRunnerEgressDiagnosticTest extends TestCase
         $index = array_search(self::DIAGNOSTIC_STEP, $names, true);
         self::assertIsInt($index);
         self::assertSame('Configure SSH client', $names[$index - 1] ?? null);
-        self::assertSame(self::UPLOAD_STEP, $names[$index + 1] ?? null);
+        self::assertSame(self::DNS_STEP, $names[$index + 1] ?? null);
+        self::assertSame(self::UPLOAD_STEP, $names[$index + 2] ?? null);
 
         // The ssh-agent and client-config steps never connect, so the upload step is the first remote transfer.
-        foreach (\array_slice($steps, 0, $index) as $earlier) {
+        foreach (\array_slice($steps, 0, $index + 2) as $earlier) {
             $run = (string) ($earlier['run'] ?? '');
             self::assertStringNotContainsString('gha-deploy-once.sh', $run);
             self::assertDoesNotMatchRegularExpression('/^\s*(?:ssh|scp|rsync|sftp)\s/m', $run);
         }
-        $upload = $steps[$index + 1];
+        $upload = $steps[$index + 2];
         self::assertStringContainsString('gha-deploy-once.sh', (string) ($upload['run'] ?? ''));
         self::assertSame('${{ steps.rev.outputs.sha }}', $upload['env']['DEPLOY_SHA'] ?? null);
 
@@ -132,6 +134,13 @@ final class DeployRunnerEgressDiagnosticTest extends TestCase
         );
         chmod($binDir.'/curl', 0755);
 
+        // The step also calls the read-only target helper; give it the real script and a stub client config.
+        $helperDir = $dir.'/workflow-src/deploy/vds';
+        self::assertTrue(mkdir($helperDir, 0755, true));
+        self::assertTrue(copy($this->root().'/deploy/vds/gha-ssh-target-diag.sh', $helperDir.'/gha-ssh-target-diag.sh'));
+        file_put_contents($binDir.'/ssh', "#!/usr/bin/env bash\nprintf 'hostname 203.0.113.9\\nport 22\\n'\n");
+        chmod($binDir.'/ssh', 0755);
+
         $basePath = getenv('PATH');
         $process = new Process(
             ['bash', '-e', $script],
@@ -152,6 +161,10 @@ final class DeployRunnerEgressDiagnosticTest extends TestCase
         self::assertStringContainsString('runner_egress_run_id=45442012414 run_attempt=2', $output);
         self::assertSame('-4fsS --max-time 5 --proto =https https://api.ipify.org ', file_get_contents($dir.'/args'));
         self::assertStringNotContainsString('must-never-be-printed', $output);
+        self::assertStringContainsString('ssh_target_kind=ipv4', $output);
+        self::assertStringContainsString('ssh_target_port=22', $output);
+        self::assertStringContainsString('ssh_target_matches_expected=no', $output);
+        self::assertStringNotContainsString('203.0.113.9', $output);
 
         if ($expectIp) {
             self::assertSame(1, preg_match_all('/^runner_egress_public_ipv4=((?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){3})$/m', $output, $matches));

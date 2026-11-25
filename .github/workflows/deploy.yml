@@ -169,7 +169,18 @@ jobs:
           else
             echo "runner public IPv4 alınamadı"
           fi
+          # Effective SSH target (kind, port, match with the expected IPv4) from the client config only.
+          # Reads `ssh -G`, opens no connection and never prints the raw hostname or address.
+          bash workflow-src/deploy/vds/gha-ssh-target-diag.sh summary
           exit 0
+
+      - name: Evaluate SSH target DNS (bounded, read-only)
+        # Log-only and time limited: one resolver lookup, only when the target is a hostname.
+        # Prints counts and a match flag, never the hostname or resolved addresses. DNS data is not
+        # proof of the address scp really connects to.
+        continue-on-error: true
+        timeout-minutes: 1
+        run: bash workflow-src/deploy/vds/gha-ssh-target-diag.sh dns
 
       - name: Upload bundle and activate release
         env:
