@@ -30,6 +30,8 @@ final class CatalogLoginReturnTest extends WebTestCase
 
     private const NOTICE = '[data-login-resume]';
 
+    private static int $clientCounter = 10;
+
     /** @var array{subject: string, unit: string, topic: string, draftUnit: string, unitId: string, unitName: string, topicName: string} */
     private array $catalog;
 
@@ -42,7 +44,7 @@ final class CatalogLoginReturnTest extends WebTestCase
 
     public function testUnitPageLinksCarryOnlyCatalogCoordinates(): void
     {
-        $client = static::createClient();
+        $client = $this->newClient();
         $crawler = $client->request('GET', $this->publicUnit());
         self::assertResponseIsSuccessful();
 
@@ -60,7 +62,7 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         $this->createStudent('catret-unit@example.com', GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $crawler = $client->request('GET', $this->publicUnit());
         $client->click($crawler->filter('aside.catalog-cta a.btn--ghost')->link());
         self::assertResponseIsSuccessful();
@@ -94,7 +96,7 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         $this->createStudent('catret-topic@example.com', GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $crawler = $client->request('GET', $this->publicUnit());
         $client->click($crawler->filter('.catalog-list a.btn--ghost')->first()->link());
         $this->submit($client, $client->getCrawler(), 'catret-topic@example.com');
@@ -108,7 +110,7 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         $this->createStudent('catret-direct@example.com', GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->plainLogin($client, 'catret-direct@example.com');
         self::assertResponseRedirects('/ogrenci');
 
@@ -142,7 +144,7 @@ final class CatalogLoginReturnTest extends WebTestCase
         $email = 'catret-invalid-'.substr(md5($query), 0, 8).'@example.com';
         $this->createStudent($email, GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $crawler = $client->request('GET', '/giris?'.$query);
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists(self::NOTICE);
@@ -154,7 +156,7 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         $this->createStudent('catret-draft@example.com', GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $client->request('GET', '/giris?sinif=1&ders='.$this->catalog['subject'].'&unite='.$this->catalog['draftUnit']);
         self::assertSelectorNotExists(self::NOTICE);
 
@@ -166,7 +168,7 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         $this->createStudent('catret-late@example.com', GradeLevel::Grade1);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $crawler = $client->request('GET', $this->publicUnit());
         $crawler = $client->click($crawler->filter('aside.catalog-cta a.btn--ghost')->link());
         self::assertSelectorExists(self::NOTICE);
@@ -216,7 +218,7 @@ final class CatalogLoginReturnTest extends WebTestCase
         $this->createStudent('catret-signed@example.com', GradeLevel::Grade1);
         $this->createUser('catret-plain@example.com', UserRole::User);
 
-        $client = static::createClient();
+        $client = $this->newClient();
         $this->plainLogin($client, 'catret-signed@example.com');
         $client->request('GET', '/giris?sinif=1&ders='.$this->catalog['subject'].'&unite='.$this->catalog['unit']);
         self::assertResponseRedirects($this->studentUnit());
@@ -231,7 +233,7 @@ final class CatalogLoginReturnTest extends WebTestCase
 
     public function testStudentRoutesStayProtectedForVisitorsAndOtherRoles(): void
     {
-        $client = static::createClient();
+        $client = $this->newClient();
         $client->request('GET', $this->studentUnit());
         self::assertResponseRedirects('/giris');
 
@@ -270,7 +272,8 @@ final class CatalogLoginReturnTest extends WebTestCase
     {
         self::ensureKernelShutdown();
 
-        return static::createClient();
+        // Own client address: these tests log in often and must not use up the shared 127.0.0.1 login throttle.
+        return static::createClient([], ['REMOTE_ADDR' => '198.51.100.'.(++self::$clientCounter)]);
     }
 
     private function createStudent(string $email, GradeLevel $grade): void
