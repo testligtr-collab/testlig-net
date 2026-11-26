@@ -6,45 +6,75 @@
             <div
                 class="hp-books"
                 role="tablist"
-                aria-label="Sınıf seçimi (örnek gösterim)"
+                aria-label="Sınıf seçimi"
             >
                 {% for book in view.gradeBooks %}
                     <button
                         type="button"
-                        class="hp-book"
+                        class="hp-book{% if not book.ready %} hp-book--soon{% endif %}"
                         id="{{ book.id }}"
                         role="tab"
-                        aria-selected="{{ book.selected|default(false) ? 'true' : 'false' }}"
-                        aria-controls="grade-panel"
-                        tabindex="{{ book.selected|default(false) ? '0' : '-1' }}"
+                        aria-selected="{{ book.selected ? 'true' : 'false' }}"
+                        aria-controls="{{ book.panelId }}"
+                        aria-label="{{ book.grade }}. sınıf{{ book.grade == 8 ? ' LGS' : '' }}, {{ book.ready ? 'dersler yayında' : 'içerikler hazırlanıyor' }}"
+                        tabindex="{{ book.selected ? '0' : '-1' }}"
                         data-grade-books-target="tab"
-                        data-grade="{{ loop.index }}"
+                        data-grade="{{ book.grade }}"
                         data-action="click->grade-books#select keydown->grade-books#onKeydown"
                     >{{ book.label }}</button>
                 {% endfor %}
             </div>
 
-            <div
-                class="hp-grade-panel"
-                id="grade-panel"
-                role="tabpanel"
-                data-grade-books-target="panel"
-                tabindex="0"
-            >
-                <div class="hp-grade-panel__intro">
-                    <h3 data-grade-books-target="title">{{ view.gradePanelTitle }}</h3>
-                    <p>{{ view.gradePanelLead }}</p>
+            {% for book in view.gradeBooks %}
+                <div
+                    class="hp-grade-panel"
+                    id="{{ book.panelId }}"
+                    role="tabpanel"
+                    aria-labelledby="{{ book.id }}"
+                    data-grade-books-target="panel"
+                    data-grade-ready="{{ book.ready ? 'true' : 'false' }}"
+                    tabindex="0"
+                    {% if not book.selected %}hidden{% endif %}
+                >
+                    <div class="hp-grade-panel__intro">
+                        <h3>{{ book.grade }}. Sınıf{{ book.grade == 8 ? ' · LGS' : '' }}</h3>
+                        {% if book.ready %}
+                            <p>Yayımlanmış dersleri ders kataloğunda inceleyebilirsin. Ders içeriği öğrenci hesabıyla açılır.</p>
+                        {% else %}
+                            <p>Bu sınıfın dersleri henüz yayımlanmadı.</p>
+                        {% endif %}
+                    </div>
+                    {% if book.ready %}
+                        <div class="hp-grade-status hp-grade-status--ready">
+                            <p class="hp-grade-status__text">
+                                <strong>{{ book.subjectCount }} ders · {{ book.unitCount }} ünite</strong>
+                                <span>yayımlanmış</span>
+                            </p>
+                            <a class="btn btn--cta" href="{{ path('app_public_catalog_grade', {grade: book.grade}) }}">{{ book.grade }}. sınıf derslerini gör</a>
+                        </div>
+                    {% else %}
+                        <div class="hp-grade-status hp-grade-status--soon">
+                            <span class="hp-chip" role="status">İçerikler hazırlanıyor</span>
+                        </div>
+                    {% endif %}
                 </div>
-                {% for type in view.gradeLearningTypes %}
-                    <article class="hp-grade-type">
-                        <span class="hp-grade-type__symbol{% if type.accent|default('') == '#21b49a' %} hp-grade-type__symbol--mint{% elseif type.accent|default('') == '#f5ac17' %} hp-grade-type__symbol--gold{% endif %}" aria-hidden="true">{{ type.symbol }}</span>
-                        <h3>{{ type.title }}</h3>
-                        <p>{{ type.body }}</p>
-                    </article>
-                {% endfor %}
-            </div>
+            {% endfor %}
         </div>
 
-        <p class="hp-note hp-note--center" role="note">{{ view.sectionDemoNote }}</p>
+        <noscript>
+            <ul class="hp-grade-fallback" aria-label="Sınıf dersleri">
+                {% for book in view.gradeBooks %}
+                    <li>
+                        {% if book.ready %}
+                            <a href="{{ path('app_public_catalog_grade', {grade: book.grade}) }}">{{ book.grade }}. sınıf derslerini gör</a>
+                        {% else %}
+                            {{ book.grade }}. sınıf: içerikler hazırlanıyor
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </noscript>
+
+        <p class="hp-note hp-note--center" role="note">{{ view.gradeSelectionNote }}</p>
     </div>
 </section>
