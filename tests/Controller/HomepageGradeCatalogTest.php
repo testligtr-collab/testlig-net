@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Enum\GradeLevel;
 use App\Service\CatalogWriteService;
 use App\Service\PublicCatalogQuery;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
@@ -17,6 +18,18 @@ use Symfony\Component\Uid\Uuid;
  */
 final class HomepageGradeCatalogTest extends WebTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->clearCatalog();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->clearCatalog();
+        parent::tearDown();
+    }
+
     public function testGradesLinkToTheirOwnCatalogOnlyWhenPublishedContentExists(): void
     {
         $client = static::createClient();
@@ -168,6 +181,25 @@ final class HomepageGradeCatalogTest extends WebTestCase
             $crawler->filter('nav[aria-label="Mobil ana menü"] a')->each(static fn (Crawler $node): string => (string) $node->attr('href')),
         );
         self::assertStringNotContainsString('#sinavlar', (string) $client->getResponse()->getContent());
+    }
+
+    /**
+     * The suite shares one database; leave the catalog empty before and after so other tests keep their assumptions.
+     */
+    private function clearCatalog(): void
+    {
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $em = static::getContainer()->get(EntityManagerInterface::class);
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $conn = $em->getConnection();
+        $schema = $conn->createSchemaManager();
+        foreach (['catalog_topic_lessons', 'catalog_topics', 'catalog_units', 'catalog_subjects'] as $table) {
+            if ($schema->tablesExist([$table])) {
+                $conn->executeStatement('DELETE FROM '.$table);
+            }
+        }
+        self::ensureKernelShutdown();
     }
 
     private function writer(KernelBrowser $client): CatalogWriteService
