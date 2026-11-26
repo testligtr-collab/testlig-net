@@ -1073,7 +1073,8 @@
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
-        "https://github.com/testligtr-collab/testlig-net/pull/152"
+        "https://github.com/testligtr-collab/testlig-net/pull/152",
+        "https://github.com/testligtr-collab/testlig-net/pull/236"
       ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. Herkese açık menü dilimi: 390/1280 px Browser kanıtı (public-nav.spec.ts) PR HEAD üzerinde yeşil olmadan kabul sayılmaz; canlı kabul main merge, deploy ve production doğrulaması ister.",
       "scope_decision": null
