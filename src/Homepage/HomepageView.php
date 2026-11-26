@@ -275,7 +275,7 @@ final class HomepageView
         $books = [];
         foreach ($colors as $grade => $color) {
             $summary = $gradeSummaries[$grade] ?? null;
-            $subjects = $summary?->subjectCount ?? 0;
+            $subjects = $summary->subjectCount ?? 0;
             $books[] = [
                 'id' => 'tab-'.$grade,
                 'panelId' => 'grade-panel-'.$grade,
@@ -284,7 +284,7 @@ final class HomepageView
                 'color' => $color,
                 'selected' => $grade === $selectedGrade,
                 'subjectCount' => $subjects,
-                'unitCount' => $summary?->unitCount ?? 0,
+                'unitCount' => $summary->unitCount ?? 0,
                 'ready' => $subjects > 0,
             ];
         }
