@@ -1250,7 +1250,8 @@
         "https://github.com/testligtr-collab/testlig-net/pull/231",
         "https://github.com/testligtr-collab/testlig-net/pull/232",
         "https://github.com/testligtr-collab/testlig-net/pull/233",
-        "https://github.com/testligtr-collab/testlig-net/pull/234"
+        "https://github.com/testligtr-collab/testlig-net/pull/234",
+        "https://github.com/testligtr-collab/testlig-net/pull/235"
       ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. symfony/http-foundation ve twig/twig güvenlik kilitleri ile Deploy VDS runner çıkış IP tanı adımı backup, restore, gözlemleme veya erişilebilirlik kabulü değildir. Partial durum sürer.",
       "scope_decision": null
