@@ -31,6 +31,12 @@ final class HomeControllerTest extends WebTestCase
         self::assertGreaterThan(0, $crawler->filter('a[href="/giris"]:contains("Giriş Yap")')->count());
         self::assertGreaterThan(0, $crawler->filter('a[href="/kayit"]:contains("Kayıt Ol")')->count());
 
+        self::assertSame(
+            ['/', '/dersler', '/haberler'],
+            $crawler->filter('nav[aria-label="Ana menü"] a')->each(static fn (Crawler $node): string => (string) $node->attr('href')),
+        );
+        self::assertStringNotContainsString('#sinavlar', $html);
+
         $sectionIds = $crawler->filter('section[id]')->each(
             static fn (Crawler $node): string => (string) $node->attr('id'),
         );

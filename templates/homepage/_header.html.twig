@@ -3,22 +3,11 @@
         {% include 'components/brand.html.twig' %}
 
         <nav class="site-nav hp-topbar__nav" aria-label="Ana menü">
-            {% for item in view.navItems %}
-                <a href="{{ item.href }}">{{ item.label }}</a>
-            {% endfor %}
+            {% include 'components/public_nav_links.html.twig' %}
         </nav>
 
         <div class="site-header__actions hp-topbar__actions">
-            {% if app.user %}
-                <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
-                <form method="post" action="{{ path('app_logout') }}" class="logout-form">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
-                    <button type="submit" class="btn btn--primary">Çıkış</button>
-                </form>
-            {% else %}
-                <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş Yap</a>
-                <a class="btn btn--cta" href="{{ path('app_register') }}">Kayıt Ol</a>
-            {% endif %}
+            {% include 'components/public_auth_actions.html.twig' %}
         </div>
 
         <button
@@ -44,17 +33,10 @@
         hidden
     >
         <nav aria-label="Mobil ana menü">
-            {% for item in view.navItems %}
-                <a href="{{ item.href }}">{{ item.label }}</a>
-            {% endfor %}
+            {% include 'components/public_nav_links.html.twig' %}
         </nav>
         <div class="mobile-drawer__actions">
-            {% if app.user %}
-                <a class="btn btn--ghost btn--block" href="{{ path('app_account') }}">Hesabım</a>
-            {% else %}
-                <a class="btn btn--ghost btn--block" href="{{ path('app_login') }}">Giriş Yap</a>
-                <a class="btn btn--cta btn--block" href="{{ path('app_register') }}">Kayıt Ol</a>
-            {% endif %}
+            {% include 'components/public_auth_actions.html.twig' with { stacked: true } %}
         </div>
     </div>
 </header>

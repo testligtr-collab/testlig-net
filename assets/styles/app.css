@@ -536,6 +536,10 @@ a:hover {
     margin-top: var(--tl-space-4);
 }
 
+.mobile-drawer__actions .logout-form {
+    display: block;
+}
+
 @media (min-width: 1024px) {
     .site-nav,
     .site-header__actions {
