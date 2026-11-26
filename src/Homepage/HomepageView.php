@@ -11,7 +11,6 @@ namespace App\Homepage;
 final class HomepageView
 {
     /**
-     * @param list<array{label: string, href: string, current?: bool}>                                                                                                         $navItems
      * @param list<array{id: string, label: string, color: string, selected?: bool}>                                                                                           $gradeBooks
      * @param list<array{title: string, body: string, symbol: string, accent?: string}>                                                                                        $gradeLearningTypes
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string}> $levelCards
@@ -23,7 +22,6 @@ final class HomepageView
      * @param list<string>                                                                                                                                                     $trustItems
      */
     public function __construct(
-        public readonly array $navItems,
         public readonly string $heroTitleHtml,
         public readonly string $heroLead,
         public readonly string $heroImage,
@@ -61,16 +59,6 @@ final class HomepageView
     public static function demo(): self
     {
         return new self(
-            navItems: [
-                ['label' => 'Sınıflar', 'href' => '/dersler'],
-                ['label' => 'Haberler', 'href' => '#haberler'],
-                ['label' => 'Simülasyonlar', 'href' => '#simulasyonlar'],
-                ['label' => 'Dokümanlar', 'href' => '#dokumanlar'],
-                ['label' => 'Testler', 'href' => '#testler'],
-                ['label' => 'Videolar', 'href' => '#videolar'],
-                ['label' => 'Soru-Cevap', 'href' => '#soru-cevap'],
-                ['label' => 'Oyunlar', 'href' => '#oyunlar'],
-            ],
             heroTitleHtml: 'Öğrenmek için<br>ihtiyacın olan<br>her şey burada.',
             heroLead: 'Dersler, etkinlikler, testler ve sana özel öneriler tek bir öğrenme alanında.',
             heroImage: '/images/homepage-preview/hero-world-clean.png',
@@ -151,7 +139,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-dokumanlar.png',
                     'accent' => '#b8770a',
                     'tint' => '#fff0ce',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'videolar',
@@ -160,7 +148,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-videolar.png',
                     'accent' => '#d3526c',
                     'tint' => '#ffe9ee',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'simulasyonlar',
@@ -169,7 +157,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-simulasyonlar.png',
                     'accent' => '#7850c9',
                     'tint' => '#efe8ff',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'testler',
@@ -178,7 +166,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-testler.png',
                     'accent' => '#0878e1',
                     'tint' => '#e4f2ff',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'soru-cevap',
@@ -187,7 +175,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-soru-cevap.png',
                     'accent' => '#138e80',
                     'tint' => '#def6ed',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'oyunlar',
@@ -196,7 +184,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-oyunlar.png',
                     'accent' => '#c36d19',
                     'tint' => '#ffeddc',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
             ],
             learningPath: [

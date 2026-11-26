@@ -1,0 +1,4 @@
+{# Shared visitor main navigation (single source: App\Twig\PublicNavExtension). #}
+{% for item in public_nav_items() %}
+    <a href="{{ path(item.route) }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.label }}</a>
+{% endfor %}

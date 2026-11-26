@@ -3,28 +3,11 @@
         {% include 'components/brand.html.twig' %}
 
         <nav class="site-nav" aria-label="Ana menü">
-            <a href="{{ path('app_home') }}" {% if app.request.attributes.get('_route') == 'app_home' %}aria-current="page"{% endif %}>Ana Sayfa</a>
-            <a href="{{ path('app_public_catalog') }}">Sınıflar</a>
-            <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
-            <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
-            <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>
+            {% include 'components/public_nav_links.html.twig' %}
         </nav>
 
         <div class="site-header__actions">
-            {% if app.user %}
-                {% if is_granted('ROLE_STUDENT') %}
-                    <a class="btn btn--ghost" href="{{ path('app_student_dashboard') }}">Öğrenci Paneli</a>
-                    <a class="btn btn--ghost" href="{{ path('app_student_profile') }}">Profilim</a>
-                {% endif %}
-                <a class="btn btn--ghost" href="{{ path('app_account') }}">Hesabım</a>
-                <form method="post" action="{{ path('app_logout') }}" class="logout-form">
-                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
-                    <button type="submit" class="btn btn--primary">Çıkış</button>
-                </form>
-            {% else %}
-                <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş Yap</a>
-                <a class="btn btn--cta" href="{{ path('app_register') }}">Ücretsiz Başla</a>
-            {% endif %}
+            {% include 'components/public_auth_actions.html.twig' with { student_links: true } %}
         </div>
 
         <button
@@ -50,23 +33,10 @@
         hidden
     >
         <nav aria-label="Mobil ana menü">
-            <a href="{{ path('app_home') }}">Ana Sayfa</a>
-            <a href="{{ path('app_public_catalog') }}">Sınıflar</a>
-            <a href="{{ path('app_home') }}#sinavlar">Sınavlar</a>
-            <a href="{{ path('app_home') }}#ogrenme">Öğrenme Araçları</a>
-            <a href="{{ path('app_home') }}#kurumlar">Kurumlar İçin</a>
+            {% include 'components/public_nav_links.html.twig' %}
         </nav>
         <div class="mobile-drawer__actions">
-            {% if app.user %}
-                {% if is_granted('ROLE_STUDENT') %}
-                    <a class="btn btn--ghost btn--block" href="{{ path('app_student_dashboard') }}">Öğrenci Paneli</a>
-                    <a class="btn btn--ghost btn--block" href="{{ path('app_student_profile') }}">Profilim</a>
-                {% endif %}
-                <a class="btn btn--ghost btn--block" href="{{ path('app_account') }}">Hesabım</a>
-            {% else %}
-                <a class="btn btn--ghost btn--block" href="{{ path('app_login') }}">Giriş Yap</a>
-                <a class="btn btn--cta btn--block" href="{{ path('app_register') }}">Ücretsiz Başla</a>
-            {% endif %}
+            {% include 'components/public_auth_actions.html.twig' with { stacked: true, student_links: true } %}
         </div>
     </div>
 </header>

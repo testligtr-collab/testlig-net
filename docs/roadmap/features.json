@@ -1068,13 +1068,15 @@
       "depends_on": [],
       "evidence": [
         "V1: Page/Nav/HomeSection; V2 HomepageView statik",
-        "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır."
+        "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır.",
+        "Taslak PR (kod ve test, main merge/deploy/production kabulü yok): herkese açık ana menü tek kaynaktan (PublicNavExtension) dört kabukta (ana sayfa, public_header, katalog, hukuk) aynı: Ana Sayfa /, Sınıflar /dersler, Haberler /haberler; Giriş Yap /giris ve Kayıt Ol /kayit eylem düğmesi; oturum açıkken Hesabım ve CSRF'li POST çıkış korunur. Var olmayan /#sinavlar ve yalnız vitrin olan Testler/Dokümanlar/Videolar/Simülasyonlar/Soru-Cevap/Oyunlar ana menüden çıkarıldı; vitrin kartları Hazırlanıyor olarak kalır, sahte bağlantı yok. Ölü footer çapaları temizlendi. Dinamik menü/sayfa/footer CMS yönetimi hâlâ açık."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
-        "https://github.com/testligtr-collab/testlig-net/pull/152"
+        "https://github.com/testligtr-collab/testlig-net/pull/152",
+        "https://github.com/testligtr-collab/testlig-net/pull/236"
       ],
-      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet.",
+      "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. Herkese açık menü dilimi: 390/1280 px Browser kanıtı (public-nav.spec.ts) PR HEAD üzerinde yeşil olmadan kabul sayılmaz; canlı kabul main merge, deploy ve production doğrulaması ister.",
       "scope_decision": null
     },
     {
