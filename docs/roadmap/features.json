@@ -1069,12 +1069,15 @@
       "evidence": [
         "V1: Page/Nav/HomeSection; V2 HomepageView statik",
         "Ana sayfa haber bandı yayındaki haber varsa onu listeler. Kayıt yoksa mevcut yer tutucu metin durur. Sayfa, menü ve footer yönetimi açık kalır.",
-        "Taslak PR (kod ve test, main merge/deploy/production kabulü yok): herkese açık ana menü tek kaynaktan (PublicNavExtension) dört kabukta (ana sayfa, public_header, katalog, hukuk) aynı: Ana Sayfa /, Sınıflar /dersler, Haberler /haberler; Giriş Yap /giris ve Kayıt Ol /kayit eylem düğmesi; oturum açıkken Hesabım ve CSRF'li POST çıkış korunur. Var olmayan /#sinavlar ve yalnız vitrin olan Testler/Dokümanlar/Videolar/Simülasyonlar/Soru-Cevap/Oyunlar ana menüden çıkarıldı; vitrin kartları Hazırlanıyor olarak kalır, sahte bağlantı yok. Ölü footer çapaları temizlendi. Dinamik menü/sayfa/footer CMS yönetimi hâlâ açık."
+        "Taslak PR (kod ve test, main merge/deploy/production kabulü yok): herkese açık ana menü tek kaynaktan (PublicNavExtension) dört kabukta (ana sayfa, public_header, katalog, hukuk) aynı: Ana Sayfa /, Sınıflar /dersler, Haberler /haberler; Giriş Yap /giris ve Kayıt Ol /kayit eylem düğmesi; oturum açıkken Hesabım ve CSRF'li POST çıkış korunur. Var olmayan /#sinavlar ve yalnız vitrin olan Testler/Dokümanlar/Videolar/Simülasyonlar/Soru-Cevap/Oyunlar ana menüden çıkarıldı; vitrin kartları Hazırlanıyor olarak kalır, sahte bağlantı yok. Ölü footer çapaları temizlendi. Dinamik menü/sayfa/footer CMS yönetimi hâlâ açık.",
+        "2026-11-26 #236 main'e birleşti (e4d8be83af94b745d0ff052e92339a5802d46aed). Anonim canlı menü kabulü 390 ve 1280 px'de geçti: Ana Sayfa /, Sınıflar /dersler, Haberler /haberler; Giriş Yap ve Kayıt Ol. Canlıda /dersler/1 Matematik (7 ünite, 19 konu) gösterir; /dersler/2 ve /dersler/8 henüz 404 verir.",
+        "Taslak PR #237 (kod ve test; main merge, deploy ve production kabulü yok): ana sayfadaki 'Sınıfını seç' bölümü gerçek herkese açık kataloğa bağlandı. Tek gruplu sorgu (PublicCatalogQuery::gradesWithContent) yayımlanmış ders + en az bir yayımlanmış ünite olan sınıfları verir. Hazır sınıf /dersler/{grade} (app_public_catalog_grade) CTA'sı gösterir; içeriksiz sınıf 'İçerikler hazırlanıyor' durumu gösterir, bağlantı yoktur. Taslak, arşivlenmiş ve ünitesiz ders sınıfı hazır yapmaz. Erişim metni 'Ders içeriği öğrenci hesabıyla açılır' korunur; ücretsiz/açık etiketi yoktur. Sekme seçili durumu, panel ilişkisi ve klavye (ok/Home/End) çalışır; JS kapalıyken noscript listesi gerçek bağlantıları verir. Kanıt: HomepageGradeCatalogTest, HomepageViewGradeBooksTest, browser/tests/home-grade-catalog.spec.ts (390/1280, ekran görüntüleri ve overflow ölçümü browser-screenshots artifact'ında). Canlı kabul merge/deploy sonrası ayrı iştir."
       ],
       "pr_links": [
         "https://github.com/testligtr-collab/testlig-net/pull/151",
         "https://github.com/testligtr-collab/testlig-net/pull/152",
-        "https://github.com/testligtr-collab/testlig-net/pull/236"
+        "https://github.com/testligtr-collab/testlig-net/pull/236",
+        "https://github.com/testligtr-collab/testlig-net/pull/237"
       ],
       "acceptance": "Kaynakta belirtilen eksik ürün akışını küçük görevlerle tamamla; negatif yetki ve gerçek kabul kanıtını kaydet. Herkese açık menü dilimi: 390/1280 px Browser kanıtı (public-nav.spec.ts) PR HEAD üzerinde yeşil olmadan kabul sayılmaz; canlı kabul main merge, deploy ve production doğrulaması ister.",
       "scope_decision": null
