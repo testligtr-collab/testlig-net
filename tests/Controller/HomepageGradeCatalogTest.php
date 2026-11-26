@@ -108,9 +108,16 @@ final class HomepageGradeCatalogTest extends WebTestCase
         $client->request('GET', '/dersler/1/hgc-mat/hgc-unite-1');
         self::assertResponseIsSuccessful();
 
-        foreach (['/dersler/2', '/dersler/3', '/dersler/4', '/dersler/5'] as $path) {
+        // Draft and archived subjects stay opaque in the catalog itself.
+        foreach (['/dersler/3', '/dersler/4'] as $path) {
             $client->request('GET', $path);
             self::assertResponseStatusCodeSame(404);
+        }
+        // A published subject without any published unit has a catalog page, but the homepage does not
+        // advertise that grade as ready (asserted above): no course content to open yet.
+        foreach (['/dersler/2', '/dersler/5'] as $path) {
+            $client->request('GET', $path);
+            self::assertResponseIsSuccessful();
         }
     }
 
