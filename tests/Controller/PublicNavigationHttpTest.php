@@ -161,7 +161,7 @@ final class PublicNavigationHttpTest extends WebTestCase
      */
     private function texts(Crawler $crawler, string $selector): array
     {
-        return array_values($crawler->filter($selector)->each(static fn (Crawler $node): string => trim($node->text())));
+        return $crawler->filter($selector)->each(static fn (Crawler $node): string => trim($node->text()));
     }
 
     /**
@@ -169,7 +169,7 @@ final class PublicNavigationHttpTest extends WebTestCase
      */
     private function attrs(Crawler $crawler, string $selector): array
     {
-        return array_values($crawler->filter($selector)->each(static fn (Crawler $node): string => (string) $node->attr('href')));
+        return $crawler->filter($selector)->each(static fn (Crawler $node): string => (string) $node->attr('href'));
     }
 
     private function persistActiveStudent(): void
