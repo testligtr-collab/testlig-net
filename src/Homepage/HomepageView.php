@@ -13,7 +13,7 @@ use App\Dto\PublicCatalogGradeSummary;
 final class HomepageView
 {
     /**
-     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}> $gradeBooks
+     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>               $gradeBooks
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string}> $levelCards
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                 $showcaseCards
      * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                            $learningPath
@@ -61,7 +61,7 @@ final class HomepageView
     public static function demo(array $gradeSummaries = []): self
     {
         $gradeBooks = self::gradeBooks($gradeSummaries);
-        $anyReady = array_filter($gradeBooks, static fn (array $book): bool => $book['ready']) !== [];
+        $anyReady = [] !== array_filter($gradeBooks, static fn (array $book): bool => $book['ready']);
 
         return new self(
             heroTitleHtml: 'Öğrenmek için<br>ihtiyacın olan<br>her şey burada.',
