@@ -51,8 +51,8 @@ final class CatalogLoginReturnTest extends WebTestCase
             '/giris?sinif=1&ders='.$this->catalog['subject'].'&unite='.$this->catalog['unit'].'&konu='.$this->catalog['topic'],
             $crawler->filter('.catalog-list a.btn--ghost')->first()->attr('href'),
         );
-        foreach ($crawler->filter('a.btn--cta') as $register) {
-            self::assertSame('/kayit', $register->getAttribute('href'));
+        foreach ($crawler->filter('a.btn--cta')->extract(['href']) as $register) {
+            self::assertSame('/kayit', $register);
         }
     }
 
