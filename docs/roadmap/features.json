@@ -68,7 +68,8 @@
       "source": "src/Controller/SecurityController.php",
       "depends_on": [],
       "evidence": [
-        "src/Controller/SecurityController.php"
+        "src/Controller/SecurityController.php",
+        "2026-11-26 kullanıcı kararı: active_feature_ids X01-homework iken bu dilim açıkça yetkilendirilmiş dar giriş dönüşü işidir. Eski davranış: herkese açık ders kataloğu (/dersler/{sınıf}/{ders}/{ünite}) üzerindeki 'Giriş yap' bağlantıları düz /giris idi; Symfony hedef yolu yalnız korumalı bir adres anonim istendiğinde saklandığından ziyaretçi girişten sonra rol varsayılanına (öğrenci için /ogrenci) düşüyor, üniteyi kaybediyordu. Yeni davranış: ünite ve konu CTA'ları /giris?sinif&ders&unite[&konu] taşır; App\\Security\\CatalogLoginReturn bu koordinatları yalnız yayımlanmış kayıtlarla doğrulayıp oturuma yazar (30 dk, tek kullanımlık). Başarılı girişte yalnız tamamlanmış profilli ve aynı sınıftaki öğrenci için yayımlı öğrenci rotası (app_student_course_unit/app_student_course_topic) route adından yeniden üretilir; her rota mevcut erişim denetimini korur. Geçersiz, harici, süresi dolmuş, yayından kalkmış, başka sınıf veya başka rol hedefi mevcut rol varsayılanına düşer. Yanlış parolada hedef korunur; parametresiz GET /giris hedefi siler; /giris doğrudan girişi, rol yönlendirmeleri, çıkış ve CSRF değişmedi. Kayıt/e-posta doğrulama akışı kapsam dışıdır. Testler: tests/Controller/CatalogLoginReturnTest.php, tests/Security/CatalogLoginReturnTest.php, browser/tests/catalog-login-return.spec.ts. Ekran görüntüsü ve CI canlı kabul değildir; main birleşmesi, dağıtım ve canlı kabul ayrı kanıt gerektirir. Durum değişmez."
       ],
       "pr_links": [],
       "acceptance": "Mevcut dar akış korunacak; production kabulü gerekiyorsa ayrı kanıtla kaydedilecek.",

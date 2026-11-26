@@ -41,12 +41,12 @@
                         {% endif %}
                         <div class="catalog-cta__actions">
                             <a class="btn btn--cta" href="{{ path('app_register') }}">Ücretsiz hesap oluştur</a>
-                            <a class="btn btn--ghost" href="{{ path('app_login') }}">Giriş yap</a>
+                            <a class="btn btn--ghost" href="{{ path('app_login', {sinif: grade, ders: subject.slug, unite: unit.slug, konu: topic.slug}) }}">Giriş yap</a>
                         </div>
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
-        {% include 'public_catalog/_cta.html.twig' %}
+        {% include 'public_catalog/_cta.html.twig' with {login_params: {sinif: grade, ders: subject.slug, unite: unit.slug}} %}
     </div>
 {% endblock %}

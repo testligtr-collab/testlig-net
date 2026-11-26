@@ -6,6 +6,10 @@
 <section class="page">
     <h1>Giriş yap</h1>
 
+    {% if resume_catalog|default(false) %}
+        <p class="muted" data-login-resume>Derse devam etmek için giriş yap.</p>
+    {% endif %}
+
     {% if error %}
         <div class="flash flash-error" role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
     {% endif %}
