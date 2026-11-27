@@ -39,7 +39,14 @@ async function overflow(page: Page, label: string): Promise<void> {
 }
 
 async function showLevels(page: Page): Promise<void> {
+  // The page uses smooth scrolling; disable it through the CSSOM (no CSP-relevant inline style) so screenshots land on the section.
+  await page.evaluate(() => document.documentElement.style.setProperty('scroll-behavior', 'auto', 'important'));
   await page.locator('#seviyeler').evaluate((node) => node.scrollIntoView({ block: 'start' }));
+  await expect(async () => {
+    const first = await page.evaluate(() => window.scrollY);
+    await page.waitForTimeout(100);
+    expect(await page.evaluate(() => window.scrollY)).toBe(first);
+  }).toPass({ timeout: 5_000 });
 }
 
 test('anonymous visitor follows the Ilkokul card to real 1. sınıf Matematik; other levels show preparation without a CTA', async ({ page }, info: TestInfo) => {
