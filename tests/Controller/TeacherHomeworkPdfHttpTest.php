@@ -236,7 +236,7 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
         // The debug 404 page quotes this test's own source lines, so check values (bytes, key, real paths), not words.
         $body = (string) $teacher->getResponse()->getContent();
-        self::assertStringNotContainsString('%PDF', $body);
+        self::assertStringNotContainsString($s['pdfBytes'], $body);
         self::assertStringNotContainsString($s['storageKey'], $body);
         self::assertStringNotContainsString($site, $body);
         self::assertDirectoryDoesNotExist($wrongRoot);
