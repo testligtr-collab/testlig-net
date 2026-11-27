@@ -2094,6 +2094,12 @@ a:hover {
     font-size: 0.95rem;
 }
 
+.homepage-v2 .hp-vcard__body p.hp-vcard__note {
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
 .homepage-v2 .hp-vcard__action {
     align-self: flex-start;
     margin-top: auto;

@@ -18,7 +18,12 @@
         <h1>{{ catalog_title }}</h1>
         <p class="catalog-lead">Yayımlanmış sınıfları ve ders adlarını buradan inceleyebilirsin. Ders içeriği öğrenci hesabıyla açılır.</p>
         {% if grades is empty %}
-            <p>Yayımlanmış ders henüz yok.</p>
+            {% if stage_label %}
+                <p class="catalog-empty" role="status">{{ stage_label }} için içerikler hazırlanıyor. Yayımlanmış ders henüz yok.</p>
+                <p><a href="{{ path('app_public_catalog') }}">Tüm sınıfları gör</a></p>
+            {% else %}
+                <p>Yayımlanmış ders henüz yok.</p>
+            {% endif %}
         {% else %}
             <ul class="catalog-grid">
                 {% for grade in grades %}
@@ -30,6 +35,9 @@
                     </li>
                 {% endfor %}
             </ul>
+            {% if stage_label %}
+                <p><a href="{{ path('app_public_catalog') }}">Tüm sınıfları gör</a></p>
+            {% endif %}
         {% endif %}
         {% include 'public_catalog/_cta.html.twig' %}
     </div>

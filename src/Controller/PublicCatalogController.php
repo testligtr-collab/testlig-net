@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Dto\PublicCatalogGradeCard;
 use App\Enum\GradeLevel;
 use App\Service\PublicCatalogQuery;
 use App\Service\PublicSitemapDocument;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -18,6 +20,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 final class PublicCatalogController extends AbstractController
 {
     private const GRADE_PATTERN = '12|11|10|[1-9]';
+    private const STAGE_LABELS = ['ilkokul' => 'İlkokul', 'ortaokul' => 'Ortaokul', 'lise' => 'Lise'];
     private const SLUG_PATTERN = '[a-z0-9]+(?:-[a-z0-9]+)*';
 
     public function __construct(
@@ -25,12 +28,38 @@ final class PublicCatalogController extends AbstractController
     ) {
     }
 
+    /**
+     * Optional `?kademe=ilkokul|ortaokul|lise` narrows the list to grades of that stage that already have published
+     * content (a published subject with a published unit, as on the homepage). No parameter keeps the full list.
+     * Any other value is a controlled 404 instead of silently showing the unfiltered catalog.
+     */
     #[Route('/dersler', name: 'app_public_catalog', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $query = $request->query->all();
+        if (!\array_key_exists('kademe', $query)) {
+            return $this->page('public_catalog/index.html.twig', [
+                'grades' => $this->catalog->grades(),
+                'stage_label' => null,
+            ], 'Dersleri keşfet', 'Yayımlanmış sınıf ve dersleri giriş yapmadan inceleyin.', 'app_public_catalog');
+        }
+
+        $stage = $query['kademe'];
+        if (!\is_string($stage) || !isset(self::STAGE_LABELS[$stage])) {
+            throw $this->createNotFoundException();
+        }
+        $withContent = $this->catalog->gradesWithContent();
+        $grades = array_values(array_filter(
+            $this->catalog->grades(),
+            static fn (PublicCatalogGradeCard $card): bool => GradeLevel::tryFrom($card->grade)?->stageKey() === $stage
+                && isset($withContent[$card->grade]),
+        ));
+        $label = self::STAGE_LABELS[$stage];
+
         return $this->page('public_catalog/index.html.twig', [
-            'grades' => $this->catalog->grades(),
-        ], 'Dersleri keşfet', 'Yayımlanmış sınıf ve dersleri giriş yapmadan inceleyin.', 'app_public_catalog');
+            'grades' => $grades,
+            'stage_label' => $label,
+        ], $label.' dersleri', $label.' kademesinde yayımlanmış sınıf ve dersleri giriş yapmadan inceleyin.', 'app_public_catalog');
     }
 
     #[Route('/dersler/{grade}', name: 'app_public_catalog_grade', methods: ['GET'], requirements: ['grade' => self::GRADE_PATTERN])]

@@ -27,4 +27,14 @@ enum GradeLevel: int
             default => 'lise',
         };
     }
+
+    /**
+     * Grades that belong to a stage key from {@see stageKey()}; empty for any other key.
+     *
+     * @return list<self>
+     */
+    public static function forStage(string $stage): array
+    {
+        return array_values(array_filter(self::cases(), static fn (self $grade): bool => $grade->stageKey() === $stage));
+    }
 }
