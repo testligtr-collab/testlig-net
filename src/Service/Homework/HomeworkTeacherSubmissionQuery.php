@@ -12,6 +12,7 @@ use App\Entity\HomeworkRecipient;
 use App\Entity\HomeworkSubmission;
 use App\Entity\User;
 use App\Enum\HomeworkSubmissionStatus;
+use App\Repository\HomeworkSubmissionAttachmentRepository;
 use App\Time\UtcInstant;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -25,6 +26,7 @@ final class HomeworkTeacherSubmissionQuery
         private readonly EntityManagerInterface $entityManager,
         private readonly HomeworkTeacherEvaluationScope $scope,
         private readonly HomeworkTeacherScope $teacherScope,
+        private readonly HomeworkSubmissionAttachmentRepository $attachments,
     ) {
     }
 
@@ -185,6 +187,8 @@ final class HomeworkTeacherSubmissionQuery
             return null;
         }
 
+        $attachment = $this->attachments->findForSubmission($submission);
+
         return new HomeworkTeacherSubmissionDetail(
             submissionId: $submission->getId()->toRfc4122(),
             definitionId: $submission->getAssignment()->getDefinition()->getId()->toRfc4122(),
@@ -204,6 +208,8 @@ final class HomeworkTeacherSubmissionQuery
             evaluatedAtLocal: null === $evaluation
                 ? null
                 : UtcInstant::formatForUser($evaluation->getRecordedAt(), 'Europe/Istanbul', 'd.m.Y H:i'),
+            hasPdfAttachment: null !== $attachment,
+            pdfDisplayName: $attachment?->getDisplayName(),
         );
     }
 

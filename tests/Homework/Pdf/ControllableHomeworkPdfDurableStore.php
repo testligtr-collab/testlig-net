@@ -16,6 +16,8 @@ final class ControllableHomeworkPdfDurableStore extends HomeworkPdfDurableStore
 {
     private static bool $failNextCommit = false;
 
+    private static int $readAttempts = 0;
+
     private bool $failThisInstance = false;
 
     public static function armFailNextCommit(): void
@@ -28,10 +30,27 @@ final class ControllableHomeworkPdfDurableStore extends HomeworkPdfDurableStore
         self::$failNextCommit = false;
     }
 
+    public static function resetReadAttempts(): void
+    {
+        self::$readAttempts = 0;
+    }
+
+    public static function readAttempts(): int
+    {
+        return self::$readAttempts;
+    }
+
     public function failNextCommit(): void
     {
         $this->failThisInstance = true;
         self::$failNextCommit = true;
+    }
+
+    public function assertReadable(string $storageKey, string $sha256, int $byteSize): string
+    {
+        ++self::$readAttempts;
+
+        return parent::assertReadable($storageKey, $sha256, $byteSize);
     }
 
     public function commitFromQuarantine(HomeworkPdfQuarantineFile $file): string

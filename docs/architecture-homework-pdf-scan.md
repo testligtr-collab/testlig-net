@@ -58,7 +58,7 @@ Implemented in application code (tests open the gate with Fake scanner + env fla
 6. On DB/write failure: delete durable candidate; never leave an orphan attachment row  
 7. Existing attachment is **not** replaced in this slice (conflict / `pdf_exists`)
 
-Still open for production enablement: OLS/lsphp clamd socket access, StreamMaxLength/MaxFileSize measurement, signature freshness + replacing `ClosedHomeworkPdfScanReadiness`, quota/retention/orphan cleanup, teacher download UI. Unlimited storage is not assumed. `HOMEWORK_PDF_UPLOAD_ENABLED` remains `0` in production.
+Teacher download (assigning teacher only, private stream, no public URL) is implemented in code; live upload remains closed. Still open for production enablement: OLS/lsphp clamd socket access, StreamMaxLength/MaxFileSize measurement, signature freshness + replacing `ClosedHomeworkPdfScanReadiness`, quota/retention/orphan cleanup. Unlimited storage is not assumed. `HOMEWORK_PDF_UPLOAD_ENABLED` remains `0` in production.
 
 ## Shared durable storage, runtime readiness, and quarantine purge (readiness slice)
 

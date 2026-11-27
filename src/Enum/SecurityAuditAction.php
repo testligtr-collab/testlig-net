@@ -233,4 +233,5 @@ enum SecurityAuditAction: string
     case HomeworkSubmissionSubmitted = 'homework_submission_submitted';
     case HomeworkEvaluationRecorded = 'homework_evaluation_recorded';
     case HomeworkSubmissionPdfAttached = 'homework_submission_pdf_attached';
+    case HomeworkSubmissionPdfDownloaded = 'homework_submission_pdf_downloaded';
 }

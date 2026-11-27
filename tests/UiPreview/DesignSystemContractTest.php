@@ -42,7 +42,8 @@ final class DesignSystemContractTest extends TestCase
         self::assertMatchesRegularExpression('/aria-controls="mobile-site-nav"/', $header);
         self::assertMatchesRegularExpression('/aria-expanded="false"/', $header);
         self::assertMatchesRegularExpression('/id="mobile-site-nav"[\s\S]*?\bhidden\b/', $header);
-        self::assertStringContainsString('aria-current', $header);
+        self::assertStringContainsString('components/public_nav_links.html.twig', $header);
+        self::assertStringContainsString('aria-current', (string) file_get_contents(\dirname(__DIR__, 2).'/templates/components/public_nav_links.html.twig'));
         self::assertStringContainsString('aria-label="Ana menü"', $header);
         self::assertStringContainsString('data-action="click->mobile-nav#closeOnNavigate"', $header);
     }

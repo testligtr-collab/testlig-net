@@ -9,6 +9,10 @@ parameters:
         - tests/bootstrap.php
     bootstrapFiles:
         - vendor/autoload.php
+    scanFiles:
+        # Standalone deploy helpers (no Composer autoload on the deploy runner); tests load them with require_once.
+        - deploy/vds/ExternalRevisionVerifier.php
+        - deploy/vds/verify-external-revision.php
     tmpDir: var/phpstan
     symfony:
         containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml

@@ -41,6 +41,17 @@
                 <div class="hw-prose hw-readonly" data-testid="hw-submission-body" tabindex="0" role="region" aria-labelledby="hw-body-heading">{{ detail.body }}</div>
                 <p class="hw-hint">Salt okunur. Gönderilen yanıt değiştirilemez.</p>
             </article>
+
+            {% if detail.hasPdfAttachment %}
+                <article class="hw-card" aria-labelledby="hw-pdf-heading" data-testid="hw-submission-pdf">
+                    <h2 id="hw-pdf-heading">PDF ek</h2>
+                    <p class="hw-hint hw-wrap" data-testid="hw-submission-pdf-name">{{ detail.pdfDisplayName }}</p>
+                    <p>
+                        <a class="btn hw-btn hw-btn--ghost" data-testid="hw-submission-pdf-download"
+                           href="{{ path('app_teacher_homework_submission_pdf', {id: detail.submissionId}) }}">PDF’i indir</a>
+                    </p>
+                </article>
+            {% endif %}
         </div>
 
         <aside class="hw-aside hw-eval-side">

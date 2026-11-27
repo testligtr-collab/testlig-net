@@ -78,16 +78,7 @@ final class HomepagePreviewHeroContractTest extends WebTestCase
         $navLabels = $crawler->filter('nav[aria-label="Ana menü"] a')->each(
             static fn (Crawler $node): string => trim($node->text()),
         );
-        self::assertSame([
-            'Sınıflar',
-            'Haberler',
-            'Simülasyonlar',
-            'Dokümanlar',
-            'Testler',
-            'Videolar',
-            'Soru-Cevap',
-            'Oyunlar',
-        ], $navLabels);
+        self::assertSame(['Ana Sayfa', 'Sınıflar', 'Haberler'], $navLabels);
 
         self::assertSame(0, $crawler->filter('a[href="#"]')->count());
         self::assertStringNotContainsString('href="#"', $html);

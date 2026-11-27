@@ -1,0 +1,18 @@
+{# Shared account actions for public site shells. #}
+{# @var bool|null stacked  full-width buttons for the mobile drawer #}
+{# @var bool|null student_links  also show the student panel/profile shortcuts #}
+{% set stack = stacked|default(false) ? ' btn--block' : '' %}
+{% if app.user %}
+    {% if student_links|default(false) and is_granted('ROLE_STUDENT') %}
+        <a class="btn btn--ghost{{ stack }}" href="{{ path('app_student_dashboard') }}">Öğrenci Paneli</a>
+        <a class="btn btn--ghost{{ stack }}" href="{{ path('app_student_profile') }}">Profilim</a>
+    {% endif %}
+    <a class="btn btn--ghost{{ stack }}" href="{{ path('app_account') }}">Hesabım</a>
+    <form method="post" action="{{ path('app_logout') }}" class="logout-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('logout') }}">
+        <button type="submit" class="btn btn--primary{{ stack }}">Çıkış</button>
+    </form>
+{% else %}
+    <a class="btn btn--ghost{{ stack }}" href="{{ path('app_login') }}">Giriş Yap</a>
+    <a class="btn btn--cta{{ stack }}" href="{{ path('app_register') }}">Kayıt Ol</a>
+{% endif %}

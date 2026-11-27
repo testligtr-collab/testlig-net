@@ -50,18 +50,33 @@ jobs:
     steps:
       - name: Resolve deploy SHA
         id: meta
+        # Expressions are passed through env and read as quoted shell variables. Never write
+        # github.event.* or inputs.* directly into run:, because Bash would parse the value as code.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_REF: ${{ github.event.inputs.ref }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            SHA="${{ github.event.workflow_run.head_sha }}"
-            REF="$SHA"
-          elif [ -n "${{ github.event.inputs.ref }}" ]; then
-            REF="${{ github.event.inputs.ref }}"
+          if [ "${EVENT_NAME}" = "workflow_run" ]; then
+            SHA="${WORKFLOW_RUN_HEAD_SHA}"
+            REF="${SHA}"
+          elif [ -n "${INPUT_REF}" ]; then
+            REF="${INPUT_REF}"
             SHA=""
           else
-            REF="${{ github.sha }}"
-            SHA="${{ github.sha }}"
+            REF="${WORKFLOW_SHA}"
+            SHA="${WORKFLOW_SHA}"
           fi
+          # Git refs cannot contain control characters. A newline would add a forged line to
+          # GITHUB_OUTPUT, so stop without echoing the value. No other ref form is rejected here.
+          case "${REF}" in
+            *[[:cntrl:]]*)
+              echo "::error::Deploy ref contains a control character; refusing to continue."
+              exit 1
+              ;;
+          esac
           echo "ref=${REF}" >> "$GITHUB_OUTPUT"
           echo "sha_hint=${SHA}" >> "$GITHUB_OUTPUT"
 
@@ -84,12 +99,22 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
+          # The served-release check compares the full lowercase SHA, so a short or odd value stops here.
+          if ! printf '%s' "${SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Resolved deploy revision is not a full 40-character SHA; refusing to continue."
+            exit 1
+          fi
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "Deploying ${SHA}"
 
       - name: Build release tarball
+        env:
+          DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
         run: |
           set -euo pipefail
+          # The release carries the SHA it was packaged from. The application bakes it into its compiled
+          # container and serves it in the X-Testlig-Release response header.
+          printf '%s\n' "${DEPLOY_SHA}" > release-src/REVISION
           mkdir -p /tmp/testlig-release
           tar -czf /tmp/testlig-release/release.tgz \
             --exclude='./.git' \
@@ -119,6 +144,54 @@ jobs:
           VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
         run: bash workflow-src/deploy/vds/gha-ssh-config.sh
 
+      - name: Record runner egress diagnostics (before first remote transfer)
+        # Diagnostic log only: UTC time, run id/attempt, runner public IPv4 as observed over HTTPS.
+        # No remote connection, no secret, no environment dump. Never fails or delays the deploy.
+        continue-on-error: true
+        env:
+          DIAG_RUN_ID: ${{ github.run_id }}
+          DIAG_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set +e
+          diag_utc="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          octet='(0|[1-9][0-9]{0,2})'
+          ipv4_re="^${octet}\.${octet}\.${octet}\.${octet}$"
+          raw="$(curl -4fsS --max-time 5 --proto '=https' https://api.ipify.org 2>/dev/null)"
+          curl_status=$?
+          raw="${raw%$'\r'}"
+          runner_ip=""
+          if [ "$curl_status" -eq 0 ] && [[ "$raw" =~ $ipv4_re ]]; then
+            octets_ok=1
+            for part in "${BASH_REMATCH[@]:1}"; do
+              if [ "$part" -gt 255 ]; then
+                octets_ok=0
+              fi
+            done
+            if [ "$octets_ok" -eq 1 ]; then
+              runner_ip="$raw"
+            fi
+          fi
+          echo "runner_egress_diagnostic_utc=${diag_utc}"
+          echo "runner_egress_run_id=${DIAG_RUN_ID} run_attempt=${DIAG_RUN_ATTEMPT}"
+          if [ -n "$runner_ip" ]; then
+            echo "runner_egress_public_ipv4=${runner_ip}"
+            echo "note: runner dış IPv4 adresi api.ipify.org üzerinden HTTPS ile gözlendi; VDS'nin gördüğü kesin kaynak adres olarak doğrulanmadı."
+          else
+            echo "runner public IPv4 alınamadı"
+          fi
+          # Effective SSH target (kind, port, match with the expected IPv4) from the client config only.
+          # Reads `ssh -G`, opens no connection and never prints the raw hostname or address.
+          bash workflow-src/deploy/vds/gha-ssh-target-diag.sh summary
+          exit 0
+
+      - name: Evaluate SSH target DNS (bounded, read-only)
+        # Log-only and time limited: one resolver lookup, only when the target is a hostname.
+        # Prints counts and a match flag, never the hostname or resolved addresses. DNS data is not
+        # proof of the address scp really connects to.
+        continue-on-error: true
+        timeout-minutes: 1
+        run: bash workflow-src/deploy/vds/gha-ssh-target-diag.sh dns
+
       - name: Upload bundle and activate release
         env:
           DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
@@ -141,3 +214,27 @@ jobs:
           www=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://www.testlig.net/")
           echo "https://www.testlig.net/ -> ${www}"
           test "$www" = "200"
+
+      - name: External revision (served release over HTTPS)
+        # Read-only HTTPS GET checks from the runner. HTTP 200 and an activated release on disk do not prove
+        # that visitors get the new code, so the full deployed SHA must be served in X-Testlig-Release.
+        # Bounded retries only for these GETs (10 attempts, 6 s apart, 90 s budget per URL). No SSH, scp,
+        # second deploy, service restart or rollback is started from here, whatever the result.
+        env:
+          DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -uo pipefail
+          if ! command -v php >/dev/null 2>&1; then
+            echo "revision_check_result=unverified"
+            echo "PHP is not available on the runner; the served release could not be verified."
+            echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if php workflow-src/deploy/vds/verify-external-revision.php "${DEPLOY_SHA}" https://testlig.net/ https://testlig.net/dersler; then
+            echo "## Beklenen sürüm dış HTTPS'te doğrulandı" >> "$GITHUB_STEP_SUMMARY"
+            echo "Expected release ${DEPLOY_SHA} is served over external HTTPS." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
+            echo "The release was activated on the VDS, but the expected SHA ${DEPLOY_SHA} was not served over external HTTPS within the time limit. This does not mean the release switch was rolled back." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
