@@ -100,7 +100,7 @@
                 <article class="shw-card" data-testid="shw-pdf">
                     <h2>PDF ek</h2>
                     {% if detail.hasPdfAttachment %}
-                        <p class="shw-hint" data-testid="shw-pdf-name">{{ detail.pdfDisplayName }}</p>
+                        <p class="shw-hint shw-wrap" data-testid="shw-pdf-name">{{ detail.pdfDisplayName }}</p>
                         <p class="shw-hint">PDF eklendi; indirme bu dilimde yok.</p>
                     {% elseif detail.pdfUploadOpen %}
                         <form id="shw-pdf-form" method="post" action="{{ path('app_student_homework_pdf', {id: detail.assignmentId}) }}" enctype="multipart/form-data" class="shw-form" data-testid="shw-pdf-form">

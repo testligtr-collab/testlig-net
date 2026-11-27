@@ -103,6 +103,10 @@ Metin zorunlu + isteğe bağlı tek PDF ürün kararı ve antivirüs seçimi **A
 
 İsteğe bağlı tek PDF, yalnız düzenlenebilir öğrenci taslağına. Gate + `PdfDocumentInspector` + quarantine/scan + private durable (`var/homework-pdf`) + `homework_submission_attachments` (UNIQUE submission). Eklemek göndermez; mevcut ek sessizce değiştirilmez; indirme/public URL yok. Production: `HOMEWORK_PDF_UPLOAD_ENABLED=0` + `ClosedHomeworkPdfScanReadiness`. Ayrıntı: `docs/architecture-homework-pdf-scan.md`.
 
+### 0.1g Öğretmen PDF görüntüleme / indirme (kodda; public URL yok)
+
+Atayan öğretmen, **submitted** teslim detayında ek adını görür ve `GET /ogretmen/odevler/teslim/{id}/pdf` ile private durable dosyayı indirir (yükleme bayrağı kapalıyken de mevcut ek okunabilir). Controller önce `viewableSubmission` (`VIEW_SUBMITTED`) kapısını uygular, ardından servis lock altında `canManageSubmitted`, ek-teslim eşleşmesi, root-oluşturmayan `assertReadable` (boyut+SHA+okunabilirlik) ve güvenli `Content-Disposition` dosya adını doğrular; taslak/ek yok/yabancı/eksik dosya → 404 (500 veya disk yolu yok), başarı audit `homework_submission_pdf_downloaded` (gövde/path yok). Öğrenci indirme UI’si ve production upload açma bu dilimde yoktur.
+
 ### 0.2 Önerilen gelecek model (henüz kodda yok veya kısmi)
 
 | Kavram | Durum |

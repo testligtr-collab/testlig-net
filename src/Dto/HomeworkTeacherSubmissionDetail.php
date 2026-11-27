@@ -24,6 +24,8 @@ final readonly class HomeworkTeacherSubmissionDetail
         public ?string $evaluationLabelTr,
         public ?string $feedback,
         public ?string $evaluatedAtLocal,
+        public bool $hasPdfAttachment = false,
+        public ?string $pdfDisplayName = null,
     ) {
     }
 }
