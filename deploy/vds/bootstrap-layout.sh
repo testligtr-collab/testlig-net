@@ -21,9 +21,19 @@ die() { printf '[bootstrap] ERROR: %s\n' "$*" >&2; exit 1; }
 
 mkdir -p "$RELEASES_DIR" "$SHARED_DIR" "$BACKUP_ROOT" \
   "$SHARED_DIR/var/log" "$SHARED_DIR/public/uploads"
+install -d -m 700 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/var/homework-pdf" "$SHARED_DIR/var/homework-pdf-quarantine"
 
 if [[ -L "$APP_DIR" ]]; then
   log "app already symlink -> $(readlink "$APP_DIR"); ensuring shared env"
+  if [[ -d "$APP_DIR/var/homework-pdf" && ! -L "$APP_DIR/var/homework-pdf" ]]; then
+    for pdf_obj in "$APP_DIR/var/homework-pdf"/*.bin; do
+      [[ -f "$pdf_obj" && ! -L "$pdf_obj" ]] || continue
+      pdf_base="$(basename "$pdf_obj")"
+      if [[ ! -e "$SHARED_DIR/var/homework-pdf/$pdf_base" && ! -L "$SHARED_DIR/var/homework-pdf/$pdf_base" ]]; then
+        install -m 600 -o "$APP_USER" -g "$APP_GROUP" "$pdf_obj" "$SHARED_DIR/var/homework-pdf/$pdf_base"
+      fi
+    done
+  fi
   if [[ ! -f "$SHARED_DIR/.env.local" ]]; then
     if [[ -f "$APP_DIR/.env.local" ]]; then
       install -m 640 -o "$APP_USER" -g "$APP_GROUP" "$APP_DIR/.env.local" "$SHARED_DIR/.env.local"
@@ -55,6 +65,15 @@ if [[ -d "$APP_DIR/public/uploads" && ! -L "$APP_DIR/public/uploads" ]]; then
 fi
 if [[ -d "$APP_DIR/var/log" ]]; then
   cp -a "$APP_DIR/var/log/." "$SHARED_DIR/var/log/" 2>/dev/null || true
+fi
+if [[ -d "$APP_DIR/var/homework-pdf" && ! -L "$APP_DIR/var/homework-pdf" ]]; then
+  for pdf_obj in "$APP_DIR/var/homework-pdf"/*.bin; do
+    [[ -f "$pdf_obj" && ! -L "$pdf_obj" ]] || continue
+    pdf_base="$(basename "$pdf_obj")"
+    if [[ ! -e "$SHARED_DIR/var/homework-pdf/$pdf_base" && ! -L "$SHARED_DIR/var/homework-pdf/$pdf_base" ]]; then
+      install -m 600 -o "$APP_USER" -g "$APP_GROUP" "$pdf_obj" "$SHARED_DIR/var/homework-pdf/$pdf_base"
+    fi
+  done
 fi
 
 BASE_NAME="baseline-${TS}"

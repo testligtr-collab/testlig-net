@@ -10,6 +10,7 @@ use App\Enum\UserRole;
 use App\Enum\UserStatus;
 use App\Homework\Pdf\HomeworkPdfDurableStore;
 use App\Homework\Pdf\HomeworkPdfScanVerdict;
+use App\Homework\Pdf\HomeworkPdfStoragePaths;
 use App\Homework\Pdf\HomeworkPdfUploadGate;
 use App\Service\Homework\HomeworkPdfAttachmentManager;
 use App\Service\Homework\HomeworkSubmissionManager;
@@ -35,6 +36,8 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
     private const BODY = 'PDF ekli teslim metni';
 
     private ?string $frozenUtc = null;
+
+    private ?string $persistSite = null;
 
     /**
      * @var list<string>
@@ -68,6 +71,7 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         ControllableHomeworkPdfDurableStore::resetReadAttempts();
         $this->resetClock();
         self::ensureKernelShutdown();
+        $this->useStorageRoots('', '');
         putenv('HOMEWORK_PDF_UPLOAD_ENABLED=0');
         putenv('HOMEWORK_PDF_SCAN_READY=0');
         $_ENV['HOMEWORK_PDF_UPLOAD_ENABLED'] = '0';
@@ -81,6 +85,10 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         }
         $this->rebindDeliveryFixtures();
         $this->cleanupHomework();
+        if (null !== $this->persistSite) {
+            $this->removeTree($this->persistSite);
+            $this->persistSite = null;
+        }
         parent::tearDown();
     }
 
@@ -157,6 +165,90 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         self::assertSame(0, $afterCrawler->filter('[data-testid="shw-pdf-form"]')->count());
         self::assertStringContainsString('İncelendi', $afterCrawler->filter('[data-testid="shw-evaluation"]')->text());
         self::assertStringContainsString('PDF ekin ve metin yanıtın incelendi.', $afterCrawler->filter('[data-testid="shw-evaluation"]')->text());
+    }
+
+    public function testPdfSurvivesReleaseSwitchAndOldReleaseCleanupWithIdenticalBytesAndWrongRootNeverReadsSilently(): void
+    {
+        $site = sys_get_temp_dir().\DIRECTORY_SEPARATOR.'hwpdf-persist-'.bin2hex(random_bytes(4));
+        $this->persistSite = $site;
+        $durableRoot = $site.'/shared/var/homework-pdf';
+        $quarantineRoot = $site.'/shared/var/homework-pdf-quarantine';
+        $release1 = $site.'/releases/20261127T100000Z-aaaaaaaaaaaa';
+        $release2 = $site.'/releases/20261127T110000Z-bbbbbbbbbbbb';
+        foreach ([$durableRoot, $quarantineRoot, $release1.'/var/homework-pdf'] as $dir) {
+            self::assertTrue(mkdir($dir, 0700, true));
+        }
+        // Legacy-style decoy inside the old release: the shared root must be the only source of truth.
+        file_put_contents($release1.'/var/homework-pdf/'.str_repeat('9', 32).'.bin', 'decoy-from-old-release');
+
+        // Release 1: durable and quarantine roots point at the shared directory, outside releases/ and public/.
+        $this->useStorageRoots($durableRoot, $quarantineRoot);
+        self::ensureKernelShutdown();
+        self::bootKernel();
+        $this->rebindDeliveryFixtures();
+        $this->fakeScanner()->setVerdict(HomeworkPdfScanVerdict::Clean);
+
+        $s = $this->scenarioWithPdf('thw-pdf-persist');
+        $file = $durableRoot.'/'.$s['storageKey'].'.bin';
+        $expectedSha = hash('sha256', $s['pdfBytes']);
+        $expectedSize = \strlen($s['pdfBytes']);
+        self::assertFileExists($file);
+        self::assertSame($expectedSha, hash_file('sha256', $file));
+        self::assertSame($expectedSize, filesize($file));
+        self::assertFileDoesNotExist(\dirname(__DIR__, 2).'/var/homework-pdf/'.$s['storageKey'].'.bin');
+
+        $paths = static::getContainer()->get(HomeworkPdfStoragePaths::class);
+        self::assertInstanceOf(HomeworkPdfStoragePaths::class, $paths);
+        self::assertSame($durableRoot, $paths->durableDirectory());
+        self::assertTrue($paths->isSafeDurableDirectoryReady());
+        self::assertFalse($paths->isReleaseScopedPath($durableRoot));
+        self::assertFalse($paths->isInsidePublicDir($durableRoot));
+        self::assertFalse($paths->pathsOverlap($durableRoot, $quarantineRoot));
+
+        $this->bootClosedGate();
+        $detail = '/ogretmen/odevler/teslim/'.$s['submissionId'];
+
+        $beforeSwitch = $this->downloadPdf($s['teacherEmail'], $detail);
+        self::assertSame($expectedSize, \strlen($beforeSwitch));
+        self::assertSame($expectedSha, hash('sha256', $beforeSwitch));
+        self::assertSame($s['pdfBytes'], $beforeSwitch);
+
+        // Release 2 goes live (fresh container and process state) and the old release is cleaned up.
+        self::assertTrue(mkdir($release2.'/var', 0700, true));
+        $this->removeTree($release1);
+        self::assertDirectoryDoesNotExist($release1);
+        $this->bootClosedGate();
+
+        $afterSwitch = $this->downloadPdf($s['teacherEmail'], $detail);
+        self::assertSame($expectedSize, \strlen($afterSwitch));
+        self::assertSame($expectedSha, hash('sha256', $afterSwitch));
+        self::assertSame($beforeSwitch, $afterSwitch);
+        self::assertFileExists($file);
+        self::assertSame($expectedSha, hash_file('sha256', $file));
+        self::assertSame(2, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_downloaded'"));
+
+        // Wrong root (misconfigured next release): controlled 404, nothing created, no silent fallback.
+        $wrongRoot = $site.'/shared-wrong/var/homework-pdf';
+        $this->useStorageRoots($wrongRoot, $quarantineRoot);
+        $this->bootClosedGate();
+        $teacher = $this->clientFor($s['teacherEmail']);
+        $teacher->request('GET', $detail.'/pdf');
+        self::assertResponseStatusCodeSame(404);
+        // The debug 404 page quotes this test's own source lines, so check values (bytes, key, real paths), not words.
+        $body = (string) $teacher->getResponse()->getContent();
+        self::assertStringNotContainsString($s['pdfBytes'], $body);
+        self::assertStringNotContainsString($s['storageKey'], $body);
+        self::assertStringNotContainsString($site, $body);
+        self::assertDirectoryDoesNotExist($wrongRoot);
+        self::assertDirectoryDoesNotExist($site.'/shared-wrong');
+        self::assertSame(2, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_downloaded'"));
+        // The original object was neither moved, overwritten nor deleted.
+        self::assertSame($expectedSha, hash_file('sha256', $file));
+
+        // Correct root again: same bytes.
+        $this->useStorageRoots($durableRoot, $quarantineRoot);
+        $this->bootClosedGate();
+        self::assertSame($s['pdfBytes'], $this->downloadPdf($s['teacherEmail'], $detail));
     }
 
     public function testSubmissionWithoutPdfHidesBlockAndAllowsTextEvaluation(): void
@@ -531,6 +623,46 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         $_SERVER['HOMEWORK_PDF_SCAN_READY'] = '0';
         self::bootKernel();
         $this->rebindDeliveryFixtures();
+    }
+
+    private function useStorageRoots(string $durable, string $quarantine): void
+    {
+        foreach (['HOMEWORK_PDF_STORAGE_DIR' => $durable, 'HOMEWORK_PDF_QUARANTINE_DIR' => $quarantine] as $name => $value) {
+            putenv($name.'='.$value);
+            $_ENV[$name] = $value;
+            $_SERVER[$name] = $value;
+        }
+    }
+
+    private function downloadPdf(string $teacherEmail, string $detailPath): string
+    {
+        $client = $this->clientFor($teacherEmail);
+        $client->request('GET', $detailPath.'/pdf');
+        self::assertResponseIsSuccessful();
+        $response = $client->getResponse();
+        self::assertInstanceOf(BinaryFileResponse::class, $response);
+        ob_start();
+        $response->sendContent();
+
+        return (string) ob_get_clean();
+    }
+
+    private function removeTree(string $path): void
+    {
+        if (is_link($path) || is_file($path)) {
+            @unlink($path);
+
+            return;
+        }
+        if (!is_dir($path)) {
+            return;
+        }
+        foreach (scandir($path) ?: [] as $entry) {
+            if ('.' !== $entry && '..' !== $entry) {
+                $this->removeTree($path.\DIRECTORY_SEPARATOR.$entry);
+            }
+        }
+        @rmdir($path);
     }
 
     private function clientFor(string $email): KernelBrowser

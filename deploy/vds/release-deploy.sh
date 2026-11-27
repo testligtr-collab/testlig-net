@@ -6,7 +6,8 @@ set -euo pipefail
 
 SHA="${1:?git sha required}"
 TARBALL="${2:?tarball path required}"
-SITE_ROOT="/home/testlig.net"
+# TESTLIG_RELEASE_SITE_ROOT is only for isolated PHPUnit deploy tests; production workflows must leave it unset.
+SITE_ROOT="${TESTLIG_RELEASE_SITE_ROOT:-/home/testlig.net}"
 RELEASES_DIR="${SITE_ROOT}/releases"
 SHARED_DIR="${SITE_ROOT}/shared"
 APP_LINK="${SITE_ROOT}/app"
@@ -67,6 +68,54 @@ fi
 
 # Shared writable paths (create if absent; link into release).
 mkdir -p "$SHARED_DIR/var/log" "$SHARED_DIR/public/uploads"
+# Private persistent homework PDF storage outside releases/ (never symlinked into release, never web-accessible).
+install -d -m 700 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/var/homework-pdf"
+install -d -m 700 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/var/homework-pdf-quarantine"
+# One-way, copy-only adoption of PDFs that older code kept inside a release directory (var/homework-pdf).
+# Every existing release is scanned, not only the previous one, because KEEP_RELEASES pruning below would otherwise
+# delete a PDF that only lives in an older release. Rules: never delete or overwrite a PDF; identical bytes already
+# in shared are fine; a name collision with different bytes, a symlinked destination or an unreadable source aborts
+# the deploy before activation (the release dir is removed, the app symlink is untouched). Files that do not look
+# like durable store keys are left alone and only reported. Ownership, DB record and SHA verification of adopted
+# files is an operator step documented in docs/architecture-homework-pdf-scan.md.
+SHARED_PDF_DIR="$SHARED_DIR/var/homework-pdf"
+pdf_copied=0
+pdf_identical=0
+pdf_skipped=0
+for old_release in "$RELEASES_DIR"/*/; do
+  old_release="${old_release%/}"
+  [[ -d "$old_release" && ! -L "$old_release" && "$old_release" != "$RELEASE_DIR" ]] || continue
+  old_pdf_dir="$old_release/var/homework-pdf"
+  [[ -d "$old_pdf_dir" && ! -L "$old_pdf_dir" ]] || continue
+  for pdf_obj in "$old_pdf_dir"/*; do
+    [[ -e "$pdf_obj" || -L "$pdf_obj" ]] || continue
+    pdf_base="$(basename "$pdf_obj")"
+    if [[ -L "$pdf_obj" || ! -f "$pdf_obj" || ! "$pdf_base" =~ ^[0-9a-f]{32}\.bin$ ]]; then
+      pdf_skipped=$((pdf_skipped + 1))
+      log "homework PDF migration: skipped non-key entry $pdf_base in $(basename "$old_release")"
+      continue
+    fi
+    pdf_dest="$SHARED_PDF_DIR/$pdf_base"
+    if [[ -L "$pdf_dest" ]]; then
+      rm -rf "$RELEASE_DIR"
+      die "homework PDF migration: shared destination is a symlink: $pdf_base; release not activated"
+    fi
+    if [[ -e "$pdf_dest" ]]; then
+      if cmp -s "$pdf_obj" "$pdf_dest"; then
+        pdf_identical=$((pdf_identical + 1))
+        continue
+      fi
+      rm -rf "$RELEASE_DIR"
+      die "homework PDF migration: $pdf_base differs between $(basename "$old_release") and shared storage; release not activated"
+    fi
+    if ! install -m 600 -o "$APP_USER" -g "$APP_GROUP" "$pdf_obj" "$pdf_dest"; then
+      rm -rf "$RELEASE_DIR"
+      die "homework PDF migration: could not copy $pdf_base; release not activated"
+    fi
+    pdf_copied=$((pdf_copied + 1))
+  done
+done
+log "homework PDF migration: copied=$pdf_copied identical=$pdf_identical skipped=$pdf_skipped"
 if [[ -d "$RELEASE_DIR/var" ]]; then
   rm -rf "$RELEASE_DIR/var/log"
 else
