@@ -34,6 +34,7 @@ parameters:
     env(HOMEWORK_PDF_SCAN_READY): '0'
     env(HOMEWORK_PDF_STORAGE_DIR): ''
     env(HOMEWORK_PDF_QUARANTINE_DIR): ''
+    env(HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES): '0'
     env(WEB_RUNTIME_IDENTITY_ENABLED): '0'
     env(WEB_RUNTIME_IDENTITY_EXPIRES_AT): ''
     payment_platform_settlement_actor_id_default: ''
@@ -131,6 +132,7 @@ services:
             $storagePaths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
             $localDatabaseVersions: '@App\Question\Image\Scan\CvdDatabaseDirectoryReader'
             $clamdTransport: '@App\Question\Image\Scan\ClamdInstreamTransport'
+            $clamdStreamMaxBytes: '%env(int:HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES)%'
 
     App\Homework\Pdf\HomeworkPdfScanReadiness:
         alias: App\Homework\Pdf\RuntimeHomeworkPdfScanReadiness
@@ -317,6 +319,7 @@ when@test:
                 $storagePaths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
                 $localDatabaseVersions: '@App\Question\Image\Scan\CvdDatabaseDirectoryReader'
                 $clamdTransport: '@App\Question\Image\Scan\ClamdInstreamTransport'
+                $clamdStreamMaxBytes: '%env(int:HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES)%'
 
         App\Homework\Pdf\HomeworkPdfQuarantineCleaner:
             public: true
@@ -347,10 +350,13 @@ when@test:
             arguments:
                 $uploadEnabled: '%env(bool:HOMEWORK_PDF_UPLOAD_ENABLED)%'
 
+        # Test double resolves the same configured durable root as production (HOMEWORK_PDF_STORAGE_DIR, else the
+        # default under var/), so tests can point it at a shared directory outside a simulated release.
         App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore:
             public: true
+            factory: ['App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore', 'fromPaths']
             arguments:
-                $directory: '%kernel.project_dir%/var/homework-pdf'
+                $paths: '@App\Homework\Pdf\HomeworkPdfStoragePaths'
 
         App\Homework\Pdf\HomeworkPdfDurableStore:
             alias: App\Tests\Homework\Pdf\ControllableHomeworkPdfDurableStore

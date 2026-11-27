@@ -28,6 +28,11 @@ final class HomeworkPdfQuarantineCleaner
         }
 
         $directory = $this->paths->quarantineDirectory();
+        // Durable PDFs use the same <key>.bin naming, so a quarantine root that equals or nests with the durable root
+        // would make this purge delete student PDFs. Refuse before touching the disk.
+        if ($this->paths->pathsOverlap($this->paths->durableDirectory(), $directory)) {
+            throw HomeworkPdfScanException::invalidPath();
+        }
         if (!file_exists($directory) && !is_link($directory)) {
             return 0;
         }

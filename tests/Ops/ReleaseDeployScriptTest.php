@@ -161,6 +161,115 @@ final class ReleaseDeployScriptTest extends TestCase
         self::assertFalse($unsafePaths->isSafeDurableDirectoryReady());
     }
 
+    public function testDeployAdoptsPdfsFromEveryOlderReleaseAndKeepsIdenticalDuplicates(): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('POSIX bash + symlinks required for release-deploy test');
+        }
+
+        [$siteRoot, $tarball, $env] = $this->deployFixture();
+        $durable = $siteRoot.'/shared/var/homework-pdf';
+        self::assertTrue(mkdir($durable, 0700, true));
+
+        $oldest = $siteRoot.'/releases/20260101000000-000000000001';
+        $previous = $siteRoot.'/releases/20260102000000-000000000002';
+        foreach ([$oldest, $previous] as $release) {
+            self::assertTrue(mkdir($release.'/var/homework-pdf', 0700, true));
+        }
+        // Only the oldest (non-active) release holds this PDF: a "previous release only" copy would lose it on prune.
+        file_put_contents($oldest.'/var/homework-pdf/'.str_repeat('a', 32).'.bin', 'only-in-oldest');
+        // Same bytes in an older release and shared: identical duplicate, not a conflict.
+        file_put_contents($oldest.'/var/homework-pdf/'.str_repeat('b', 32).'.bin', 'same-bytes');
+        file_put_contents($durable.'/'.str_repeat('b', 32).'.bin', 'same-bytes');
+        file_put_contents($previous.'/var/homework-pdf/'.str_repeat('c', 32).'.bin', 'only-in-previous');
+        // Not a durable store key: left alone, never copied or deleted.
+        file_put_contents($previous.'/var/homework-pdf/notes.txt', 'operator note');
+        touch($oldest, 1_700_000_000);
+        touch($previous, 1_700_000_100);
+        self::assertTrue(symlink($previous, $siteRoot.'/app'));
+
+        $process = new Process(['bash', \dirname(__DIR__, 2).'/deploy/vds/release-deploy.sh', str_repeat('d', 40), $tarball], null, $env);
+        $process->run();
+        self::assertTrue($process->isSuccessful(), $process->getOutput().' / '.$process->getErrorOutput());
+        self::assertStringContainsString('homework PDF migration: copied=2 identical=1 skipped=1', $process->getOutput());
+
+        self::assertSame('only-in-oldest', file_get_contents($durable.'/'.str_repeat('a', 32).'.bin'));
+        self::assertSame('same-bytes', file_get_contents($durable.'/'.str_repeat('b', 32).'.bin'));
+        self::assertSame('only-in-previous', file_get_contents($durable.'/'.str_repeat('c', 32).'.bin'));
+        self::assertFileDoesNotExist($durable.'/notes.txt');
+        // Copy-only: source PDFs and the foreign file are untouched.
+        self::assertFileExists($oldest.'/var/homework-pdf/'.str_repeat('a', 32).'.bin');
+        self::assertFileExists($previous.'/var/homework-pdf/notes.txt');
+    }
+
+    public function testDeployAbortsBeforeActivationWhenAPdfConflictsWithSharedStorage(): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR) {
+            self::markTestSkipped('POSIX bash + symlinks required for release-deploy test');
+        }
+
+        [$siteRoot, $tarball, $env] = $this->deployFixture();
+        $durable = $siteRoot.'/shared/var/homework-pdf';
+        self::assertTrue(mkdir($durable, 0700, true));
+        $active = $siteRoot.'/releases/20260101000000-000000000001';
+        self::assertTrue(mkdir($active.'/var/homework-pdf', 0700, true));
+        $key = str_repeat('e', 32).'.bin';
+        file_put_contents($active.'/var/homework-pdf/'.$key, 'release-bytes');
+        file_put_contents($durable.'/'.$key, 'DIFFERENT-shared-bytes');
+        self::assertTrue(symlink($active, $siteRoot.'/app'));
+
+        $process = new Process(['bash', \dirname(__DIR__, 2).'/deploy/vds/release-deploy.sh', str_repeat('f', 40), $tarball], null, $env);
+        $process->run();
+
+        self::assertFalse($process->isSuccessful());
+        self::assertStringContainsString('differs between', $process->getErrorOutput());
+        self::assertStringContainsString('release not activated', $process->getErrorOutput());
+        // Nothing was switched, overwritten or deleted.
+        self::assertSame($active, realpath($siteRoot.'/app'));
+        self::assertSame('DIFFERENT-shared-bytes', file_get_contents($durable.'/'.$key));
+        self::assertSame('release-bytes', file_get_contents($active.'/var/homework-pdf/'.$key));
+        self::assertSame([$active], glob($siteRoot.'/releases/*', \GLOB_ONLYDIR) ?: []);
+    }
+
+    /**
+     * @return array{0: string, 1: string, 2: array<string, string>}
+     */
+    private function deployFixture(): array
+    {
+        $tmpRoot = $this->tempDir('hwpdf-deploy');
+        $siteRoot = $tmpRoot.'/site';
+        $binDir = $tmpRoot.'/bin';
+        $payloadDir = $tmpRoot.'/payload';
+        $tarball = $tmpRoot.'/release.tar.gz';
+
+        foreach ([$siteRoot.'/shared/var/log', $siteRoot.'/shared/public/uploads', $siteRoot.'/releases', $binDir, $payloadDir.'/var', $payloadDir.'/public', $payloadDir.'/bin'] as $dir) {
+            self::assertTrue(mkdir($dir, 0755, true));
+        }
+        file_put_contents($siteRoot.'/shared/.env.local', "APP_ENV=prod\nHOMEWORK_PDF_UPLOAD_ENABLED=0\n");
+        file_put_contents($payloadDir.'/composer.json', '{"name":"test/app"}');
+        file_put_contents($payloadDir.'/bin/console', "<?php\n");
+
+        $this->writeExecutable($binDir.'/php', "#!/usr/bin/env bash\nexit 0\n");
+        $this->writeExecutable($binDir.'/composer', "#!/usr/bin/env bash\nexit 0\n");
+        $this->writeExecutable($binDir.'/runuser', "#!/usr/bin/env bash\nwhile [[ \$# -gt 0 && \$1 != \"--\" ]]; do shift; done\n[[ \"\${1:-}\" == \"--\" ]] && shift\n\"\$@\"\n");
+        $this->writeExecutable($binDir.'/curl', "#!/usr/bin/env bash\nout=''\nwhile [[ \$# -gt 0 ]]; do\n  if [[ \"\$1\" == \"-o\" ]]; then out=\"\$2\"; shift 2; continue; fi\n  shift\ndone\n[[ -n \"\$out\" ]] && printf '{\"status\":\"ok\"}' > \"\$out\"\nprintf '200'\n");
+
+        $tar = new Process(['tar', '-czf', $tarball, '-C', $payloadDir, '.']);
+        $tar->mustRun();
+
+        $basePath = getenv('PATH');
+
+        return [$siteRoot, $tarball, [
+            'PATH' => $binDir.':'.(\is_string($basePath) && '' !== $basePath ? $basePath : '/usr/local/bin:/usr/bin:/bin'),
+            'TESTLIG_RELEASE_SITE_ROOT' => $siteRoot,
+            'APP_USER' => trim((new Process(['id', '-un']))->mustRun()->getOutput()),
+            'APP_GROUP' => trim((new Process(['id', '-gn']))->mustRun()->getOutput()),
+            'PHP_BIN' => $binDir.'/php',
+            'COMPOSER_BIN' => $binDir.'/composer',
+            'HEALTH_URL' => 'https://127.0.0.1/healthz',
+        ]];
+    }
+
     private function writeExecutable(string $path, string $content): void
     {
         file_put_contents($path, $content);

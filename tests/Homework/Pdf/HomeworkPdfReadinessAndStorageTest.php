@@ -10,12 +10,14 @@ use App\Homework\Pdf\HomeworkPdfScanReadiness;
 use App\Homework\Pdf\HomeworkPdfStorageFactory;
 use App\Homework\Pdf\HomeworkPdfStoragePaths;
 use App\Homework\Pdf\RuntimeHomeworkPdfScanReadiness;
+use App\LearningContent\Document\PdfDocumentInspector;
 use App\Question\Image\Scan\ClamavLocalDatabaseVersions;
 use App\Question\Image\Scan\ClamdInstreamTransport;
 use App\Question\Image\Scan\ClamdTransportException;
 use App\Question\Image\Scan\CvdDatabaseDirectoryReader;
 use App\Question\Image\Scan\UnixClamdTransport;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Yaml\Yaml;
 
 final class HomeworkPdfReadinessAndStorageTest extends TestCase
@@ -141,93 +143,169 @@ final class HomeworkPdfReadinessAndStorageTest extends TestCase
         ]);
 
         // 1. Flag off -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             false,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $healthyTransport,
-        ))->isReady());
+        )->isReady());
 
         // 2. Empty or invalid socket path -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '',
             $safePaths,
             $validLocal,
             $healthyTransport,
-        ))->isReady());
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        )->isReady());
+        self::assertFalse($this->readiness(
             true,
             'tcp://127.0.0.1:3310',
             $safePaths,
             $validLocal,
             $healthyTransport,
-        ))->isReady());
+        )->isReady());
 
         // 3. Unsafe release-scoped storage path -> false.
         $unsafePaths = new HomeworkPdfStoragePaths($root.'/releases/20261124-0001/var/homework-pdf', $quarantine, $project);
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $unsafePaths,
             $validLocal,
             $healthyTransport,
-        ))->isReady());
+        )->isReady());
 
         // 4. Unreadable CVD directory -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $this->localVersions(null),
             $healthyTransport,
-        ))->isReady());
+        )->isReady());
 
         // 5. Transport failure on nPING -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $this->throwingTransport(ClamdTransportException::connectionFailed()),
-        ))->isReady());
+        )->isReady());
 
         // 6. Unexpected nPING response -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $this->sequenceTransport(['NOPE\n', "ClamAV 1.4.7/28193/Tue Nov 24 10:00:00 2026\n"]),
-        ))->isReady());
+        )->isReady());
 
         // 7. Loaded daily mismatch vs disk daily -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $this->sequenceTransport(["PONG\n", "ClamAV 1.4.7/28192/Tue Nov 24 10:00:00 2026\n"]),
-        ))->isReady());
+        )->isReady());
 
         // 8. Malformed nVERSION -> false.
-        self::assertFalse((new RuntimeHomeworkPdfScanReadiness(
+        self::assertFalse($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $this->sequenceTransport(["PONG\n", "UNKNOWN\n"]),
-        ))->isReady());
+        )->isReady());
 
         // 9. All guards pass -> true.
-        self::assertTrue((new RuntimeHomeworkPdfScanReadiness(
+        self::assertTrue($this->readiness(
             true,
             '/run/clamd.scan/clamd.sock',
             $safePaths,
             $validLocal,
             $this->sequenceTransport(["PONG\n", "ClamAV 1.4.7/28193/Tue Nov 24 10:00:00 2026\n"]),
-        ))->isReady());
+        )->isReady());
+    }
+
+    public function testReadinessFailsClosedOnStaleOrFutureSignatureDateAndTooSmallStreamLimit(): void
+    {
+        $root = $this->tempDir('hwpdf-fresh');
+        $durable = $root.'/shared/var/homework-pdf';
+        $quarantine = $root.'/shared/var/homework-pdf-quarantine';
+        $project = $root.'/project';
+        foreach ([$durable, $quarantine, $project] as $dir) {
+            self::assertTrue(mkdir($dir, 0700, true));
+        }
+        $paths = new HomeworkPdfStoragePaths($durable, $quarantine, $project);
+        $local = $this->localVersions(['main' => 63, 'daily' => 28193, 'bytecode' => 339]);
+        $at = static fn (string $utc): MockClock => new MockClock(new \DateTimeImmutable($utc, new \DateTimeZone('UTC')));
+        $ready = static function (string $versionDate, MockClock $clock, int $streamMax) use ($paths, $local): bool {
+            $transport = new class(["PONG\n", 'ClamAV 1.4.7/28193/'.$versionDate."\n"]) implements ClamdInstreamTransport {
+                /** @param list<string> $replies */
+                public function __construct(private array $replies)
+                {
+                }
+
+                public function exchange(iterable $framed, float $timeoutSeconds, int $maxResponseBytes): string
+                {
+                    return (string) array_shift($this->replies);
+                }
+            };
+
+            return (new RuntimeHomeworkPdfScanReadiness(true, '/run/clamd.scan/clamd.sock', $paths, $local, $transport, $streamMax, $clock))->isReady();
+        };
+        $limit = PdfDocumentInspector::MAX_BYTES;
+
+        // Fresh build (24 h old) and a stream limit that covers the 25 MiB application limit: ready.
+        self::assertTrue($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit));
+        self::assertTrue($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit + 1));
+
+        // Signature age: exactly at the threshold is still fresh, one second later is stale.
+        self::assertSame(259_200, RuntimeHomeworkPdfScanReadiness::MAX_SIGNATURE_AGE_SECONDS);
+        self::assertTrue($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-27 10:00:00'), $limit));
+        self::assertFalse($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-27 10:00:01'), $limit));
+        self::assertFalse($ready('Tue Nov 17 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit));
+
+        // A build date well ahead of the server clock is not trusted; small skew is tolerated.
+        self::assertFalse($ready('Fri Nov 27 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit));
+        self::assertTrue($ready('Wed Nov 25 10:30:00 2026', $at('2026-11-25 10:00:00'), $limit));
+
+        // Impossible calendar date (rolls over) is rejected.
+        self::assertFalse($ready('Tue Nov 31 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit));
+
+        // Stream limit requirement: undeclared (0) or smaller than the application limit keeps the gate closed.
+        self::assertFalse($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-25 10:00:00'), 0));
+        self::assertFalse($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-25 10:00:00'), $limit - 1));
+        self::assertFalse($ready('Tue Nov 24 10:00:00 2026', $at('2026-11-25 10:00:00'), -1));
+    }
+
+    public function testReadinessIsClosedWhenClamdSocketIsUnreachable(): void
+    {
+        if ('\\' === \DIRECTORY_SEPARATOR || !\in_array('unix', stream_get_transports(), true)) {
+            self::markTestSkipped('Unix domain socket transport requires POSIX');
+        }
+        $root = $this->tempDir('hwpdf-unreach');
+        $durable = $root.'/shared/var/homework-pdf';
+        $quarantine = $root.'/shared/var/homework-pdf-quarantine';
+        $project = $root.'/project';
+        foreach ([$durable, $quarantine, $project] as $dir) {
+            self::assertTrue(mkdir($dir, 0700, true));
+        }
+        $socketPath = '/tmp/hwpdf-missing-'.bin2hex(random_bytes(4)).'.sock';
+        self::assertFalse(file_exists($socketPath));
+
+        self::assertFalse($this->readiness(
+            true,
+            $socketPath,
+            new HomeworkPdfStoragePaths($durable, $quarantine, $project),
+            $this->localVersions(['main' => 63, 'daily' => 28193, 'bytecode' => 339]),
+            new UnixClamdTransport($socketPath),
+        )->isReady());
     }
 
     public function testRuntimeReadinessAgainstRealUnixSocketAndCvdHeaders(): void
@@ -290,7 +368,7 @@ PHP;
             }
             self::assertFileExists($socketPath);
 
-            $readiness = new RuntimeHomeworkPdfScanReadiness(
+            $readiness = $this->readiness(
                 true,
                 $socketPath,
                 new HomeworkPdfStoragePaths($durable, $quarantine, $project),
@@ -386,6 +464,37 @@ PHP;
         }
     }
 
+    public function testQuarantineCleanerRefusesARootThatOverlapsDurableStorage(): void
+    {
+        $root = $this->tempDir('hwpdf-overlap');
+        $durable = $root.'/durable';
+        $project = $root.'/project';
+        self::assertTrue(mkdir($durable, 0700, true));
+        self::assertTrue(mkdir($project, 0700, true));
+        $oldDurable = $durable.'/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bin';
+        file_put_contents($oldDurable, 'durable-student-pdf');
+        touch($oldDurable, 1_700_000_000);
+
+        // Same directory, and a nested quarantine inside durable storage: both must fail closed and delete nothing.
+        foreach ([$durable, $durable.'/quarantine'] as $overlapping) {
+            if ($overlapping !== $durable) {
+                self::assertTrue(mkdir($overlapping, 0700, true));
+                $nested = $overlapping.'/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.tmp';
+                file_put_contents($nested, 'nested');
+                touch($nested, 1_700_000_000);
+            }
+            $cleaner = new HomeworkPdfQuarantineCleaner(new HomeworkPdfStoragePaths($durable, $overlapping, $project));
+            try {
+                $cleaner->purgeStale(3600, 1_800_000_000, false);
+                self::fail('overlapping quarantine root must be refused');
+            } catch (HomeworkPdfScanException) {
+                self::assertFileExists($oldDurable);
+                self::assertSame('durable-student-pdf', file_get_contents($oldDurable));
+            }
+        }
+        self::assertFileExists($durable.'/quarantine/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.tmp');
+    }
+
     public function testConfigDefaultsKeepUploadClosedAndWireRuntimeReadinessInProd(): void
     {
         $root = \dirname(__DIR__, 3);
@@ -399,6 +508,7 @@ PHP;
         self::assertSame('0', $parameters['env(HOMEWORK_PDF_SCAN_READY)'] ?? null);
         self::assertSame('', $parameters['env(HOMEWORK_PDF_STORAGE_DIR)'] ?? null);
         self::assertSame('', $parameters['env(HOMEWORK_PDF_QUARANTINE_DIR)'] ?? null);
+        self::assertSame('0', $parameters['env(HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES)'] ?? null);
         $readinessConfig = $serviceMap[HomeworkPdfScanReadiness::class] ?? null;
         self::assertIsArray($readinessConfig);
         self::assertSame(
@@ -412,7 +522,31 @@ PHP;
             self::assertStringContainsString('HOMEWORK_PDF_SCAN_READY=0', $contents, $envFile);
             self::assertStringContainsString('HOMEWORK_PDF_STORAGE_DIR=', $contents, $envFile);
             self::assertStringContainsString('HOMEWORK_PDF_QUARANTINE_DIR=', $contents, $envFile);
+            self::assertStringContainsString('HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES=0', $contents, $envFile);
         }
+    }
+
+    /**
+     * Readiness with a fixed clock (inside the freshness window of the canned VERSION replies) and a stream limit
+     * that covers the application PDF limit, so each scenario isolates exactly one guard.
+     */
+    private function readiness(
+        bool $flag,
+        string $socket,
+        HomeworkPdfStoragePaths $paths,
+        ClamavLocalDatabaseVersions $local,
+        ClamdInstreamTransport $transport,
+        int $streamMax = PdfDocumentInspector::MAX_BYTES,
+    ): RuntimeHomeworkPdfScanReadiness {
+        return new RuntimeHomeworkPdfScanReadiness(
+            $flag,
+            $socket,
+            $paths,
+            $local,
+            $transport,
+            $streamMax,
+            new MockClock(new \DateTimeImmutable('2026-11-25 10:00:00', new \DateTimeZone('UTC'))),
+        );
     }
 
     /**
