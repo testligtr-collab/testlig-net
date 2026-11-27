@@ -234,7 +234,11 @@ final class TeacherHomeworkPdfHttpTest extends WebTestCase
         $teacher = $this->clientFor($s['teacherEmail']);
         $teacher->request('GET', $detail.'/pdf');
         self::assertResponseStatusCodeSame(404);
-        $this->assertNoPdfOrPathLeak($teacher, $s['storageKey']);
+        // The debug 404 page quotes this test's own source lines, so check values (bytes, key, real paths), not words.
+        $body = (string) $teacher->getResponse()->getContent();
+        self::assertStringNotContainsString('%PDF', $body);
+        self::assertStringNotContainsString($s['storageKey'], $body);
+        self::assertStringNotContainsString($site, $body);
         self::assertDirectoryDoesNotExist($wrongRoot);
         self::assertDirectoryDoesNotExist($site.'/shared-wrong');
         self::assertSame(2, $this->rowCount('security_audit_events', "action = 'homework_submission_pdf_downloaded'"));
