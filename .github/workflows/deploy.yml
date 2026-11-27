@@ -99,12 +99,22 @@ jobs:
         run: |
           set -euo pipefail
           SHA="$(git rev-parse HEAD)"
+          # The served-release check compares the full lowercase SHA, so a short or odd value stops here.
+          if ! printf '%s' "${SHA}" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "::error::Resolved deploy revision is not a full 40-character SHA; refusing to continue."
+            exit 1
+          fi
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "Deploying ${SHA}"
 
       - name: Build release tarball
+        env:
+          DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
         run: |
           set -euo pipefail
+          # The release carries the SHA it was packaged from. The application bakes it into its compiled
+          # container and serves it in the X-Testlig-Release response header.
+          printf '%s\n' "${DEPLOY_SHA}" > release-src/REVISION
           mkdir -p /tmp/testlig-release
           tar -czf /tmp/testlig-release/release.tgz \
             --exclude='./.git' \
@@ -204,3 +214,27 @@ jobs:
           www=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 "https://www.testlig.net/")
           echo "https://www.testlig.net/ -> ${www}"
           test "$www" = "200"
+
+      - name: External revision (served release over HTTPS)
+        # Read-only HTTPS GET checks from the runner. HTTP 200 and an activated release on disk do not prove
+        # that visitors get the new code, so the full deployed SHA must be served in X-Testlig-Release.
+        # Bounded retries only for these GETs (10 attempts, 6 s apart, 90 s budget per URL). No SSH, scp,
+        # second deploy, service restart or rollback is started from here, whatever the result.
+        env:
+          DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
+        run: |
+          set -uo pipefail
+          if ! command -v php >/dev/null 2>&1; then
+            echo "revision_check_result=unverified"
+            echo "PHP is not available on the runner; the served release could not be verified."
+            echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if php workflow-src/deploy/vds/verify-external-revision.php "${DEPLOY_SHA}" https://testlig.net/ https://testlig.net/dersler; then
+            echo "## Beklenen sürüm dış HTTPS'te doğrulandı" >> "$GITHUB_STEP_SUMMARY"
+            echo "Expected release ${DEPLOY_SHA} is served over external HTTPS." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
+            echo "The release was activated on the VDS, but the expected SHA ${DEPLOY_SHA} was not served over external HTTPS within the time limit. This does not mean the release switch was rolled back." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

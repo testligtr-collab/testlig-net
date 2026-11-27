@@ -30,6 +30,17 @@ When the target is a hostname, the next step `Evaluate SSH target DNS (bounded, 
 
 For a support ticket after a controlled deploy, take from that run: the UTC time window of the failed connection, the logged runner IPv4, `run_id` and `run_attempt`, the job link, and the result. This section does not record a production run.
 
+## Served release check
+
+An activated release on disk and a healthy local check on the VDS do not prove that visitors receive the new code. The last step of the deploy job, `External revision (served release over HTTPS)`, therefore asks the public site which release it serves. It runs on the GitHub runner, opens no SSH connection, and changes nothing on the server.
+
+- **Header source.** The workflow writes the full deployed SHA into `REVISION` inside the release tarball. `release-deploy.sh` rejects a bundle whose `REVISION` names another SHA (an older bundle without the file is still accepted) and writes `REVISION` again before `composer install` and `cache:warmup`. `App\Kernel::build()` reads that file once, while the container is compiled, into the parameter `app.release_revision`. A subscriber on `kernel.response` adds `X-Testlig-Release: <40-hex sha>` to main-request responses only when the parameter is a full lowercase SHA. Nothing is read from disk, an environment variable, or the `app` symlink during a request, so a process that still runs older code cannot report a newer SHA. Without a valid `REVISION` (local, CI, older release) the header is absent, never invented.
+- **Routes.** `https://testlig.net/` and `https://testlig.net/dersler`. The second route is a different controller and template family than the home page, so one cached or stale page does not satisfy both. Only the final response counts; at most 3 redirects are followed and only to `testlig.net` or `www.testlig.net` over HTTPS. A redirect to another host, plain HTTP, or a relative target without a leading slash stops the check. No cookies are sent, no query parameter is added, and no body or header dump is logged.
+- **Limits.** Per URL: 10 attempts, 6 seconds apart, 90 seconds total, 10 seconds per request. Retries repeat only the read-only GET. A missing, duplicated, malformed, or different header, a non-2xx status, or a transport error counts as not yet verified. Each attempt logs one `revision_check` line with the host and path, attempt number, HTTP status, expected and observed SHA, and the result.
+- **Result.** Success writes `Beklenen sürüm dış HTTPS'te doğrulandı` to the job summary. Failure writes `Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı`, fails the job, and does not start a rollback, a second deploy, a service restart, or SSH. It reports; it does not claim why the old code is served.
+- **Compatibility.** A rollback or a release built before this check has no header. That is shown as `header_missing`, not as success. The check cannot name the cause of a stale response; it only makes it visible after a deploy.
+- **Acceptance for the next authorized deploy.** The check logs `revision_check_result=verified` (printed only after both routes pass), the job summary shows the verified sentence, and the header value equals the SHA in the deploy log. Until that run exists, this section is a code and CI record, not production acceptance.
+
 ## Shared queue
 
 Every SSH job uses:

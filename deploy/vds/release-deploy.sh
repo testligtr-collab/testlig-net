@@ -44,6 +44,16 @@ mkdir -p "$RELEASE_DIR"
 log "extracting to ${RELEASE_DIR}"
 tar -xzf "$TARBALL" -C "$RELEASE_DIR"
 
+# The workflow packs REVISION with the SHA it packaged. A bundle that names another SHA than the one being
+# activated must never be switched in. A tarball without REVISION (older bundle) is still accepted.
+if [[ -f "$RELEASE_DIR/REVISION" ]]; then
+  PACKED_SHA="$(tr -d '[:space:]' <"$RELEASE_DIR/REVISION")"
+  if [[ "$PACKED_SHA" != "$SHA" ]]; then
+    rm -rf "$RELEASE_DIR"
+    die "packaged REVISION does not match the deploy sha; release not activated"
+  fi
+fi
+
 # Never ship secrets from the archive; always use shared env.
 rm -f "$RELEASE_DIR/.env.local" "$RELEASE_DIR/.env.*.local" 2>/dev/null || true
 install -m 640 -o "$APP_USER" -g "$APP_GROUP" "$SHARED_DIR/.env.local" "$RELEASE_DIR/.env.local"
