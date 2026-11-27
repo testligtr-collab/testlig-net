@@ -8,6 +8,8 @@ use App\Dto\HomeworkDraftInput;
 use App\Dto\StudentProfileRequest;
 use App\Dto\TeacherProfessionalProfileRequest;
 use App\Entity\CurriculumLearningOutcome;
+use App\Entity\HomeworkSubmission;
+use App\Entity\HomeworkSubmissionAttachment;
 use App\Entity\LearningDocumentAsset;
 use App\Entity\Location;
 use App\Entity\Subject;
@@ -37,6 +39,7 @@ use App\Enum\StoredMediaStorageProvider;
 use App\Enum\TeacherAssignmentRole;
 use App\Enum\UserRole;
 use App\Enum\UserStatus;
+use App\Homework\Pdf\HomeworkPdfDurableStore;
 use App\LearningContent\Content\LearningContentDocument;
 use App\Question\Content\QuestionContentDocument;
 use App\Repository\QuestionRevisionRepository;
@@ -149,6 +152,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
         private readonly BrowserAuditListSeeder $auditListSeeder,
         private readonly BrowserAccountSummarySeeder $accountSummarySeeder,
         private readonly StoredMediaAssetManager $storedMedia,
+        private readonly HomeworkPdfDurableStore $homeworkPdfStore,
     ) {
         parent::__construct();
     }
@@ -840,6 +844,9 @@ final class PrepareBrowserAcceptanceCommand extends Command
             $evaluateDraftRow = $this->homeworkSubmissions->saveDraft($evaluateStudent, $evaluateAssignmentId, $body, 0);
             $evaluateSubmissions[$key] = $this->homeworkSubmissions->submit($evaluateStudent, $evaluateAssignmentId, $body, $evaluateDraftRow->getRevisionNumber(), true);
         }
+        // CI-only PDF fixture: upload stays closed; the attachment is registered the way an earlier upload would have left it.
+        $evaluatePdfName = str_repeat('Uzun_Odev_Ek_', 8).'Dosya.pdf';
+        $this->seedHomeworkPdfAttachment($evaluateSubmissions['reviewed'], $evaluatePdfName);
         $draftStudent = $evaluateStudents['draft'] ?? null;
         if (!$draftStudent instanceof User) {
             throw new \LogicException('Missing evaluate draft student fixture.');
@@ -1041,6 +1048,7 @@ final class PrepareBrowserAcceptanceCommand extends Command
                 'evaluateTitle' => $evaluateTitle,
                 'evaluateSubmissionWait' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['wait']->getId()->toRfc4122(),
                 'evaluateSubmissionReviewed' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['reviewed']->getId()->toRfc4122(),
+                'evaluatePdfName' => $evaluatePdfName,
                 'evaluateSubmissionRework' => '/ogretmen/odevler/teslim/'.$evaluateSubmissions['rework']->getId()->toRfc4122(),
                 'evaluateStudentDetail' => '/ogrenci/odevler/'.$evaluateAssignmentId->toRfc4122(),
                 'topic' => \sprintf('/ogrenci/dersler/%s/%s/%s', $catalogSubject->getSlug(), $unit->getSlug(), $topic->getSlug()),
@@ -1427,6 +1435,29 @@ final class PrepareBrowserAcceptanceCommand extends Command
         $dto->gradeLevel = $grade;
 
         return $dto;
+    }
+
+    private function seedHomeworkPdfAttachment(HomeworkSubmission $submission, string $displayName): void
+    {
+        $bytes = "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\nbrowser-fixture\n";
+        $key = bin2hex(random_bytes(16));
+        $path = $this->homeworkPdfStore->absolutePath($key);
+        $directory = \dirname($path);
+        if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
+            throw new \RuntimeException('Homework PDF fixture directory could not be created.');
+        }
+        if (false === file_put_contents($path, $bytes) || !chmod($path, 0600)) {
+            throw new \RuntimeException('Homework PDF fixture could not be written.');
+        }
+        $this->entityManager->persist(HomeworkSubmissionAttachment::register(
+            $submission,
+            $key,
+            $displayName,
+            \strlen($bytes),
+            hash('sha256', $bytes),
+            new \DateTimeImmutable('now', new \DateTimeZone('UTC')),
+        ));
+        $this->entityManager->flush();
     }
 
     private function receivePdf(User $actor, string $name): LearningDocumentAsset

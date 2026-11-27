@@ -517,6 +517,57 @@ test('teacher reviews submissions: list states, unevaluated, saved, long feedbac
   await assertClean(page);
 });
 
+test('teacher sees the PDF card with a long file name and downloads the private PDF at 390 and 1280', async ({ page }, info) => {
+  const data = manifest();
+  await watch(page);
+  await login(page, data.users.evaluateTeacher);
+
+  for (const viewport of [{ name: 'mobile-390', width: 390, height: 844 }, { name: 'desktop-1280', width: 1280, height: 900 }]) {
+    await page.setViewportSize(viewport);
+    await gotoOk(page, data.paths.evaluateSubmissionReviewed);
+    await assertLayout(page);
+    const card = page.locator('[data-testid="hw-submission-pdf"]');
+    await expect(card).toBeVisible();
+    await expect(page.locator('[data-testid="hw-submission-pdf-name"]')).toHaveText(data.paths.evaluatePdfName);
+    const link = page.locator('[data-testid="hw-submission-pdf-download"]');
+    await expect(link).toBeVisible();
+    await expect(link).toHaveText('PDF’i indir');
+    const box = await link.boundingBox();
+    if (viewport.width <= 768) {
+      expect(box?.height ?? 0, 'download link target height').toBeGreaterThanOrEqual(44);
+    }
+    expect(box?.width ?? 0, 'download link has a clickable box').toBeGreaterThan(0);
+    // Long unbroken name wraps inside the card, never widening the page.
+    const fit = await page.evaluate(() => {
+      const cardBox = document.querySelector('[data-testid="hw-submission-pdf"]')!.getBoundingClientRect();
+      const nameBox = document.querySelector('[data-testid="hw-submission-pdf-name"]')!.getBoundingClientRect();
+      return {
+        nameInsideCard: nameBox.right <= cardBox.right + 1 && nameBox.left >= cardBox.left - 1,
+        pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      };
+    });
+    expect(fit.nameInsideCard, `${viewport.name} name wraps inside card`).toBe(true);
+    expect(fit.pageOverflow, `${viewport.name} horizontal overflow`).toBeLessThanOrEqual(0);
+    await evaluationTextFits(page);
+    await shot(page, info, 'teacher-homework', 'degerlendirme-pdf-ek', viewport.name);
+  }
+
+  const href = await page.locator('[data-testid="hw-submission-pdf-download"]').getAttribute('href');
+  expect(href, 'download uses the teacher route, not a storage URL').toBe(`${data.paths.evaluateSubmissionReviewed}/pdf`);
+  const response = await page.request.get(href as string);
+  expect(response.status()).toBe(200);
+  const headers = response.headers();
+  expect(headers['content-type']).toBe('application/pdf');
+  expect(headers['content-disposition']).toMatch(/^attachment;/);
+  expect(headers['content-disposition']).toContain(data.paths.evaluatePdfName);
+  expect(headers['cache-control']).toContain('no-store');
+  expect(headers['cache-control']).toContain('private');
+  expect(headers['x-content-type-options']).toBe('nosniff');
+  const body = await response.body();
+  expect(body.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+  expect(href as string).not.toMatch(/homework-pdf|\.bin|public/);
+});
+
 test('student cannot open the teacher evaluation pages', async ({ page }) => {
   const data = manifest();
   await watch(page);

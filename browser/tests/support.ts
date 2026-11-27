@@ -81,6 +81,7 @@ type Manifest = {
     evaluateTitle: string;
     evaluateSubmissionWait: string;
     evaluateSubmissionReviewed: string;
+    evaluatePdfName: string;
     evaluateSubmissionRework: string;
     evaluateStudentDetail: string;
     newsList: string;
