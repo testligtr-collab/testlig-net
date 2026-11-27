@@ -35,6 +35,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         private readonly EmailNormalizer $emailNormalizer,
         private readonly UserRepository $users,
         private readonly PostLoginDestinationResolver $postLoginDestination,
+        private readonly CatalogLoginReturn $catalogReturn,
     ) {
     }
 
@@ -66,11 +67,16 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationSuccess(Request $request, TokenInterface $token, string $firewallName): RedirectResponse
     {
-        $target = $this->getTargetPath($request->getSession(), $firewallName);
-        $this->removeTargetPath($request->getSession(), $firewallName);
+        $session = $request->getSession();
+        $target = $this->getTargetPath($session, $firewallName);
+        $this->removeTargetPath($session, $firewallName);
         $user = $token->getUser();
         if ($user instanceof User) {
-            return new RedirectResponse($this->postLoginDestination->resolve($user, $this->sameOriginPath($request, \is_string($target) ? $target : null))->location($this->urlGenerator));
+            // A remembered public catalog unit is single use and wins over a stale protected-page target.
+            $catalogTarget = $this->catalogReturn->consume($session, $user);
+            $path = $catalogTarget ?? $this->sameOriginPath($request, \is_string($target) ? $target : null);
+
+            return new RedirectResponse($this->postLoginDestination->resolve($user, $path)->location($this->urlGenerator));
         }
 
         return new RedirectResponse($this->urlGenerator->generate(PostLoginRoute::ACCOUNT_HOME));
