@@ -14,14 +14,14 @@ use App\Enum\GradeLevel;
 final class HomepageView
 {
     /**
-     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>               $gradeBooks
+     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>                              $gradeBooks
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string, note?: string}> $levelCards
-     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                 $showcaseCards
-     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                            $learningPath
-     * @param list<array{title: string, items: list<string>, image: string, imageAlt: string, variant: string}>                                                                $audiences
-     * @param list<string>                                                                                                                                                     $heroBenefits
-     * @param list<string>                                                                                                                                                     $deviceTags
-     * @param list<string>                                                                                                                                                     $trustItems
+     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                                $showcaseCards
+     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                                           $learningPath
+     * @param list<array{title: string, items: list<string>, image: string, imageAlt: string, variant: string}>                                                                               $audiences
+     * @param list<string>                                                                                                                                                                    $heroBenefits
+     * @param list<string>                                                                                                                                                                    $deviceTags
+     * @param list<string>                                                                                                                                                                    $trustItems
      */
     public function __construct(
         public readonly string $heroTitleHtml,
