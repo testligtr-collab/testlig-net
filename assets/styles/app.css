@@ -536,6 +536,10 @@ a:hover {
     margin-top: var(--tl-space-4);
 }
 
+.mobile-drawer__actions .logout-form {
+    display: block;
+}
+
 @media (min-width: 1024px) {
     .site-nav,
     .site-header__actions {
@@ -3559,6 +3563,67 @@ textarea.revision-text { field-sizing: content; }
 .homepage-v2 #tab-8 { --hp-book-color: #7553d5; }
 .hp-grade-type__symbol--mint { color: #21b49a; }
 .hp-grade-type__symbol--gold { color: #f5ac17; }
+
+/* Homepage grade selector: real catalog state per grade. */
+.homepage-v2 .hp-grade-panel[hidden] { display: none; }
+
+.homepage-v2 .hp-book:focus-visible {
+    outline: 3px solid #0b3a7a;
+    outline-offset: 5px;
+}
+
+/* No-content grades carry a hatch pattern so the state is not colour-only. */
+.homepage-v2 .hp-book.hp-book--soon {
+    background:
+        repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0 7px, transparent 7px 14px),
+        linear-gradient(100deg, rgba(255, 255, 255, 0.35), transparent 18%),
+        var(--hp-book-color);
+}
+
+.homepage-v2 .hp-grade-status {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1.2rem 0.9rem;
+    background: #fff;
+    border-radius: 0.85rem;
+}
+
+.homepage-v2 .hp-grade-status__text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    margin: 0;
+    color: var(--hp-muted);
+    font-size: 0.875rem;
+}
+
+.homepage-v2 .hp-grade-status__text strong {
+    color: #12263f;
+    font-size: 1.05rem;
+}
+
+.homepage-v2 .hp-grade-fallback {
+    margin: 1rem 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 0.4rem;
+    text-align: center;
+}
+
+@media (min-width: 768px) {
+    .homepage-v2 .hp-grade-status {
+        grid-column: 2 / -1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1.2rem 1.5rem;
+    }
+}
 .hp-tone-ilkokul, .hp-tone-dokumanlar { --hp-accent: #b8770a; --hp-tint: #fff0ce; }
 .hp-tone-ortaokul, .hp-tone-testler { --hp-accent: #0878e1; --hp-tint: #e4f2ff; }
 .hp-tone-lise, .hp-tone-simulasyonlar { --hp-accent: #7850c9; --hp-tint: #efe8ff; }

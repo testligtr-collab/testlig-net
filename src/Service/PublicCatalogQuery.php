@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Dto\CatalogSourceAttribution;
 use App\Dto\PublicCatalogGradeCard;
+use App\Dto\PublicCatalogGradeSummary;
 use App\Dto\PublicCatalogSubjectCard;
 use App\Dto\PublicCatalogSubjectPage;
 use App\Dto\PublicCatalogTopicCard;
@@ -63,6 +64,41 @@ final class PublicCatalogQuery
         }
 
         return $cards;
+    }
+
+    /**
+     * Grades that already have a published subject with at least one published unit,
+     * in one grouped scalar statement. Used by the homepage grade selector so it only
+     * links to grade pages that show real content. Draft, archived, and unit-less
+     * subjects never count.
+     *
+     * @return array<int, PublicCatalogGradeSummary> keyed by grade number
+     */
+    public function gradesWithContent(): array
+    {
+        $this->statements = 0;
+        $rows = $this->rows(
+            'SELECT s.gradeLevel AS grade, COUNT(DISTINCT s.id) AS subjectCount, COUNT(u.id) AS unitCount
+             FROM '.CatalogUnit::class.' u
+             JOIN u.subject s
+             WHERE s.status = :published AND u.status = :published
+             GROUP BY s.gradeLevel
+             ORDER BY s.gradeLevel ASC',
+        );
+        $summaries = [];
+        foreach ($rows as $row) {
+            $grade = $this->gradeLevel($row['grade'] ?? null);
+            if (!$grade instanceof GradeLevel) {
+                continue;
+            }
+            $summaries[$grade->value] = new PublicCatalogGradeSummary(
+                $grade->value,
+                $this->int($row['subjectCount'] ?? 0),
+                $this->int($row['unitCount'] ?? 0),
+            );
+        }
+
+        return $summaries;
     }
 
     /**

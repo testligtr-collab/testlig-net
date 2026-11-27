@@ -13,6 +13,7 @@
                 {% else %}
                     <p class="hp-news__lead">{{ view.newsBody }}</p>
                 {% endif %}
+                <a class="hp-text-link" href="{{ path('app_news_index') }}">Tüm haberler <span aria-hidden="true">→</span></a>
             </div>
             <span class="hp-chip" role="status">{{ news_items is defined and news_items is not empty ? 'Yayında' : view.newsStatus }}</span>
         </div>

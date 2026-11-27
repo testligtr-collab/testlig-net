@@ -1,10 +1,11 @@
 import { Controller } from '@hotwired/stimulus';
 
 /**
- * Grade book tabs for the public homepage (demo selection; does not filter real content).
+ * Grade book tabs for the public homepage. Every grade panel is rendered by the server
+ * (real catalog link or "hazırlanıyor" state); this controller only switches which panel is shown.
  */
 export default class extends Controller {
-    static targets = ['tab', 'panel', 'title'];
+    static targets = ['tab', 'panel'];
 
     connect() {
         this.syncFromSelected();
@@ -46,12 +47,10 @@ export default class extends Controller {
             candidate.setAttribute('aria-selected', selected ? 'true' : 'false');
             candidate.tabIndex = selected ? 0 : -1;
         });
-        const grade = tab.dataset.grade ?? '';
-        const suffix = '8' === grade ? ' · LGS' : '';
-        this.titleTarget.textContent = `${grade}. Sınıf${suffix}`;
-        if (this.hasPanelTarget) {
-            this.panelTarget.setAttribute('aria-labelledby', tab.id);
-        }
+        const controls = tab.getAttribute('aria-controls');
+        this.panelTargets.forEach((panel) => {
+            panel.hidden = panel.id !== controls;
+        });
     }
 
     syncFromSelected() {

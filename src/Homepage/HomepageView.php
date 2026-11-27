@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Homepage;
 
+use App\Dto\PublicCatalogGradeSummary;
+
 /**
  * Immutable presentation payload for the approved public homepage (no DB).
  * Shared by live `/` and the dev/test preview route.
@@ -11,9 +13,7 @@ namespace App\Homepage;
 final class HomepageView
 {
     /**
-     * @param list<array{label: string, href: string, current?: bool}>                                                                                                         $navItems
-     * @param list<array{id: string, label: string, color: string, selected?: bool}>                                                                                           $gradeBooks
-     * @param list<array{title: string, body: string, symbol: string, accent?: string}>                                                                                        $gradeLearningTypes
+     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>               $gradeBooks
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string}> $levelCards
      * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                 $showcaseCards
      * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                            $learningPath
@@ -23,16 +23,12 @@ final class HomepageView
      * @param list<string>                                                                                                                                                     $trustItems
      */
     public function __construct(
-        public readonly array $navItems,
         public readonly string $heroTitleHtml,
         public readonly string $heroLead,
         public readonly string $heroImage,
         public readonly string $heroImageAlt,
         public readonly array $heroBenefits,
         public readonly array $gradeBooks,
-        public readonly string $gradePanelTitle,
-        public readonly string $gradePanelLead,
-        public readonly array $gradeLearningTypes,
         public readonly array $levelCards,
         public readonly array $showcaseCards,
         public readonly array $learningPath,
@@ -51,26 +47,23 @@ final class HomepageView
         public readonly string $closingLead,
         public readonly string $newsTitle,
         public readonly string $newsBody,
-        public readonly string $sectionDemoNote,
+        public readonly string $gradeSelectionNote,
         public readonly string $showcaseStatus,
         public readonly string $newsStatus,
         public readonly string $devicesRoadmapNote,
     ) {
     }
 
-    public static function demo(): self
+    /**
+     * @param array<int, PublicCatalogGradeSummary> $gradeSummaries published catalog totals keyed by grade (1-12);
+     *                                                              empty when nothing is published or for the static preview
+     */
+    public static function demo(array $gradeSummaries = []): self
     {
+        $gradeBooks = self::gradeBooks($gradeSummaries);
+        $anyReady = [] !== array_filter($gradeBooks, static fn (array $book): bool => $book['ready']);
+
         return new self(
-            navItems: [
-                ['label' => 'Sınıflar', 'href' => '/dersler'],
-                ['label' => 'Haberler', 'href' => '#haberler'],
-                ['label' => 'Simülasyonlar', 'href' => '#simulasyonlar'],
-                ['label' => 'Dokümanlar', 'href' => '#dokumanlar'],
-                ['label' => 'Testler', 'href' => '#testler'],
-                ['label' => 'Videolar', 'href' => '#videolar'],
-                ['label' => 'Soru-Cevap', 'href' => '#soru-cevap'],
-                ['label' => 'Oyunlar', 'href' => '#oyunlar'],
-            ],
             heroTitleHtml: 'Öğrenmek için<br>ihtiyacın olan<br>her şey burada.',
             heroLead: 'Dersler, etkinlikler, testler ve sana özel öneriler tek bir öğrenme alanında.',
             heroImage: '/images/homepage-preview/hero-world-clean.png',
@@ -81,24 +74,7 @@ final class HomepageView
                 'Her ekranda',
                 'Güvenli öğrenme',
             ],
-            gradeBooks: [
-                ['id' => 'tab-1', 'label' => '1', 'color' => '#ef77b5'],
-                ['id' => 'tab-2', 'label' => '2', 'color' => '#edba2d'],
-                ['id' => 'tab-3', 'label' => '3', 'color' => '#22bfa5'],
-                ['id' => 'tab-4', 'label' => '4', 'color' => '#2595ff', 'selected' => true],
-                ['id' => 'tab-5', 'label' => '5', 'color' => '#9870e7'],
-                ['id' => 'tab-6', 'label' => '6', 'color' => '#ff9147'],
-                ['id' => 'tab-7', 'label' => '7', 'color' => '#21aaa3'],
-                ['id' => 'tab-8', 'label' => '8 · LGS', 'color' => '#7553d5'],
-            ],
-            gradePanelTitle: '4. Sınıf',
-            gradePanelLead: 'Merak et, öğren, kendini geliştir!',
-            gradeLearningTypes: [
-                ['title' => 'Konu Anlatımları', 'body' => 'Anlaşılır, eğlenceli ve sade içerikler', 'symbol' => '▣'],
-                ['title' => 'Etkileşimli Çalışmalar', 'body' => 'Uygulayarak öğren, kalıcı hâle getir', 'symbol' => '✦', 'accent' => '#21b49a'],
-                ['title' => 'Testler', 'body' => 'Bilgini ölç, öğrenmeye devam et', 'symbol' => '▤'],
-                ['title' => 'Deneme Sınavları', 'body' => 'Kendini sınavlara hazırla', 'symbol' => '★', 'accent' => '#f5ac17'],
-            ],
+            gradeBooks: $gradeBooks,
             levelCards: [
                 [
                     'id' => 'ilkokul',
@@ -151,7 +127,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-dokumanlar.png',
                     'accent' => '#b8770a',
                     'tint' => '#fff0ce',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'videolar',
@@ -160,7 +136,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-videolar.png',
                     'accent' => '#d3526c',
                     'tint' => '#ffe9ee',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'simulasyonlar',
@@ -169,7 +145,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-simulasyonlar.png',
                     'accent' => '#7850c9',
                     'tint' => '#efe8ff',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'testler',
@@ -178,7 +154,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-testler.png',
                     'accent' => '#0878e1',
                     'tint' => '#e4f2ff',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'soru-cevap',
@@ -187,7 +163,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-soru-cevap.png',
                     'accent' => '#138e80',
                     'tint' => '#def6ed',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
                 [
                     'id' => 'oyunlar',
@@ -196,7 +172,7 @@ final class HomepageView
                     'image' => '/images/homepage-preview/content-oyunlar.png',
                     'accent' => '#c36d19',
                     'tint' => '#ffeddc',
-                    'label' => 'KEŞFET',
+                    'label' => 'VİTRİN',
                 ],
             ],
             learningPath: [
@@ -268,10 +244,51 @@ final class HomepageView
             closingLead: 'Daha parlak bir gelecek, seninle mümkün.',
             newsTitle: 'Haberler ve öğrenme rehberleri',
             newsBody: 'Platform duyuruları ve eğitim rehberleri burada yer alacak.',
-            sectionDemoNote: 'Sınıf seçimi örnek gösterimdir; içerik filtrelemez.',
+            gradeSelectionNote: $anyReady
+                ? 'Yayımlanmış dersi olan sınıflar ders kataloğuna bağlanır; diğer sınıflar hazırlanıyor olarak görünür. Ders içeriği öğrenci hesabıyla açılır.'
+                : 'Henüz yayımlanmış ders yok. İçerikler hazır oldukça sınıflar ders kataloğuna bağlanacak.',
             showcaseStatus: 'Bu alanlar vitrin gösterimidir; içerik servisleri henüz bağlı değildir.',
             newsStatus: 'Hazırlanıyor',
             devicesRoadmapNote: 'iOS ve Android uygulamaları yol haritamızda.',
         );
+    }
+
+    /**
+     * Grades 1-8 keep the existing book colours and labels; whether a book links to the
+     * catalog comes only from the published catalog totals passed in.
+     *
+     * @param array<int, PublicCatalogGradeSummary> $gradeSummaries
+     *
+     * @return list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>
+     */
+    private static function gradeBooks(array $gradeSummaries): array
+    {
+        $colors = [1 => '#ef77b5', 2 => '#edba2d', 3 => '#22bfa5', 4 => '#2595ff', 5 => '#9870e7', 6 => '#ff9147', 7 => '#21aaa3', 8 => '#7553d5'];
+        $selectedGrade = 1;
+        foreach (array_keys($colors) as $grade) {
+            if (isset($gradeSummaries[$grade]) && $gradeSummaries[$grade]->subjectCount > 0) {
+                $selectedGrade = $grade;
+                break;
+            }
+        }
+
+        $books = [];
+        foreach ($colors as $grade => $color) {
+            $summary = $gradeSummaries[$grade] ?? null;
+            $subjects = $summary->subjectCount ?? 0;
+            $books[] = [
+                'id' => 'tab-'.$grade,
+                'panelId' => 'grade-panel-'.$grade,
+                'grade' => $grade,
+                'label' => 8 === $grade ? '8 · LGS' : (string) $grade,
+                'color' => $color,
+                'selected' => $grade === $selectedGrade,
+                'subjectCount' => $subjects,
+                'unitCount' => $summary->unitCount ?? 0,
+                'ready' => $subjects > 0,
+            ];
+        }
+
+        return $books;
     }
 }
