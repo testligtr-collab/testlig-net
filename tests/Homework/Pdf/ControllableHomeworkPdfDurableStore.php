@@ -7,6 +7,7 @@ namespace App\Tests\Homework\Pdf;
 use App\Homework\Pdf\HomeworkPdfDurableStore;
 use App\Homework\Pdf\HomeworkPdfQuarantineFile;
 use App\Homework\Pdf\HomeworkPdfScanException;
+use App\Homework\Pdf\HomeworkPdfStoragePaths;
 
 /**
  * Test seam: after a clean scan, fail durable commit on demand.
@@ -19,6 +20,11 @@ final class ControllableHomeworkPdfDurableStore extends HomeworkPdfDurableStore
     private static int $readAttempts = 0;
 
     private bool $failThisInstance = false;
+
+    public static function fromPaths(HomeworkPdfStoragePaths $paths): self
+    {
+        return new self($paths->durableDirectory());
+    }
 
     public static function armFailNextCommit(): void
     {
