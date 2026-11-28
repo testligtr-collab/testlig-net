@@ -184,6 +184,13 @@ final class HomeworkPdfInventoryCommandTest extends TestCase
         $root = \dirname(__DIR__, 2);
         $needle = 'homework-pdf:inventory';
         $scanned = 0;
+        // The only approved caller is the manual, read-only ops workflow and its remote script
+        // (tests/Ops/HomeworkPdfInventoryOpsWorkflowTest.php guards both). No scheduler, deploy step or screen.
+        $approved = [
+            '.github/workflows/ops-homework-pdf-inventory.yml',
+            'deploy/vds/gha-homework-pdf-inventory-remote.sh',
+        ];
+        $found = [];
         foreach (['.github', 'config', 'deploy', 'templates', 'assets', 'docker'] as $dir) {
             if (!is_dir($root.'/'.$dir)) {
                 continue;
@@ -194,9 +201,18 @@ final class HomeworkPdfInventoryCommandTest extends TestCase
                     continue;
                 }
                 ++$scanned;
-                self::assertStringNotContainsString($needle, (string) file_get_contents($file->getPathname()), $file->getFilename());
+                $relative = str_replace('\\', '/', substr($file->getPathname(), \strlen($root) + 1));
+                if (\in_array($relative, $approved, true)) {
+                    if (str_contains((string) file_get_contents($file->getPathname()), $needle)) {
+                        $found[] = $relative;
+                    }
+                    continue;
+                }
+                self::assertStringNotContainsString($needle, (string) file_get_contents($file->getPathname()), $relative);
             }
         }
+        sort($found);
+        self::assertSame($approved, $found);
         self::assertGreaterThan(20, $scanned);
         // The controllers never call the service either.
         foreach (glob($root.'/src/Controller/*.php') ?: [] as $controller) {
