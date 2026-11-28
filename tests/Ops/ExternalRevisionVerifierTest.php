@@ -69,7 +69,7 @@ final class ExternalRevisionVerifierTest extends TestCase
         self::assertGreaterThan(5, $result['rounds']);
         // Short at first, then at most 60 seconds apart.
         self::assertSame([15, 30, 45, 60], \array_slice($this->sleeps, 0, 4));
-        self::assertLessThanOrEqual(60, max($this->sleeps));
+        self::assertLessThanOrEqual(60, max(0, ...$this->sleeps));
         $this->assertWithinBudget();
     }
 

@@ -128,7 +128,6 @@ final class DeployRevisionVerificationGuardTest extends TestCase
         // The verification is a step of the locked job: a newer deploy queues behind it instead of starting.
         self::assertSame('testlig-vds-ssh', $job['concurrency']['group']);
         self::assertFalse($job['concurrency']['cancel-in-progress']);
-        self::assertNotNull($this->step(self::VERIFY));
         self::assertSame('${{ steps.rev.outputs.sha }}', $this->step(self::VERIFY)['env']['DEPLOY_SHA']);
     }
 

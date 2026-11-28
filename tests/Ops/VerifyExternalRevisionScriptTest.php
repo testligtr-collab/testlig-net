@@ -82,7 +82,7 @@ final class VerifyExternalRevisionScriptTest extends TestCase
         self::assertStringContainsString('revision_check_result=unverified', $output);
         self::assertStringNotContainsString('revision_check_result=verified', $output);
         self::assertStringContainsString('last_valid_sha='.$old, $output);
-        self::assertLessThanOrEqual(60, max($sleeps));
+        self::assertLessThanOrEqual(60, max(0, ...$sleeps));
         self::assertSame(\Testlig\Deploy\DELAY_SCHEDULE_SECONDS, \array_slice($sleeps, 0, 4));
     }
 
