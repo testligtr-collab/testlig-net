@@ -1,0 +1,102 @@
+name: Ops homework PDF inventory (VDS)
+
+# Manual, read-only homework PDF storage inventory and scan-readiness preview.
+# One SSH session. It verifies that the active release carries the expected full SHA, runs
+# `app:homework-pdf:inventory` once from that release, and reports allowlisted counters and measurements.
+# It does not deploy, install, create a directory, delete or move a file, write the database, change a
+# flag, a service or a setting, upload a PDF, or scan a sample. PDF upload and the scan gate stay closed.
+# The expected SHA is the release that must be live (its REVISION file). It is not the SHA of this file.
+# A green run is a point-in-time preview. It is not quota, retention, or upload acceptance.
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: "Full 40-character lowercase SHA of the release that must be live. Any other value stops before SSH."
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  pause-notice:
+    name: VDS SSH pause notice
+    if: vars.VDS_SSH_PAUSED == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report pause
+        run: |
+          echo "VDS SSH operations are paused"
+          echo "Homework PDF inventory skipped because SSH paused"
+          {
+            echo "## Homework PDF inventory skipped because SSH paused"
+            echo "No SSH agent, secret, or connection was used."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  vds:
+    name: VDS homework PDF inventory
+    if: vars.VDS_SSH_PAUSED != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: testlig-vds-ssh
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - name: Validate expected release SHA (before any SSH)
+        env:
+          EXPECTED_SHA: ${{ github.event.inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          if [ "${#EXPECTED_SHA}" -ne 40 ] || ! [[ "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::expected_sha must be a full 40-character lowercase hex SHA. Stopping before SSH."
+            exit 1
+          fi
+          echo "expected_sha_format=ok"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VDS_SSH_PRIVATE_KEY }}
+
+      - name: Configure SSH client
+        env:
+          VDS_HOST: ${{ secrets.VDS_HOST }}
+          VDS_USER: ${{ secrets.VDS_USER }}
+          VDS_SSH_KNOWN_HOSTS: ${{ secrets.VDS_SSH_KNOWN_HOSTS }}
+        run: bash deploy/vds/gha-ssh-config.sh
+
+      - name: Run remote read-only inventory and readiness preview
+        env:
+          EXPECTED_SHA: ${{ github.event.inputs.expected_sha }}
+        run: |
+          set -uo pipefail
+          out="${RUNNER_TEMP}/homework-pdf-inventory.out"
+          ssh testlig-vds "export EXPECTED_SHA=$(printf %q "$EXPECTED_SHA"); bash -s" < deploy/vds/gha-homework-pdf-inventory-remote.sh > "$out"
+          status=$?
+          bash deploy/vds/gha-ssh-close-master.sh
+          close_status=$?
+          echo "ssh_exit_code=${status}"
+          cat "$out"
+          {
+            echo "## Homework PDF inventory (read-only preview)"
+            echo "Expected live release SHA: ${EXPECTED_SHA}"
+            echo "Allowlisted output only. Not quota, retention or upload acceptance."
+            echo '```'
+            cat "$out"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+          if [ "$close_status" -ne 0 ]; then
+            exit "$close_status"
+          fi
+          if ! grep -qx 'hw_pdf_ops_complete=yes' "$out"; then
+            echo "::error::The remote report is incomplete."
+            exit 1
+          fi
