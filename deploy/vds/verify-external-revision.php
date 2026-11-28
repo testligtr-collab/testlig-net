@@ -8,7 +8,10 @@ namespace Testlig\Deploy;
  * Usage: php verify-external-revision.php <full-git-sha> <https-url> [<https-url> ...]
  *
  * Runs after a deploy, from the GitHub runner, over normal external HTTPS (certificate verification on, no
- * cookies, no cache-busting parameter). Each URL must serve the expected full SHA in X-Testlig-Release.
+ * cookies, no cache-busting parameter). Every URL must serve the expected full SHA in X-Testlig-Release in the
+ * SAME round. All URLs share one 20-minute budget (waits and requests together, measured with a monotonic
+ * clock), checked at once and then after 15, 30, 45 and then every 60 seconds; each request is capped at 10
+ * seconds and never exceeds the time left. The check ends as soon as one round matches on every URL.
  * Exit codes: 0 verified, 1 deployed but the served release could not be verified, 2 invalid usage.
  * It opens no SSH connection and does not deploy, restart or roll back anything.
  */
@@ -16,10 +19,11 @@ namespace Testlig\Deploy;
 require_once __DIR__.'/ExternalRevisionVerifier.php';
 
 const ALLOWED_HOSTS = ['testlig.net', 'www.testlig.net'];
-const MAX_ATTEMPTS = 10;
-const INTERVAL_SECONDS = 6;
-const BUDGET_SECONDS = 90;
+/** One shared budget for ALL routes: rounds, waits and every request together. */
+const BUDGET_SECONDS = 1200;
 const REQUEST_TIMEOUT_SECONDS = 10;
+/** Waits after round 1, 2, 3, 4...; the last value repeats until the budget ends. */
+const DELAY_SCHEDULE_SECONDS = [15, 30, 45, 60];
 
 /**
  * Parses a `curl --dump-header -` dump of one request (no redirect following) into status and headers.
@@ -88,7 +92,7 @@ function curlTransport(string $url, int $timeoutSeconds): array
 /**
  * @param list<string> $argv
  */
-function runVerification(array $argv): int
+function runVerification(array $argv, ?ExternalRevisionVerifier $verifier = null): int
 {
     $expected = $argv[1] ?? '';
     $urls = \array_slice($argv, 2);
@@ -106,24 +110,19 @@ function runVerification(array $argv): int
         }
     }
 
-    $verifier = new ExternalRevisionVerifier(
+    $verifier ??= new ExternalRevisionVerifier(
         curlTransport(...),
         static function (int $seconds): void {
             sleep($seconds);
         },
-        static fn (): float => microtime(true),
+        // Monotonic seconds: a wall-clock jump on the runner must not stretch or shrink the budget.
+        static fn (): float => hrtime(true) / 1_000_000_000,
         static function (string $line): void {
             echo $line."\n";
         },
     );
-    $failed = false;
-    foreach ($urls as $url) {
-        $result = $verifier->verify($url, $expected, ALLOWED_HOSTS, MAX_ATTEMPTS, INTERVAL_SECONDS, BUDGET_SECONDS, REQUEST_TIMEOUT_SECONDS);
-        if (!$result['ok']) {
-            $failed = true;
-        }
-    }
-    if ($failed) {
+    $result = $verifier->verifyRoutes($urls, $expected, ALLOWED_HOSTS, DELAY_SCHEDULE_SECONDS, BUDGET_SECONDS, REQUEST_TIMEOUT_SECONDS);
+    if (!$result['ok']) {
         echo "revision_check_result=unverified\n";
         echo "Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı\n";
 

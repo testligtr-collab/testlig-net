@@ -218,8 +218,13 @@ jobs:
       - name: External revision (served release over HTTPS)
         # Read-only HTTPS GET checks from the runner. HTTP 200 and an activated release on disk do not prove
         # that visitors get the new code, so the full deployed SHA must be served in X-Testlig-Release.
-        # Bounded retries only for these GETs (10 attempts, 6 s apart, 90 s budget per URL). No SSH, scp,
-        # second deploy, service restart or rollback is started from here, whatever the result.
+        # Both routes must show the expected SHA in the SAME round. They share ONE budget of 20 minutes for all
+        # waits and requests (first round at once, then after 15, 30, 45 and every 60 s; 10 s per request). The
+        # SSH/scp session and its control connection were closed when "Upload bundle and activate release"
+        # ended, so the wait holds no remote connection. No SSH, scp, second deploy, service restart or
+        # rollback is started from here, whatever the result. The step limit only guards against a hung runner;
+        # it sits above the 20-minute budget and does not change the SSH step limits.
+        timeout-minutes: 22
         env:
           DEPLOY_SHA: ${{ steps.rev.outputs.sha }}
         run: |
@@ -230,11 +235,21 @@ jobs:
             echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if php workflow-src/deploy/vds/verify-external-revision.php "${DEPLOY_SHA}" https://testlig.net/ https://testlig.net/dersler; then
-            echo "## Beklenen sürüm dış HTTPS'te doğrulandı" >> "$GITHUB_STEP_SUMMARY"
-            echo "Expected release ${DEPLOY_SHA} is served over external HTTPS." >> "$GITHUB_STEP_SUMMARY"
+          check_log="${RUNNER_TEMP:-/tmp}/revision-check.log"
+          if php workflow-src/deploy/vds/verify-external-revision.php "${DEPLOY_SHA}" https://testlig.net/ https://testlig.net/dersler | tee "$check_log"; then
+            {
+              echo "## Beklenen sürüm dış HTTPS'te doğrulandı"
+              echo "- Release etkinleştirme (VDS adımı başarılı): ${DEPLOY_SHA}"
+              echo "- Dışarıda doğrulanan sürüm: ${DEPLOY_SHA} (/ ve /dersler aynı turda)"
+              echo "Expected release ${DEPLOY_SHA} is served over external HTTPS."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı" >> "$GITHUB_STEP_SUMMARY"
-            echo "The release was activated on the VDS, but the expected SHA ${DEPLOY_SHA} was not served over external HTTPS within the time limit. This does not mean the release switch was rolled back." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "## Dağıtım etkinleştirildi, sunulan sürüm doğrulanamadı"
+              echo "- Release etkinleştirme (VDS adımı başarılı): ${DEPLOY_SHA}"
+              echo "- Dışarıda doğrulanan sürüm: doğrulanamadı (ortak 20 dakikalık süre içinde / ve /dersler aynı turda eşleşmedi)"
+              echo "The release was activated on the VDS, but the expected SHA ${DEPLOY_SHA} was not served over external HTTPS within the time limit. This does not mean the release switch was rolled back."
+              grep '^revision_check_summary ' "$check_log" | sed 's/^/    /'
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
