@@ -75,28 +75,36 @@ jobs:
           EXPECTED_SHA: ${{ github.event.inputs.expected_sha }}
         run: |
           set -uo pipefail
+          umask 077
           out="${RUNNER_TEMP}/homework-pdf-inventory.out"
-          ssh testlig-vds "export EXPECTED_SHA=$(printf %q "$EXPECTED_SHA"); bash -s" < deploy/vds/gha-homework-pdf-inventory-remote.sh > "$out"
-          status=$?
-          bash deploy/vds/gha-ssh-close-master.sh
-          close_status=$?
-          echo "ssh_exit_code=${status}"
-          cat "$out"
-          {
-            echo "## Homework PDF inventory (read-only preview)"
-            echo "Expected live release SHA: ${EXPECTED_SHA}"
-            echo "Allowlisted output only. Not quota, retention or upload acceptance."
-            echo '```'
-            cat "$out"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$status" -ne 0 ]; then
-            exit "$status"
-          fi
-          if [ "$close_status" -ne 0 ]; then
-            exit "$close_status"
-          fi
-          if ! grep -qx 'hw_pdf_ops_complete=yes' "$out"; then
-            echo "::error::The remote report is incomplete."
-            exit 1
-          fi
+          err="${RUNNER_TEMP}/homework-pdf-inventory.err"
+          # Cleanup is registered before the connection and runs on every exit path. It keeps the original
+          # exit status; it only turns a success into a failure when a mandatory cleanup step failed.
+          cleanup() {
+            rc=$?
+            trap - EXIT
+            close_status=0
+            bash deploy/vds/gha-ssh-close-master.sh > /dev/null 2>&1 || close_status=$?
+            rm_status=0
+            rm -f "$out" "$err" || rm_status=$?
+            leftover=no
+            if [ -e "$out" ] || [ -e "$err" ]; then
+              leftover=yes
+            fi
+            echo "master_close_exit=${close_status}"
+            echo "temp_cleanup_exit=${rm_status}"
+            echo "temp_files_left=${leftover}"
+            if [ "$rc" -eq 0 ] && { [ "$close_status" -ne 0 ] || [ "$rm_status" -ne 0 ] || [ "$leftover" = yes ]; }; then
+              echo "::error::Mandatory cleanup failed; the run is not reported as successful."
+              exit 1
+            fi
+            exit "$rc"
+          }
+          trap cleanup EXIT
+          : > "$out"
+          : > "$err"
+          ssh_status=0
+          ssh testlig-vds "export EXPECTED_SHA=$(printf %q "$EXPECTED_SHA"); bash -s" < deploy/vds/gha-homework-pdf-inventory-remote.sh > "$out" 2> "$err" || ssh_status=$?
+          report_status=0
+          bash deploy/vds/gha-homework-pdf-inventory-report.sh "$out" "$err" "$ssh_status" || report_status=$?
+          exit "$report_status"
