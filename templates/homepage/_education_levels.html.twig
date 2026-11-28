@@ -15,6 +15,9 @@
                     <div class="hp-vcard__body">
                         <h3>{{ card.title }}</h3>
                         <p>{{ card.body }}</p>
+                        {% if card.note|default(null) %}
+                            <p class="hp-vcard__note" data-testid="level-note">{{ card.note }}</p>
+                        {% endif %}
                         {% if card.actionHref %}
                             <a class="hp-vcard__action" href="{{ card.actionHref }}">{{ card.actionLabel }} <span aria-hidden="true">→</span></a>
                         {% else %}

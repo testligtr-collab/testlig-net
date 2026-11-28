@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Homepage;
 
 use App\Dto\PublicCatalogGradeSummary;
+use App\Enum\GradeLevel;
 
 /**
  * Immutable presentation payload for the approved public homepage (no DB).
@@ -13,14 +14,14 @@ use App\Dto\PublicCatalogGradeSummary;
 final class HomepageView
 {
     /**
-     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>               $gradeBooks
-     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string}> $levelCards
-     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                 $showcaseCards
-     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                            $learningPath
-     * @param list<array{title: string, items: list<string>, image: string, imageAlt: string, variant: string}>                                                                $audiences
-     * @param list<string>                                                                                                                                                     $heroBenefits
-     * @param list<string>                                                                                                                                                     $deviceTags
-     * @param list<string>                                                                                                                                                     $trustItems
+     * @param list<array{id: string, panelId: string, grade: int, label: string, color: string, selected: bool, subjectCount: int, unitCount: int, ready: bool}>                              $gradeBooks
+     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string, note?: string}> $levelCards
+     * @param list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, label: string}>                                                                $showcaseCards
+     * @param list<array{title: string, body: string, image: string, imageAlt: string, linkLabel: string, linkHref: string, imageCaption?: string}>                                           $learningPath
+     * @param list<array{title: string, items: list<string>, image: string, imageAlt: string, variant: string}>                                                                               $audiences
+     * @param list<string>                                                                                                                                                                    $heroBenefits
+     * @param list<string>                                                                                                                                                                    $deviceTags
+     * @param list<string>                                                                                                                                                                    $trustItems
      */
     public function __construct(
         public readonly string $heroTitleHtml,
@@ -75,50 +76,7 @@ final class HomepageView
                 'Güvenli öğrenme',
             ],
             gradeBooks: $gradeBooks,
-            levelCards: [
-                [
-                    'id' => 'ilkokul',
-                    'title' => 'İlkokul',
-                    'body' => '1–4. sınıflar · Merak ederek öğren, temel becerilerini geliştir.',
-                    'image' => '/images/homepage-preview/level-ilkokul.png',
-                    'accent' => '#b8770a',
-                    'tint' => '#fff0ce',
-                    'actionLabel' => 'Sınıfları keşfet',
-                    'actionHref' => '/dersler',
-                ],
-                [
-                    'id' => 'ortaokul',
-                    'title' => 'Ortaokul',
-                    'body' => '5–8. sınıflar · Konuları pekiştir, sınavlara adım adım hazırlan.',
-                    'image' => '/images/homepage-preview/level-ortaokul.png',
-                    'accent' => '#0878e1',
-                    'tint' => '#e4f2ff',
-                    'actionLabel' => 'Sınıfları keşfet',
-                    'actionHref' => '/dersler',
-                ],
-                [
-                    'id' => 'lise',
-                    'title' => 'Lise',
-                    'body' => '9–12. sınıflar · Bilgini derinleştir, hedeflerine güvenle ilerle.',
-                    'image' => '/images/homepage-preview/level-lise.png',
-                    'accent' => '#7850c9',
-                    'tint' => '#efe8ff',
-                    'actionLabel' => 'Alanı incele',
-                    'actionHref' => null,
-                    'status' => 'İçerikler hazırlanıyor',
-                ],
-                [
-                    'id' => 'universite-hazirlik',
-                    'title' => 'Üniversite Hazırlık',
-                    'body' => 'TYT · AYT · YDT · Hedefine güvenle ilerlemek için hazırlık alanı.',
-                    'image' => '/images/homepage-preview/level-universite.png',
-                    'accent' => '#3f3d9e',
-                    'tint' => '#e8e7ff',
-                    'actionLabel' => 'Alanı incele',
-                    'actionHref' => null,
-                    'status' => 'İçerikler hazırlanıyor',
-                ],
-            ],
+            levelCards: self::levelCards($gradeSummaries),
             showcaseCards: [
                 [
                     'id' => 'dokumanlar',
@@ -251,6 +209,60 @@ final class HomepageView
             newsStatus: 'Hazırlanıyor',
             devicesRoadmapNote: 'iOS ve Android uygulamaları yol haritamızda.',
         );
+    }
+
+    /**
+     * Education-level cards. A level links to the public catalog only for grades that already have published
+     * content (same summaries as the grade selector). The stage-to-grade mapping is {@see GradeLevel::stageKey()}.
+     * "Üniversite Hazırlık" has no catalog mapping, so it stays in preparation.
+     *
+     * @param array<int, PublicCatalogGradeSummary> $gradeSummaries
+     *
+     * @return list<array{id: string, title: string, body: string, image: string, accent: string, tint: string, actionLabel: string, actionHref: string|null, status?: string, note?: string}>
+     */
+    private static function levelCards(array $gradeSummaries): array
+    {
+        $definitions = [
+            ['id' => 'ilkokul', 'stage' => 'ilkokul', 'title' => 'İlkokul', 'body' => '1–4. sınıflar · Merak ederek öğren, temel becerilerini geliştir.', 'image' => '/images/homepage-preview/level-ilkokul.png', 'accent' => '#b8770a', 'tint' => '#fff0ce', 'label' => 'Sınıfları keşfet'],
+            ['id' => 'ortaokul', 'stage' => 'ortaokul', 'title' => 'Ortaokul', 'body' => '5–8. sınıflar · Konuları pekiştir, sınavlara adım adım hazırlan.', 'image' => '/images/homepage-preview/level-ortaokul.png', 'accent' => '#0878e1', 'tint' => '#e4f2ff', 'label' => 'Sınıfları keşfet'],
+            ['id' => 'lise', 'stage' => 'lise', 'title' => 'Lise', 'body' => '9–12. sınıflar · Bilgini derinleştir, hedeflerine güvenle ilerle.', 'image' => '/images/homepage-preview/level-lise.png', 'accent' => '#7850c9', 'tint' => '#efe8ff', 'label' => 'Alanı incele'],
+            ['id' => 'universite-hazirlik', 'stage' => null, 'title' => 'Üniversite Hazırlık', 'body' => 'TYT · AYT · YDT · Hedefine güvenle ilerlemek için hazırlık alanı.', 'image' => '/images/homepage-preview/level-universite.png', 'accent' => '#3f3d9e', 'tint' => '#e8e7ff', 'label' => 'Alanı incele'],
+        ];
+
+        $cards = [];
+        foreach ($definitions as $definition) {
+            $ready = [];
+            if (null !== $definition['stage']) {
+                foreach (GradeLevel::forStage($definition['stage']) as $grade) {
+                    if (($gradeSummaries[$grade->value]->subjectCount ?? 0) > 0) {
+                        $ready[] = $grade->value;
+                    }
+                }
+            }
+            $card = [
+                'id' => $definition['id'],
+                'title' => $definition['title'],
+                'body' => $definition['body'],
+                'image' => $definition['image'],
+                'accent' => $definition['accent'],
+                'tint' => $definition['tint'],
+                'actionLabel' => $definition['label'],
+                'actionHref' => null,
+            ];
+            if ([] === $ready || null === $definition['stage']) {
+                $card['status'] = 'İçerikler hazırlanıyor';
+            } elseif (1 === \count($ready)) {
+                $card['actionLabel'] = $ready[0].'. sınıf derslerini gör';
+                $card['actionHref'] = '/dersler/'.$ready[0];
+                $card['note'] = 'Şu an yayımlanmış sınıf: '.$ready[0].'.';
+            } else {
+                $card['actionHref'] = '/dersler?kademe='.$definition['stage'];
+                $card['note'] = 'Şu an yayımlanmış sınıflar: '.implode(', ', $ready).'.';
+            }
+            $cards[] = $card;
+        }
+
+        return $cards;
     }
 
     /**
