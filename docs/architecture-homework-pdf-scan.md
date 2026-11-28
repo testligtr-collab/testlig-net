@@ -67,6 +67,59 @@ Teacher download (assigning teacher only, private stream, no public URL) is impl
 - **Fail-closed runtime readiness:** Production wires `HomeworkPdfScanReadiness` to `RuntimeHomeworkPdfScanReadiness` (keeping `HOMEWORK_PDF_UPLOAD_ENABLED=0` and `HOMEWORK_PDF_SCAN_READY=0` by default). Readiness returns `true` only when `HOMEWORK_PDF_SCAN_READY=1`, the operator-declared `HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES` is at least the 25 MiB application limit (`PdfDocumentInspector::MAX_BYTES`, default `0` = closed), both storage roots pass non-release/non-symlink/non-public/non-overlapping writable checks, `QUESTION_IMAGE_CLAMAV_SOCKET` passes `UnixClamdSocketPath`, `CvdDatabaseDirectoryReader` reads valid `main`/`daily`/`bytecode` headers, a bounded (`1.5s`) `clamd` Unix socket check gets `nPING` → `PONG\n`, `nVERSION` is well formed with a loaded `daily` equal to disk `daily`, and the signature build date in the `nVERSION` reply is at most `72 h` old (and not more than `1 h` in the future). Socket unreachable, an untrustworthy or malformed reply, a stale signature, or a too-small/undeclared stream limit each keep it closed; PHPUnit shows each case with fixtures (see `HomeworkPdfReadinessAndStorageTest`), which is not live evidence. `HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES` mirrors `clamd.conf` `StreamMaxLength`; it is a declaration, not a live measurement.
 - **Stale orphan quarantine cleanup:** `HomeworkPdfQuarantineCleaner` + `app:homework-pdf:purge-quarantine` (`--max-age >= 60`, `--dry-run`) remove only unlocked (`LOCK_EX | LOCK_NB`) stale 32-hex `.tmp`/`.bin` files inside the quarantine root, without touching symlinks, active uploads, files that resolve outside the root, or durable objects. Because durable PDFs use the same `<key>.bin` naming, the cleaner refuses to run (and deletes nothing) when the quarantine root equals or nests with the durable root.
 
+## Storage policy proposal and read-only inventory (quota / retention / orphan preview)
+
+Status: **proposal + read-only preview only.** No quota rejection, no automatic deletion and no production setting exists or is enabled by this slice. `HOMEWORK_PDF_UPLOAD_ENABLED` and `HOMEWORK_PDF_SCAN_READY` stay `0`. Anything marked *karar bekliyor* needs a product decision and is **not** applied.
+
+### How record and file relate (from code)
+
+- Durable file key = `homework_submission_attachments.storage_key` (`<32 lowercase hex>.bin`, UNIQUE, case-insensitive collation). The durable file is written **inside** the DB transaction, before the row commits; on DB failure `deleteQuietly` removes it.
+- *Impossible by schema:* two rows with the same key, two attachments for one submission (UNIQUE `submission_id`). The inventory still counts `duplicate_reference` defensively; a non-zero value means data corruption, not normal operation, and physical bytes are counted once per key.
+- *Possible and normal:* a file without a row while an upload is between write and commit (short window), or after a crash or rollback whose `deleteQuietly` failed. This is why only **old** unreferenced files are ever called candidates.
+- *Inconsistency:* a row whose file is missing, unreadable, replaced by a different size, or whose key is malformed (`db_missing_file`, `db_unreadable_file`, `db_size_mismatch`, `db_invalid_key`). The teacher download already fails closed (`404`) on these; the inventory only reports them and never repairs.
+- Trustworthy timestamps: `created_at` (UTC) on the row; file `mtime` only for rows-less files. `mtime` can be reset by copy/restore, which only makes a file look younger (safe side). Missing, zero or future `mtime` keeps the file young (`timestamp_unreliable_files`).
+
+### Quota owner (proposal)
+
+- **Proposed owner: the institution**, derived `attachment → submission → assignment.institution_id`. The inventory counts a reference for an institution only when the chain is consistent: `homework_recipients.assignment_id = submission.assignment_id` **and** `classrooms.institution_id = assignment.institution_id`. Any other case (missing join, mismatch) is `ambiguous_owner_references`, reported in a separate `institution=ambiguous` line and **never** charged to an institution.
+- Rationale: assignments, classrooms and teachers are institution-scoped, so institution isolation stays intact; a per-student or per-teacher quota would need a second owner model and could not be enforced against one institution's storage bill.
+- Declared vs physical: `db_declared_bytes` sums `byte_size` from rows; `db_physical_bytes` sums only files that exist, are regular, readable and **match the declared size** (metadata only, no PDF body or SHA read). `db_declared_minus_physical_bytes` is the difference. A future quota should charge **verified physical** bytes, with declared bytes as an upper bound while an upload is in flight. Unreferenced files are not charged to anyone (they have no owner).
+- The 25 MiB (`PdfDocumentInspector::MAX_BYTES`) is a per-file limit, **not** a total quota. *Karar bekliyor:* the approved per-institution (or per-plan) byte limit; no live number is invented. `--preview-limit-bytes` accepts an explicit **test** number and only prints `usage_percent_*`; it has no effect on upload acceptance (`preview_limit_applied=no`).
+
+### Retention by lifecycle (proposal)
+
+| Class | Meaning (derived) | Proposal | Status |
+| --- | --- | --- | --- |
+| Draft | submission `draft` | Student-owned work in progress; never auto-removed by age alone. `draft_older_than_threshold` is information for a future stale-draft rule. | *karar bekliyor* (window) |
+| Submitted | submission `submitted`, no evaluation | Teacher must still reach it; **never** a cleanup candidate by age. | keep |
+| Evaluated | `current_evaluation_id` set | Retention window after evaluation (course/school-year end, legal need). | *karar bekliyor* |
+| Unreferenced young | no row, younger than threshold | Protected (possible in-flight upload). | keep |
+| Orphan candidate | no row, at least the threshold old | Preview only, never "definitely deletable". | *karar bekliyor* (threshold, who may delete) |
+
+The command default of 86400 s and the 3600 s floor are **test values, not production policy**. Unknown lifecycle, missing timestamp or ambiguous ownership means *keep*.
+
+### Read-only inventory command
+
+```
+php bin/console app:homework-pdf:inventory [--orphan-min-age=86400] [--by-institution] [--preview-limit-bytes=N]
+```
+
+- Reads the configured durable root only (no symlink follow, no directory descent, no `mkdir`, no fallback to a wider scan) and the database in bounded pages (500 rows; one `IN (...)` lookup per 500 file names, never one query per file). No PDF body is read, no full-store SHA scan. There is no `--apply`, `--delete` or hidden write mode, no scheduler/cron/workflow and no admin screen.
+- Output is `key=value` lines and contains **no** original file names, student emails, PDF content, storage keys, full server paths or env values. `--by-institution` adds institution id, reference count and bytes only.
+- Point-in-time: the filesystem and the DB are read at different instants; counts can differ by files created meanwhile.
+- Header: `homework_pdf_inventory_status` is `ok`, `root_missing` (nothing created; DB side still reported), `root_unsafe` (release-scoped, public, nested/equal to quarantine, or a symlink), `root_unreadable`, `invalid_option` or `error` (code `inventory_failed`; an I/O or DB failure is never shown as an empty store). `store_empty=yes` only for a readable, truly empty root.
+- Disk side: `disk_files/bytes`, `matched_*` (file has a row), `unreferenced_young_*`, `orphan_candidate_files/bytes/temp_files`, `timestamp_unreliable_files`, `unsafe_*` (symlink, directory, special, invalid name, stat failure).
+- DB side: `db_references`, `db_declared_bytes`, `db_physical_bytes`, `db_missing_file`, `db_unreadable_file`, `db_size_mismatch`, `db_invalid_key`, `duplicate_reference`, `ambiguous_owner_references`, per lifecycle `draft_|submitted_|evaluated_` `references|declared_bytes|physical_bytes`, `unknown_lifecycle_references`, `draft_older_than_threshold`.
+- Exit codes: `0` ok / root missing, `1` unsafe root, unreadable root or internal error, `2` invalid option.
+- **A live run is a separate decision** (read-only, but it reads production data; needs explicit scope). This slice ran it only against temporary fixture stores (PHPUnit) and without a database for wiring.
+
+### Next phase (design notes only; not implemented)
+
+- *Race with uploads:* a delete step must re-check the key against the DB **inside** a transaction that also blocks a new row for that key, re-stat the file (size, mtime still older than the threshold) and hold a per-key exclusive lock; a key that gained a row meanwhile is skipped.
+- *Authorization:* a deletion command needs an explicit operator scope, a dry-run that prints a bounded count first, and no teacher/student route.
+- *Rollback:* move to a recoverable quarantine location before final removal; never delete rows and files in one unrecoverable step; the shared store stays append-only until then.
+- *Quota enforcement:* charge in the upload transaction (verified bytes), reject with a fixed message, and keep the number a deploy-time setting that defaults to "no limit" until approved.
+
 ## Release switch, rollback contract, and evidence still needed
 
 **Persistence proof in code (not production):** `TeacherHomeworkPdfHttpTest::testPdfSurvivesReleaseSwitchAndOldReleaseCleanupWithIdenticalBytesAndWrongRootNeverReadsSilently` creates a PDF and submission with the durable/quarantine roots in a simulated `shared/var/` outside `releases/` and `public/`, downloads it as the assigning teacher ("release 1"), boots a fresh container for "release 2", deletes the old release tree, and downloads again: size and SHA-256 equal the stored bytes both times. The same test then points the app at a wrong root: the download is a controlled `404`, the wrong root is **not** created by the `GET`, nothing falls back to another location, and the original object is untouched. `ReleaseDeployScriptTest` covers the deploy side (seven releases + prune, multi-release adoption, abort before activation on a byte conflict). #229's authorization checks and file-integrity read gate (`assertReadable`: size + SHA before streaming) are unchanged.
@@ -81,7 +134,7 @@ Teacher download (assigning teacher only, private stream, no public URL) is impl
 2. Real OLS / lsphp request-body and `upload_max_filesize`/`post_max_size` limits against the 25 MiB application limit.
 3. Live signature freshness on the VDS (freshclam schedule, `daily` age under the 72 h threshold).
 4. `HOMEWORK_PDF_STORAGE_DIR` / `HOMEWORK_PDF_QUARANTINE_DIR` / `HOMEWORK_PDF_CLAMD_STREAM_MAX_BYTES` present in `shared/.env.local` and `isSafe*DirectoryReady()` true on the live release.
-5. Quota, retention, and orphan-durable-object policy (none exists yet; the quarantine purge only covers quarantine). Unlimited storage is not assumed.
+5. Quota, retention, and orphan-durable-object policy: approve the values proposed in "Storage policy proposal and read-only inventory" and run a separate, explicitly approved read-only live inventory (`app:homework-pdf:inventory`). Neither quota enforcement nor automatic deletion exists; the quarantine purge only covers quarantine. Unlimited storage is not assumed.
 6. Explicit production scope/approval for any live deploy, migration, or setting change.
 
 ## Isolated GitHub Actions ClamAV accept (runner only)
