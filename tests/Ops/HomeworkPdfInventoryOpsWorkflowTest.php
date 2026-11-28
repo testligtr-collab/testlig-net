@@ -107,7 +107,7 @@ final class HomeworkPdfInventoryOpsWorkflowTest extends TestCase
         self::assertSame(0, preg_match_all('/^\s*(scp|sftp|rsync)\s+/m', $text));
         self::assertStringContainsString('ssh testlig-vds "export EXPECTED_SHA=$(printf %q "$EXPECTED_SHA"); bash -s" < deploy/vds/gha-homework-pdf-inventory-remote.sh', $command);
         self::assertStringContainsString('gha-ssh-close-master.sh', $command);
-        self::assertStringContainsString('hw_pdf_ops_complete=yes', $command);
+        self::assertStringContainsString('gha-homework-pdf-inventory-report.sh', $command);
         self::assertDoesNotMatchRegularExpression('/\b(until|while)\b|\bfor\b[^\n]*\bssh\b|\|\|\s*true|retry/i', $text);
         self::assertStringNotContainsString('TESTLIG_HW_INVENTORY_ROOT', $text);
         self::assertStringNotContainsString('--by-institution', $text);
@@ -465,6 +465,56 @@ final class HomeworkPdfInventoryOpsWorkflowTest extends TestCase
             self::assertTrue($matched, 'Unexpected output line: '.$line);
             self::assertDoesNotMatchRegularExpression('/[@]|:\/\/|\.pdf|\.bin\b|\.env/i', $line, $line);
         }
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function reporterScenarioProvider(): iterable
+    {
+        yield 'full report' => ['happy', 'ok'];
+        yield 'readiness gaps' => ['gaps', 'ok'];
+        yield 'blocked release' => ['revision_differs', 'ok'];
+        yield 'storage differs' => ['storage_differs', 'ok'];
+        yield 'empty store' => ['state-empty', 'empty'];
+        yield 'root missing' => ['state-root_missing', 'root_missing'];
+        yield 'unsafe root' => ['state-unsafe', 'unsafe'];
+        yield 'inventory error' => ['state-error', 'error'];
+    }
+
+    /**
+     * The local reporter shows only allowlisted lines; this keeps its allowlist in step with what the remote script
+     * really prints, so a real report is never silently cut.
+     */
+    #[DataProvider('reporterScenarioProvider')]
+    public function testReporterKeepsEveryRealRemoteLine(string $scenario, string $mode): void
+    {
+        $fixture = $this->fixture($scenario, $mode);
+        if ('gaps' === $scenario) {
+            $root = $fixture['root'];
+            $this->removeTree($root.'/proc');
+            mkdir($root.'/proc', 0777, true);
+            unlink($root.'/etc/clamd.d/scan.conf');
+            unlink($root.'/var/lib/clamav/daily.cld');
+            unlink($root.'/fixture-systemctl');
+        }
+        [, $remote] = $this->runRemote($fixture);
+        // The fixture console prints some junk on purpose; the remote script already drops it.
+        $file = $fixture['root'].'.remote-out';
+        $this->logs[] = $file;
+        file_put_contents($file, $remote);
+
+        [$exit, $report] = $this->runBash(
+            'bash '.escapeshellarg($this->bashPath($this->root().'/deploy/vds/gha-homework-pdf-inventory-report.sh')).' '.escapeshellarg($this->bashPath($file)).' '.escapeshellarg('').' 0',
+            [],
+            [],
+        );
+
+        self::assertStringContainsString("remote_lines_dropped=0\n", $report);
+        self::assertStringContainsString("remote_complete=yes\n", $report);
+        self::assertSame(0, $exit, $report);
+        $shown = (int) preg_replace('/^.*remote_lines_shown=(\d+).*$/s', '$1', $report);
+        self::assertSame(\count(preg_split('/\R/', trim($remote)) ?: []), $shown);
     }
 
     public function testRemoteScriptHasValidBashSyntax(): void
